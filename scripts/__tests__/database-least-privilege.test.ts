@@ -8,6 +8,21 @@ type DatabaseRoleModule = {
     securityDefiner: boolean;
     configuration: readonly string[];
     allowedRoles: readonly string[];
+    bodySha256: string;
+    language: string;
+    kind: string;
+    volatility: string;
+    strict: boolean;
+    parallel: string;
+    leakproof: boolean;
+    argumentNames: readonly string[];
+    argumentModes: readonly string[];
+    argumentTypes: readonly string[];
+    inputArgumentCount: number;
+    argumentDefaultCount: number;
+    returnType: string;
+    returnsSet: boolean;
+    variadic: boolean;
   }>;
   reviewedApplicationFunctionPrivilegesSql: () => string;
   validateDatabaseRoleUrls: (input: {
@@ -18,20 +33,36 @@ type DatabaseRoleModule = {
     databaseMigratorUrl: string;
     databaseWorkerUrl: string;
     databaseOpsUrl: string;
-  }) => Record<string, { username: string; hostname: string; database: string }>;
+  }) => Record<
+    string,
+    { username: string; hostname: string; database: string }
+  >;
   validateOwnershipInventory: (input: {
     postgresUser: string;
     postgresDatabase: string;
     databases: Array<{ name: string; owner: string }>;
     tablespaces: Array<{ name: string; owner: string }>;
     schemas: Array<{ name: string; owner: string }>;
-    objects: Array<{ schema: string; name: string; kind: string; owner: string }>;
+    objects: Array<{
+      schema: string;
+      name: string;
+      kind: string;
+      owner: string;
+    }>;
     unexpectedOwnerDependencies?: Array<{ catalog: string; objectId: string }>;
-    directAcls?: Array<{ scope: string; grantee: string; privilege: string; isGrantable?: boolean }>;
+    directAcls?: Array<{
+      scope: string;
+      grantee: string;
+      privilege: string;
+      isGrantable?: boolean;
+    }>;
   }) => void;
   cleanupDatabaseBootstrapResources: (input: {
     client: {
-      query: (sql: string, parameters?: unknown[]) => Promise<{ rows: Array<{ released?: boolean }> }>;
+      query: (
+        sql: string,
+        parameters?: unknown[],
+      ) => Promise<{ rows: Array<{ released?: boolean }> }>;
       release: (destroy?: boolean) => void;
     };
     pool: { end: () => Promise<void> };
@@ -56,12 +87,14 @@ const urls = {
   postgresDatabase: "learncoding",
   databaseBootstrapUrl:
     "postgresql://legacy_bootstrap:bootstrap-Fake-A-0000000000000000@postgres:5432/learncoding",
-  databaseAppUrl: "postgresql://learncoding_app:app-Fake-B-000000000000000000000@postgres:5432/learncoding",
+  databaseAppUrl:
+    "postgresql://learncoding_app:app-Fake-B-000000000000000000000@postgres:5432/learncoding",
   databaseMigratorUrl:
     "postgresql://learncoding_migrator:migrator-Fake-C-00000000000000000@postgres:5432/learncoding",
   databaseWorkerUrl:
     "postgresql://learncoding_worker:worker-Fake-D-0000000000000000000@postgres:5432/learncoding",
-  databaseOpsUrl: "postgresql://learncoding_ops:ops-Fake-E-000000000000000000000@postgres:5432/learncoding",
+  databaseOpsUrl:
+    "postgresql://learncoding_ops:ops-Fake-E-000000000000000000000@postgres:5432/learncoding",
 };
 
 describe("database least-privilege bootstrap", () => {
@@ -74,11 +107,28 @@ describe("database least-privilege bootstrap", () => {
     );
   });
 
-  it("reconciles one exact reviewed ops routine after the blanket revoke", async () => {
+  it("reconciles the exact reviewed mail-authority routines after the blanket revoke", async () => {
     const databaseRoleBootstrap = await loadDatabaseRoleModule();
 
     expect(databaseRoleBootstrap).not.toBeNull();
-    expect(databaseRoleBootstrap!.REVIEWED_APPLICATION_FUNCTIONS).toEqual([
+    const routines = databaseRoleBootstrap!.REVIEWED_APPLICATION_FUNCTIONS;
+    expect(
+      routines.map(
+        ({
+          signature,
+          owner,
+          securityDefiner,
+          configuration,
+          allowedRoles,
+        }) => ({
+          signature,
+          owner,
+          securityDefiner,
+          configuration,
+          allowedRoles,
+        }),
+      ),
+    ).toEqual([
       {
         signature:
           "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
@@ -87,21 +137,76 @@ describe("database least-privilege bootstrap", () => {
         configuration: ["search_path=pg_catalog"],
         allowedRoles: ["learncoding_ops"],
       },
+      {
+        signature:
+          "public.classify_email_outbox_retention_redaction(public.email_outbox,timestamp with time zone)",
+        owner: "learncoding_owner",
+        securityDefiner: true,
+        configuration: ["search_path=pg_catalog"],
+        allowedRoles: [],
+      },
+      {
+        signature: "public.enforce_email_outbox_payload_immutable()",
+        owner: "learncoding_owner",
+        securityDefiner: false,
+        configuration: ["search_path=pg_catalog"],
+        allowedRoles: [],
+      },
+      {
+        signature: "public.enforce_email_outbox_dispatch_binding()",
+        owner: "learncoding_owner",
+        securityDefiner: false,
+        configuration: ["search_path=pg_catalog"],
+        allowedRoles: [],
+      },
     ]);
+    for (const routine of routines) {
+      expect(routine.bodySha256).toMatch(/^[0-9a-f]{64}$/u);
+      expect(routine.language).toBe("plpgsql");
+      expect(routine.kind).toBe("f");
+      expect(routine.argumentDefaultCount).toBe(0);
+      expect(routine.variadic).toBe(false);
+    }
+    expect(routines[0]).toMatchObject({
+      argumentNames: [
+        "cutoff_at",
+        "batch_limit",
+        "disposition",
+        "eligible",
+        "transitioned",
+      ],
+      argumentModes: ["i", "i", "t", "t", "t"],
+      argumentTypes: [
+        "timestamp with time zone",
+        "integer",
+        "text",
+        "bigint",
+        "bigint",
+      ],
+      inputArgumentCount: 2,
+      returnType: "record",
+      returnsSet: true,
+    });
     const reviewedGrant = databaseRoleBootstrap!
       .reviewedApplicationFunctionPrivilegesSql()
       .toLowerCase();
     expect(reviewedGrant).toContain(
       "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer) to learncoding_ops",
     );
-    expect(reviewedGrant).not.toMatch(/to\s+(public|learncoding_app|learncoding_worker|learncoding_migrator)\b/iu);
+    expect(reviewedGrant).not.toMatch(
+      /to\s+(public|learncoding_app|learncoding_worker|learncoding_migrator)\b/iu,
+    );
 
     const source = await import("node:fs/promises").then(({ readFile }) =>
-      readFile("scripts/bootstrap-database-roles.mjs", "utf8"));
-    expect(source.indexOf("revoke execute on all routines in schema public"))
-      .toBeLessThan(
-        source.indexOf("await client.query(reviewedApplicationFunctionPrivilegesSql())"),
-      );
+      readFile("scripts/bootstrap-database-roles.mjs", "utf8"),
+    );
+    expect(
+      source.indexOf("revoke execute on all routines in schema public"),
+    ).toBeLessThan(
+      source.indexOf(
+        "await client.query(reviewedApplicationFunctionPrivilegesSql())",
+      ),
+    );
     expect(source).toMatch(/is distinct from exists/iu);
     expect(source).toMatch(/has_function_privilege\(0, p\.oid, 'EXECUTE'\)/u);
     expect(source).toMatch(
@@ -120,13 +225,18 @@ describe("database least-privilege bootstrap", () => {
 
   it("wires the real role boundaries into the behavior-tested release cycles", async () => {
     const source = await import("node:fs/promises").then(({ readFile }) =>
-      readFile("scripts/run-integration-tests.ts", "utf8"));
-    const bootstrapSource = await import("node:fs/promises").then(({ readFile }) =>
-      readFile("scripts/bootstrap-database-roles.mjs", "utf8"));
-    const packageJson = await import("node:fs/promises").then(async ({ readFile }) =>
-      JSON.parse(await readFile("package.json", "utf8")) as {
-        scripts: Record<string, string>;
-      });
+      readFile("scripts/run-integration-tests.ts", "utf8"),
+    );
+    const bootstrapSource = await import("node:fs/promises").then(
+      ({ readFile }) =>
+        readFile("scripts/bootstrap-database-roles.mjs", "utf8"),
+    );
+    const packageJson = await import("node:fs/promises").then(
+      async ({ readFile }) =>
+        JSON.parse(await readFile("package.json", "utf8")) as {
+          scripts: Record<string, string>;
+        },
+    );
     const orchestratorIndex = source.indexOf(
       "await runDisposableIntegrationReleaseCycles({",
     );
@@ -140,19 +250,27 @@ describe("database least-privilege bootstrap", () => {
     expect(source).toContain(
       'migrationsFolder: path.resolve(process.cwd(), "drizzle")',
     );
-    expect(source).toContain("new Pool({ connectionString: input.databaseUrl, max: 1 })");
+    expect(source).toContain(
+      "new Pool({ connectionString: input.databaseUrl, max: 1 })",
+    );
     expect(source).toContain("verifyDisposableRoleBoundaryAdapter({");
     expect(source).toContain("env: minimalNodeTestEnvironment(process.env)");
     expect(source).toContain("expectedJournalCount");
     expect(source).toContain("postgresUser: input.integrationUser");
     expect(source).toContain("verifyDatabaseRoleBootstrapState");
-    expect(source).toContain("reconcileRoles: () => reconcileDisposableIntegrationRoles(topology)");
+    expect(source).toContain(
+      "reconcileRoles: () => reconcileDisposableIntegrationRoles(topology)",
+    );
     expect(source).toContain("verifyDisposableIntegrationRoleBoundaries({");
-    expect(source).toContain("migrate: () => runDisposableIntegrationMigration(roleUrls.migrator)");
-    expect(source).toContain("verifyTopology: () => verifyDisposableIntegrationTopology(topology)");
+    expect(source).toContain(
+      "migrate: () => runDisposableIntegrationMigration(roleUrls.migrator)",
+    );
+    expect(source).toContain(
+      "verifyTopology: () => verifyDisposableIntegrationTopology(topology)",
+    );
     expect(source).toContain("sanitizedIntegrationEnvironment(process.env)");
     expect(source).toContain("ownerAssumingDatabaseUrl(roleUrls.migrator)");
-    expect(source).toContain('client.release();\n    await pool.end();');
+    expect(source).toContain("client.release();\n    await pool.end();");
     expect(source).not.toContain("journal_count !== 63");
     expect(source).not.toContain("`POSTGRES_PASSWORD=${password}`");
     expect(source).not.toContain("DATABASE_URL: databaseUrl");
@@ -177,9 +295,15 @@ describe("database least-privilege bootstrap", () => {
 
   it("uses the disposable ops session for ordinary integration retention", async () => {
     const source = await import("node:fs/promises").then(({ readFile }) =>
-      readFile("integration/postgres.integration.test.ts", "utf8"));
-    const opsProofSource = await import("node:fs/promises").then(({ readFile }) =>
-      readFile("integration/retention-ops-session.integration.test.ts", "utf8"));
+      readFile("integration/postgres.integration.test.ts", "utf8"),
+    );
+    const opsProofSource = await import("node:fs/promises").then(
+      ({ readFile }) =>
+        readFile(
+          "integration/retention-ops-session.integration.test.ts",
+          "utf8",
+        ),
+    );
     const dependencyStart = source.indexOf(
       "const integrationRetentionDependencies = {",
     );
@@ -192,10 +316,10 @@ describe("database least-privilege bootstrap", () => {
     ];
 
     expect(source).toContain("const integrationRetentionPool = new PgPool({");
-    expect(source).toContain("const integrationRetentionFileErasureDependencies = {");
     expect(source).toContain(
-      "connectionString: process.env.DATABASE_OPS_URL",
+      "const integrationRetentionFileErasureDependencies = {",
     );
+    expect(source).toContain("connectionString: process.env.DATABASE_OPS_URL");
     expect(source).toContain("integrationRetentionPool.end()");
     expect(dependencyStart).toBeGreaterThanOrEqual(0);
     expect(dependencyEnd).toBeGreaterThan(dependencyStart);
@@ -204,8 +328,27 @@ describe("database least-privilege bootstrap", () => {
     );
     expect(retentionCalls.length).toBeGreaterThan(0);
     expect(scopedRetentionCalls).toHaveLength(retentionCalls.length);
-    expect(opsProofSource.match(/runRetention\(/gu)).toHaveLength(1);
-    expect(opsProofSource).toContain("}, integrationRetentionDependencies);");
+    const opsProofCalls = [
+      ...opsProofSource.matchAll(/(?:\bretention[.])?runRetention\(/gu),
+    ];
+    expect(opsProofCalls).toHaveLength(2);
+    expect(opsProofSource).toMatch(
+      /const integrationRetentionDependencies = \{[\s\S]*?acquireClient: \(\) => integrationRetentionPool[.]connect\(\),[\s\S]*?\} as const;/u,
+    );
+    expect(opsProofSource).toMatch(
+      /const report = await runRetention\(\{[\s\S]*?\}, integrationRetentionDependencies\);/u,
+    );
+    expect(opsProofSource).toMatch(
+      /const report = await retention[.]runRetention\(\{[\s\S]*?\}, \{[\s\S]*?acquireClient: \(\) => opsPool[.]connect\(\),[\s\S]*?processFileErasures:/u,
+    );
+    expect(opsProofSource).toMatch(
+      /const opsPool = new PgPool\(\{[\s\S]*?connectionString: databaseOpsUrl,[\s\S]*?\}\);/u,
+    );
+    const firstCall = opsProofCalls[0]?.index;
+    const secondCall = opsProofCalls[1]?.index;
+    expect(firstCall).toBeTypeOf("number");
+    expect(secondCall).toBeTypeOf("number");
+    expect(firstCall!).toBeLessThan(secondCall!);
     expect(opsProofSource).toContain("select current_user, session_user");
     expect(opsProofSource).toContain("runWithValidatedRetentionOpsEnvironment");
     expect(opsProofSource).toContain("current_database()");
@@ -237,30 +380,48 @@ describe("database least-privilege bootstrap", () => {
   });
 
   it.each([
-    ["bootstrap user reused by app", { databaseAppUrl: urls.databaseBootstrapUrl }],
+    [
+      "bootstrap user reused by app",
+      { databaseAppUrl: urls.databaseBootstrapUrl },
+    ],
     [
       "session-changing query option",
-      { databaseAppUrl: `${urls.databaseAppUrl}?options=-csearch_path%3Dpublic` },
+      {
+        databaseAppUrl: `${urls.databaseAppUrl}?options=-csearch_path%3Dpublic`,
+      },
     ],
     [
       "wrong database host",
-      { databaseWorkerUrl: urls.databaseWorkerUrl.replace("@postgres:", "@localhost:") },
+      {
+        databaseWorkerUrl: urls.databaseWorkerUrl.replace(
+          "@postgres:",
+          "@localhost:",
+        ),
+      },
     ],
     [
       "duplicate password",
-      { databaseOpsUrl: urls.databaseAppUrl.replace("learncoding_app", "learncoding_ops") },
+      {
+        databaseOpsUrl: urls.databaseAppUrl.replace(
+          "learncoding_app",
+          "learncoding_ops",
+        ),
+      },
     ],
     [
       "short password",
-      { databaseOpsUrl: "postgresql://learncoding_ops:too-short@postgres:5432/learncoding" },
+      {
+        databaseOpsUrl:
+          "postgresql://learncoding_ops:too-short@postgres:5432/learncoding",
+      },
     ],
   ])("rejects %s without exposing credentials", async (_name, override) => {
     const databaseRoleBootstrap = await loadDatabaseRoleModule();
 
     expect(databaseRoleBootstrap).not.toBeNull();
-    expect(() => databaseRoleBootstrap!.validateDatabaseRoleUrls({ ...urls, ...override })).toThrow(
-      /database credential configuration is invalid/u,
-    );
+    expect(() =>
+      databaseRoleBootstrap!.validateDatabaseRoleUrls({ ...urls, ...override }),
+    ).toThrow(/database credential configuration is invalid/u);
   });
 
   it("accepts the fresh pg_database_owner public schema invariant", async () => {
@@ -312,9 +473,18 @@ describe("database least-privilege bootstrap", () => {
   });
 
   it.each([
-    ["decoy database", { databases: [{ name: "decoy", owner: "legacy_bootstrap" }] }],
-    ["decoy tablespace", { tablespaces: [{ name: "decoy_space", owner: "legacy_bootstrap" }] }],
-    ["out-of-scope schema", { schemas: [{ name: "decoy", owner: "legacy_bootstrap" }] }],
+    [
+      "decoy database",
+      { databases: [{ name: "decoy", owner: "legacy_bootstrap" }] },
+    ],
+    [
+      "decoy tablespace",
+      { tablespaces: [{ name: "decoy_space", owner: "legacy_bootstrap" }] },
+    ],
+    [
+      "out-of-scope schema",
+      { schemas: [{ name: "decoy", owner: "legacy_bootstrap" }] },
+    ],
     [
       "unsupported owner-bearing catalog object",
       {
@@ -327,7 +497,11 @@ describe("database least-privilege bootstrap", () => {
       "external direct ACL grantee",
       {
         directAcls: [
-          { scope: "table public.lesson", grantee: "legacy_reader", privilege: "SELECT" },
+          {
+            scope: "table public.lesson",
+            grantee: "legacy_reader",
+            privilege: "SELECT",
+          },
         ],
       },
     ],
@@ -335,7 +509,12 @@ describe("database least-privilege bootstrap", () => {
       "grantable direct ACL",
       {
         directAcls: [
-          { scope: "table public.lesson", grantee: "learncoding_app", privilege: "SELECT", isGrantable: true },
+          {
+            scope: "table public.lesson",
+            grantee: "learncoding_app",
+            privilege: "SELECT",
+            isGrantable: true,
+          },
         ],
       },
     ],
@@ -435,7 +614,10 @@ describe("database least-privilege bootstrap", () => {
       import("node:fs/promises"),
       import("node:path"),
     ]);
-    const source = await readFile(join(process.cwd(), "scripts", "bootstrap-database-roles.mjs"), "utf8");
+    const source = await readFile(
+      join(process.cwd(), "scripts", "bootstrap-database-roles.mjs"),
+      "utf8",
+    );
 
     expect(source).toContain(
       "when 'a' then 'alter aggregate %I.%I(%s) owner to learncoding_owner'",
@@ -452,9 +634,13 @@ describe("database least-privilege bootstrap", () => {
     );
     expect(source).toMatch(/when acl\.grantee = 0 then 'PUBLIC'/u);
     expect(source).not.toMatch(/on all types in schema/iu);
-    expect(source).toContain("alter default privileges for role learncoding_owner in schema public");
+    expect(source).toContain(
+      "alter default privileges for role learncoding_owner in schema public",
+    );
     expect(source).not.toMatch(/rolconfig is null/u);
-    expect(source).toMatch(/not exists \(\s*select 1 from pg_db_role_setting/iu);
+    expect(source).toMatch(
+      /not exists \(\s*select 1 from pg_db_role_setting/iu,
+    );
     expect(source).not.toMatch(/has_[a-z_]+_privilege\('PUBLIC'/u);
     expect(source).toMatch(/pg_terminate_backend\(pid\)/u);
     expect(source).not.toMatch(/pg_terminate_backend\(pid,\s*5000\)/u);

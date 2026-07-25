@@ -3,9 +3,11 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertMailDeliveryScope0059PostgresProjection } from "./mail-delivery-scope-0059-ci-contract.mjs";
-import { assertMailRetentionRedaction0063PostgresProjection } from "./mail-retention-redaction-0063-ci-contract.mjs";
-import { assertMailDispatchBinding0064PostgresProjection } from "./mail-dispatch-binding-0064-ci-contract.mjs";
+import { postgresCiProjectionThrough0064 } from "./mail-dispatch-binding-0064-ci-contract.mjs";
+import {
+  assertPostgresCiProjectionContract,
+  projectPostgresCiProjectionContract,
+} from "./mail-retention-redaction-0063-ci-contract.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const workflowPath =
@@ -39,7 +41,9 @@ function requireHarnessFragment(source, fragment, message) {
 function harnessFunction(source, name, message) {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const matches = [
-    ...source.matchAll(new RegExp(`^${escaped}\\(\\) \\{\\n[\\s\\S]*?^\\}$`, "gm")),
+    ...source.matchAll(
+      new RegExp(`^${escaped}\\(\\) \\{\\n[\\s\\S]*?^\\}$`, "gm"),
+    ),
   ];
   if (matches.length !== 1) {
     fail(message);
@@ -106,7 +110,9 @@ function validateHarnessCredentialProbeCleanupContract(source) {
   }
   const validator = functionMatch[0];
   const rescanMatch =
-    /^remove_owned_credential_probe_containers\(\) \{\n[\s\S]*?^\}$/m.exec(source);
+    /^remove_owned_credential_probe_containers\(\) \{\n[\s\S]*?^\}$/m.exec(
+      source,
+    );
   if (rescanMatch === null) {
     fail("credential-probe cleanup rescan is missing or malformed");
   }
@@ -145,7 +151,7 @@ function validateHarnessCredentialProbeCleanupContract(source) {
       "credential-probe cleanup secret bind identity is incomplete",
     ],
     [
-      '^([0-9]{8}T[0-9]{6}Z)[.][A-Za-z0-9]{6}/probe-output$',
+      "^([0-9]{8}T[0-9]{6}Z)[.][A-Za-z0-9]{6}/probe-output$",
       "credential-probe cleanup output bind boundary is incomplete",
     ],
     [
@@ -161,7 +167,10 @@ function validateHarnessCredentialProbeCleanupContract(source) {
       fail(message);
     }
   }
-  if (validator.includes("{{.Name}}") || validator.includes("resource_prefix")) {
+  if (
+    validator.includes("{{.Name}}") ||
+    validator.includes("resource_prefix")
+  ) {
     fail("credential-probe cleanup relies on the daemon-generated name");
   }
   for (const [fragment, message] of [
@@ -250,7 +259,7 @@ function validateHarnessCleanupEvidenceContract(source) {
     ],
     [
       confirmAbsent,
-      'docker info >/dev/null 2>&1 || return 1',
+      "docker info >/dev/null 2>&1 || return 1",
       "absence confirmation does not require a reachable Docker daemon",
     ],
     [
@@ -285,7 +294,7 @@ function validateHarnessCleanupEvidenceContract(source) {
     ],
     [
       rescan,
-      'append_docker_query_lines probe_candidates docker ps',
+      "append_docker_query_lines probe_candidates docker ps",
       "credential-probe rescan discards Docker query status",
     ],
     [
@@ -350,17 +359,17 @@ function validateHarnessCleanupEvidenceContract(source) {
     ],
     [
       cleanup,
-      'docker_query_is_empty docker network ls -q --no-trunc',
+      "docker_query_is_empty docker network ls -q --no-trunc",
       "final network residue query is not status preserving",
     ],
     [
       cleanup,
-      'docker_query_is_empty docker volume ls -q',
+      "docker_query_is_empty docker volume ls -q",
       "final volume residue query is not status preserving",
     ],
     [
       cleanup,
-      'docker_query_is_empty docker image ls -aq',
+      "docker_query_is_empty docker image ls -aq",
       "final image residue query is not status preserving",
     ],
     [
@@ -408,28 +417,65 @@ function validateHarnessEphemeralRuntimeContract(source) {
     "production E2E short ephemeral-runtime validator is missing or malformed",
   );
   for (const [fragment, message] of [
-    ['local stage_root="$test_root/staging" ephemeral_root="/run/bpe"', "production E2E does not use the reviewed short in-container ephemeral root"],
-    ["--tmpfs /run/bpe:rw,noexec,nosuid,nodev,size=16m,mode=0700,uid=0,gid=0", "production E2E short ephemeral root is not backed by an explicit private tmpfs"],
-  ]) requireHarnessFragment(source, fragment, message);
+    [
+      'local stage_root="$test_root/staging" ephemeral_root="/run/bpe"',
+      "production E2E does not use the reviewed short in-container ephemeral root",
+    ],
+    [
+      "--tmpfs /run/bpe:rw,noexec,nosuid,nodev,size=16m,mode=0700,uid=0,gid=0",
+      "production E2E short ephemeral root is not backed by an explicit private tmpfs",
+    ],
+  ])
+    requireHarnessFragment(source, fragment, message);
   for (const [fragment, message] of [
-    ['[[ "$root" == /run/bpe ]]', "ephemeral-runtime validator accepts a different or long root"],
-    ['.managed-deadline-stop-00000000000000000000000000000000.sock', "ephemeral-runtime validator omits the deterministic AF_UNIX endpoint probe"],
-    ['${#endpoint_probe} == 78 && ${#endpoint_probe} < 108', "ephemeral-runtime validator does not prove the exact AF_UNIX byte bound"],
-    ['"$(stat -c \'%a:%u\' -- "$root")" == 700:0', "ephemeral-runtime validator omits exact mode/owner proof"],
-    ['"$(findmnt -n -o SOURCE -T "$root")" == tmpfs', "ephemeral-runtime validator omits tmpfs source proof"],
-    ['"$(findmnt -n -o FSTYPE -T "$root")" == tmpfs', "ephemeral-runtime validator omits tmpfs filesystem proof"],
-    ['"$(findmnt -n -o TARGET -T "$root")" == "$root"', "ephemeral-runtime validator omits exact mount-target proof"],
-    ['[[ -z "$(find -P "$root" -mindepth 1 -print -quit)" ]]', "ephemeral-runtime validator omits deterministic residue proof"],
-  ]) if (!runtimeCheck.includes(fragment)) fail(message);
-  if (source.split('assert_ephemeral_runtime_clean "$ephemeral_root"').length !== 3) {
-    fail("production E2E does not prove ephemeral tmpfs state before and after backup");
+    [
+      '[[ "$root" == /run/bpe ]]',
+      "ephemeral-runtime validator accepts a different or long root",
+    ],
+    [
+      ".managed-deadline-stop-00000000000000000000000000000000.sock",
+      "ephemeral-runtime validator omits the deterministic AF_UNIX endpoint probe",
+    ],
+    [
+      "${#endpoint_probe} == 78 && ${#endpoint_probe} < 108",
+      "ephemeral-runtime validator does not prove the exact AF_UNIX byte bound",
+    ],
+    [
+      '"$(stat -c \'%a:%u\' -- "$root")" == 700:0',
+      "ephemeral-runtime validator omits exact mode/owner proof",
+    ],
+    [
+      '"$(findmnt -n -o SOURCE -T "$root")" == tmpfs',
+      "ephemeral-runtime validator omits tmpfs source proof",
+    ],
+    [
+      '"$(findmnt -n -o FSTYPE -T "$root")" == tmpfs',
+      "ephemeral-runtime validator omits tmpfs filesystem proof",
+    ],
+    [
+      '"$(findmnt -n -o TARGET -T "$root")" == "$root"',
+      "ephemeral-runtime validator omits exact mount-target proof",
+    ],
+    [
+      '[[ -z "$(find -P "$root" -mindepth 1 -print -quit)" ]]',
+      "ephemeral-runtime validator omits deterministic residue proof",
+    ],
+  ])
+    if (!runtimeCheck.includes(fragment)) fail(message);
+  if (
+    source.split('assert_ephemeral_runtime_clean "$ephemeral_root"').length !==
+    3
+  ) {
+    fail(
+      "production E2E does not prove ephemeral tmpfs state before and after backup",
+    );
   }
 }
 
 function validateHarnessRestoreEntrypointContract(source) {
   for (const [fragment, message] of [
     [
-      'scripts/backup/restore.sh',
+      "scripts/backup/restore.sh",
       "production E2E bypasses the real restore entrypoint",
     ],
     [
@@ -437,15 +483,15 @@ function validateHarnessRestoreEntrypointContract(source) {
       "production E2E does not bind the verified extraction and isolated database to restore.sh",
     ],
     [
-      '--env RESTORE_CREDENTIAL_PROBE=/restore/credential-probe.json',
+      "--env RESTORE_CREDENTIAL_PROBE=/restore/credential-probe.json",
       "production E2E does not recover the produced credential probe",
     ],
     [
-      '--env CREDENTIAL_MASTER_KEY_FILE=/recovery/credential_master_key',
+      "--env CREDENTIAL_MASTER_KEY_FILE=/recovery/credential_master_key",
       "production E2E does not use the recovery master key",
     ],
     [
-      '--import tsx /app/scripts/verify-restored-backup.ts',
+      "--import tsx /app/scripts/verify-restored-backup.ts",
       "production E2E does not run the real database/app-data/credential restore smoke",
     ],
     [
@@ -486,8 +532,10 @@ const rootFixturePrefix =
   "sudo env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LC_ALL=C bash";
 const rootFixtureRun = (fixture) => `${rootFixturePrefix} ${fixture}`;
 const rootRequiredFixtures = [
-  "infra/tests/offsite-recovery.test.sh", "infra/tests/offsite-retention.test.sh",
-  "infra/tests/recovery-kit.test.sh", "infra/tests/recovery-evidence-verifier.test.sh",
+  "infra/tests/offsite-recovery.test.sh",
+  "infra/tests/offsite-retention.test.sh",
+  "infra/tests/recovery-kit.test.sh",
+  "infra/tests/recovery-evidence-verifier.test.sh",
 ];
 const requiredBackupRuns = [
   registrationRun,
@@ -639,52 +687,52 @@ const topologyDockerProjection = [
   "      - run: |",
   "          set -Eeuo pipefail",
   "          expected_endpoint=\u0027unix:///var/run/docker.sock\u0027",
-  "          current_context=\"$(docker context show)\"",
-  "          current_endpoint=\"$(docker context inspect --format \u0027{{.Endpoints.docker.Host}}\u0027 \"$current_context\")\"",
-  "          effective_endpoint=\"${DOCKER_HOST:-$current_endpoint}\"",
-  "          if [[ \"$current_endpoint\" != \"$expected_endpoint\" || \"$effective_endpoint\" != \"$expected_endpoint\" || ! -S /var/run/docker.sock ]]; then",
-  "            echo \"The topology job requires the disposable host system Docker socket.\" \u003e\u00262",
+  '          current_context="$(docker context show)"',
+  '          current_endpoint="$(docker context inspect --format \u0027{{.Endpoints.docker.Host}}\u0027 "$current_context")"',
+  '          effective_endpoint="${DOCKER_HOST:-$current_endpoint}"',
+  '          if [[ "$current_endpoint" != "$expected_endpoint" || "$effective_endpoint" != "$expected_endpoint" || ! -S /var/run/docker.sock ]]; then',
+  '            echo "The topology job requires the disposable host system Docker socket." \u003e\u00262',
   "            exit 1",
   "          fi",
-  "          container_ids=\"$(docker ps -aq)\"",
-  "          if [[ -n \"$container_ids\" ]]; then",
-  "            echo \"The topology job refuses a host with pre-existing containers.\" \u003e\u00262",
+  '          container_ids="$(docker ps -aq)"',
+  '          if [[ -n "$container_ids" ]]; then',
+  '            echo "The topology job refuses a host with pre-existing containers." \u003e\u00262',
   "            exit 1",
   "          fi",
   "          readonly docker_package_version=\u00275:29.6.1-1~ubuntu.24.04~noble\u0027",
   "          readonly docker_gpg_sha256=\u00271500c1f56fa9e26b9b8f42452a553675796ade0807cdce11975eb98170b3a570\u0027",
-  "          docker_gpg_key=\"$(mktemp)\"",
-  "          trap \u0027rm -f -- \"$docker_gpg_key\"\u0027 EXIT",
+  '          docker_gpg_key="$(mktemp)"',
+  '          trap \u0027rm -f -- "$docker_gpg_key"\u0027 EXIT',
   "          curl --fail --silent --show-error --location \\",
   "            https://download.docker.com/linux/ubuntu/gpg \\",
-  "            --output \"$docker_gpg_key\"",
-  "          printf \u0027%s  %s\\n\u0027 \"$docker_gpg_sha256\" \"$docker_gpg_key\" | sha256sum --check --status",
+  '            --output "$docker_gpg_key"',
+  '          printf \u0027%s  %s\\n\u0027 "$docker_gpg_sha256" "$docker_gpg_key" | sha256sum --check --status',
   "          . /etc/os-release",
-  "          [[ \"$ID\" == ubuntu \u0026\u0026 \"$VERSION_CODENAME\" == noble ]] || {",
-  "            echo \"The reviewed Docker package is pinned to Ubuntu 24.04 noble.\" \u003e\u00262",
+  '          [[ "$ID" == ubuntu \u0026\u0026 "$VERSION_CODENAME" == noble ]] || {',
+  '            echo "The reviewed Docker package is pinned to Ubuntu 24.04 noble." \u003e\u00262',
   "            exit 1",
   "          }",
   "          sudo install -m 0755 -d /etc/apt/keyrings",
-  "          sudo install -m 0644 \"$docker_gpg_key\" /etc/apt/keyrings/docker.asc",
+  '          sudo install -m 0644 "$docker_gpg_key" /etc/apt/keyrings/docker.asc',
   "          printf \u0027deb [arch=%s signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu %s stable\\n\u0027 \\",
-  "            \"$(dpkg --print-architecture)\" \"$VERSION_CODENAME\" \\",
+  '            "$(dpkg --print-architecture)" "$VERSION_CODENAME" \\',
   "            | sudo tee /etc/apt/sources.list.d/docker.list \u003e/dev/null",
   "          conflicting_packages=(",
   "            docker.io docker-doc docker-compose docker-compose-v2 podman-docker",
   "            containerd runc moby-engine moby-cli moby-buildx moby-compose",
   "          )",
   "          installed_conflicts=()",
-  "          for package in \"${conflicting_packages[@]}\"; do",
-  "            if dpkg-query -W -f=\u0027${db:Status-Abbrev}\u0027 \"$package\" 2\u003e/dev/null | grep -q \u0027^ii \u0027; then",
-  "              installed_conflicts+=(\"$package\")",
+  '          for package in "${conflicting_packages[@]}"; do',
+  '            if dpkg-query -W -f=\u0027${db:Status-Abbrev}\u0027 "$package" 2\u003e/dev/null | grep -q \u0027^ii \u0027; then',
+  '              installed_conflicts+=("$package")',
   "            fi",
   "          done",
   "          if ((${#installed_conflicts[@]} \u003e 0)); then",
-  "            sudo apt-get remove --yes \"${installed_conflicts[@]}\"",
+  '            sudo apt-get remove --yes "${installed_conflicts[@]}"',
   "          fi",
   "          sudo apt-get update",
-  "          apt-cache madison docker-ce | awk \u0027{print $3}\u0027 | grep -Fx -- \"$docker_package_version\" \u003e/dev/null",
-  "          apt-cache madison docker-ce-cli | awk \u0027{print $3}\u0027 | grep -Fx -- \"$docker_package_version\" \u003e/dev/null",
+  '          apt-cache madison docker-ce | awk \u0027{print $3}\u0027 | grep -Fx -- "$docker_package_version" \u003e/dev/null',
+  '          apt-cache madison docker-ce-cli | awk \u0027{print $3}\u0027 | grep -Fx -- "$docker_package_version" \u003e/dev/null',
   "          sudo apt-get install --yes --no-install-recommends --allow-downgrades \\",
   "            docker-ce=$docker_package_version \\",
   "            docker-ce-cli=$docker_package_version \\",
@@ -696,17 +744,17 @@ const topologyDockerProjection = [
   "          version: v5.3.1",
   "      - run: |",
   "          set -Eeuo pipefail",
-  "          [[ \"$(docker version --format \u0027{{.Client.Version}}\u0027)\" == 29.6.1 ]]",
-  "          [[ \"$(docker version --format \u0027{{.Server.Version}}\u0027)\" == 29.6.1 ]]",
-  "          compose_version=\"$(docker compose version --short)\"",
-  "          [[ \"${compose_version#v}\" == 5.3.1 ]]",
-  "          current_context=\"$(docker context show)\"",
-  "          current_endpoint=\"$(docker context inspect --format \u0027{{.Endpoints.docker.Host}}\u0027 \"$current_context\")\"",
-  "          [[ \"$current_endpoint\" == unix:///var/run/docker.sock ]]",
-  "          [[ \"${DOCKER_HOST:-$current_endpoint}\" == unix:///var/run/docker.sock ]]",
+  '          [[ "$(docker version --format \u0027{{.Client.Version}}\u0027)" == 29.6.1 ]]',
+  '          [[ "$(docker version --format \u0027{{.Server.Version}}\u0027)" == 29.6.1 ]]',
+  '          compose_version="$(docker compose version --short)"',
+  '          [[ "${compose_version#v}" == 5.3.1 ]]',
+  '          current_context="$(docker context show)"',
+  '          current_endpoint="$(docker context inspect --format \u0027{{.Endpoints.docker.Host}}\u0027 "$current_context")"',
+  '          [[ "$current_endpoint" == unix:///var/run/docker.sock ]]',
+  '          [[ "${DOCKER_HOST:-$current_endpoint}" == unix:///var/run/docker.sock ]]',
   "          [[ -S /var/run/docker.sock ]]",
-  "          container_ids=\"$(docker ps -aq)\"",
-  "          [[ -z \"$container_ids\" ]]",
+  '          container_ids="$(docker ps -aq)"',
+  '          [[ -z "$container_ids" ]]',
 ];
 const trivySetupProjection = [
   "      - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6",
@@ -732,6 +780,10 @@ function runtimeEvidenceUploadProjection(artifactName) {
     "          retention-days: 14",
   ];
 }
+
+const canonicalPostgresProjection = projectPostgresCiProjectionContract(
+  postgresCiProjectionThrough0064,
+);
 const reviewedJobContracts = new Map([
   [
     "application",
@@ -750,7 +802,7 @@ const reviewedJobContracts = new Map([
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 45",
       "    env:",
-      '      RUNNER_ENVIRONMENT: ${{ runner.environment }}',
+      "      RUNNER_ENVIRONMENT: ${{ runner.environment }}",
       '      CODESTEAD_DISPOSABLE_DOCKER_DAEMON: "1"',
       '      CODESTEAD_TOPOLOGY_RESTART_DOCKER: "1"',
       "    steps:",
@@ -826,34 +878,31 @@ const reviewedJobContracts = new Map([
   [
     "postgres-integration",
     [
-      "    runs-on: ubuntu-24.04",
-      "    timeout-minutes: 20",
+      canonicalPostgresProjection.runnerLine,
+      canonicalPostgresProjection.timeoutLine,
       "    steps:",
       ...checkoutProjection,
       ...setupNodeProjection,
       "      - run: npm ci",
-      "      - run: npm run test:mail-delivery-scope-0059:registration",
-      "      - run: npm run test:mail-payload-immutability-0060:registration",
-      "      - run: npm run test:mail-retention-redaction-0063:registration",
-      "      - run: npm run test:mail-dispatch-binding-0064:registration",
+      ...canonicalPostgresProjection.registrationLines,
       "      - run: npm run test:mail-dispatch-binding-0064:roles",
       "      - run: npm run test:integration",
-      "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+      canonicalPostgresProjection.dockerPg17PullLine,
       "      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
-      "      - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/database-least-privilege-integration.sh",
+      canonicalPostgresProjection.dockerPg17IntegrationLine,
       "      - run: |",
       "          set -Eeuo pipefail",
-      "          key_path=\"$RUNNER_TEMP/postgresql-pgdg.asc\"",
+      '          key_path="$RUNNER_TEMP/postgresql-pgdg.asc"',
       "          curl --fail --silent --show-error --location \\",
       "            https://www.postgresql.org/media/keys/ACCC4CF8.asc \\",
-      "            --output \"$key_path\"",
-      "          fingerprint=\"$(",
-      "            gpg --batch --show-keys --with-colons \"$key_path\" \\",
+      '            --output "$key_path"',
+      '          fingerprint="$(',
+      '            gpg --batch --show-keys --with-colons "$key_path" \\',
       "              | awk -F: '$1 == \"fpr\" { print $10; exit }'",
-      "          )\"",
-      "          [[ \"$fingerprint\" == B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8 ]]",
+      '          )"',
+      '          [[ "$fingerprint" == B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8 ]]',
       "          sudo install -m 0755 -d /usr/share/postgresql-common/pgdg",
-      "          sudo install -m 0644 \"$key_path\" \\",
+      '          sudo install -m 0644 "$key_path" \\',
       "            /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc",
       "          printf '%s\\n' \\",
       "            'Types: deb' \\",
@@ -864,12 +913,9 @@ const reviewedJobContracts = new Map([
       "            'Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc' \\",
       "            | sudo tee /etc/apt/sources.list.d/pgdg.sources >/dev/null",
       "          sudo apt-get update",
-      "          sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18",
-      "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063",
-      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
-      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-payload-immutability-0060",
-      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-retention-redaction-0063",
-      "      - run: POSTGRES_MAJOR=18 POSTGRES_BIN=/usr/lib/postgresql/18/bin npm run test:mail-dispatch-binding-0064:pg18",
+      canonicalPostgresProjection.installLine,
+      ...canonicalPostgresProjection.productionPg17Lines,
+      ...canonicalPostgresProjection.targetedPg18Lines,
     ],
   ],
   [
@@ -965,7 +1011,9 @@ function canonicalJobBlocks(lines) {
     .map((line, index) => (line === "jobs:" ? index : -1))
     .filter((index) => index >= 0);
   if (jobsStarts.length !== 1) {
-    fail(`expected exactly one canonical jobs mapping, found ${jobsStarts.length}`);
+    fail(
+      `expected exactly one canonical jobs mapping, found ${jobsStarts.length}`,
+    );
   }
   const jobsStart = jobsStarts[0];
   const jobsEnd = lines.length - 1;
@@ -1033,50 +1081,26 @@ function requireReviewedExecutableContracts(blocks) {
   }
 }
 
-function requireMailDeliveryScope0059CrossGuard() {
-  const projection = reviewedJobContracts.get("postgres-integration");
-  if (projection === undefined) {
-    fail("mail-delivery-scope-0059 cross-guard projection is missing");
+function requireCanonicalPostgresCiCrossGuard(blocks) {
+  const actualBlock = blocks.get("postgres-integration");
+  if (actualBlock === undefined) {
+    fail("canonical PostgreSQL CI cross-guard projection is missing");
   }
   try {
-    assertMailDeliveryScope0059PostgresProjection(
-      projection.join("\n"),
+    const projection = behavioralJobProjection(
+      actualBlock,
+      "postgres-integration",
+    ).join("\n");
+    assertPostgresCiProjectionContract(
+      projection,
+      postgresCiProjectionThrough0064,
     );
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    fail(`mail-delivery-scope-0059 cross-guard changed: ${detail}`);
+    fail(`canonical PostgreSQL CI cross-guard changed: ${detail}`);
   }
 }
 
-function requireMailRetentionRedaction0063CrossGuard() {
-  const projection = reviewedJobContracts.get("postgres-integration");
-  if (projection === undefined) {
-    fail("mail-retention-redaction-0063 cross-guard projection is missing");
-  }
-  try {
-    assertMailRetentionRedaction0063PostgresProjection(
-      projection.join("\n"),
-    );
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    fail(`mail-retention-redaction-0063 cross-guard changed: ${detail}`);
-  }
-}
-
-function requireMailDispatchBinding0064CrossGuard() {
-  const projection = reviewedJobContracts.get("postgres-integration");
-  if (projection === undefined) {
-    fail("mail-dispatch-binding-0064 cross-guard projection is missing");
-  }
-  try {
-    assertMailDispatchBinding0064PostgresProjection(
-      projection.join("\n"),
-    );
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    fail(`mail-dispatch-binding-0064 cross-guard changed: ${detail}`);
-  }
-}
 function requireCanonicalWorkflowPreamble(lines) {
   const jobsIndex = lines.indexOf("jobs:");
   const expected = [
@@ -1091,11 +1115,10 @@ function requireCanonicalWorkflowPreamble(lines) {
   const projection = lines
     .slice(0, jobsIndex + 1)
     .filter((line) => line.trim() !== "" && !/^\s*#/.test(line));
-  if (
-    jobsIndex < 0 ||
-    projection.join("\n") !== expected.join("\n")
-  ) {
-    fail("workflow triggers and permissions are not the strict blocking contract");
+  if (jobsIndex < 0 || projection.join("\n") !== expected.join("\n")) {
+    fail(
+      "workflow triggers and permissions are not the strict blocking contract",
+    );
   }
 }
 
@@ -1127,10 +1150,8 @@ function validateWorkflow(document) {
   if (actualJobNames.join("\n") !== expectedJobNames.join("\n")) {
     fail("workflow job set is outside the reviewed executable allowlist");
   }
+  requireCanonicalPostgresCiCrossGuard(blocks);
   requireReviewedExecutableContracts(blocks);
-  requireMailDeliveryScope0059CrossGuard();
-  requireMailRetentionRedaction0063CrossGuard();
-  requireMailDispatchBinding0064CrossGuard();
   const backup = requireJob(blocks, "backup-safety");
 
   if (
@@ -1138,19 +1159,28 @@ function validateWorkflow(document) {
       /complete unfiltered backup publication suite/i.test(line),
     )
   ) {
-    fail("backup-safety timeout must document the complete unfiltered publication suite");
+    fail(
+      "backup-safety timeout must document the complete unfiltered publication suite",
+    );
   }
 }
 
 function replaceExactly(document, needle, replacement) {
   const pieces = document.split(needle);
   if (pieces.length !== 2) {
-    throw new Error(`self-test fixture expected exactly one ${JSON.stringify(needle)}`);
+    throw new Error(
+      `self-test fixture expected exactly one ${JSON.stringify(needle)}`,
+    );
   }
   return `${pieces[0]}${replacement}${pieces[1]}`;
 }
 
-function replaceHarnessFunctionFragment(source, functionName, needle, replacement) {
+function replaceHarnessFunctionFragment(
+  source,
+  functionName,
+  needle,
+  replacement,
+) {
   const body = harnessFunction(
     source,
     functionName,
@@ -1219,11 +1249,31 @@ function expectHarnessRejected(label, source, validator) {
 
 function runHarnessAdversarialSelfTests(source) {
   for (const [label, needle, replacement] of [
-    ["long ephemeral root", 'local stage_root="$test_root/staging" ephemeral_root="/run/bpe"', 'local stage_root="$test_root/staging" ephemeral_root="$test_root/ephemeral"'],
-    ["ephemeral tmpfs backing", "--tmpfs /run/bpe:rw,noexec,nosuid,nodev,size=16m,mode=0700,uid=0,gid=0", "--tmpfs /run/bpe:rw,noexec,nosuid,nodev,size=16m,mode=0755,uid=0,gid=0"],
-    ["AF_UNIX exact length", '${#endpoint_probe} == 78 && ${#endpoint_probe} < 108', '${#endpoint_probe} < 108'],
-    ["ephemeral root ownership", '"$(stat -c \'%a:%u\' -- "$root")" == 700:0', '"$(stat -c \'%a\' -- "$root")" == 700'],
-    ["ephemeral residue check", '[[ -z "$(find -P "$root" -mindepth 1 -print -quit)" ]]', "true"],
+    [
+      "long ephemeral root",
+      'local stage_root="$test_root/staging" ephemeral_root="/run/bpe"',
+      'local stage_root="$test_root/staging" ephemeral_root="$test_root/ephemeral"',
+    ],
+    [
+      "ephemeral tmpfs backing",
+      "--tmpfs /run/bpe:rw,noexec,nosuid,nodev,size=16m,mode=0700,uid=0,gid=0",
+      "--tmpfs /run/bpe:rw,noexec,nosuid,nodev,size=16m,mode=0755,uid=0,gid=0",
+    ],
+    [
+      "AF_UNIX exact length",
+      "${#endpoint_probe} == 78 && ${#endpoint_probe} < 108",
+      "${#endpoint_probe} < 108",
+    ],
+    [
+      "ephemeral root ownership",
+      '"$(stat -c \'%a:%u\' -- "$root")" == 700:0',
+      '"$(stat -c \'%a\' -- "$root")" == 700',
+    ],
+    [
+      "ephemeral residue check",
+      '[[ -z "$(find -P "$root" -mindepth 1 -print -quit)" ]]',
+      "true",
+    ],
   ]) {
     expectHarnessRejected(
       label,
@@ -1306,7 +1356,7 @@ function runHarnessAdversarialSelfTests(source) {
     [
       "credential-probe image-bounded discovery",
       'append_docker_query_lines probe_candidates docker ps --all --quiet --no-trunc \\\n    --filter "ancestor=$operations_digest"',
-      'append_docker_query_lines probe_candidates docker ps --all --quiet --no-trunc \\\n    --filter status=running',
+      "append_docker_query_lines probe_candidates docker ps --all --quiet --no-trunc \\\n    --filter status=running",
     ],
     [
       "credential-probe validated removal route",
@@ -1444,7 +1494,8 @@ function withBackupStepProperty(document, property) {
 }
 
 function withApplicationRun(document, command) {
-  const anchor = "      - run: bash infra/tests/runner-reconciliation.test.sh\n";
+  const anchor =
+    "      - run: bash infra/tests/runner-reconciliation.test.sh\n";
   return replaceExactly(document, anchor, `      - run: ${command}\n${anchor}`);
 }
 
@@ -1486,10 +1537,7 @@ function runAdversarialSelfTests(document) {
     "  runner:\n",
     "  runner:\n    # Human-readable comments do not change executable behavior.\n",
   );
-  expectAccepted(
-    "workflow comments and step-name edits",
-    harmlessPresentation,
-  );
+  expectAccepted("workflow comments and step-name edits", harmlessPresentation);
   expectRejected(
     "manual-only workflow trigger",
     replaceExactly(
@@ -1524,12 +1572,10 @@ function runAdversarialSelfTests(document) {
     ]) {
       expectRejectedWithMessage(
         `${jobName} skip control ${line}`,
-        replaceExactly(
-          document,
-          `  ${jobName}:\n`,
-          `  ${jobName}:\n${line}\n`,
-        ),
-        `${jobName} executable contract changed`,
+        replaceExactly(document, `  ${jobName}:\n`, `  ${jobName}:\n${line}\n`),
+        jobName === "postgres-integration"
+          ? "canonical PostgreSQL CI cross-guard changed"
+          : `${jobName} executable contract changed`,
       );
     }
   }
@@ -1610,9 +1656,9 @@ function runAdversarialSelfTests(document) {
   );
 
   const productionStep = `      - run: ${productionE2eRun}`;
-  const checkoutStep = "      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0";
-  const productionCheckout =
-    `${checkoutStep}\n        with:\n          persist-credentials: false`;
+  const checkoutStep =
+    "      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0";
+  const productionCheckout = `${checkoutStep}\n        with:\n          persist-credentials: false`;
   const productionStepsAnchor =
     "  backup-production-e2e:\n    runs-on: ubuntu-24.04\n    timeout-minutes: 30\n    steps:\n";
   expectRejected(
@@ -1621,7 +1667,11 @@ function runAdversarialSelfTests(document) {
   );
   expectRejected(
     "duplicate production e2e run",
-    replaceExactly(document, productionStep, `${productionStep}\n${productionStep}`),
+    replaceExactly(
+      document,
+      productionStep,
+      `${productionStep}\n${productionStep}`,
+    ),
   );
   expectRejected(
     "reordered production e2e steps",
@@ -1633,7 +1683,11 @@ function runAdversarialSelfTests(document) {
   );
   expectRejected(
     "quoted production e2e command",
-    replaceExactly(document, productionStep, `      - run: '${productionE2eRun}'`),
+    replaceExactly(
+      document,
+      productionStep,
+      `      - run: '${productionE2eRun}'`,
+    ),
   );
   expectRejected(
     "wrapped production e2e command",
@@ -1698,7 +1752,11 @@ function runAdversarialSelfTests(document) {
   ].join("\n");
   expectRejectedWithMessage(
     "reviewer split self-hosted carrier",
-    replaceExactly(document, "  runner:\n", `${reviewerSplitCarrier}  runner:\n`),
+    replaceExactly(
+      document,
+      "  runner:\n",
+      `${reviewerSplitCarrier}  runner:\n`,
+    ),
     "workflow job set is outside the reviewed executable allowlist",
   );
   expectRejectedWithMessage(
@@ -1716,7 +1774,16 @@ function runAdversarialSelfTests(document) {
       "  postgres-integration:\n    runs-on: ubuntu-24.04\n",
       "  postgres-integration:\n    runs-on: self-hosted\n",
     ),
-    "postgres-integration executable contract changed",
+    "canonical PostgreSQL CI cross-guard changed",
+  );
+  expectRejectedWithMessage(
+    "actual PostgreSQL Docker downgrade reaches the canonical cross-guard",
+    replaceExactly(
+      document,
+      "docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+      "docker pull postgres:16-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+    ),
+    "canonical PostgreSQL CI cross-guard changed: the pinned Docker PostgreSQL 17 integration image must appear exactly once",
   );
   expectRejectedWithMessage(
     "extra curriculum runtime command",
@@ -1776,7 +1843,10 @@ function runAdversarialSelfTests(document) {
     "    <<: *skip-backup",
     "    runs-on: ubuntu-24.04",
   ]) {
-    expectRejected(`backup job control ${line}`, withBackupJobLine(document, line));
+    expectRejected(
+      `backup job control ${line}`,
+      withBackupJobLine(document, line),
+    );
   }
   for (const property of [
     "if: false",
@@ -1797,7 +1867,11 @@ function runAdversarialSelfTests(document) {
     );
     expectRejected(
       `sudo fixture without environment reset ${fixture}`,
-      replaceExactly(document, reviewedRun, `      - run: sudo bash ${fixture}`),
+      replaceExactly(
+        document,
+        reviewedRun,
+        `      - run: sudo bash ${fixture}`,
+      ),
     );
     expectRejected(
       `sudo fixture preserving caller environment ${fixture}`,
@@ -1877,7 +1951,10 @@ function runAdversarialSelfTests(document) {
     "<<: *replacement\n",
     "? jobs\n: replacement\n",
   ]) {
-    expectRejected(`duplicate top-level mapping ${duplicate}`, `${document}${duplicate}`);
+    expectRejected(
+      `duplicate top-level mapping ${duplicate}`,
+      `${document}${duplicate}`,
+    );
   }
   expectRejected(
     "anchored canonical jobs mapping",
@@ -1892,9 +1969,7 @@ function verifyRegistration(document) {
 }
 
 verifyRegistration(workflow);
-verifyRegistration(
-  normalizeWorkflow(workflow).replaceAll("\n", "\r\n"),
-);
+verifyRegistration(normalizeWorkflow(workflow).replaceAll("\n", "\r\n"));
 validateHarnessHostedRunnerContract(productionE2eHarness);
 validateHarnessRegistryContract(productionE2eHarness);
 validateHarnessCredentialProbeCleanupContract(productionE2eHarness);

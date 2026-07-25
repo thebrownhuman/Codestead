@@ -41,6 +41,7 @@
     "test:mail-retention-redaction-0063": "node infra/tests/mail-retention-redaction-0063.integration.mjs",
     "test:mail-dispatch-binding-0064:registration": "node infra/tests/mail-dispatch-binding-0064-registration.test.mjs",
     "test:mail-dispatch-binding-0064:roles": "node --test infra/tests/mail-dispatch-binding-0064-role-contract.test.mjs",
+    "test:mail-dispatch-binding-0064:pg17": "node infra/tests/mail-dispatch-binding-0064.integration.mjs",
     "test:mail-dispatch-binding-0064:pg18": "node infra/tests/mail-dispatch-binding-0064.integration.mjs",
     "test:e2e": "playwright test",
     "test:browser:auth": "tsx scripts/verify-authenticated-learn-runtime.ts",

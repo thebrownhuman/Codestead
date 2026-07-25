@@ -3,9 +3,12 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import {
-  assertMailRetentionRedaction0063PostgresProjection,
-  mailRetentionRedaction0063CiContract,
-} from "./mail-retention-redaction-0063-ci-contract.mjs";
+  mailDispatchBinding0064PostgresCiExtension,
+  postgresCiProjectionThrough0064,
+} from "./mail-dispatch-binding-0064-ci-contract.mjs";
+import * as postgresCiProjectionModule from "./mail-retention-redaction-0063-ci-contract.mjs";
+
+const { mailRetentionRedaction0063CiContract } = postgresCiProjectionModule;
 
 const read = (relativePath) =>
   readFileSync(new URL(`../../${relativePath}`, import.meta.url), "utf8");
@@ -26,6 +29,113 @@ const migration0063 = read(
 const scripts = packageManifest.scripts;
 const staticOnly = process.argv.includes("--static-only");
 
+assert.equal(
+  typeof postgresCiProjectionModule.definePostgresCiProjectionExtension,
+  "function",
+  "the shared PostgreSQL CI contract must expose an extension definition API",
+);
+assert.equal(
+  typeof postgresCiProjectionModule.composeCanonicalPostgresCiProjectionContract,
+  "function",
+  "the shared PostgreSQL CI contract must expose a canonical composition API",
+);
+
+assert.equal(
+  typeof postgresCiProjectionModule.assertPostgresCiProjectionContract,
+  "function",
+  "the shared PostgreSQL CI contract must expose one canonical projection assertion",
+);
+
+for (const unauthorizedTimeout of [21, 34, 35]) {
+  assert.throws(
+    () =>
+      postgresCiProjectionModule.definePostgresCiProjectionExtension({
+        id: `self-test-non-restore-timeout-${unauthorizedTimeout}`,
+        registrationScripts: [
+          `test:self-test-non-restore-timeout-${unauthorizedTimeout}:registration`,
+        ],
+        minimumTimeoutMinutes: unauthorizedTimeout,
+      }),
+    /only the dedicated restore extension may raise the PostgreSQL CI timeout/u,
+    `a normal extension cannot raise the timeout to ${unauthorizedTimeout}`,
+  );
+}
+
+const selfTest0064Extension =
+  postgresCiProjectionModule.definePostgresCiProjectionExtension({
+    id: "self-test-0064",
+    registrationScripts: ["test:self-test-0064:registration"],
+    productionPg17Scripts: ["test:self-test-0064"],
+    targetedPg18Scripts: ["test:self-test-0064"],
+  });
+const selfTest0065Extension =
+  postgresCiProjectionModule.definePostgresCiProjectionExtension({
+    id: "self-test-0065",
+    registrationScripts: ["test:self-test-0065:registration"],
+    productionPg17Scripts: ["test:self-test-0065"],
+    targetedPg18Scripts: ["test:self-test-0065"],
+  });
+const selfTestRestoreExtension =
+  postgresCiProjectionModule.definePostgresCiProjectionExtension({
+    id: "self-test-restore",
+    kind: "restore",
+    registrationScripts: ["test:self-test-restore:registration"],
+    productionPg17Scripts: ["test:self-test-restore"],
+    targetedPg18Scripts: ["test:self-test-restore"],
+    minimumTimeoutMinutes: 35,
+  });
+const composedSelfTestContract =
+  postgresCiProjectionModule.composeCanonicalPostgresCiProjectionContract(
+    selfTest0064Extension,
+    selfTest0065Extension,
+    selfTestRestoreExtension,
+  );
+const composedSelfTestContractThrough0064 =
+  postgresCiProjectionModule.composeCanonicalPostgresCiProjectionContract(
+    mailDispatchBinding0064PostgresCiExtension,
+    selfTest0064Extension,
+    selfTest0065Extension,
+    selfTestRestoreExtension,
+  );
+for (const key of [
+  "registrationScripts",
+  "productionPg17Scripts",
+  "targetedPg18Scripts",
+]) {
+  assert.deepEqual(
+    composedSelfTestContract[key].slice(
+      0,
+      postgresCiProjectionModule.canonicalPostgresCiProjectionContract[key]
+        .length,
+    ),
+    postgresCiProjectionModule.canonicalPostgresCiProjectionContract[key],
+    `0064, 0065, and restore extensions must preserve canonical ${key}`,
+  );
+}
+assert.equal(
+  composedSelfTestContract.registrationScripts.at(-1),
+  "test:self-test-restore:registration",
+);
+assert.equal(
+  composedSelfTestContract.timeoutMinutes,
+  35,
+  "the restore extension must raise the single composed timeout to exactly 35 minutes",
+);
+assert.throws(
+  () => composedSelfTestContract.registrationScripts.push("test:mutation"),
+  TypeError,
+  "composed contract collections must be immutable",
+);
+assert.throws(
+  () =>
+    postgresCiProjectionModule.composeCanonicalPostgresCiProjectionContract(
+      selfTest0064Extension,
+      selfTest0064Extension,
+    ),
+  /duplicate PostgreSQL CI extension id/u,
+  "an extension cannot silently replace or duplicate a prior gate set",
+);
+
 const {
   registrationScript,
   harnessScript,
@@ -45,8 +155,9 @@ if (!staticOnly) {
     "package.json must expose the real 0063 PostgreSQL harness",
   );
   assert.equal(
-    scripts.check.split(" && ").filter((command) =>
-      command === `npm run ${registrationScript}`).length,
+    scripts.check
+      .split(" && ")
+      .filter((command) => command === `npm run ${registrationScript}`).length,
     1,
     "npm run check must execute the 0063 registration guard exactly once",
   );
@@ -105,9 +216,10 @@ assert.match(
 );
 assert.match(migration0063, /"batch_limit" integer/u);
 assert.match(migration0063, /report_only boolean := batch_limit = 0/u);
-const reportOnlyBranch = migration0063.match(
-  /IF report_only THEN([\s\S]*?)\n\s*RETURN;\n\s*END IF;/u,
-)?.[1] ?? "";
+const reportOnlyBranch =
+  migration0063.match(
+    /IF report_only THEN([\s\S]*?)\n\s*RETURN;\n\s*END IF;/u,
+  )?.[1] ?? "";
 assert.ok(reportOnlyBranch, "0063 must retain an explicit report-only branch");
 assert.doesNotMatch(
   reportOnlyBranch,
@@ -152,9 +264,10 @@ for (const [label, compose] of [
   ["production", productionCompose],
   ["restore", restoreCompose],
 ]) {
-  const service = compose.match(
-    /^  database-boundary-verifier:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
-  )?.[0] ?? "";
+  const service =
+    compose.match(
+      /^  database-boundary-verifier:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
+    )?.[0] ?? "";
   assert.ok(service, `${label} boundary-verifier service is missing`);
   assert.ok(
     service.includes(boundaryVerifierCommand),
@@ -173,10 +286,185 @@ assert.match(
 );
 
 if (!staticOnly) {
-  const postgresJob = workflow.match(
-    /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
-  )?.[0] ?? "";
-  assertMailRetentionRedaction0063PostgresProjection(postgresJob);
+  const postgresJob =
+    workflow.match(
+      /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
+    )?.[0] ?? "";
+  postgresCiProjectionModule.assertPostgresCiProjectionContract(
+    postgresJob,
+    postgresCiProjectionThrough0064,
+  );
+
+  const replaceProjectionExactly = (projection, before, after) => {
+    assert.equal(
+      projection.split(before).length,
+      2,
+      `self-test mutation anchor must be unique: ${before}`,
+    );
+    return projection.replace(before, after);
+  };
+  const expectProjectionRejected = (label, projection, expectedMessage) => {
+    assert.throws(
+      () =>
+        postgresCiProjectionModule.assertPostgresCiProjectionContract(
+          projection,
+          postgresCiProjectionThrough0064,
+        ),
+      expectedMessage,
+      label,
+    );
+  };
+
+  expectProjectionRejected(
+    "the PostgreSQL timeout is one canonical policy",
+    replaceProjectionExactly(
+      postgresJob,
+      "    timeout-minutes: 20",
+      "    timeout-minutes: 21",
+    ),
+    /timeout-minutes/u,
+  );
+  expectProjectionRejected(
+    "PostgreSQL 16 cannot re-enter the matrix",
+    `${postgresJob}      - run: POSTGRES_16_BIN=/usr/lib/postgresql/16/bin npm run test:future-mail-gate\n`,
+    /PostgreSQL 16/u,
+  );
+  expectProjectionRejected(
+    "the pinned Docker integration cannot regress from PostgreSQL 17 to 16",
+    replaceProjectionExactly(
+      postgresJob,
+      "docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+      "docker pull postgres:16-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+    ),
+    /pinned Docker PostgreSQL 17 integration image/u,
+  );
+  expectProjectionRejected(
+    "the pinned Docker pull must precede its PostgreSQL 17 integration gate",
+    replaceProjectionExactly(
+      postgresJob,
+      [
+        "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+        "      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
+        "      - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/database-least-privilege-integration.sh",
+      ].join("\n"),
+      [
+        "      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
+        "      - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/database-least-privilege-integration.sh",
+        "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+      ].join("\n"),
+    ),
+    /Docker PostgreSQL 17 pull must precede its integration gate/u,
+  );
+  expectProjectionRejected(
+    "runtime environment and binary majors cannot diverge",
+    replaceProjectionExactly(
+      postgresJob,
+      "POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
+      "POSTGRES_18_BIN=/usr/lib/postgresql/17/bin npm run test:mail-delivery-scope-0059",
+    ),
+    /runtime major/u,
+  );
+  expectProjectionRejected(
+    "production PostgreSQL 17 must run before targeted PostgreSQL 18",
+    replaceProjectionExactly(
+      postgresJob,
+      [
+        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063",
+        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17",
+        "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
+      ].join("\n"),
+      [
+        "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
+        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063",
+        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17",
+      ].join("\n"),
+    ),
+    /PostgreSQL 17 harnesses must run before PostgreSQL 18/u,
+  );
+  expectProjectionRejected(
+    "a prior registration gate cannot be removed",
+    replaceProjectionExactly(
+      postgresJob,
+      "      - run: npm run test:mail-delivery-scope-0059:registration\n",
+      "",
+    ),
+    /registration scripts/u,
+  );
+  expectProjectionRejected(
+    "an undeclared registration gate cannot masquerade as evidence",
+    replaceProjectionExactly(
+      postgresJob,
+      "      - run: npm run test:integration",
+      [
+        "      - run: npm run test:future-mail-gate:registration",
+        "      - run: npm run test:integration",
+      ].join("\n"),
+    ),
+    /registration scripts/u,
+  );
+  expectProjectionRejected(
+    "a prior targeted PostgreSQL 18 harness cannot be removed",
+    replaceProjectionExactly(
+      postgresJob,
+      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-payload-immutability-0060\n",
+      "",
+    ),
+    /PostgreSQL 18 scripts/u,
+  );
+
+  const extendedProjection = replaceProjectionExactly(
+    replaceProjectionExactly(
+      replaceProjectionExactly(
+        replaceProjectionExactly(
+          postgresJob,
+          "    timeout-minutes: 20",
+          "    timeout-minutes: 35",
+        ),
+        "      - run: npm run test:integration",
+        [
+          "      - run: npm run test:self-test-0064:registration",
+          "      - run: npm run test:self-test-0065:registration",
+          "      - run: npm run test:self-test-restore:registration",
+          "      - run: npm run test:integration",
+        ].join("\n"),
+      ),
+      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
+      [
+        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:self-test-0064",
+        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:self-test-0065",
+        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:self-test-restore",
+        "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
+      ].join("\n"),
+    ),
+    "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-dispatch-binding-0064:pg18",
+    [
+      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-dispatch-binding-0064:pg18",
+      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-0064",
+      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-0065",
+      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-restore",
+    ].join("\n"),
+  );
+  assert.doesNotThrow(
+    () =>
+      postgresCiProjectionModule.assertPostgresCiProjectionContract(
+        extendedProjection,
+        composedSelfTestContractThrough0064,
+      ),
+    "0064, 0065, and restore must compose without replacing prior gates",
+  );
+  assert.throws(
+    () =>
+      postgresCiProjectionModule.assertPostgresCiProjectionContract(
+        replaceProjectionExactly(
+          extendedProjection,
+          "      - run: npm run test:mail-delivery-scope-0059:registration\n",
+          "",
+        ),
+        composedSelfTestContractThrough0064,
+      ),
+    /registration scripts/u,
+    "an extension cannot make a prior registration optional",
+  );
 }
 
 console.log(

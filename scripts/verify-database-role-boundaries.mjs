@@ -3,7 +3,15 @@ import { performance } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
 
 import { Pool } from "pg";
-import { REVIEWED_APPLICATION_FUNCTIONS } from "./bootstrap-database-roles.mjs";
+import {
+  MAIL_WORKER_OUTBOX_INSERT_COLUMNS,
+  MAIL_WORKER_OUTBOX_PRE_BINDING_UPDATE_COLUMNS,
+  MAIL_WORKER_OUTBOX_UPDATE_COLUMNS,
+  REVIEWED_APPLICATION_CONSTRAINTS,
+  REVIEWED_APPLICATION_FUNCTIONS,
+  REVIEWED_APPLICATION_TRIGGERS,
+  REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES,
+} from "./bootstrap-database-roles.mjs";
 
 export const DATABASE_ADMIN_LOCK_NAME = "codestead:database-administration:v1";
 const MIN_PASSWORD_BYTES = 32;
@@ -20,17 +28,21 @@ const ROLE_SPECS = Object.freeze([
 const RESTRICTED_ROLE_NAMES = Object.freeze(
   ROLE_SPECS.map(([, , role]) => role),
 );
-const RUNTIME_ROLES = new Set(["learncoding_app", "learncoding_worker", "learncoding_ops"]);
+const RUNTIME_ROLES = new Set([
+  "learncoding_app",
+  "learncoding_worker",
+  "learncoding_ops",
+]);
 
 export class DatabaseRoleBoundaryError extends Error {
-  constructor() {
-    super("database role boundary verification failed");
+  constructor(section = "unspecified") {
+    super(`database role boundary verification failed: ${section}`);
     this.name = "DatabaseRoleBoundaryError";
   }
 }
 
-function fail() {
-  throw new DatabaseRoleBoundaryError();
+function fail(section) {
+  throw new DatabaseRoleBoundaryError(section);
 }
 
 function decodeComponent(value) {
@@ -62,7 +74,8 @@ export function validateDatabaseRoleBoundaryUrls(input) {
         passwordBytes < MIN_PASSWORD_BYTES ||
         passwordBytes > MAX_PASSWORD_BYTES ||
         passwords.has(password)
-      ) fail();
+      )
+        fail();
       passwords.add(password);
       parsed[name] = { username, database, connectionString: url.href };
     }
@@ -87,8 +100,17 @@ function exactRow(row, expected) {
   return Object.entries(expected).every(([key, value]) => row?.[key] === value);
 }
 
+function exactRowMismatchKeys(row, expected) {
+  return Object.keys(expected).filter((key) => row?.[key] !== expected[key]);
+}
+
 function quoteIdentifier(value) {
-  if (typeof value !== "string" || value.length === 0 || /[\u0000-\u001f\u007f]/u.test(value)) fail();
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    /[\u0000-\u001f\u007f]/u.test(value)
+  )
+    fail();
   return `"${value.replaceAll('"', '""')}"`;
 }
 
@@ -102,7 +124,10 @@ async function bounded(operation, timeoutMs = CLEANUP_TIMEOUT_MS) {
     return await Promise.race([
       Promise.resolve().then(operation),
       new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new DatabaseRoleBoundaryError()), timeoutMs);
+        timer = setTimeout(
+          () => reject(new DatabaseRoleBoundaryError()),
+          timeoutMs,
+        );
       }),
     ]);
   } finally {
@@ -119,19 +144,23 @@ async function acquireAdministrationLock(client, timeoutMs) {
       [DATABASE_ADMIN_LOCK_NAME],
     );
     if (result.rows[0]?.acquired === true) return;
-    await new Promise((resolve) => setTimeout(
-      resolve,
-      Math.min(LOCK_POLL_MS, Math.max(1, deadline - performance.now())),
-    ));
+    await new Promise((resolve) =>
+      setTimeout(
+        resolve,
+        Math.min(LOCK_POLL_MS, Math.max(1, deadline - performance.now())),
+      ),
+    );
   }
   fail();
 }
 
 async function releaseAdministrationLock(client) {
-  const result = await bounded(() => client.query(
-    "select pg_advisory_unlock(hashtextextended($1, 0)) released",
-    [DATABASE_ADMIN_LOCK_NAME],
-  ));
+  const result = await bounded(() =>
+    client.query(
+      "select pg_advisory_unlock(hashtextextended($1, 0)) released",
+      [DATABASE_ADMIN_LOCK_NAME],
+    ),
+  );
   if (result.rows[0]?.released !== true) fail();
 }
 
@@ -142,7 +171,8 @@ async function expectInsufficientPrivilege(client, sql) {
       await client.query(sql);
       fail();
     } catch (error) {
-      if (error instanceof DatabaseRoleBoundaryError || error?.code !== "42501") fail();
+      if (error instanceof DatabaseRoleBoundaryError || error?.code !== "42501")
+        fail();
     }
   } finally {
     await bounded(() => client.query("rollback"));
@@ -150,7 +180,8 @@ async function expectInsufficientPrivilege(client, sql) {
 }
 
 async function tablePrivilegeDelegationState(client, grantee, objectOid) {
-  const result = await client.query(`
+  const result = await client.query(
+    `
     select has_table_privilege($1::name, $2::oid, 'SELECT') delegated,
            has_table_privilege(
              current_user,
@@ -194,21 +225,35 @@ async function tablePrivilegeDelegationState(client, grantee, objectOid) {
   return result.rows[0];
 }
 
-async function expectTablePrivilegeNotDelegated(client, role, table, objectOid) {
+async function expectTablePrivilegeNotDelegated(
+  client,
+  role,
+  table,
+  objectOid,
+) {
   const grantee = "learncoding_migrator";
   await client.query("begin");
   try {
-    const before = await tablePrivilegeDelegationState(client, grantee, objectOid);
+    const before = await tablePrivilegeDelegationState(
+      client,
+      grantee,
+      objectOid,
+    );
     if (
       before.delegated !== false ||
       before.current_role_effective_grantable !== false ||
       before.current_role_direct_grantable !== false
-    ) fail();
+    )
+      fail();
     if (RUNTIME_ROLES.has(role)) {
       await client.query(
         `grant select on table ${table} to ${quoteIdentifier(grantee)}`,
       );
-      const after = await tablePrivilegeDelegationState(client, grantee, objectOid);
+      const after = await tablePrivilegeDelegationState(
+        client,
+        grantee,
+        objectOid,
+      );
       if (!exactRow(after, before)) fail();
     }
   } finally {
@@ -251,7 +296,11 @@ async function discoverApplicationObjects(client) {
      order by t.typname
      limit 1`);
   if (!table.rows[0]) fail();
-  return { table: table.rows[0], sequence: sequence.rows[0], type: type.rows[0] };
+  return {
+    table: table.rows[0],
+    sequence: sequence.rows[0],
+    type: type.rows[0],
+  };
 }
 
 export async function verifyReviewedApplicationRoutines(
@@ -260,10 +309,112 @@ export async function verifyReviewedApplicationRoutines(
 ) {
   let verified = 0;
   for (const routine of routines) {
-    const result = await client.query(`
-      select pg_catalog.pg_get_userbyid(p.proowner) = $2 owner_exact,
+    const result = await client.query(
+      `
+      select pg_catalog.encode(
+               pg_catalog.sha256(
+                 pg_catalog.convert_to(p.prosrc, 'UTF8')
+               ),
+               'hex'
+             ) is not distinct from $7::text body_sha256_exact,
+             pg_catalog.pg_get_userbyid(p.proowner) = $2 owner_exact,
              p.prosecdef is not distinct from $3::boolean security_definer_exact,
              p.proconfig is not distinct from $4::text[] configuration_exact,
+             language.lanname is not distinct from $8::text language_exact,
+             p.prokind::text is not distinct from $9::text kind_exact,
+             p.provolatile::text is not distinct from $10::text volatility_exact,
+             p.proisstrict is not distinct from $11::boolean strict_exact,
+             p.proparallel::text is not distinct from $12::text parallel_exact,
+             p.proleakproof is not distinct from $13::boolean leakproof_exact,
+             coalesce(
+               p.proargnames,
+               '{}'::text[]
+             ) is not distinct from $14::text[] argument_names_exact,
+             coalesce(
+               (
+                 select pg_catalog.array_agg(
+                          argument_mode::text order by argument_order
+                        )
+                   from pg_catalog.unnest(p.proargmodes)
+                        with ordinality argument(argument_mode, argument_order)
+               ),
+               '{}'::text[]
+             ) is not distinct from $15::text[] argument_modes_exact,
+             (
+               select coalesce(
+                        pg_catalog.array_agg(
+                          observed.argument_type
+                          order by observed.argument_order
+                        ),
+                        '{}'::oid[]
+                      )
+                 from pg_catalog.unnest(
+                        coalesce(p.proallargtypes, p.proargtypes::oid[])
+                      ) with ordinality
+                      observed(argument_type, argument_order)
+             ) is not distinct from (
+               select coalesce(
+                        pg_catalog.array_agg(
+                          pg_catalog.to_regtype(argument_type)::oid
+                          order by argument_order
+                        ),
+                        '{}'::oid[]
+                      )
+                 from pg_catalog.unnest($16::text[])
+                      with ordinality expected(argument_type, argument_order)
+             ) argument_types_exact,
+             p.pronargs::integer is not distinct from
+               $17::integer input_argument_count_exact,
+             (
+               p.pronargdefaults::integer is not distinct from $18::integer
+               and (p.proargdefaults is null) is not distinct from
+                   ($18::integer = 0)
+             ) argument_defaults_exact,
+             p.prorettype is not distinct from
+               pg_catalog.to_regtype($19::text)::oid return_type_exact,
+             p.proretset is not distinct from $20::boolean returns_set_exact,
+             (p.provariadic <> 0) is not distinct from
+               $21::boolean variadic_exact,
+             p.procost is not distinct from $22::real cost_exact,
+             p.prorows is not distinct from $23::real rows_exact,
+             (
+               ($24::text is null and p.prosupport = 0)
+               or p.prosupport =
+                    pg_catalog.to_regprocedure($24::text)::oid
+             ) support_exact,
+             coalesce(
+               p.protrftypes,
+               '{}'::oid[]
+             ) is not distinct from (
+               select coalesce(
+                        pg_catalog.array_agg(
+                          pg_catalog.to_regtype(transform_type)::oid
+                          order by transform_order
+                        ),
+                        '{}'::oid[]
+                      )
+                 from pg_catalog.unnest($25::text[])
+                      with ordinality expected(
+                        transform_type,
+                        transform_order
+                      )
+             ) transform_types_exact,
+             p.probin is not distinct from $26::text binary_exact,
+             p.prosqlbody::text is not distinct from
+               $27::text sql_body_exact,
+             (
+               $28::text is null
+               or pg_catalog.encode(
+                    pg_catalog.sha256(
+                      pg_catalog.convert_to(
+                        pg_catalog.pg_get_functiondef(p.oid),
+                        'UTF8'
+                      )
+                    ),
+                    'hex'
+                  ) is not distinct from $28::text
+             ) definition_sha256_exact,
+             pg_catalog.has_function_privilege($2, p.oid, 'EXECUTE') owner_execute_exact,
              (
                not pg_catalog.has_function_privilege(0, p.oid, 'EXECUTE')
                and not exists (
@@ -291,11 +442,17 @@ export async function verifyReviewedApplicationRoutines(
                        pg_catalog.acldefault('f', p.proowner)
                      )
                    ) acl
-                  where acl.grantee <> p.proowner
                ),
                expected(
                  grantor, grantee, privilege_type, is_grantable
                ) as (
+                 select p.proowner,
+                        grantee.oid,
+                        'EXECUTE'::text,
+                        false
+                   from pg_catalog.pg_roles grantee
+                  where grantee.oid = p.proowner
+                 union all
                  select p.proowner,
                         grantee.oid,
                         'EXECUTE'::text,
@@ -322,6 +479,8 @@ export async function verifyReviewedApplicationRoutines(
                )
              ) routine_direct_acl_exact
         from pg_catalog.pg_proc p
+        join pg_catalog.pg_language language
+          on language.oid = p.prolang
        where p.oid = pg_catalog.to_regprocedure($1::text)::oid`,
       [
         routine.signature,
@@ -330,18 +489,473 @@ export async function verifyReviewedApplicationRoutines(
         routine.configuration,
         RESTRICTED_ROLE_NAMES,
         routine.allowedRoles,
+        routine.bodySha256,
+        routine.language,
+        routine.kind,
+        routine.volatility,
+        routine.strict,
+        routine.parallel,
+        routine.leakproof,
+        routine.argumentNames,
+        routine.argumentModes,
+        routine.argumentTypes,
+        routine.inputArgumentCount,
+        routine.argumentDefaultCount,
+        routine.returnType,
+        routine.returnsSet,
+        routine.variadic,
+        routine.cost,
+        routine.rows,
+        routine.supportFunction,
+        routine.transformTypes,
+        routine.binary,
+        routine.sqlBody,
+        routine.definitionSha256,
       ],
     );
-    if (result.rows.length !== 1 || !exactRow(result.rows[0], {
+    const expected = {
       owner_exact: true,
       security_definer_exact: true,
       configuration_exact: true,
+      owner_execute_exact: true,
+      body_sha256_exact: true,
+      language_exact: true,
+      kind_exact: true,
+      volatility_exact: true,
+      strict_exact: true,
+      parallel_exact: true,
+      leakproof_exact: true,
+      argument_names_exact: true,
+      argument_modes_exact: true,
+      argument_types_exact: true,
+      input_argument_count_exact: true,
+      argument_defaults_exact: true,
+      return_type_exact: true,
+      returns_set_exact: true,
+      variadic_exact: true,
+      cost_exact: true,
+      rows_exact: true,
+      support_exact: true,
+      transform_types_exact: true,
+      binary_exact: true,
+      sql_body_exact: true,
+      definition_sha256_exact: true,
       effective_execute_exact: true,
       routine_direct_acl_exact: true,
-    })) fail();
+    };
+    const row = result.rows[0];
+    if (result.rows.length !== 1 || !exactRow(row, expected)) {
+      const mismatches =
+        result.rows.length === 1
+          ? exactRowMismatchKeys(row, expected).join(",")
+          : "missing-or-duplicate";
+      fail(`reviewed-routine:${routine.signature}:${mismatches}`);
+    }
     verified += 1;
   }
   return verified;
+}
+export async function verifyReviewedApplicationTriggers(
+  client,
+  triggers = REVIEWED_APPLICATION_TRIGGERS,
+) {
+  let verified = 0;
+  for (const trigger of triggers) {
+    const result = await client.query(
+      `
+      select t.tgrelid = pg_catalog.to_regclass($1::text)::oid relation_exact,
+             t.tgfoid = pg_catalog.to_regprocedure($3::text)::oid function_exact,
+             t.tgenabled::text is not distinct from $4::text enabled_exact,
+             t.tgtype::integer is not distinct from $5::integer type_exact,
+             pg_catalog.pg_get_expr(t.tgqual, t.tgrelid)
+               is not distinct from $6::text predicate_exact,
+             (
+               t.tgnargs::integer = pg_catalog.cardinality($7::text[])
+               and (
+                 pg_catalog.cardinality($7::text[]) <> 0
+                 or pg_catalog.octet_length(t.tgargs) = 0
+               )
+             ) arguments_exact,
+             (
+               select coalesce(
+                        pg_catalog.array_agg(
+                          attribute.attname::text order by watched.ordinality
+                        ),
+                        '{}'::text[]
+                      )
+                 from pg_catalog.unnest(t.tgattr::smallint[])
+                      with ordinality watched(attnum, ordinality)
+                 join pg_catalog.pg_attribute attribute
+                   on attribute.attrelid = t.tgrelid
+                  and attribute.attnum = watched.attnum
+             ) is not distinct from $8::text[] watched_columns_exact,
+             not t.tgisinternal reviewed_trigger_catalog_exact
+        from pg_catalog.pg_trigger t
+       where t.tgrelid = pg_catalog.to_regclass($1::text)::oid
+         and t.tgname = $2::text`,
+      [
+        trigger.relation,
+        trigger.name,
+        trigger.functionSignature,
+        trigger.enabled,
+        trigger.type,
+        trigger.predicate,
+        trigger.arguments,
+        trigger.watchedColumns,
+      ],
+    );
+    if (
+      result.rows.length !== 1 ||
+      !exactRow(result.rows[0], {
+        relation_exact: true,
+        function_exact: true,
+        enabled_exact: true,
+        type_exact: true,
+        predicate_exact: true,
+        arguments_exact: true,
+        watched_columns_exact: true,
+        reviewed_trigger_catalog_exact: true,
+      })
+    )
+      fail(`reviewed-trigger:${trigger.name}`);
+    verified += 1;
+  }
+  return verified;
+}
+
+export async function verifyMailWorkerOutboxContract(
+  client,
+  { requiresDispatchBinding = true } = {},
+) {
+  if (typeof requiresDispatchBinding !== "boolean") fail();
+  if (REVIEWED_APPLICATION_CONSTRAINTS.length !== 1) fail();
+  const constraint = REVIEWED_APPLICATION_CONSTRAINTS[0];
+  if (!constraint) fail();
+  const expectedUpdateColumns = requiresDispatchBinding
+    ? MAIL_WORKER_OUTBOX_UPDATE_COLUMNS
+    : MAIL_WORKER_OUTBOX_PRE_BINDING_UPDATE_COLUMNS;
+  const expectedBindingColumnCount = requiresDispatchBinding ? 2 : 0;
+
+  const result = await client.query(
+    `
+    with target as (
+      select c.oid, c.relowner
+        from pg_catalog.pg_class c
+       where c.oid = pg_catalog.to_regclass('public.email_outbox')
+         and c.relkind in ('r', 'p')
+    ), binding_columns as (
+      select pg_catalog.count(*)::integer present_count,
+             pg_catalog.count(*) filter (
+               where attribute.atttypid =
+                       'pg_catalog.text'::pg_catalog.regtype
+                 and attribute.atttypmod = -1
+                 and not attribute.attnotnull
+                 and not attribute.atthasdef
+                 and attribute.attgenerated = ''
+                 and attribute.attidentity = ''
+                 and not attribute.attisdropped
+             )::integer exact_count
+        from target
+        join pg_catalog.pg_attribute attribute
+          on attribute.attrelid = target.oid
+         and attribute.attnum > 0
+         and attribute.attname = any($3::text[])
+    ), expected_column_acl(attname, privilege_type) as (
+      select column_name, 'INSERT'::text
+        from pg_catalog.unnest($1::text[]) column_name
+      union all
+      select column_name, 'UPDATE'::text
+        from pg_catalog.unnest($2::text[]) column_name
+    )
+    select
+      (select pg_catalog.count(*) = 1 from target) outbox_present_exact,
+      (
+        select pg_catalog.count(*) = 1
+               and pg_catalog.bool_and(
+                 pg_catalog.pg_get_userbyid(target.relowner) = $10::text
+               )
+          from target
+      ) outbox_owner_exact,
+      (
+        select present_count = $11::integer
+               and exact_count = $11::integer
+          from binding_columns
+      ) binding_columns_exact,
+      (
+        select case when $12::boolean then pg_catalog.count(*) = 1
+               and pg_catalog.bool_and(
+                 constraint_row.contype::text
+                   is not distinct from $6::text
+                 and constraint_row.convalidated
+                   is not distinct from $7::boolean
+                 and not constraint_row.connoinherit
+                 and pg_catalog.regexp_replace(
+                       pg_catalog.regexp_replace(
+                         pg_catalog.pg_get_expr(
+                           constraint_row.conbin,
+                           constraint_row.conrelid,
+                           true
+                         ),
+                         '"?email_outbox"?[.]', '', 'g'
+                       ),
+                       '[[:space:]"]', '', 'g'
+                     ) is not distinct from $8::text
+                 and (
+                   select pg_catalog.array_agg(
+                            attribute.attname::text order by attribute.attname
+                          )
+                     from pg_catalog.unnest(constraint_row.conkey)
+                          constrained(attnum)
+                     join pg_catalog.pg_attribute attribute
+                       on attribute.attrelid = constraint_row.conrelid
+                      and attribute.attnum = constrained.attnum
+                 ) is not distinct from $9::text[]
+               )
+               else pg_catalog.count(*) = 0
+               end
+          from pg_catalog.pg_constraint constraint_row
+         where constraint_row.conrelid =
+                 pg_catalog.to_regclass($4::text)
+           and constraint_row.conname =
+                 $5::text
+      ) dispatch_constraint_exact,
+      (
+        with observed(
+          grantor, grantee, privilege_type, is_grantable
+        ) as (
+          select acl.grantor, acl.grantee, acl.privilege_type,
+                 acl.is_grantable
+            from target
+            cross join lateral pg_catalog.aclexplode(
+              coalesce(
+                (select c.relacl from pg_catalog.pg_class c where c.oid = target.oid),
+                pg_catalog.acldefault('r', target.relowner)
+              )
+            ) acl
+            join pg_catalog.pg_roles worker
+              on worker.rolname = 'learncoding_worker'
+           where acl.grantee = worker.oid
+        ), expected(
+          grantor, grantee, privilege_type, is_grantable
+        ) as (
+          select target.relowner, worker.oid, 'SELECT'::text, false
+            from target
+            join pg_catalog.pg_roles worker
+              on worker.rolname = 'learncoding_worker'
+        )
+        select not exists (
+          (select * from observed except all select * from expected)
+          union all
+          (select * from expected except all select * from observed)
+        )
+      ) worker_table_direct_acl_exact,
+      (
+        with observed(
+          attname, grantor, grantee, privilege_type, is_grantable
+        ) as (
+          select attribute.attname, acl.grantor, acl.grantee,
+                 acl.privilege_type, acl.is_grantable
+            from target
+            join pg_catalog.pg_attribute attribute
+              on attribute.attrelid = target.oid
+             and attribute.attnum > 0
+             and not attribute.attisdropped
+            cross join lateral pg_catalog.aclexplode(attribute.attacl) acl
+            join pg_catalog.pg_roles worker
+              on worker.rolname = 'learncoding_worker'
+           where acl.grantee = worker.oid
+        ), expected(
+          attname, grantor, grantee, privilege_type, is_grantable
+        ) as (
+          select expected_column_acl.attname, target.relowner, worker.oid,
+                 expected_column_acl.privilege_type, false
+            from expected_column_acl
+            cross join target
+            join pg_catalog.pg_roles worker
+              on worker.rolname = 'learncoding_worker'
+        )
+        select not exists (
+          (select * from observed except all select * from expected)
+          union all
+          (select * from expected except all select * from observed)
+        )
+      ) worker_column_direct_acl_exact,
+      (
+        select pg_catalog.count(*) = 1
+               and pg_catalog.bool_and(
+                 pg_catalog.has_table_privilege(
+                   'learncoding_worker',
+                   target.oid,
+                   'SELECT'
+                 )
+                 and not pg_catalog.has_table_privilege(
+                   'learncoding_worker',
+                   target.oid,
+                   'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN'
+                 )
+                 and not exists (
+                   select 1
+                     from pg_catalog.pg_attribute attribute
+                    where attribute.attrelid = target.oid
+                      and attribute.attnum > 0
+                      and not attribute.attisdropped
+                      and (
+                        not pg_catalog.has_column_privilege(
+                          'learncoding_worker',
+                          target.oid,
+                          attribute.attnum,
+                          'SELECT'
+                        )
+                        or pg_catalog.has_column_privilege(
+                             'learncoding_worker',
+                             target.oid,
+                             attribute.attnum,
+                             'INSERT'
+                           ) is distinct from
+                           (attribute.attname = any($1::text[]))
+                        or pg_catalog.has_column_privilege(
+                             'learncoding_worker',
+                             target.oid,
+                             attribute.attnum,
+                             'UPDATE'
+                           ) is distinct from
+                           (attribute.attname = any($2::text[]))
+                        or pg_catalog.has_column_privilege(
+                             'learncoding_worker',
+                             target.oid,
+                             attribute.attnum,
+                             'REFERENCES'
+                           )
+                      )
+                 )
+               )
+          from target
+      ) worker_effective_privileges_exact`,
+    [
+      MAIL_WORKER_OUTBOX_INSERT_COLUMNS,
+      expectedUpdateColumns,
+      ["dispatch_binding_version", "dispatch_binding_sha256"],
+      constraint.relation,
+      constraint.name,
+      constraint.type,
+      constraint.validated,
+      constraint.normalizedExpression,
+      constraint.columns,
+      constraint.relationOwner,
+      expectedBindingColumnCount,
+      requiresDispatchBinding,
+    ],
+  );
+  if (
+    result.rows.length !== 1 ||
+    !exactRow(result.rows[0], {
+      outbox_present_exact: true,
+      outbox_owner_exact: true,
+      binding_columns_exact: true,
+      dispatch_constraint_exact: true,
+      worker_table_direct_acl_exact: true,
+      worker_column_direct_acl_exact: true,
+      worker_effective_privileges_exact: true,
+    })
+  )
+    fail("mail-worker-outbox-contract");
+  return 1;
+}
+
+export async function verifyReviewedMailAuthorityObjectFootprint(
+  client,
+  phase = null,
+) {
+  const allRoutineSignatures = [
+    ...new Set(
+      REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.flatMap(({ routines }) =>
+        routines.map(({ signature }) => signature),
+      ),
+    ),
+  ];
+  const expectedRoutineSignatures =
+    phase?.routines?.map(({ signature }) => signature) ?? [];
+  const allTriggerNames = REVIEWED_APPLICATION_TRIGGERS.map(({ name }) => name);
+  const expectedTriggerNames = phase?.triggers?.map(({ name }) => name) ?? [];
+  const requiresDispatchBinding = phase?.requiresWorkerContract === true;
+
+  const result = await client.query(
+    `
+    with reviewed_routines(signature) as (
+      select * from pg_catalog.unnest($1::text[])
+    ), reviewed_triggers(trigger_name) as (
+      select * from pg_catalog.unnest($3::text[])
+    )
+    select not exists (
+             select 1
+               from reviewed_routines
+              where (
+                      pg_catalog.to_regprocedure(signature) is not null
+                    ) is distinct from (
+                      signature = any($2::text[])
+                    )
+           ) reviewed_routine_presence_exact,
+           not exists (
+             select 1
+               from reviewed_triggers
+              where exists (
+                      select 1
+                        from pg_catalog.pg_trigger trigger_row
+                       where trigger_row.tgrelid =
+                               pg_catalog.to_regclass(
+                                 'public.email_outbox'
+                               )
+                         and trigger_row.tgname = trigger_name
+                         and not trigger_row.tgisinternal
+                    ) is distinct from (
+                      trigger_name = any($4::text[])
+                    )
+           ) reviewed_trigger_presence_exact,
+           (
+             select pg_catalog.count(*) = (
+                      case when $5::boolean then 1 else 0 end
+                    )
+               from pg_catalog.pg_constraint constraint_row
+              where constraint_row.conrelid =
+                      pg_catalog.to_regclass('public.email_outbox')
+                and constraint_row.conname =
+                      'email_outbox_dispatch_binding_valid'
+           ) reviewed_constraint_presence_exact`,
+    [
+      allRoutineSignatures,
+      expectedRoutineSignatures,
+      allTriggerNames,
+      expectedTriggerNames,
+      requiresDispatchBinding,
+    ],
+  );
+  if (
+    result.rows.length !== 1 ||
+    !exactRow(result.rows[0], {
+      reviewed_routine_presence_exact: true,
+      reviewed_trigger_presence_exact: true,
+      reviewed_constraint_presence_exact: true,
+    })
+  )
+    fail("reviewed-mail-authority-footprint");
+  return 1;
+}
+
+export async function verifyReviewedMailAuthorityCatalogContracts(client) {
+  await verifyReviewedMailAuthorityObjectFootprint(
+    client,
+    REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.at(-1),
+  );
+  const routinesVerified = await verifyReviewedApplicationRoutines(client);
+  const triggersVerified = await verifyReviewedApplicationTriggers(client);
+  const workerContractsVerified = await verifyMailWorkerOutboxContract(client);
+  return {
+    routinesVerified,
+    triggersVerified,
+    workerContractsVerified,
+    totalVerified:
+      routinesVerified + triggersVerified + workerContractsVerified,
+  };
 }
 
 async function verifyApplicationObjectAccess(client, objects) {
@@ -358,7 +972,9 @@ async function verifyApplicationObjectAccess(client, objects) {
     positiveChecks += 1;
   }
   if (objects.sequence) {
-    await client.query(`select last_value from ${qualifiedName(objects.sequence)}`);
+    await client.query(
+      `select last_value from ${qualifiedName(objects.sequence)}`,
+    );
     positiveChecks += 1;
   }
   if (objects.type) {
@@ -371,26 +987,34 @@ async function verifyApplicationObjectAccess(client, objects) {
 async function verifyRole({ client, role, database, objects }) {
   let positiveChecks = 0;
   let negativeChecks = 0;
-  const identity = await client.query("select current_user, session_user, current_database()");
-  if (!exactRow(identity.rows[0], {
-    current_user: role,
-    session_user: role,
-    current_database: database,
-  })) fail();
+  const identity = await client.query(
+    "select current_user, session_user, current_database()",
+  );
+  if (
+    !exactRow(identity.rows[0], {
+      current_user: role,
+      session_user: role,
+      current_database: database,
+    })
+  )
+    fail();
   positiveChecks += 1;
 
   const flags = await client.query(`
     select rolsuper, rolcreatedb, rolcreaterole, rolcanlogin, rolreplication, rolbypassrls
       from pg_roles
      where rolname = current_user`);
-  if (!exactRow(flags.rows[0], {
-    rolsuper: false,
-    rolcreatedb: false,
-    rolcreaterole: false,
-    rolcanlogin: true,
-    rolreplication: false,
-    rolbypassrls: false,
-  })) fail();
+  if (
+    !exactRow(flags.rows[0], {
+      rolsuper: false,
+      rolcreatedb: false,
+      rolcreaterole: false,
+      rolcanlogin: true,
+      rolreplication: false,
+      rolbypassrls: false,
+    })
+  )
+    fail();
   positiveChecks += 1;
 
   const privileges = await client.query(`
@@ -399,38 +1023,51 @@ async function verifyRole({ client, role, database, objects }) {
            has_database_privilege(current_user, current_database(), 'CREATE') create_allowed,
            has_schema_privilege(current_user, 'public', 'USAGE') schema_usage,
            has_schema_privilege(current_user, 'public', 'CREATE') schema_create`);
-  if (!exactRow(privileges.rows[0], {
-    connect_allowed: true,
-    temp_allowed: false,
-    create_allowed: false,
-    schema_usage: role !== "learncoding_migrator",
-    schema_create: false,
-  })) fail();
+  if (
+    !exactRow(privileges.rows[0], {
+      connect_allowed: true,
+      temp_allowed: false,
+      create_allowed: false,
+      schema_usage: role !== "learncoding_migrator",
+      schema_create: false,
+    })
+  )
+    fail();
   positiveChecks += 1;
 
-  await expectInsufficientPrivilege(client, "create role codestead_forbidden_role_boundary");
+  await expectInsufficientPrivilege(
+    client,
+    "create role codestead_forbidden_role_boundary",
+  );
   negativeChecks += 1;
   await expectInsufficientPrivilege(
     client,
     "create table public.codestead_forbidden_table_boundary (id integer)",
   );
   negativeChecks += 1;
-  await expectInsufficientPrivilege(client, `grant learncoding_owner to ${quoteIdentifier(role)}`);
+  await expectInsufficientPrivilege(
+    client,
+    `grant learncoding_owner to ${quoteIdentifier(role)}`,
+  );
   negativeChecks += 1;
 
   if (RUNTIME_ROLES.has(role)) {
     await expectInsufficientPrivilege(client, "set role learncoding_owner");
     negativeChecks += 1;
-    if (objects) positiveChecks += await verifyApplicationObjectAccess(client, objects);
+    if (objects)
+      positiveChecks += await verifyApplicationObjectAccess(client, objects);
   } else {
     await client.query("begin read only");
     try {
       await client.query("set local role learncoding_owner");
       const delegated = await client.query("select current_user, session_user");
-      if (!exactRow(delegated.rows[0], {
-        current_user: "learncoding_owner",
-        session_user: "learncoding_migrator",
-      })) fail();
+      if (
+        !exactRow(delegated.rows[0], {
+          current_user: "learncoding_owner",
+          session_user: "learncoding_migrator",
+        })
+      )
+        fail();
       positiveChecks += 1;
     } finally {
       await bounded(() => client.query("rollback"));
@@ -439,7 +1076,10 @@ async function verifyRole({ client, role, database, objects }) {
 
   if (objects) {
     const table = qualifiedName(objects.table);
-    await expectInsufficientPrivilege(client, `alter table ${table} owner to ${quoteIdentifier(role)}`);
+    await expectInsufficientPrivilege(
+      client,
+      `alter table ${table} owner to ${quoteIdentifier(role)}`,
+    );
     negativeChecks += 1;
     await expectTablePrivilegeNotDelegated(
       client,
@@ -481,7 +1121,9 @@ export async function verifyDatabaseRoleBoundaries(options) {
     let objects;
     if (requireApplicationObjects) {
       objects = await discoverApplicationObjects(lockClient);
-      positiveChecks += await verifyReviewedApplicationRoutines(lockClient);
+      const catalog =
+        await verifyReviewedMailAuthorityCatalogContracts(lockClient);
+      positiveChecks += catalog.totalVerified;
     }
     for (const [name] of ROLE_SPECS) {
       const role = parsed[name];
@@ -501,11 +1143,23 @@ export async function verifyDatabaseRoleBoundaries(options) {
   } finally {
     let cleanupFailed = false;
     if (lockAcquired) {
-      try { await releaseAdministrationLock(lockClient); } catch { cleanupFailed = true; }
+      try {
+        await releaseAdministrationLock(lockClient);
+      } catch {
+        cleanupFailed = true;
+      }
     }
     for (const { client, pool } of [...resources.values()].reverse()) {
-      try { client?.release(cleanupFailed || undefined); } catch { cleanupFailed = true; }
-      try { await bounded(() => pool.end()); } catch { cleanupFailed = true; }
+      try {
+        client?.release(cleanupFailed || undefined);
+      } catch {
+        cleanupFailed = true;
+      }
+      try {
+        await bounded(() => pool.end());
+      } catch {
+        cleanupFailed = true;
+      }
     }
     if (cleanupFailed) fail();
   }
@@ -513,7 +1167,8 @@ export async function verifyDatabaseRoleBoundaries(options) {
 
 function parseArguments(argv) {
   if (argv.length === 0) return false;
-  if (argv.length === 1 && argv[0] === "--require-application-objects") return true;
+  if (argv.length === 1 && argv[0] === "--require-application-objects")
+    return true;
   fail();
 }
 
@@ -527,20 +1182,24 @@ async function main() {
     databaseOpsUrl: process.env.DATABASE_OPS_URL ?? "",
     requireApplicationObjects,
   });
-  process.stdout.write(`${JSON.stringify({
-    event: "database.role_boundaries_verified",
-    mode: requireApplicationObjects ? "application-objects" : "pre-migration",
-    ...result,
-  })}\n`);
+  process.stdout.write(
+    `${JSON.stringify({
+      event: "database.role_boundaries_verified",
+      mode: requireApplicationObjects ? "application-objects" : "pre-migration",
+      ...result,
+    })}\n`,
+  );
 }
 
 const entrypoint = process.argv[1];
 if (entrypoint && import.meta.url === pathToFileURL(entrypoint).href) {
   main().catch((error) => {
-    process.stderr.write(`${JSON.stringify({
-      event: "database.role_boundary_verification_failed",
-      code: error instanceof Error ? error.name : "UNKNOWN",
-    })}\n`);
+    process.stderr.write(
+      `${JSON.stringify({
+        event: "database.role_boundary_verification_failed",
+        code: error instanceof Error ? error.name : "UNKNOWN",
+      })}\n`,
+    );
     process.exitCode = 1;
   });
 }

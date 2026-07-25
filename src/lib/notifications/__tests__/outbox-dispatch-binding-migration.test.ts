@@ -31,6 +31,13 @@ const integrationRunnerPath = resolve(
   "scripts",
   "run-integration-tests.ts",
 );
+const sharedPostgresContainerPath = resolve(
+  repositoryRoot,
+  "scripts",
+  "lib",
+  "disposable-postgres-container.ts",
+);
+
 const migration = existsSync(migrationPath)
   ? readFileSync(migrationPath, "utf8")
   : "";
@@ -212,11 +219,14 @@ describe("0064 email outbox dispatch binding", () => {
       prevId: string;
       tables: {
         "public.email_outbox": {
-          columns: Record<string, {
-            type: string;
-            notNull: boolean;
-            default?: unknown;
-          }>;
+          columns: Record<
+            string,
+            {
+              type: string;
+              notNull: boolean;
+              default?: unknown;
+            }
+          >;
           checkConstraints: Record<string, { value: string }>;
         };
       };
@@ -229,15 +239,15 @@ describe("0064 email outbox dispatch binding", () => {
       'dispatchBindingSha256: text("dispatch_binding_sha256")',
     );
     expect(schema).toContain('"email_outbox_dispatch_binding_valid"');
-    expect(snapshot.prevId).toBe(
-      "d2a68a3d-c790-4f56-b83e-7c7ba0eb6d68",
-    );
+    expect(snapshot.prevId).toBe("d2a68a3d-c790-4f56-b83e-7c7ba0eb6d68");
     expect(snapshot.id).not.toBe(snapshot.prevId);
     for (const columnName of [
       "dispatch_binding_version",
       "dispatch_binding_sha256",
     ]) {
-      expect(snapshot.tables["public.email_outbox"].columns[columnName]).toEqual({
+      expect(
+        snapshot.tables["public.email_outbox"].columns[columnName],
+      ).toEqual({
         name: columnName,
         type: "text",
         primaryKey: false,
@@ -255,10 +265,24 @@ describe("0064 email outbox dispatch binding", () => {
     expect(existsSync(pinnedIntegrationPath)).toBe(true);
     const harness = readFileSync(harnessPath, "utf8");
     const pinnedIntegration = readFileSync(pinnedIntegrationPath, "utf8");
-    const integrationRunner = readFileSync(integrationRunnerPath, "utf8");
-    expect(harness).toContain("POSTGRES_MAJOR");
-    expect(harness).toContain("POSTGRES_BIN");
-    expect(harness).toContain("/^18$/u");
+    const sharedPostgresContainerPresent = existsSync(
+      sharedPostgresContainerPath,
+    );
+    const postgresImageAuthority = readFileSync(
+      sharedPostgresContainerPresent
+        ? sharedPostgresContainerPath
+        : integrationRunnerPath,
+      "utf8",
+    );
+    expect(harness).toContain("POSTGRES_17_BIN");
+    expect(harness).toContain("POSTGRES_18_BIN");
+    expect(harness).toContain("/^(?:17|18)$/u");
+    expect(harness).toContain("current_setting('server_version_num')");
+    expect(harness).toContain("escapedPostgresMajor");
+    expect(harness).toContain("[0-9]{4}");
+    expect(harness).toContain("disposable-loopback-port.mjs");
+    expect(harness).not.toContain("net.createServer");
+    expect(harness).toContain("not byte-pinned");
     expect(harness).toContain("0063_mail_outbox_redaction_fence_release");
     expect(harness).toContain("0064_mail_outbox_dispatch_binding");
     expect(pinnedIntegration).toContain(
@@ -272,13 +296,23 @@ describe("0064 email outbox dispatch binding", () => {
     expect(pinnedIntegration).toContain(
       'function_name: "enforce_email_outbox_dispatch_binding",',
     );
-    expect(integrationRunner).toContain(
-      "postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193",
-    );
     expect(pinnedIntegration).toContain(
       "SELECT disposition, eligible::text, transitioned::text",
     );
-    expect(harness).toContain("\"eligible|1|1\"");
+    expect(postgresImageAuthority).toContain(
+      "postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193",
+    );
+    expect(postgresImageAuthority).not.toMatch(/postgres:16(?:-|@|")/u);
+    if (sharedPostgresContainerPresent) {
+      expect(postgresImageAuthority).toContain(
+        "export const POSTGRES_17_INTEGRATION_IMAGE",
+      );
+      expect(postgresImageAuthority).toMatch(
+        /export const POSTGRES_18_INTEGRATION_IMAGE[\s\S]*postgres:18-alpine@sha256:[0-9a-f]{64}/u,
+      );
+    }
+
+    expect(harness).toContain('"eligible|1|1"');
     expect(harness).toContain("migration_rollback:pass");
     expect(harness).toContain("legacy_grandfather:pass");
     expect(harness).toContain("transition_matrix:pass");

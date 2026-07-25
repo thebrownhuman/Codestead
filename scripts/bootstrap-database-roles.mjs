@@ -11,14 +11,328 @@ const APP_ROLE = "learncoding_app";
 const WORKER_ROLE = "learncoding_worker";
 const OPS_ROLE = "learncoding_ops";
 const LOGIN_ROLES = [MIGRATOR_ROLE, APP_ROLE, WORKER_ROLE, OPS_ROLE];
-export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
-  Object.freeze({
+
+function reviewedRoutine(contract) {
+  if (
+    !/^[0-9a-f]{64}$/u.test(contract.bodySha256) ||
+    (contract.definitionSha256 !== undefined &&
+      !/^[0-9a-f]{64}$/u.test(contract.definitionSha256))
+  ) {
+    throw new Error("reviewed database routine digest is invalid");
+  }
+  return Object.freeze({
+    cost: 100,
+    rows: contract.returnsSet ? 1_000 : 0,
+    supportFunction: null,
+    transformTypes: Object.freeze([]),
+    binary: null,
+    sqlBody: null,
+    definitionSha256: null,
+    ...contract,
+    configuration: Object.freeze([...contract.configuration]),
+    allowedRoles: Object.freeze([...contract.allowedRoles]),
+    argumentNames: Object.freeze([...contract.argumentNames]),
+    argumentModes: Object.freeze([...contract.argumentModes]),
+    argumentTypes: Object.freeze([...contract.argumentTypes]),
+  });
+}
+
+const REVIEWED_0062_APPLICATION_FUNCTIONS = Object.freeze([
+  reviewedRoutine({
     signature:
       "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+    migrationFile: "0062_mail_outbox_retention_redaction.sql",
     owner: OWNER_ROLE,
     securityDefiner: true,
-    configuration: Object.freeze(["search_path=pg_catalog"]),
-    allowedRoles: Object.freeze([OPS_ROLE]),
+    configuration: ["search_path=pg_catalog"],
+    allowedRoles: [OPS_ROLE],
+    bodySha256:
+      "bc69bc5bb45df3110589c7b63803a4a08eff37c0dfcd947b16fd360aab0625b2",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: ["cutoff_at", "batch_limit", "id"],
+    argumentModes: ["i", "i", "t"],
+    argumentTypes: ["timestamp with time zone", "integer", "uuid"],
+    inputArgumentCount: 2,
+    argumentDefaultCount: 0,
+    returnType: "uuid",
+    returnsSet: true,
+    variadic: false,
+    definitionSha256:
+      "d7911727c7fe0754544176ca4a63808700a697e469677f3cf8dea201e59492b0",
+  }),
+  reviewedRoutine({
+    signature: "public.enforce_email_outbox_payload_immutable()",
+    migrationFile: "0062_mail_outbox_retention_redaction.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: false,
+    configuration: ["search_path=pg_catalog"],
+    allowedRoles: [],
+    bodySha256:
+      "9fe430001d1d205a34a9ed24127a11532c27db885219f28f0f887fce92298deb",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [],
+    argumentModes: [],
+    argumentTypes: [],
+    inputArgumentCount: 0,
+    argumentDefaultCount: 0,
+    returnType: "trigger",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "5432a85d1feb92da8eac4b65aa8ee00552e8345a79f28336dbbe02f27505e3d6",
+  }),
+]);
+
+const REVIEWED_0063_APPLICATION_FUNCTIONS = Object.freeze([
+  reviewedRoutine({
+    signature:
+      "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+    migrationFile: "0063_mail_outbox_redaction_fence_release.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog"],
+    allowedRoles: [OPS_ROLE],
+    bodySha256:
+      "b0ea5923720615a4b1de4df477a7905410cc7cabda7f613ccc88415501cb2469",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [
+      "cutoff_at",
+      "batch_limit",
+      "disposition",
+      "eligible",
+      "transitioned",
+    ],
+    argumentModes: ["i", "i", "t", "t", "t"],
+    argumentTypes: [
+      "timestamp with time zone",
+      "integer",
+      "text",
+      "bigint",
+      "bigint",
+    ],
+    inputArgumentCount: 2,
+    argumentDefaultCount: 0,
+    returnType: "record",
+    returnsSet: true,
+    variadic: false,
+    definitionSha256:
+      "81ca308334c8297402ea1788c7fe3728277ddce891572fed6469ceae58e134bb",
+  }),
+  reviewedRoutine({
+    signature:
+      "public.classify_email_outbox_retention_redaction(public.email_outbox,timestamp with time zone)",
+    migrationFile: "0063_mail_outbox_redaction_fence_release.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog"],
+    allowedRoles: [],
+    bodySha256:
+      "7c2d6df1168a89d63ed026c63bc390201a2a6b618e75967eddbe27c3d5bf672c",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "s",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: ["candidate", "cutoff_at"],
+    argumentModes: [],
+    argumentTypes: ["public.email_outbox", "timestamp with time zone"],
+    inputArgumentCount: 2,
+    argumentDefaultCount: 0,
+    returnType: "text",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "67df14d91b1d8f11f1d9627b34e332d14ae871a68482f371d15e149ab81d5853",
+  }),
+  reviewedRoutine({
+    signature: "public.enforce_email_outbox_payload_immutable()",
+    migrationFile: "0063_mail_outbox_redaction_fence_release.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: false,
+    configuration: ["search_path=pg_catalog"],
+    allowedRoles: [],
+    bodySha256:
+      "8f78735c7181306c3bfe4f459eaf3f16b69ddbc3f9ea6ee27bb55cfd3dc7eef3",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [],
+    argumentModes: [],
+    argumentTypes: [],
+    inputArgumentCount: 0,
+    argumentDefaultCount: 0,
+    returnType: "trigger",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "fe8117eea4298f330247789fb23f0ebe98b09c5184b7e00e29e4409843c83541",
+  }),
+]);
+
+export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
+  ...REVIEWED_0063_APPLICATION_FUNCTIONS,
+  reviewedRoutine({
+    signature: "public.enforce_email_outbox_dispatch_binding()",
+    migrationFile: "0064_mail_outbox_dispatch_binding.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: false,
+    configuration: ["search_path=pg_catalog"],
+    allowedRoles: [],
+    bodySha256:
+      "e03d2be2455d53f9ddd0c0b7a8029efd07186a4d6804b86c2206b29031da7fdf",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [],
+    argumentModes: [],
+    argumentTypes: [],
+    inputArgumentCount: 0,
+    argumentDefaultCount: 0,
+    returnType: "trigger",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "b3ba15cae78eaf8e3535b28c0764e9715683e15ab85b0814089e3e54715f4676",
+  }),
+]);
+export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_payload_immutable",
+    functionSignature: "public.enforce_email_outbox_payload_immutable()",
+    enabled: "O",
+    type: 19,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([
+      "user_id",
+      "to_email",
+      "template",
+      "template_version",
+      "variables",
+      "idempotency_key",
+      "operation_id",
+      "delivery_scope_key",
+    ]),
+  }),
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_dispatch_binding_guard",
+    functionSignature: "public.enforce_email_outbox_dispatch_binding()",
+    enabled: "O",
+    type: 23,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+]);
+const EMAIL_OUTBOX_DISPATCH_BINDING_CONSTRAINT_NORMALIZED_EXPRESSION = [
+  "provider_call_startedISNULLANDadapterISNULLANDprovider_message_idISNULL",
+  "ANDdispatch_binding_versionISNULLANDdispatch_binding_sha256ISNULLOR",
+  "provider_call_startedISNOTNULLAND(status=ANY(ARRAY[",
+  "'sending'::notification_status,'sent'::notification_status,",
+  "'failed'::notification_status,'quarantined'::notification_status]))AND(",
+  "adapter='gmail'::textAND(dispatch_binding_versionISNULLAND",
+  "dispatch_binding_sha256ISNULLOR",
+  "dispatch_binding_version='gmail-raw-v1'::textAND",
+  "dispatch_binding_sha256~'^[0-9a-f]{64}$'::text)OR",
+  "adapter='console'::textAND(dispatch_binding_versionISNULLAND",
+  "dispatch_binding_sha256ISNULLOR",
+  "dispatch_binding_version='console-json-v1'::textAND",
+  "dispatch_binding_sha256~'^[0-9a-f]{64}$'::text))",
+].join("");
+export const REVIEWED_APPLICATION_CONSTRAINTS = Object.freeze([
+  Object.freeze({
+    relation: "public.email_outbox",
+    relationOwner: OWNER_ROLE,
+    name: "email_outbox_dispatch_binding_valid",
+    type: "c",
+    validated: true,
+    normalizedExpression:
+      EMAIL_OUTBOX_DISPATCH_BINDING_CONSTRAINT_NORMALIZED_EXPRESSION,
+    columns: Object.freeze([
+      "adapter",
+      "dispatch_binding_sha256",
+      "dispatch_binding_version",
+      "provider_call_started",
+      "provider_message_id",
+      "status",
+    ]),
+  }),
+]);
+
+function reviewedCatalogPhase({
+  index,
+  createdAt,
+  migrationFile,
+  migrationSha256,
+  routines,
+  triggers,
+  requiresWorkerContract,
+}) {
+  return Object.freeze({
+    index,
+    createdAt,
+    migrationFile,
+    migrationSha256,
+    routines,
+    triggers,
+    requiresWorkerContract,
+  });
+}
+
+export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
+  reviewedCatalogPhase({
+    index: 62,
+    createdAt: "1784925600000",
+    migrationFile: "0062_mail_outbox_retention_redaction.sql",
+    migrationSha256:
+      "98cd8b0fd5b57822bab9a3793094e738d926d5dab8a2dc700f89037bd0cbc13b",
+    routines: REVIEWED_0062_APPLICATION_FUNCTIONS,
+    triggers: Object.freeze([REVIEWED_APPLICATION_TRIGGERS[0]]),
+    requiresWorkerContract: false,
+  }),
+  reviewedCatalogPhase({
+    index: 63,
+    createdAt: "1784929200000",
+    migrationFile: "0063_mail_outbox_redaction_fence_release.sql",
+    migrationSha256:
+      "b1ff8b57084dcaf6e677aa5eb73d3f0e1156dca406d50f547c8d2c5590260ea2",
+    routines: REVIEWED_0063_APPLICATION_FUNCTIONS,
+    triggers: Object.freeze([REVIEWED_APPLICATION_TRIGGERS[0]]),
+    requiresWorkerContract: false,
+  }),
+  reviewedCatalogPhase({
+    index: 64,
+    createdAt: "1784932800000",
+    migrationFile: "0064_mail_outbox_dispatch_binding.sql",
+    migrationSha256:
+      "c6f057b8726602c3e6330c68a5a97e5698a1451b5b0d6ca2e3020db4f35975b9",
+    routines: REVIEWED_APPLICATION_FUNCTIONS,
+    triggers: REVIEWED_APPLICATION_TRIGGERS,
+    requiresWorkerContract: true,
   }),
 ]);
 
@@ -27,26 +341,42 @@ function sqlLiteral(value) {
 }
 
 export function reviewedApplicationFunctionPrivilegesSql() {
-  return REVIEWED_APPLICATION_FUNCTIONS.flatMap((routine, routineIndex) =>
-    routine.allowedRoles.map((role, roleIndex) => {
-      const blockTag = `codestead_reviewed_function_${routineIndex}_${roleIndex}`;
-      const grantSql = `grant execute on function ${routine.signature} to ${role}`;
-      return `
+  return REVIEWED_APPLICATION_FUNCTIONS.map((routine, routineIndex) => {
+    const blockTag = `codestead_reviewed_function_${routineIndex}`;
+    const restrictedRoles = [MIGRATOR_ROLE, APP_ROLE, WORKER_ROLE, OPS_ROLE];
+    const requiredRoles = [
+      ...new Set([routine.owner, ...restrictedRoles, ...routine.allowedRoles]),
+    ];
+    const revokeSql = `revoke all on function ${routine.signature} from public, ${requiredRoles.join(", ")}`;
+    const grants = [...new Set([routine.owner, ...routine.allowedRoles])]
+      .map(
+        (role) =>
+          `execute ${sqlLiteral(
+            `grant execute on function ${routine.signature} to ${role}`,
+          )};`,
+      )
+      .join("\n        ");
+    return `
       do $${blockTag}$
       begin
-        if pg_catalog.to_regrole(${sqlLiteral(role)})
+        if pg_catalog.to_regprocedure(${sqlLiteral(routine.signature)})
              is not null
-           and pg_catalog.to_regprocedure(${sqlLiteral(routine.signature)})
-             is not null then
-          execute ${sqlLiteral(grantSql)};
+           and ${requiredRoles
+             .map(
+               (role) =>
+                 `pg_catalog.to_regrole(${sqlLiteral(role)}) is not null`,
+             )
+             .join("\n           and ")}
+        then
+          execute ${sqlLiteral(revokeSql)};
+          ${grants}
         end if;
       end
       $${blockTag}$`;
-    }),
-  ).join(";\n");
+  }).join(";\n");
 }
 
-const MAIL_WORKER_OUTBOX_COLUMNS = Object.freeze([
+export const MAIL_WORKER_OUTBOX_COLUMNS = Object.freeze([
   "id",
   "user_id",
   "to_email",
@@ -71,6 +401,8 @@ const MAIL_WORKER_OUTBOX_COLUMNS = Object.freeze([
   "last_error_code",
   "created_at",
   "updated_at",
+  "dispatch_binding_version",
+  "dispatch_binding_sha256",
 ]);
 export const MAIL_WORKER_OUTBOX_INSERT_COLUMNS = Object.freeze([
   "operation_id",
@@ -99,26 +431,96 @@ export const MAIL_WORKER_OUTBOX_UPDATE_COLUMNS = Object.freeze([
   "quarantined_at",
   "last_error_code",
   "updated_at",
+  "dispatch_binding_version",
+  "dispatch_binding_sha256",
 ]);
+const MAIL_WORKER_DISPATCH_BINDING_COLUMNS = Object.freeze([
+  "dispatch_binding_version",
+  "dispatch_binding_sha256",
+]);
+export const MAIL_WORKER_OUTBOX_PRE_BINDING_UPDATE_COLUMNS = Object.freeze(
+  MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.filter(
+    (column) => !MAIL_WORKER_DISPATCH_BINDING_COLUMNS.includes(column),
+  ),
+);
 
 export function mailWorkerOutboxPrivilegesSql() {
-  const allColumns = MAIL_WORKER_OUTBOX_COLUMNS.join(", ");
   const insertColumns = MAIL_WORKER_OUTBOX_INSERT_COLUMNS.join(", ");
   const updateColumns = MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.join(", ");
-  const statements = [
-    "revoke all on table public.email_outbox from learncoding_worker",
-    `revoke all (${allColumns}) on table public.email_outbox from learncoding_worker`,
-    "grant select on table public.email_outbox to learncoding_worker",
-    `grant insert (${insertColumns}) on table public.email_outbox to learncoding_worker`,
-    `grant update (${updateColumns}) on table public.email_outbox to learncoding_worker`,
-  ];
+  const preBindingUpdateColumns =
+    MAIL_WORKER_OUTBOX_PRE_BINDING_UPDATE_COLUMNS.join(", ");
   return `
     do $codestead_mail_worker_outbox$
+    declare
+      binding_column_count integer;
+      binding_column_exact_count integer;
+      existing_columns text;
     begin
       if pg_catalog.to_regrole('learncoding_worker') is not null
          and pg_catalog.to_regclass('public.email_outbox') is not null
       then
-${statements.map((statement) => `        execute ${sqlLiteral(statement)};`).join("\n")}
+        select pg_catalog.count(*)::integer,
+               pg_catalog.count(*) filter (
+                 where attribute.atttypid = 'pg_catalog.text'::pg_catalog.regtype
+                   and attribute.atttypmod = -1
+                   and not attribute.attnotnull
+                   and not attribute.atthasdef
+                   and attribute.attgenerated = ''
+                   and attribute.attidentity = ''
+                   and not attribute.attisdropped
+               )::integer
+          into binding_column_count, binding_column_exact_count
+          from pg_catalog.pg_attribute attribute
+         where attribute.attrelid =
+                 pg_catalog.to_regclass('public.email_outbox')
+           and attribute.attname in (
+             'dispatch_binding_version',
+             'dispatch_binding_sha256'
+           )
+           and attribute.attnum > 0;
+
+        if binding_column_count not in (0, 2)
+           or (
+             binding_column_count = 2
+             and binding_column_exact_count <> 2
+           ) then
+          raise exception 'email outbox dispatch binding column contract is invalid'
+            using errcode = '23514';
+        end if;
+
+        select pg_catalog.string_agg(
+                 pg_catalog.format('%I', attribute.attname),
+                 ', ' order by attribute.attnum
+               )
+          into existing_columns
+          from pg_catalog.pg_attribute attribute
+         where attribute.attrelid =
+                 pg_catalog.to_regclass('public.email_outbox')
+           and attribute.attnum > 0
+           and not attribute.attisdropped;
+
+        execute ${sqlLiteral(
+          "revoke all on table public.email_outbox from learncoding_worker",
+        )};
+        execute pg_catalog.format(
+          'revoke all (%s) on table public.email_outbox from learncoding_worker',
+          existing_columns
+        );
+        execute ${sqlLiteral(
+          "grant select on table public.email_outbox to learncoding_worker",
+        )};
+        execute ${sqlLiteral(
+          `grant insert (${insertColumns}) on table public.email_outbox to learncoding_worker`,
+        )};
+        if binding_column_count = 2 then
+          execute ${sqlLiteral(
+            `grant update (${updateColumns}) on table public.email_outbox to learncoding_worker`,
+          )};
+        else
+          execute ${sqlLiteral(
+            `grant update (${preBindingUpdateColumns}) on table public.email_outbox to learncoding_worker`,
+          )};
+        end if;
       end if;
     end
     $codestead_mail_worker_outbox$;
@@ -175,7 +577,10 @@ export function validateDatabaseRoleUrls(input) {
       const username = decodeUrlComponent(url.username);
       const password = decodeUrlComponent(url.password);
       const passwordBytes = Buffer.byteLength(password, "utf8");
-      if (passwordBytes < MIN_PASSWORD_BYTES || passwordBytes > MAX_PASSWORD_BYTES) {
+      if (
+        passwordBytes < MIN_PASSWORD_BYTES ||
+        passwordBytes > MAX_PASSWORD_BYTES
+      ) {
         throw invalidCredentialConfiguration();
       }
       const database = decodeUrlComponent(url.pathname.slice(1));
@@ -216,8 +621,14 @@ export function validateDatabaseRoleUrls(input) {
 export function validateOwnershipInventory(input) {
   const allowedOwners = new Set([input.postgresUser, OWNER_ROLE]);
   const applicationSchemas = new Set(["public", "drizzle"]);
-  const canonicalSystemDatabases = new Set(["postgres", "template0", "template1"]);
-  const target = input.databases.find((database) => database.name === input.postgresDatabase);
+  const canonicalSystemDatabases = new Set([
+    "postgres",
+    "template0",
+    "template1",
+  ]);
+  const target = input.databases.find(
+    (database) => database.name === input.postgresDatabase,
+  );
   const canonicalSystemTablespaces = new Set(["pg_default", "pg_global"]);
   const unsafeDatabase = input.databases.some(
     (database) =>
@@ -232,7 +643,9 @@ export function validateOwnershipInventory(input) {
   );
   const unsafeSchema = input.schemas.some((schema) => {
     if (schema.name === "public") {
-      return !new Set([...allowedOwners, "pg_database_owner"]).has(schema.owner);
+      return !new Set([...allowedOwners, "pg_database_owner"]).has(
+        schema.owner,
+      );
     }
     if (schema.name === "drizzle") return !allowedOwners.has(schema.owner);
     return allowedOwners.has(schema.owner);
@@ -242,11 +655,21 @@ export function validateOwnershipInventory(input) {
     ...(input.routines ?? []),
     ...(input.types ?? []),
   ].some(
-    (object) => !applicationSchemas.has(object.schema) || !allowedOwners.has(object.owner),
+    (object) =>
+      !applicationSchemas.has(object.schema) ||
+      !allowedOwners.has(object.owner),
   );
-  const allowedDefaultGrantees = new Set(["PUBLIC", ...allowedOwners, APP_ROLE, WORKER_ROLE, OPS_ROLE]);
+  const allowedDefaultGrantees = new Set([
+    "PUBLIC",
+    ...allowedOwners,
+    APP_ROLE,
+    WORKER_ROLE,
+    OPS_ROLE,
+  ]);
   const allowedDirectGrantees = new Set([
-    ...allowedDefaultGrantees, MIGRATOR_ROLE, "pg_database_owner",
+    ...allowedDefaultGrantees,
+    MIGRATOR_ROLE,
+    "pg_database_owner",
   ]);
   const unsafeDefaultAcl = (input.defaultAcls ?? []).some(
     (entry) =>
@@ -255,7 +678,8 @@ export function validateOwnershipInventory(input) {
       !allowedDefaultGrantees.has(entry.grantee),
   );
 
-  const unsafeOwnerDependency = (input.unexpectedOwnerDependencies ?? []).length !== 0;
+  const unsafeOwnerDependency =
+    (input.unexpectedOwnerDependencies ?? []).length !== 0;
   const unsafeDirectAcl = (input.directAcls ?? []).some(
     (entry) =>
       !allowedDirectGrantees.has(entry.grantee) ||
@@ -277,18 +701,25 @@ export function validateOwnershipInventory(input) {
   }
 }
 
-async function acquireAdministrationLock(client, timeoutMs = MAX_LOCK_TIMEOUT_MS) {
+async function acquireAdministrationLock(
+  client,
+  timeoutMs = MAX_LOCK_TIMEOUT_MS,
+) {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
-    throw new RangeError("database administration lock timeout must be positive and finite");
+    throw new RangeError(
+      "database administration lock timeout must be positive and finite",
+    );
   }
   const deadline = performance.now() + Math.min(timeoutMs, MAX_LOCK_TIMEOUT_MS);
   while (performance.now() < deadline) {
     const remainingMs = deadline - performance.now();
     let timeoutHandle;
-    const query = Promise.resolve().then(() => client.query(
+    const query = Promise.resolve().then(() =>
+      client.query(
         "select pg_try_advisory_lock(hashtextextended($1, 0)) acquired",
         [DATABASE_ADMIN_LOCK_NAME],
-      ));
+      ),
+    );
     const timeout = new Promise((_, reject) => {
       timeoutHandle = setTimeout(
         () => reject(new Error("database administration lock timeout")),
@@ -306,7 +737,10 @@ async function acquireAdministrationLock(client, timeoutMs = MAX_LOCK_TIMEOUT_MS
     }
     if (result.rows[0]?.acquired === true) return;
     await new Promise((resolve) =>
-      setTimeout(resolve, Math.min(LOCK_POLL_MS, Math.max(1, deadline - performance.now()))),
+      setTimeout(
+        resolve,
+        Math.min(LOCK_POLL_MS, Math.max(1, deadline - performance.now())),
+      ),
     );
   }
   throw new Error("database administration lock timeout");
@@ -632,9 +1066,10 @@ async function rotatePasswords(client, roles) {
       "select pg_terminate_backend(pid) from pg_stat_activity where usename = $1 and pid <> pg_backend_pid()",
       [role],
     );
-    await client.query("select set_config('codestead.role_password', $1, true)", [
-      roles[role].password,
-    ]);
+    await client.query(
+      "select set_config('codestead.role_password', $1, true)",
+      [roles[role].password],
+    );
     await client.query(`
       do $codestead$
       begin
@@ -664,6 +1099,9 @@ async function rotatePasswords(client, roles) {
 }
 
 async function transferApplicationOwnership(client) {
+  const reviewedSignatures = REVIEWED_APPLICATION_FUNCTIONS.map((routine) =>
+    sqlLiteral(routine.signature),
+  ).join(", ");
   await client.query(`
     do $codestead$
     declare object record;
@@ -680,6 +1118,19 @@ async function transferApplicationOwnership(client) {
           join pg_namespace n on n.oid = c.relnamespace
          where n.nspname in ('public', 'drizzle')
            and c.relkind in ('r', 'p', 'S', 'v', 'm', 'f', 'c')
+           and not (
+             n.nspname = 'public'
+             and c.relname = 'email_outbox'
+             and c.relkind in ('r', 'p')
+             and exists (
+               select 1
+                 from pg_catalog.pg_attribute reviewed_column
+                where reviewed_column.attrelid = c.oid
+                  and reviewed_column.attnum > 0
+                  and not reviewed_column.attisdropped
+                  and reviewed_column.attname like 'dispatch_binding_%'
+             )
+           )
          order by n.nspname, c.relname
       loop
         execute format(
@@ -702,6 +1153,13 @@ async function transferApplicationOwnership(client) {
           from pg_proc p
           join pg_namespace n on n.oid = p.pronamespace
          where n.nspname in ('public', 'drizzle')
+           and not exists (
+             select 1
+               from pg_catalog.unnest(
+                 array[${reviewedSignatures}]::text[]
+               ) reviewed(signature)
+              where pg_catalog.to_regprocedure(reviewed.signature) = p.oid
+           )
          order by n.nspname, p.proname, p.oid
       loop
         execute format(
@@ -734,7 +1192,172 @@ async function transferApplicationOwnership(client) {
     $codestead$`);
 }
 
+async function reviewedMigrationJournalState(client) {
+  const presence = await client.query(`
+    select pg_catalog.to_regclass(
+             'drizzle.__drizzle_migrations'
+           ) is not null reviewed_migration_journal_present`);
+  const journalPresent = presence.rows[0]?.reviewed_migration_journal_present;
+  if (presence.rows.length !== 1 || typeof journalPresent !== "boolean") {
+    throw databaseRoleBootstrapInvariantError(
+      "reviewed-migration-journal-presence",
+    );
+  }
+  if (!journalPresent) return [];
+
+  const result = await client.query(
+    `
+    with reviewed(migration_index, created_at) as (
+      select ($1::integer[])[position] migration_index,
+             ($2::bigint[])[position] created_at
+        from pg_catalog.generate_subscripts(
+               $1::integer[],
+               1
+             ) position
+    )
+    select reviewed.migration_index,
+           reviewed.created_at::text created_at,
+           pg_catalog.count(journal.id)::integer applied_count,
+           coalesce(
+             pg_catalog.array_agg(journal.hash order by journal.id)
+               filter (where journal.id is not null),
+             '{}'::text[]
+           ) applied_hashes
+      from reviewed
+      left join drizzle.__drizzle_migrations journal
+        on journal.created_at = reviewed.created_at
+     group by reviewed.migration_index, reviewed.created_at
+     order by reviewed.migration_index`,
+    [
+      REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.map(({ index }) => index),
+      REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.map(({ createdAt }) => createdAt),
+    ],
+  );
+  if (result.rows.length !== REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.length) {
+    throw databaseRoleBootstrapInvariantError(
+      "reviewed-migration-journal-cardinality",
+    );
+  }
+
+  const applied = [];
+  let missingPredecessor = false;
+  for (const phase of REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES) {
+    const row = result.rows.find(
+      ({ migration_index: migrationIndex }) => migrationIndex === phase.index,
+    );
+    if (
+      row?.created_at !== phase.createdAt ||
+      !Number.isInteger(row?.applied_count) ||
+      !Array.isArray(row?.applied_hashes) ||
+      row.applied_hashes.length !== row.applied_count ||
+      ![0, 1].includes(row.applied_count)
+    ) {
+      throw databaseRoleBootstrapInvariantError(
+        "reviewed-migration-journal-row",
+      );
+    }
+    if (row.applied_count === 0) {
+      missingPredecessor = true;
+      continue;
+    }
+    if (missingPredecessor || row.applied_hashes[0] !== phase.migrationSha256) {
+      throw databaseRoleBootstrapInvariantError(
+        "reviewed-migration-journal-lineage",
+      );
+    }
+    applied.push(phase);
+  }
+  return applied;
+}
+
+export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
+  client,
+) {
+  const appliedPhases = await reviewedMigrationJournalState(client);
+  const marker = await client.query(`
+    select pg_catalog.count(*)::integer post_migration_binding_column_count,
+           pg_catalog.count(*) filter (
+             where attribute.atttypid =
+                     'pg_catalog.text'::pg_catalog.regtype
+               and attribute.atttypmod = -1
+               and not attribute.attnotnull
+               and not attribute.atthasdef
+               and attribute.attgenerated = ''
+               and attribute.attidentity = ''
+               and not attribute.attisdropped
+           )::integer post_migration_binding_column_exact_count
+      from pg_catalog.pg_attribute attribute
+     where attribute.attrelid =
+             pg_catalog.to_regclass('public.email_outbox')
+       and attribute.attnum > 0
+       and attribute.attname in (
+         'dispatch_binding_version',
+         'dispatch_binding_sha256'
+       )`);
+  const row = marker.rows[0];
+  if (
+    marker.rows.length !== 1 ||
+    !Number.isInteger(row?.post_migration_binding_column_count) ||
+    !Number.isInteger(row?.post_migration_binding_column_exact_count)
+  )
+    throw databaseRoleBootstrapInvariantError(
+      "reviewed-pre-reconciliation-marker",
+    );
+  if (
+    ![0, 2].includes(row.post_migration_binding_column_count) ||
+    row.post_migration_binding_column_exact_count !==
+      row.post_migration_binding_column_count
+  )
+    throw databaseRoleBootstrapInvariantError(
+      "reviewed-pre-reconciliation-marker",
+    );
+
+  const latestPhase = appliedPhases.at(-1);
+  const verifier = await import("./verify-database-role-boundaries.mjs");
+  if (latestPhase === undefined) {
+    await verifier.verifyReviewedMailAuthorityObjectFootprint(client, null);
+    if (row.post_migration_binding_column_count !== 0) {
+      throw databaseRoleBootstrapInvariantError(
+        "reviewed-pre-reconciliation-lineage",
+      );
+    }
+    return 0;
+  }
+  if (
+    (latestPhase.requiresWorkerContract &&
+      row.post_migration_binding_column_count !== 2) ||
+    (!latestPhase.requiresWorkerContract &&
+      row.post_migration_binding_column_count !== 0)
+  ) {
+    throw databaseRoleBootstrapInvariantError(
+      "reviewed-pre-reconciliation-lineage",
+    );
+  }
+
+  if (latestPhase.requiresWorkerContract) {
+    await verifier.verifyReviewedMailAuthorityCatalogContracts(client);
+  } else {
+    await verifier.verifyReviewedMailAuthorityObjectFootprint(
+      client,
+      latestPhase,
+    );
+    await verifier.verifyReviewedApplicationRoutines(
+      client,
+      latestPhase.routines,
+    );
+    await verifier.verifyReviewedApplicationTriggers(
+      client,
+      latestPhase.triggers,
+    );
+    await verifier.verifyMailWorkerOutboxContract(client, {
+      requiresDispatchBinding: false,
+    });
+  }
+  return 1;
+}
+
 export async function reconcileDatabaseRolePrivileges(client) {
+  await verifyPostMigrationReviewedContractsBeforeReconciliation(client);
   await client.query(`
     do $codestead$
     begin
@@ -906,12 +1529,13 @@ export async function verifyDatabaseRoleBootstrapState(
       role.rolconnlimit !== -1 ||
       role.valid_until_infinity !== true ||
       role.role_settings_empty !== true ||
-      (isOwner ? role.password_is_null !== true : role.password_is_scram !== true)
+      (isOwner
+        ? role.password_is_null !== true
+        : role.password_is_scram !== true)
     ) {
-      throw databaseRoleBootstrapInvariantError(
-        "role-properties",
-        [role.rolname],
-      );
+      throw databaseRoleBootstrapInvariantError("role-properties", [
+        role.rolname,
+      ]);
     }
   }
 
@@ -1316,7 +1940,8 @@ export async function verifyDatabaseRoleBootstrapState(
           allowedRoles.map((allowedRole) => ({
             signature,
             allowed_role: allowedRole,
-          }))),
+          })),
+        ),
       ),
     ],
   );
@@ -1389,7 +2014,8 @@ export async function verifyDatabaseRoleBootstrapState(
     throw databaseRoleBootstrapInvariantError("direct-acls");
   }
 
-  const defaultAcls = await client.query(`
+  const defaultAcls = await client.query(
+    `
     select coalesce(n.nspname, '*') schema,
            pg_get_userbyid(a.defaclrole) owner,
            case when privilege.grantee = 0 then 'PUBLIC'
@@ -1401,7 +2027,9 @@ export async function verifyDatabaseRoleBootstrapState(
       left join pg_namespace n on n.oid = a.defaclnamespace
       cross join lateral aclexplode(a.defaclacl) privilege
      where pg_get_userbyid(a.defaclrole) in ($1, 'learncoding_owner')
-     order by 1, 2, 3, 4, 5, 6`, [postgresUser]);
+     order by 1, 2, 3, 4, 5, 6`,
+    [postgresUser],
+  );
   const expectedPrivileges = {
     r: new Set(["DELETE", "INSERT", "SELECT", "UPDATE"]),
     S: new Set(["SELECT", "UPDATE", "USAGE"]),
@@ -1411,7 +2039,8 @@ export async function verifyDatabaseRoleBootstrapState(
     [APP_ROLE, WORKER_ROLE, OPS_ROLE].flatMap((grantee) =>
       Object.entries(expectedPrivileges).flatMap(([kind, privilegesForKind]) =>
         [...privilegesForKind].map(
-          (privilege) => `${OWNER_ROLE}|public|${grantee}|${kind}|${privilege}|false`,
+          (privilege) =>
+            `${OWNER_ROLE}|public|${grantee}|${kind}|${privilege}|false`,
         ),
       ),
     ),
@@ -1426,10 +2055,9 @@ export async function verifyDatabaseRoleBootstrapState(
       !expectedDefaultPrivilegeKeys.has(key) ||
       observedDefaultPrivilegeKeys.has(key)
     ) {
-      throw databaseRoleBootstrapInvariantError(
-        "default-acls-unexpected",
-        [key],
-      );
+      throw databaseRoleBootstrapInvariantError("default-acls-unexpected", [
+        key,
+      ]);
     }
     observedDefaultPrivilegeKeys.add(key);
   }
@@ -1479,7 +2107,9 @@ class DatabaseBootstrapUnlockError extends Error {
 
 function normalizeCleanupTimeoutMs(timeoutMs) {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
-    throw new RangeError("database bootstrap cleanup timeout must be positive and finite");
+    throw new RangeError(
+      "database bootstrap cleanup timeout must be positive and finite",
+    );
   }
   return Math.min(timeoutMs, DEFAULT_CLEANUP_TIMEOUT_MS);
 }
@@ -1537,14 +2167,16 @@ export async function cleanupDatabaseBootstrapResources({
   if (client && lockAcquired && !cleanupUnsafe) {
     try {
       const unlock = await boundedCleanupOperation(
-        () => client.query(
-          "select pg_advisory_unlock(hashtextextended($1, 0)) released",
-          [DATABASE_ADMIN_LOCK_NAME],
-        ),
+        () =>
+          client.query(
+            "select pg_advisory_unlock(hashtextextended($1, 0)) released",
+            [DATABASE_ADMIN_LOCK_NAME],
+          ),
         boundedTimeoutMs,
         "advisory unlock",
       );
-      if (unlock.rows[0]?.released !== true) throw new DatabaseBootstrapUnlockError();
+      if (unlock.rows[0]?.released !== true)
+        throw new DatabaseBootstrapUnlockError();
     } catch (error) {
       cleanupError ??= error;
       destroy = true;
@@ -1576,7 +2208,9 @@ export async function runDatabaseRoleBootstrap(options) {
   const cleanupTimeoutMs = normalizeCleanupTimeoutMs(
     options.cleanupTimeoutMs ?? DEFAULT_CLEANUP_TIMEOUT_MS,
   );
-  const pool = options.pool ?? new Pool({ connectionString: parsed.bootstrap.connectionString, max: 1 });
+  const pool =
+    options.pool ??
+    new Pool({ connectionString: parsed.bootstrap.connectionString, max: 1 });
   let client;
   let lockAcquired = false;
   let transactionOpen = false;
@@ -1608,6 +2242,7 @@ export async function runDatabaseRoleBootstrap(options) {
       options.postgresDatabase,
     );
     validateOwnershipInventory(inventory);
+    await verifyPostMigrationReviewedContractsBeforeReconciliation(client);
     await createAndResetRoles(client);
     const rolePasswords = {
       [MIGRATOR_ROLE]: parsed.migrator,
