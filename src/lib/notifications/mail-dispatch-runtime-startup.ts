@@ -99,7 +99,7 @@ export function isMailDispatchRuntimeStartupInspection(
  */
 export function isMailDispatchRuntimeStartupInspectionForPool(
   value: unknown,
-  pool: MailDispatchStartupPool,
+  pool: object,
 ): value is MailDispatchRuntimeStartupInspection {
   if (!isMailDispatchRuntimeStartupInspection(value)) {
     return false;
