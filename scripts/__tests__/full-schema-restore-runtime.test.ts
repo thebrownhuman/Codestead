@@ -1,7 +1,9 @@
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   buildPostgresArchiveCommands,
+  createSafeFullSchemaRestoreTaskRoot,
   parseFullSchemaRestorePostgresMajor,
   requireOwnedRestoreContainerId,
   runWithRestoreContainerPair,
@@ -226,4 +228,59 @@ describe("full-schema restore task-root cleanup", () => {
     await expect(operation).rejects.not.toThrow(/sensitive/u);
     expect(cleanup).toHaveBeenCalledOnce();
   });
+
+  it.each(["chmod", "mkdir"] as const)(
+    "transactionally exact-cleans a partial root when %s fails",
+    (failure) => {
+      const temporaryRoot = path.resolve("C:/safe-temp");
+      const root = path.join(
+        temporaryRoot,
+        "codestead-full-restore-12345678",
+      );
+      const trace: string[] = [];
+      const rmSync = vi.fn((target: string) => {
+        trace.push(`rm:${target}`);
+      });
+      let mkdirCalls = 0;
+      const ownTaskRoot = vi.fn(() => {
+        trace.push("own");
+      });
+
+      expect(() => createSafeFullSchemaRestoreTaskRoot({
+        temporaryDirectory: temporaryRoot,
+        ownTaskRoot,
+        fileSystem: {
+          realpathSync: (target) => path.resolve(target),
+          mkdtempSync: () => {
+            trace.push("mkdtemp");
+            return root;
+          },
+          chmodSync: () => {
+            trace.push("chmod");
+            if (failure === "chmod") {
+              throw new Error("sensitive chmod failure");
+            }
+          },
+          mkdirSync: () => {
+            mkdirCalls += 1;
+            trace.push(`mkdir:${mkdirCalls}`);
+            if (failure === "mkdir" && mkdirCalls === 2) {
+              throw new Error("sensitive mkdir failure");
+            }
+          },
+          rmSync,
+        },
+      })).toThrow("full-schema restore task-root setup failed");
+
+      expect(trace[0]).toBe("mkdtemp");
+      expect(trace[1]).toBe("own");
+      expect(trace.indexOf("own")).toBeLessThan(trace.indexOf("chmod"));
+      expect(rmSync).toHaveBeenCalledOnce();
+      expect(rmSync).toHaveBeenCalledWith(
+        root,
+        { recursive: true, force: false },
+      );
+      expect(JSON.stringify(trace)).not.toContain("sensitive");
+    },
+  );
 });

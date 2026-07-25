@@ -1,3 +1,12 @@
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+} from "node:fs";
+import path from "node:path";
+
 type PostgresMajor = 17 | 18;
 
 type ContainerInspection = Readonly<{
@@ -128,6 +137,96 @@ export function buildPostgresArchiveCommands(input: Readonly<{
       ],
     },
   } as const;
+}
+
+type FullSchemaRestoreTaskRootFileSystem = Readonly<{
+  chmodSync: (target: string, mode: number) => void;
+  mkdirSync: (
+    target: string,
+    options: Readonly<{ mode: number }>,
+  ) => void;
+  mkdtempSync: (prefix: string) => string;
+  realpathSync: (target: string) => string;
+  rmSync: (
+    target: string,
+    options: Readonly<{ recursive: true; force: false }>,
+  ) => void;
+}>;
+
+const DEFAULT_TASK_ROOT_FILE_SYSTEM: FullSchemaRestoreTaskRootFileSystem = {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+};
+
+export function createSafeFullSchemaRestoreTaskRoot(input: Readonly<{
+  temporaryDirectory: string;
+  ownTaskRoot: (cleanup: () => void) => void;
+  fileSystem?: FullSchemaRestoreTaskRootFileSystem;
+}>): Readonly<{
+  root: string;
+  sourceHome: string;
+  targetHome: string;
+  cleanup: () => void;
+}> {
+  const fileSystem = input.fileSystem ?? DEFAULT_TASK_ROOT_FILE_SYSTEM;
+  const temporaryRoot = fileSystem.realpathSync(
+    input.temporaryDirectory,
+  );
+  let root: string | undefined;
+  let cleanup: (() => void) | undefined;
+  try {
+    root = fileSystem.mkdtempSync(
+      path.join(temporaryRoot, "codestead-full-restore-"),
+    );
+    let cleaned = false;
+    cleanup = () => {
+      if (cleaned) return;
+      const resolved = fileSystem.realpathSync(root!);
+      if (
+        path.dirname(resolved) !== temporaryRoot
+        || !path.basename(resolved).startsWith(
+          "codestead-full-restore-",
+        )
+      ) {
+        throw new Error(
+          "full-schema restore temporary root is invalid",
+        );
+      }
+      fileSystem.rmSync(resolved, {
+        recursive: true,
+        force: false,
+      });
+      cleaned = true;
+    };
+
+    // This is the first statement after the first filesystem mutation.
+    // It installs signal ownership before chmod/mkdir/container setup.
+    input.ownTaskRoot(cleanup);
+    fileSystem.chmodSync(root, 0o700);
+    const sourceHome = path.join(root, "source-home");
+    const targetHome = path.join(root, "target-home");
+    fileSystem.mkdirSync(sourceHome, { mode: 0o700 });
+    fileSystem.mkdirSync(targetHome, { mode: 0o700 });
+    return { root, sourceHome, targetHome, cleanup };
+  } catch {
+    if (cleanup !== undefined) {
+      try {
+        cleanup();
+      } catch {
+        // The fixed setup failure below remains authoritative.
+      }
+    } else if (root !== undefined) {
+      try {
+        fileSystem.rmSync(root, { recursive: true, force: false });
+      } catch {
+        // The fixed setup failure below remains authoritative.
+      }
+    }
+    throw new Error("full-schema restore task-root setup failed");
+  }
 }
 
 export async function runWithRestoreContainerPair<T>(input: Readonly<{

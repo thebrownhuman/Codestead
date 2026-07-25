@@ -9,6 +9,9 @@ const read = (relativePath) =>
 const packageManifest = JSON.parse(read("package.json"));
 const workflow = read(".github/workflows/ci.yml");
 const runner = read("scripts/run-full-schema-restore-gate.ts");
+const archiveHelper = read("scripts/lib/full-schema-restore-archive.ts");
+const lifecycleHelper = read("scripts/lib/full-schema-restore-lifecycle.ts");
+const runtimeHelper = read("scripts/lib/full-schema-restore-runtime.ts");
 const scripts = packageManifest.scripts;
 
 const registrationScript = "test:full-schema-restore:registration";
@@ -94,13 +97,49 @@ assert.match(runner, /runFullSchemaRestoreDatabaseSmoke/u);
 assert.match(runner, /verifyDisposableIntegrationRoleBoundaries/u);
 assert.match(runner, /requireOwnedRestoreContainerId/u);
 assert.match(runner, /buildPostgresArchiveCommands/u);
-assert.match(runner, /runWithRestoreTaskRoot/u);
-assert.match(runner, /return result\.stdout/u);
+assert.match(runner, /deriveMigrationLedgerContract/u);
+assert.match(runner, /databaseBackupReporterUrl/u);
+assert.match(runner, /createSafeFullSchemaRestoreTaskRoot/u);
+assert.match(runner, /createFullSchemaRestoreLifecycle/u);
+assert.match(runner, /createDisposableIntegrationChildController/u);
+assert.match(runner, /buildDisposableIntegrationChildLaunch/u);
+assert.match(runner, /runFullSchemaArchiveDump/u);
+assert.match(runner, /runFullSchemaArchiveRestore/u);
+assert.match(runner, /lifecycle\.ownContainer\("source", source\)/u);
+assert.match(runner, /lifecycle\.ownContainer\("target", target\)/u);
+assert.match(
+  runner,
+  /\.\/lib\/disposable-integration-child-controller/u,
+);
+assert.match(
+  runner,
+  /\.\/lib\/disposable-integration-child-launch/u,
+);
 assert.match(runner, /archive\.fill\(0\)/u);
+assert.equal(
+  runner.match(/\bspawnSync\(/gu)?.length,
+  1,
+  "the only synchronous child call must remain the Docker identity probe",
+);
+assert.doesNotMatch(runner, /function runArchiveDump/u);
+assert.doesNotMatch(runner, /function runArchiveRestore/u);
 assert.doesNotMatch(
   runner,
   /Buffer\.from\(result\.stdout\)/u,
 );
+assert.match(archiveHelper, /controller\.spawnAndTrack/u);
+assert.match(archiveHelper, /result\.stdout\.fill\(0\)/u);
+const childCleanupIndex = lifecycleHelper.indexOf(
+  "await input.childController.terminateAndWait(signal)",
+);
+const targetCleanupIndex = lifecycleHelper.indexOf("target?.cleanup");
+const sourceCleanupIndex = lifecycleHelper.indexOf("source?.cleanup");
+const rootCleanupIndex = lifecycleHelper.indexOf("taskRootCleanup,");
+assert.ok(childCleanupIndex >= 0);
+assert.ok(childCleanupIndex < targetCleanupIndex);
+assert.ok(targetCleanupIndex < sourceCleanupIndex);
+assert.ok(sourceCleanupIndex < rootCleanupIndex);
+assert.match(runtimeHelper, /input\.ownTaskRoot\(cleanup\)/u);
 assert.doesNotMatch(runner, /\bfetch\s*\(|gmail|oauth/iu);
 assert.doesNotMatch(
   runner,

@@ -7,6 +7,12 @@ import type {
   FullSchemaRestoreQueryClient,
 } from "../lib/full-schema-restore-database";
 
+const absentBackupAuthorityCatalog = {
+  authority_table_present: false,
+  enqueue_routine_present: false,
+  authorize_routine_present: false,
+};
+
 describe("full-schema restore representative mail fixtures", () => {
   it("arms and terminally releases account and system rows when 0064 binding exists", async () => {
     const ownerTrace: string[] = [];
@@ -21,6 +27,9 @@ describe("full-schema restore representative mail fixtures", () => {
               { attname: "dispatch_binding_version" },
             ],
           };
+        }
+        if (sql.includes("authority_table_present")) {
+          return { rows: [absentBackupAuthorityCatalog] };
         }
         if (
           sql.includes("status = 'quarantined'")
@@ -45,8 +54,9 @@ describe("full-schema restore representative mail fixtures", () => {
         };
       }),
     };
+    const backupReporter = { query: vi.fn() };
 
-    await seedRepresentativeMailAuthorityRows({ owner, worker });
+    await seedRepresentativeMailAuthorityRows({ owner, worker, backupReporter });
 
     expect(ownerTrace[0]).toContain("insert into public.user");
     expect(ownerTrace[0]).toContain("insert into public.access_request");
@@ -73,6 +83,9 @@ describe("full-schema restore representative mail fixtures", () => {
         if (sql.includes("from pg_catalog.pg_attribute")) {
           return { rows: [] };
         }
+        if (sql.includes("authority_table_present")) {
+          return { rows: [absentBackupAuthorityCatalog] };
+        }
         if (
           sql.includes("status = 'quarantined'")
           && sql.includes("returning id")
@@ -86,8 +99,9 @@ describe("full-schema restore representative mail fixtures", () => {
       }),
     };
     const worker = { query: vi.fn() };
+    const backupReporter = { query: vi.fn() };
 
-    await seedRepresentativeMailAuthorityRows({ owner, worker });
+    await seedRepresentativeMailAuthorityRows({ owner, worker, backupReporter });
 
     expect(worker.query).not.toHaveBeenCalled();
     expect(ownerTrace[2]).toContain("provider_call_started");
@@ -100,6 +114,9 @@ describe("full-schema restore representative mail fixtures", () => {
       query: vi.fn(async (sql: string) => {
         if (sql.includes("from pg_catalog.pg_attribute")) {
           return { rows: [] };
+        }
+        if (sql.includes("authority_table_present")) {
+          return { rows: [absentBackupAuthorityCatalog] };
         }
         if (
           sql.includes("status = 'quarantined'")
@@ -117,6 +134,7 @@ describe("full-schema restore representative mail fixtures", () => {
     await expect(seedRepresentativeMailAuthorityRows({
       owner,
       worker: { query: vi.fn() },
+      backupReporter: { query: vi.fn() },
     })).rejects.toThrow("full-schema restore fixture transition failed");
   });
 
@@ -133,6 +151,7 @@ describe("full-schema restore representative mail fixtures", () => {
     await expect(seedRepresentativeMailAuthorityRows({
       owner,
       worker: { query: vi.fn() },
+      backupReporter: { query: vi.fn() },
     })).rejects.toThrow(
       "full-schema restore dispatch-binding catalog is invalid",
     );
@@ -142,6 +161,9 @@ describe("full-schema restore representative mail fixtures", () => {
     const owner: FullSchemaRestoreQueryClient = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes("from pg_catalog.pg_attribute")) return { rows: [] };
+        if (sql.includes("authority_table_present")) {
+          return { rows: [absentBackupAuthorityCatalog] };
+        }
         if (
           sql.includes("status = 'quarantined'")
           && sql.includes("returning id")
@@ -158,6 +180,158 @@ describe("full-schema restore representative mail fixtures", () => {
     await expect(seedRepresentativeMailAuthorityRows({
       owner,
       worker: { query: vi.fn() },
+      backupReporter: { query: vi.fn() },
     })).rejects.toThrow("full-schema restore fixture verification failed");
+  });
+
+  it("seeds and verifies an exact durable 0065 backup authority/outbox pair", async () => {
+    const queued = {
+      acknowledgement: "queued",
+      authority_id: "50000000-0000-4000-8000-000000000001",
+      outbox_id: "50000000-0000-4000-8000-000000000002",
+      operation_id: "50000000-0000-4000-8000-000000000003",
+    };
+    const owner: FullSchemaRestoreQueryClient = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("from pg_catalog.pg_attribute")) return { rows: [] };
+        if (sql.includes("authority_table_present")) {
+          return {
+            rows: [{
+              authority_table_present: true,
+              enqueue_routine_present: true,
+              authorize_routine_present: true,
+            }],
+          };
+        }
+        if (sql.includes("status = 'quarantined'")) {
+          return { rows: [{ id: "2" }, { id: "4" }] };
+        }
+        if (sql.includes("from public.backup_status_mail_authority")) {
+          return {
+            rows: [{
+              id: queued.authority_id,
+              run_key: "20260725T000000Z",
+              outcome: "success",
+              recipient_user_id: "full-schema-restore-admin",
+              recipient_email: "admin.restore@invalid.local",
+              outbox_id: queued.outbox_id,
+              operation_id: queued.operation_id,
+              user_id: "full-schema-restore-admin",
+              delivery_scope_key: "a:full-schema-restore-admin",
+              to_email: "admin.restore@invalid.local",
+              template: "backup-status",
+              template_version: "1",
+              variables: {
+                name: "Administrator",
+                summary:
+                  "The nightly encrypted backup completed and passed local verification. No archive is attached to this email.",
+              },
+              idempotency_key: "backup-status:v1:20260725T000000Z",
+            }],
+          };
+        }
+        if (sql.includes("as fixture_count")) {
+          return { rows: [{ fixture_count: "5" }] };
+        }
+        return { rows: [] };
+      }),
+    };
+    const worker: FullSchemaRestoreQueryClient = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("backup_status_mail_authorized")) {
+          return { rows: [{ authorized: true }] };
+        }
+        return { rows: [] };
+      }),
+    };
+    const backupReporter: FullSchemaRestoreQueryClient = {
+      query: vi.fn(async () => ({ rows: [queued] })),
+    };
+
+    await seedRepresentativeMailAuthorityRows({
+      owner,
+      worker,
+      backupReporter,
+    });
+
+    expect(backupReporter.query).toHaveBeenCalledWith(
+      expect.stringContaining("enqueue_backup_status_mail_authority"),
+      ["20260725T000000Z", "success"],
+    );
+    expect(worker.query).toHaveBeenCalledWith(
+      expect.stringContaining("backup_status_mail_authorized"),
+      [queued.outbox_id],
+    );
+  });
+
+  it("fails closed on a partial 0065 authority catalog", async () => {
+    const owner: FullSchemaRestoreQueryClient = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("from pg_catalog.pg_attribute")) return { rows: [] };
+        if (sql.includes("authority_table_present")) {
+          return {
+            rows: [{
+              authority_table_present: true,
+              enqueue_routine_present: false,
+              authorize_routine_present: true,
+            }],
+          };
+        }
+        if (sql.includes("status = 'quarantined'")) {
+          return { rows: [{ id: "2" }, { id: "4" }] };
+        }
+        return { rows: [] };
+      }),
+    };
+
+    await expect(seedRepresentativeMailAuthorityRows({
+      owner,
+      worker: { query: vi.fn() },
+      backupReporter: { query: vi.fn() },
+    })).rejects.toThrow(
+      "full-schema restore backup authority catalog is invalid",
+    );
+  });
+
+  it("fails closed when the 0065 predicate rejects the restored row", async () => {
+    const owner: FullSchemaRestoreQueryClient = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("from pg_catalog.pg_attribute")) return { rows: [] };
+        if (sql.includes("authority_table_present")) {
+          return {
+            rows: [{
+              authority_table_present: true,
+              enqueue_routine_present: true,
+              authorize_routine_present: true,
+            }],
+          };
+        }
+        if (sql.includes("status = 'quarantined'")) {
+          return { rows: [{ id: "2" }, { id: "4" }] };
+        }
+        if (sql.includes("from public.backup_status_mail_authority")) {
+          return { rows: [] };
+        }
+        return { rows: [] };
+      }),
+    };
+    const queued = {
+      acknowledgement: "queued",
+      authority_id: "50000000-0000-4000-8000-000000000001",
+      outbox_id: "50000000-0000-4000-8000-000000000002",
+      operation_id: "50000000-0000-4000-8000-000000000003",
+    };
+
+    await expect(seedRepresentativeMailAuthorityRows({
+      owner,
+      worker: {
+        query: vi.fn(async () => ({ rows: [{ authorized: false }] })),
+      },
+      backupReporter: {
+        query: vi.fn(async () => ({ rows: [queued] })),
+      },
+    })).rejects.toThrow(
+      "full-schema restore backup authority verification failed",
+    );
   });
 });

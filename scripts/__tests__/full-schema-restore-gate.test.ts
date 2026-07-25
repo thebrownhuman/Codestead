@@ -5,7 +5,8 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  deriveMigrationTailContract,
+  deriveMigrationLedgerContract,
+  requireFullSchemaRestoreMigrationContract,
   runFullSchemaRestoreVerification,
   type FullSchemaRestoreSnapshot,
 } from "../lib/full-schema-restore-gate";
@@ -34,14 +35,61 @@ const journal = {
   ],
 } as const;
 
+const migrationSql = ["select 'initial';\n", "select 'tail';\n"] as const;
 const tailSql = "select 'tail';\n";
-const migration = {
+const ledgerDigest = (
+  entries: readonly Record<string, string>[],
+) => digest(JSON.stringify({
+  entries,
+  version: "drizzle-migration-ledger-v1",
+}));
+const derivedMigration = {
+  entries: [
+    {
+      idx: 0,
+      tag: "0000_workable_deadpool",
+      when: 1_783_804_640_793,
+      sqlSha256: digest(migrationSql[0]),
+    },
+    {
+      idx: 1,
+      tag: "0001_nostalgic_thunderball",
+      when: 1_783_804_714_660,
+      sqlSha256: digest(migrationSql[1]),
+    },
+  ],
   entryCount: 2,
   tailIndex: 1,
   tailTag: "0001_nostalgic_thunderball",
   tailWhen: 1_783_804_714_660,
   tailSha256: digest(tailSql),
+  databaseLedgerSha256: ledgerDigest([
+    {
+      migration_index: "0",
+      migration_sha256: digest(migrationSql[0]),
+      migration_when: "1783804640793",
+    },
+    {
+      migration_index: "1",
+      migration_sha256: digest(migrationSql[1]),
+      migration_when: "1783804714660",
+    },
+  ]),
 } as const;
+const releaseJournal = {
+  version: "7",
+  dialect: "postgresql",
+  entries: Array.from({ length: 64 }, (_, idx) => ({
+    idx,
+    version: "7",
+    when: 1_785_000_000_000 + idx,
+    tag: `${String(idx).padStart(4, "0")}_restore_gate_${idx}`,
+    breakpoints: true,
+  })),
+};
+const releaseSql = releaseJournal.entries.map((entry) =>
+  `select '${entry.tag}';\n`);
+const migration = deriveMigrationLedgerContract(releaseJournal, releaseSql);
 
 function snapshot(
   overrides: Partial<FullSchemaRestoreSnapshot> = {},
@@ -51,6 +99,7 @@ function snapshot(
     journalEntryCount: migration.entryCount,
     journalTailSha256: migration.tailSha256,
     journalTailWhen: migration.tailWhen,
+    migrationLedgerSha256: migration.databaseLedgerSha256,
     objectContractSha256: digest("objects"),
     mailRowsSha256: digest("mail-rows"),
     mailRowCount: 4,
@@ -60,7 +109,9 @@ function snapshot(
 
 describe("full-schema restore migration contract", () => {
   it("derives the exact dynamic tail and SQL digest from a contiguous journal", () => {
-    expect(deriveMigrationTailContract(journal, tailSql)).toEqual(migration);
+    expect(deriveMigrationLedgerContract(journal, migrationSql)).toEqual(
+      derivedMigration,
+    );
   });
 
   it("tracks the checked-in journal tail instead of hard-coding a migration number", async () => {
@@ -73,22 +124,35 @@ describe("full-schema restore migration contract", () => {
     const entries = (checkedInJournal as {
       entries: Array<{ tag: string }>;
     }).entries;
-    const tail = entries.at(-1);
-    expect(tail).toBeDefined();
-    const checkedInTailSql = await readFile(
-      path.join(root, "drizzle", `${tail!.tag}.sql`),
-      "utf8",
-    );
+    const sqlSources = await Promise.all(entries.map((entry) =>
+      readFile(path.join(root, "drizzle", `${entry.tag}.sql`), "utf8")));
+    const tail = entries.at(-1)!;
 
-    const contract = deriveMigrationTailContract(
+    const contract = deriveMigrationLedgerContract(
       checkedInJournal,
-      checkedInTailSql,
+      sqlSources,
     );
 
     expect(contract.entryCount).toBe(entries.length);
     expect(contract.tailIndex).toBe(entries.length - 1);
     expect(contract.tailTag).toBe(tail!.tag);
     expect(contract.tailSha256).toMatch(/^[0-9a-f]{64}$/u);
+    expect(contract.entries).toHaveLength(entries.length);
+    expect(contract.databaseLedgerSha256).toMatch(/^[0-9a-f]{64}$/u);
+    if (contract.tailIndex < 63) {
+      expect(() => requireFullSchemaRestoreMigrationContract(contract))
+        .toThrow("full-schema restore requires migration 0063 or later");
+    } else {
+      expect(requireFullSchemaRestoreMigrationContract(contract)).toBe(
+        contract,
+      );
+    }
+  });
+
+  it("rejects a pre-0063 journal contract with a clear gate error", () => {
+    expect(() =>
+      requireFullSchemaRestoreMigrationContract(derivedMigration)
+    ).toThrow("full-schema restore requires migration 0063 or later");
   });
 
   it.each([
@@ -120,12 +184,59 @@ describe("full-schema restore migration contract", () => {
       },
     },
   ])("rejects a $name", ({ value }) => {
-    expect(() => deriveMigrationTailContract(value, tailSql))
+    expect(() => deriveMigrationLedgerContract(value, migrationSql))
       .toThrow("full-schema restore migration journal is invalid");
+  });
+
+  it("detects an earlier SQL mutation even when count and tail are unchanged", () => {
+    const mutated = deriveMigrationLedgerContract(journal, [
+      "select 'mutated initial';\n",
+      migrationSql[1],
+    ]);
+    expect(mutated.entryCount).toBe(derivedMigration.entryCount);
+    expect(mutated.tailSha256).toBe(derivedMigration.tailSha256);
+    expect(mutated.tailWhen).toBe(derivedMigration.tailWhen);
+    expect(mutated.entries[0]!.sqlSha256)
+      .not.toBe(derivedMigration.entries[0]!.sqlSha256);
+    expect(mutated.databaseLedgerSha256)
+      .not.toBe(derivedMigration.databaseLedgerSha256);
   });
 });
 
 describe("full-schema restore verification", () => {
+  it("rejects pre-0063 before touching either database", async () => {
+    const sourceReconcile = vi.fn(async () => undefined);
+
+    await expect(runFullSchemaRestoreVerification({
+      expectedPostgresMajor: 17,
+      migration: derivedMigration,
+      source: {
+        reconcileRoles: sourceReconcile,
+        verifyRoleBoundaries: async () => undefined,
+        migrate: async () => undefined,
+        seedRepresentativeMailRows: async () => undefined,
+        snapshot: async () => snapshot(),
+      },
+      target: {
+        reconcileRoles: async () => undefined,
+        verifyRoleBoundaries: async () => undefined,
+        snapshot: async () => snapshot(),
+        runNonNetworkSmoke: async () => ({
+          claimedRows: 1,
+          redactedRows: 2,
+          externalCalls: 0,
+        }),
+      },
+      dumpSource: async () => "archive",
+      restoreTarget: async () => undefined,
+      disposeArchive: () => undefined,
+    })).rejects.toThrow(
+      "full-schema restore requires migration 0063 or later",
+    );
+
+    expect(sourceReconcile).not.toHaveBeenCalled();
+  });
+
   it("orders source migration, isolated restore, post-restore reconciliation, and smoke", async () => {
     const trace: string[] = [];
     const sourceSnapshot = snapshot();
@@ -214,6 +325,7 @@ describe("full-schema restore verification", () => {
     ["journal count", { journalEntryCount: 1 }],
     ["journal tail hash", { journalTailSha256: digest("wrong-tail") }],
     ["journal tail timestamp", { journalTailWhen: migration.tailWhen + 1 }],
+    ["ordered migration ledger", { migrationLedgerSha256: digest("wrong-ledger") }],
     ["object owner or ACL digest", { objectContractSha256: digest("wrong-object") }],
     ["mail row digest", { mailRowsSha256: digest("wrong-row") }],
     ["mail row count", { mailRowCount: 3 }],
