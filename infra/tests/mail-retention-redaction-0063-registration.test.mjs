@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
+import os from "node:os";
 import {
   assertMailRetentionRedaction0063PostgresProjection,
   mailRetentionRedaction0063CiContract,
@@ -23,6 +24,9 @@ const migrationNames = readdirSync(
 const migration0063 = read(
   "drizzle/0063_mail_outbox_redaction_fence_release.sql",
 );
+const nativeHarness = read(
+  "infra/tests/mail-retention-redaction-0063.integration.mjs",
+);
 const scripts = packageManifest.scripts;
 const staticOnly = process.argv.includes("--static-only");
 
@@ -31,7 +35,161 @@ const {
   harnessScript,
   registrationCommand,
   harnessCommand,
+  pg17Command,
+  pg18Command,
 } = mailRetentionRedaction0063CiContract;
+assert.doesNotMatch(
+  nativeHarness,
+  /\.\.\.process\.env/u,
+  "0063 native children must not inherit the parent environment",
+);
+assert.equal(
+  [...nativeHarness.matchAll(/\bspawnSync\(/gu)].length,
+  1,
+  "all 0063 native children must use one reviewed spawn wrapper",
+);
+
+const {
+  buildNativeChildSpawnOptions,
+  childCommandFailure,
+} = await import("./mail-retention-redaction-0063.integration.mjs");
+const seededSensitiveValues = Object.freeze({
+  AWS_SECRET_ACCESS_KEY: "fake-cloud-secret-0063",
+  AZURE_STORAGE_CONNECTION_STRING: "fake-azure-secret-0063",
+  GOOGLE_APPLICATION_CREDENTIALS: "fake-google-secret-0063",
+  GITHUB_TOKEN: "fake-token-0063",
+  HTTP_PROXY: "http://fake-proxy-secret-0063.invalid",
+  HTTPS_PROXY: "https://fake-proxy-secret-0063.invalid",
+  ALL_PROXY: "socks5://fake-proxy-secret-0063.invalid",
+  NO_PROXY: "fake-no-proxy-secret-0063.invalid",
+  DATABASE_URL: "postgresql://secret:secret@database.invalid/secret",
+  POSTGRES_URL: "postgresql://secret:secret@database.invalid/secret",
+  PGPASSWORD: "fake-pg-password-0063",
+  PGSERVICEFILE: "fake-pg-service-secret-0063",
+});
+const seededParentEnvironment = Object.freeze({
+  PATH: "C:\\reviewed-path",
+  SystemRoot: "C:\\Windows",
+  WINDIR: "C:\\Windows",
+  ComSpec: "C:\\Windows\\System32\\cmd.exe",
+  PATHEXT: ".COM;.EXE;.CMD",
+  TEMP: "C:\\reviewed-temp",
+  TMP: "C:\\reviewed-tmp",
+  HOME: "/home/reviewed",
+  USERPROFILE: "C:\\Users\\reviewed",
+  HOMEDRIVE: "C:",
+  HOMEPATH: "\\Users\\reviewed",
+  LANG: "en_US.UTF-8",
+  LC_ALL: "C.UTF-8",
+  LC_CTYPE: "C.UTF-8",
+  POSTGRES_18_BIN: "parent-value-must-not-be-implicit",
+  PGCONNECT_TIMEOUT: "999999",
+  PSQL_HISTORY: "history-must-remain-disabled",
+  ...seededSensitiveValues,
+});
+const explicitPostgresEnvironment = Object.freeze({
+  POSTGRES_18_BIN: "C:\\Program Files\\PostgreSQL\\18\\bin",
+});
+const expectedChildEnvironment = Object.freeze({
+  PATH: seededParentEnvironment.PATH,
+  SystemRoot: seededParentEnvironment.SystemRoot,
+  WINDIR: seededParentEnvironment.WINDIR,
+  ComSpec: seededParentEnvironment.ComSpec,
+  PATHEXT: seededParentEnvironment.PATHEXT,
+  TEMP: seededParentEnvironment.TEMP,
+  TMP: seededParentEnvironment.TMP,
+  HOME: seededParentEnvironment.HOME,
+  USERPROFILE: seededParentEnvironment.USERPROFILE,
+  HOMEDRIVE: seededParentEnvironment.HOMEDRIVE,
+  HOMEPATH: seededParentEnvironment.HOMEPATH,
+  LANG: seededParentEnvironment.LANG,
+  LC_ALL: seededParentEnvironment.LC_ALL,
+  LC_CTYPE: seededParentEnvironment.LC_CTYPE,
+  POSTGRES_18_BIN: explicitPostgresEnvironment.POSTGRES_18_BIN,
+  PGCONNECT_TIMEOUT: "5",
+  PSQL_HISTORY: os.devNull,
+});
+
+for (const label of [
+  "initdb",
+  "postgres_version",
+  "psql",
+  "migration_0063_replay",
+]) {
+  const childOptions = buildNativeChildSpawnOptions(
+    { label },
+    seededParentEnvironment,
+    explicitPostgresEnvironment,
+  );
+  assert.deepEqual(childOptions.env, expectedChildEnvironment);
+  const serializedEnvironment = JSON.stringify(childOptions.env);
+  for (const secret of Object.values(seededSensitiveValues)) {
+    assert.equal(serializedEnvironment.includes(secret), false);
+  }
+}
+
+for (const invalidEnvironment of [
+  { DATABASE_URL: seededSensitiveValues.DATABASE_URL },
+  {
+    POSTGRES_18_BIN: explicitPostgresEnvironment.POSTGRES_18_BIN,
+    postgres_18_bin: "duplicate-postgres-bin",
+  },
+  {
+    POSTGRES_17_BIN: "/usr/lib/postgresql/17/bin",
+    POSTGRES_18_BIN: "/usr/lib/postgresql/18/bin",
+  },
+]) {
+  assert.throws(
+    () => buildNativeChildSpawnOptions(
+      { label: "postgres_version" },
+      seededParentEnvironment,
+      invalidEnvironment,
+    ),
+    (error) => {
+      assert.equal(error?.message, "invalid_child_environment_input");
+      for (const value of Object.values(invalidEnvironment)) {
+        assert.equal((error?.message ?? "").includes(value), false);
+      }
+      return true;
+    },
+  );
+}
+assert.throws(
+  () => buildNativeChildSpawnOptions(
+    { label: "postgres_version" },
+    { PATH: "first-path", Path: "duplicate-path" },
+    explicitPostgresEnvironment,
+  ),
+  { message: "invalid_child_environment_input" },
+);
+
+for (const [result, expectedMessage] of [
+  [
+    {
+      error: new Error(seededSensitiveValues.GITHUB_TOKEN),
+      status: null,
+      stdout: "",
+      stderr: "",
+    },
+    "migration_0063_replay_spawn_failed",
+  ],
+  [
+    {
+      status: 1,
+      stdout: seededSensitiveValues.DATABASE_URL,
+      stderr: seededSensitiveValues.PGPASSWORD,
+    },
+    "migration_0063_replay_failed_status_1",
+  ],
+]) {
+  const error = childCommandFailure(result, "migration_0063_replay");
+  assert.equal(error?.message, expectedMessage);
+  assert.equal(error?.cause, undefined);
+  const serializedError = `${error?.message ?? ""}\n${error?.stack ?? ""}`;
+  for (const secret of Object.values(seededSensitiveValues)) {
+    assert.equal(serializedError.includes(secret), false);
+  }
+}
 
 if (!staticOnly) {
   assert.equal(
