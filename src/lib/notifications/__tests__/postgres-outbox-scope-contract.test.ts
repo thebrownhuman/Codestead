@@ -7,6 +7,10 @@ const source = readFileSync(
   join(process.cwd(), "src/lib/notifications/postgres-outbox-store.ts"),
   "utf8",
 );
+const deletionCapabilitySource = readFileSync(
+  join(process.cwd(), "src/lib/notifications/deletion-notice-capability.ts"),
+  "utf8",
+);
 const compact = source.replace(/\s+/g, " ");
 const normalized = compact.toLowerCase();
 
@@ -55,6 +59,17 @@ describe("PostgresOutboxStore delivery authority", () => {
     expect(normalized).not.toContain("outbox.template not in");
   });
 
+  it("derives specialized template/version checks without literal policy copies", () => {
+    expect(source).toContain("requireSystemEmailTemplateAuthority");
+    expect(source).toContain("requireDeletionCapabilityTemplateAuthority");
+    expect(source).not.toContain("${outbox}.template_version = '1'");
+    expect(source).not.toContain('claim.payload.templateVersion !== "1"');
+    expect(deletionCapabilitySource)
+      .toContain("requireDeletionCapabilityTemplateAuthority");
+    expect(deletionCapabilitySource)
+      .not.toContain('ACCOUNT_DELETION_NOTICE_TEMPLATE_VERSION = "1"');
+  });
+
   it("fails closed for exact-cased system envelopes without live source authority", () => {
     expect(normalized).not.toContain("when outbox.user_id is null then 'allowed'");
     expect(normalized).toContain("system_email_authority_invalid");
@@ -78,8 +93,11 @@ describe("PostgresOutboxStore delivery authority", () => {
     expect(normalized).toContain("source_request.decided_at is null");
     expect(compact).toContain("${outbox}.variables ->> 'name' = 'Administrator'");
     expect(normalized).toContain("adminaccessurlparameter");
+    expect(source).toContain("ACCESS_REQUEST_ADMIN_TEMPLATE_AUTHORITY.producer");
 
-    expect(compact).toContain("${outbox}.variables ->> '_mailProducer' = 'access-request-approved'");
+    expect(source).toContain(
+      "ACCESS_REQUEST_APPROVED_TEMPLATE_AUTHORITY.producer",
+    );
     expect(normalized).toContain("source_invitation.access_request_id = source_request.id");
     expect(normalized).toContain("source_request.status = 'approved'");
     expect(normalized).toContain("source_invitation.created_by = source_request.decided_by");
@@ -87,7 +105,9 @@ describe("PostgresOutboxStore delivery authority", () => {
     expect(normalized).toContain("source_invitation.expires_at > pg_catalog.statement_timestamp()");
     expect(normalized).toContain("source_invitation.consumed_at is null");
 
-    expect(compact).toContain("${outbox}.variables ->> '_mailProducer' = 'access-request-rejected'");
+    expect(source).toContain(
+      "ACCESS_REQUEST_REJECTED_TEMPLATE_AUTHORITY.producer",
+    );
     expect(normalized).toContain("source_request.status = 'rejected'");
     expect(normalized).toContain("source_request.decided_by is not null");
     expect(normalized).toContain("source_request.decision_reason is not null");
