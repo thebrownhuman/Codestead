@@ -8,7 +8,7 @@ export const MAIL_DISPATCH_PRODUCTION_CONCURRENCY = 1;
 export const MAIL_DISPATCH_OTHER_PROCESS_POOL_MAXIMUM_CONNECTIONS = 80;
 
 const MAIL_DISPATCH_POOL_MAXIMUM_CONNECTIONS = 3;
-const MAIL_DISPATCH_POOL_ACQUIRE_TIMEOUT_MS = 5_000;
+const MAIL_DISPATCH_POOL_ACQUIRE_TIMEOUT_MS = 2_000;
 const MAIL_DISPATCH_POOL_IDLE_TIMEOUT_MS = 30_000;
 const MAIL_DISPATCH_MINIMUM_POSTGRES_MAJOR = 17;
 
@@ -36,6 +36,8 @@ export type MailDispatchRuntimeStartupInspection = Readonly<{
 
 const issuedInspections = new WeakSet<object>();
 const issuedPlanPostgresMajors = new WeakMap<object, number>();
+const issuedInspectionPools = new WeakMap<object, MailDispatchStartupPool>();
+const issuedPlanPools = new WeakMap<object, MailDispatchStartupPool>();
 
 function integerText(
   value: unknown,
@@ -87,6 +89,25 @@ export function isMailDispatchRuntimeStartupInspection(
     && isMailDispatchRuntimePlan(inspection.plan)
     && issuedPlanPostgresMajors.get(inspection.plan)
       === inspection.postgresMajor
+  );
+}
+
+/**
+ * Recognizes only an inspection and its plan issued for this exact pool
+ * identity. A capability issued after inspecting one pool cannot authorize
+ * another structurally equivalent pool.
+ */
+export function isMailDispatchRuntimeStartupInspectionForPool(
+  value: unknown,
+  pool: MailDispatchStartupPool,
+): value is MailDispatchRuntimeStartupInspection {
+  if (!isMailDispatchRuntimeStartupInspection(value)) {
+    return false;
+  }
+
+  return (
+    issuedInspectionPools.get(value) === pool
+    && issuedPlanPools.get(value.plan) === pool
   );
 }
 
@@ -176,6 +197,8 @@ export async function inspectMailDispatchRuntime(
   });
 
   issuedPlanPostgresMajors.set(plan, postgresMajor);
+  issuedPlanPools.set(plan, pool);
   issuedInspections.add(inspection);
+  issuedInspectionPools.set(inspection, pool);
   return inspection;
 }

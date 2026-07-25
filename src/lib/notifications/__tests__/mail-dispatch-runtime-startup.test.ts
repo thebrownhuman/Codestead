@@ -4,13 +4,14 @@ import { planMailDispatchRuntime } from "../mail-dispatch-runtime-policy";
 import {
   inspectMailDispatchRuntime,
   isMailDispatchRuntimeStartupInspection,
+  isMailDispatchRuntimeStartupInspectionForPool,
   MAIL_DISPATCH_OTHER_PROCESS_POOL_MAXIMUM_CONNECTIONS,
   MAIL_DISPATCH_PRODUCTION_CONCURRENCY,
 } from "../mail-dispatch-runtime-startup";
 
 const EXACT_POOL_OPTIONS = Object.freeze({
   max: 3,
-  connectionTimeoutMillis: 5_000,
+  connectionTimeoutMillis: 2_000,
   idleTimeoutMillis: 30_000,
 });
 
@@ -74,11 +75,69 @@ describe("mail dispatch runtime startup inspection", () => {
       },
     });
     expect(inspection.plan.timeouts).toMatchObject({
-      poolAcquireMs: 5_000,
+      poolAcquireMs: 2_000,
       poolIdleMs: 30_000,
     });
     expect(Object.isFrozen(inspection)).toBe(true);
     expect(Object.isFrozen(inspection.plan)).toBe(true);
+    expect(isMailDispatchRuntimeStartupInspection(inspection)).toBe(true);
+  });
+
+  it("issues an exact two-second production pool acquire budget", async () => {
+    const inspection = await inspectMailDispatchRuntime(pool({
+      options: {
+        ...EXACT_POOL_OPTIONS,
+        connectionTimeoutMillis: 2_000,
+      },
+    }));
+
+    expect(inspection.plan.timeouts.poolAcquireMs).toBe(2_000);
+  });
+
+  it("does not reread ambient pool capacity after the startup gate", async () => {
+    let configuredMaximum = 3;
+    let maximumReads = 0;
+    const database = {
+      options: {
+        get max() {
+          maximumReads += 1;
+          return configuredMaximum;
+        },
+        connectionTimeoutMillis: 2_000,
+        idleTimeoutMillis: 30_000,
+      },
+      query: vi.fn(async () => {
+        configuredMaximum = 99;
+        return {
+          rows: [{
+            max_connections: "87",
+            admin_reserved_connections: "3",
+            server_version_num: "170005",
+          }],
+        };
+      }),
+    };
+
+    const inspection = await inspectMailDispatchRuntime(database);
+
+    expect(maximumReads).toBe(1);
+    expect(inspection.plan.pool.maximumConnections).toBe(3);
+    expect(
+      inspection.plan.pool.serverCapacity.sumProcessPoolMaximumConnections,
+    ).toBe(83);
+  });
+
+  it("rejects an issued inspection and plan for a different pool identity", async () => {
+    const poolA = pool();
+    const poolB = pool();
+    const inspection = await inspectMailDispatchRuntime(poolA);
+
+    expect(
+      isMailDispatchRuntimeStartupInspectionForPool(inspection, poolA),
+    ).toBe(true);
+    expect(
+      isMailDispatchRuntimeStartupInspectionForPool(inspection, poolB),
+    ).toBe(false);
     expect(isMailDispatchRuntimeStartupInspection(inspection)).toBe(true);
   });
 
@@ -125,11 +184,11 @@ describe("mail dispatch runtime startup inspection", () => {
     ["maximum", { ...EXACT_POOL_OPTIONS, max: 4 }],
     [
       "acquire timeout",
-      { ...EXACT_POOL_OPTIONS, connectionTimeoutMillis: 4_999 },
+      { ...EXACT_POOL_OPTIONS, connectionTimeoutMillis: 1_999 },
     ],
     [
       "acquire timeout",
-      { ...EXACT_POOL_OPTIONS, connectionTimeoutMillis: 5_001 },
+      { ...EXACT_POOL_OPTIONS, connectionTimeoutMillis: 2_001 },
     ],
     ["idle timeout", { ...EXACT_POOL_OPTIONS, idleTimeoutMillis: 29_999 }],
     ["idle timeout", { ...EXACT_POOL_OPTIONS, idleTimeoutMillis: 30_001 }],
@@ -200,7 +259,7 @@ describe("mail dispatch runtime startup inspection", () => {
       serverAdminReserveConnections: 3,
       otherProcessPoolMaximumConnections:
         MAIL_DISPATCH_OTHER_PROCESS_POOL_MAXIMUM_CONNECTIONS,
-      poolAcquireTimeoutMs: 5_000,
+      poolAcquireTimeoutMs: 2_000,
       poolIdleTimeoutMs: 30_000,
     });
 
