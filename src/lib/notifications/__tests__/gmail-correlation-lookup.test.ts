@@ -195,6 +195,45 @@ describe("bounded Gmail correlation lookup", () => {
     expect(rawUrl.searchParams.has("metadataHeaders")).toBe(false);
   });
 
+  it("accepts canonical padded Gmail RAW base64url for class B", async () => {
+    const raw = Buffer.from(
+      `Message-ID: ${MESSAGE_ID}\r\nSubject: padded\r\n\r\nbody!`,
+      "utf8",
+    );
+    const unpadded = raw.toString("base64url");
+    const paddingLength = (4 - (unpadded.length % 4)) % 4;
+    expect(paddingLength).toBeGreaterThan(0);
+    const adapterPayloadSha256 =
+      createHash("sha256").update(raw).digest("hex");
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        access_token: "access",
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        messages: [{ id: "gmail-padded" }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: "gmail-padded",
+        labelIds: ["SENT"],
+        raw: `${unpadded}${"=".repeat(paddingLength)}`,
+      }), { status: 200 })));
+
+    await expect(findGmailMessageByMessageId({
+      messageId: MESSAGE_ID,
+      authority: {
+        kind: "legacy-raw-bound-v1",
+        adapterPayloadSha256,
+      },
+    })).resolves.toEqual({
+      kind: "matched",
+      providerMessageId: "gmail-padded",
+      proof: {
+        kind: "raw-sha256-v1",
+        adapterPayloadSha256,
+      },
+    });
+  });
+
   it("keeps class B unresolved on a RAW digest mismatch", async () => {
     const raw = Buffer.from(
       `Message-ID: ${MESSAGE_ID}\r\n\r\nbody`,
@@ -218,6 +257,96 @@ describe("bounded Gmail correlation lookup", () => {
       authority: {
         kind: "legacy-raw-bound-v1",
         adapterPayloadSha256: "b".repeat(64),
+      },
+    })).resolves.toEqual({ kind: "ambiguous" });
+  });
+
+  it.each([
+    { label: "invalid alphabet", raw: "***" },
+    { label: "embedded padding", raw: "YW=Jj" },
+    { label: "excess padding", raw: "YQ===" },
+    { label: "noncanonical trailing bits", raw: "YR==" },
+  ])("rejects $label in Gmail RAW base64url", async ({ raw }) => {
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        access_token: "access",
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        messages: [{ id: "gmail-malformed" }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: "gmail-malformed",
+        labelIds: ["SENT"],
+        raw,
+      }), { status: 200 })));
+
+    await expect(findGmailMessageByMessageId({
+      messageId: MESSAGE_ID,
+      authority: {
+        kind: "legacy-raw-bound-v1",
+        adapterPayloadSha256: "b".repeat(64),
+      },
+    })).resolves.toEqual({ kind: "ambiguous" });
+  });
+
+  it("rejects duplicate Message-ID headers without proof fallthrough", async () => {
+    const raw = Buffer.from([
+      `Message-ID: ${MESSAGE_ID}`,
+      `message-id: ${MESSAGE_ID}`,
+      "",
+      "body",
+    ].join("\r\n"), "utf8");
+    const adapterPayloadSha256 =
+      createHash("sha256").update(raw).digest("hex");
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        access_token: "access",
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        messages: [{ id: "gmail-duplicate" }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: "gmail-duplicate",
+        labelIds: ["SENT"],
+        raw: raw.toString("base64url"),
+      }), { status: 200 })));
+
+    await expect(findGmailMessageByMessageId({
+      messageId: MESSAGE_ID,
+      authority: {
+        kind: "legacy-raw-bound-v1",
+        adapterPayloadSha256,
+      },
+    })).resolves.toEqual({ kind: "ambiguous" });
+  });
+
+  it("rejects a class-B message carrying a class-C evidence header", async () => {
+    const raw = Buffer.from([
+      `Message-ID: ${MESSAGE_ID}`,
+      `X-Codestead-Dispatch-Evidence: v1.${EVIDENCE_TOKEN}`,
+      "",
+      "body",
+    ].join("\r\n"), "utf8");
+    const adapterPayloadSha256 =
+      createHash("sha256").update(raw).digest("hex");
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        access_token: "access",
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        messages: [{ id: "gmail-no-fallthrough" }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: "gmail-no-fallthrough",
+        labelIds: ["SENT"],
+        raw: raw.toString("base64url"),
+      }), { status: 200 })));
+
+    await expect(findGmailMessageByMessageId({
+      messageId: MESSAGE_ID,
+      authority: {
+        kind: "legacy-raw-bound-v1",
+        adapterPayloadSha256,
       },
     })).resolves.toEqual({ kind: "ambiguous" });
   });
@@ -316,6 +445,23 @@ describe("bounded Gmail correlation lookup", () => {
     })).resolves.toEqual({ kind: "ambiguous" });
   });
 
+  it("rejects an opaque Message-ID not derived from the authority operation before OAuth", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(findGmailMessageByMessageId({
+      messageId:
+        "<codestead.outbox.v1.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA@mail.codestead.invalid>",
+      authority: {
+        kind: "opaque-header-v1",
+        operationId: "22222222-2222-4222-8222-222222222222",
+        adapterPayloadSha256: "b".repeat(64),
+        providerEvidenceSha256: EVIDENCE_SHA256,
+      },
+    })).resolves.toEqual({ kind: "ambiguous" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it.each(["list", "metadata"] as const)(
     "bounds $stage response parsing and drains the aborted fetch before returning",
     async (stage) => {
@@ -371,4 +517,35 @@ describe("bounded Gmail correlation lookup", () => {
       expect((outcome as Error).message).toContain("reconciliation request timed out");
     },
   );
+
+  it("fails closed when a timed-out Gmail body never settles after abort", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("GMAIL_REQUEST_TIMEOUT_MS", "1000");
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ access_token: "access" }),
+        { status: 200 },
+      ))
+      .mockImplementationOnce((_url, init) => Promise.resolve({
+        ok: true,
+        json: vi.fn(() => new Promise<never>(() => {
+          expect(init?.signal).toBeInstanceOf(AbortSignal);
+        })),
+      } as unknown as Response));
+    vi.stubGlobal("fetch", fetchMock);
+
+    let outcome: unknown = "pending";
+    void lookup().then(
+      (result) => { outcome = result; },
+      (error) => { outcome = error; },
+    );
+    for (let index = 0; index < 40; index += 1) await Promise.resolve();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(6_001);
+    expect(outcome).toBeInstanceOf(Error);
+    expect((outcome as Error).message).toContain(
+      "did not settle after abort",
+    );
+  });
 });
