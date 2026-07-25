@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 import { outboxMessageId } from "./provider-correlation";
 import {
@@ -25,29 +25,38 @@ export interface MailProviderContext {
 
 export type MailAdapter = "console" | "gmail";
 
-export type MailDispatchAuthority = Readonly<{
+type DispatchAuthority<SourceDigest extends string> = Readonly<{
   id: string;
   operationId: string;
   claimToken: string;
   claimOwner: string;
   claimVersion: number;
   deliveryScopeKey: string;
-  sourceAuthoritySha256: SourceAuthoritySha256;
+  sourceAuthoritySha256: SourceDigest;
   recipient: string;
   template: EmailTemplate;
   templateVersion: string;
 }>;
 
+export type MailDispatchAuthority =
+  DispatchAuthority<SourceAuthoritySha256>;
+export type CompatibilityMailDispatchAuthority =
+  DispatchAuthority<CompatibilitySourceAuthoritySha256>;
+export type PreparedMailDispatchAuthority =
+  | MailDispatchAuthority
+  | CompatibilityMailDispatchAuthority;
+
 export type MailPreparationContext = Readonly<{
   adapter: MailAdapter;
   from: string;
   messageId: string;
-  authority: MailDispatchAuthority;
+  authority: PreparedMailDispatchAuthority;
 }>;
 
 declare const providerPayloadSha256Brand: unique symbol;
 declare const authoritySealSha256Brand: unique symbol;
 declare const sourceAuthoritySha256Brand: unique symbol;
+declare const compatibilitySourceAuthoritySha256Brand: unique symbol;
 
 export type ProviderPayloadSha256 = string & Readonly<{
   [providerPayloadSha256Brand]: "ProviderPayloadSha256";
@@ -61,6 +70,10 @@ export type SourceAuthoritySha256 = string & Readonly<{
   [sourceAuthoritySha256Brand]: "SourceAuthoritySha256";
 }>;
 
+export type CompatibilitySourceAuthoritySha256 = string & Readonly<{
+  [compatibilitySourceAuthoritySha256Brand]:
+    "CompatibilitySourceAuthoritySha256";
+}>;
 export type DispatchBinding = Readonly<{
   bindingVersion: "gmail-raw-v1" | "console-json-v1";
   bindingSha256: ProviderPayloadSha256;
@@ -92,9 +105,21 @@ export type PreparedConsoleEmail = Readonly<{
 
 export type PreparedEmail = PreparedGmailEmail | PreparedConsoleEmail;
 
+declare const materializedGmailPreparationBrand: unique symbol;
+
+export type MaterializedGmailPreparation = Readonly<{
+  [materializedGmailPreparationBrand]: "MaterializedGmailPreparation";
+}>;
+
+const MATERIALIZED_GMAIL_PREPARATIONS = new WeakMap<
+  MaterializedGmailPreparation,
+  PreparedGmailEmail
+>();
+
 const OUTBOX_MESSAGE_ID =
-  /^<codestead\.outbox\.[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}@mail\.codestead\.invalid>$/i;
+  /^<codestead\.outbox\.v1\.[A-Za-z0-9_-]{43}@mail\.codestead\.invalid>$/;
 const SHA256_HEX = /^[0-9a-f]{64}$/;
+const DISPATCH_EVIDENCE_TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const AUTHORITY_BINDING_DOMAIN = "codestead.mail.prepared-authority.v1";
 const AUTHORITY_BINDING_VERSION = "prepared-authority-v1";
 
@@ -131,6 +156,30 @@ export function gmailCorrelationHeader(messageId: string) {
   }
   return header;
 }
+function dispatchEvidenceHeader(token: unknown) {
+  if (
+    typeof token !== "string"
+    || !DISPATCH_EVIDENCE_TOKEN.test(token)
+  ) {
+    throw new Error("Invalid dispatch evidence token.");
+  }
+  const bytes = Buffer.from(token, "base64url");
+  if (bytes.length !== 32 || bytes.toString("base64url") !== token) {
+    throw new Error("Invalid dispatch evidence token.");
+  }
+  return `X-Codestead-Dispatch-Evidence: v1.${token}`;
+}
+
+function hasCanonicalDispatchEvidenceHeader(rfc822: string) {
+  const separator = rfc822.indexOf("\r\n\r\n");
+  if (separator < 0) return false;
+  const evidenceHeaders = rfc822.slice(0, separator)
+    .split("\r\n")
+    .filter((line) => /^x-codestead-dispatch-evidence:/iu.test(line));
+  return evidenceHeaders.length === 1
+    && /^X-Codestead-Dispatch-Evidence: v1\.[A-Za-z0-9_-]{43}$/u
+      .test(evidenceHeaders[0]!);
+}
 
 function assertBindingText(value: string, name: string, maximumLength: number) {
   if (
@@ -144,7 +193,7 @@ function assertBindingText(value: string, name: string, maximumLength: number) {
   return value;
 }
 
-function assertAuthority(authority: MailDispatchAuthority) {
+function assertAuthority(authority: PreparedMailDispatchAuthority) {
   assertBindingText(authority.id, "ID", 200);
   assertBindingText(authority.operationId, "operation ID", 200);
   assertBindingText(authority.claimToken, "claim token", 200);
@@ -204,7 +253,7 @@ function payloadBindingSha256(
 
 function authorityBindingSha256(
   prepared: PreparedWithoutAuthorityBinding,
-  authority: MailDispatchAuthority,
+  authority: PreparedMailDispatchAuthority,
 ) {
   assertAuthority(authority);
   const hash = createHash("sha256");
@@ -248,6 +297,7 @@ function mimeMessage(
   input: AuthoritativeOutgoingEmail,
   fromHeader: string,
   authoritativeMessageId: string,
+  dispatchEvidenceToken: string,
 ) {
   const rendered = renderEmail(input.template, input.variables);
   const boundary = `learncoding-${crypto.randomUUID()}`;
@@ -255,11 +305,13 @@ function mimeMessage(
   const to = headerValue(input.to, "To");
   const subject = headerValue(rendered.subject, "Subject");
   const messageId = gmailCorrelationHeader(authoritativeMessageId);
+  const evidenceHeader = dispatchEvidenceHeader(dispatchEvidenceToken);
   return [
     `From: ${from}`,
     `To: ${to}`,
     `Subject: ${subject}`,
     `Message-ID: ${messageId}`,
+    evidenceHeader,
     "MIME-Version: 1.0",
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
     "",
@@ -286,9 +338,10 @@ function assertNoBackupArchive(input: OutgoingEmail) {
   }
 }
 
-export function prepareEmail(
+function prepareEmailInternal(
   input: AuthoritativeOutgoingEmail,
   context: MailPreparationContext,
+  dispatchEvidenceToken?: string,
 ): PreparedEmail {
   assertMailAdapter(context.adapter);
   assertEmailTemplate(input.template);
@@ -317,6 +370,9 @@ export function prepareEmail(
   assertNoBackupArchive(input);
 
   if (context.adapter === "console") {
+    if (dispatchEvidenceToken !== undefined) {
+      throw new Error("Console dispatch evidence token is not permitted.");
+    }
     const eventLine =
       `{"event":"email.console_delivery","template":"${input.template}"}`;
     const eventBytes = `${eventLine}\n`;
@@ -342,7 +398,12 @@ export function prepareEmail(
     });
   }
 
-  const rfc822 = mimeMessage(input, context.from, expectedMessageId);
+  const rfc822 = mimeMessage(
+    input,
+    context.from,
+    expectedMessageId,
+    dispatchEvidenceToken ?? "",
+  );
   const raw = Buffer.from(rfc822, "utf8").toString("base64url");
   const requestBody = `{"raw":"${raw}"}`;
   const payload = Object.freeze({
@@ -367,9 +428,55 @@ export function prepareEmail(
   });
 }
 
+export function prepareEmail(
+  input: AuthoritativeOutgoingEmail,
+  context: MailPreparationContext,
+): PreparedEmail {
+  assertMailAdapter(context.adapter);
+  if (context.adapter === "gmail") {
+    throw new Error("Gmail preparation requires trusted materialization.");
+  }
+  return prepareEmailInternal(input, context);
+}
+
+/**
+ * Issues a one-shot, empty preparation capability. The evidence token and
+ * constructor stay module-local; a production import inventory restricts the
+ * issue/consume pair to the trusted materializer.
+ */
+export function issueMaterializedGmailPreparation(
+  input: AuthoritativeOutgoingEmail,
+  context: MailPreparationContext & Readonly<{ adapter: "gmail" }>,
+): MaterializedGmailPreparation {
+  const evidenceToken = randomBytes(32).toString("base64url");
+  const prepared = prepareEmailInternal(
+    input,
+    context,
+    evidenceToken,
+  ) as PreparedGmailEmail;
+  const capability = Object.freeze({}) as MaterializedGmailPreparation;
+  MATERIALIZED_GMAIL_PREPARATIONS.set(capability, prepared);
+  return capability;
+}
+
+export function consumeMaterializedGmailPreparation(
+  capability: MaterializedGmailPreparation,
+): PreparedGmailEmail | null {
+  if (
+    !capability
+    || (
+      typeof capability !== "object"
+      && typeof capability !== "function"
+    )
+    || !Object.isFrozen(capability)
+  ) return null;
+  const prepared = MATERIALIZED_GMAIL_PREPARATIONS.get(capability) ?? null;
+  MATERIALIZED_GMAIL_PREPARATIONS.delete(capability);
+  return prepared;
+}
 export function preparedEmailBindingMatches(
   prepared: PreparedEmail,
-  authority: MailDispatchAuthority,
+  authority: PreparedMailDispatchAuthority,
 ) {
   try {
     if (
@@ -384,6 +491,7 @@ export function preparedEmailBindingMatches(
       if (
         prepared.bindingVersion !== "gmail-raw-v1"
         || prepared.messageId !== outboxMessageId(authority.operationId)
+        || !hasCanonicalDispatchEvidenceHeader(prepared.rfc822)
         || prepared.raw
           !== Buffer.from(prepared.rfc822, "utf8").toString("base64url")
         || prepared.requestBody !== `{"raw":"${prepared.raw}"}`
