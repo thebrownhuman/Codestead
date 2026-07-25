@@ -2,7 +2,7 @@ import path from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 
-import type { PoolClient } from "pg";
+import { Pool, type PoolClient } from "pg";
 import {
   afterAll,
   afterEach,
@@ -17,11 +17,26 @@ import { deleteLearnerAccount } from "@/lib/data-lifecycle/deletion";
 import { db, pool } from "@/lib/db/client";
 import { emailOutbox, user } from "@/lib/db/schema";
 import {
+  createConfiguredMaterializedDispatch,
+  materializedDispatchEnvelope,
+  type PreparedDispatchEnvelope,
+} from "@/lib/notifications/guarded-prepared-dispatch";
+import {
+  inspectMailDispatchRuntime,
+  type MailDispatchRuntimeStartupInspection,
+} from "@/lib/notifications/mail-dispatch-runtime-startup";
+import {
+  mailDispatchPreparedRuntimePlan,
   PostgresOutboxStore,
   type EmailOutboxPayload,
   type OutboxPgClient,
   type OutboxPgPool,
 } from "@/lib/notifications/postgres-outbox-store";
+import { outboxMessageId } from "@/lib/notifications/provider-correlation";
+import {
+  PRODUCTION_EMAIL_TEMPLATES,
+  type EmailTemplate,
+} from "@/lib/notifications/template-authority-policy";
 import type {
   OutboxClaim,
   ProviderCallPermit,
@@ -243,22 +258,56 @@ class InstrumentedClient implements OutboxPgClient {
     };
   }
 
-  release() {
-    this.inner.release();
+  release(destroy = false) {
+    this.inner.release(destroy);
+  }
+
+  once(event: "end", listener: () => void) {
+    this.inner.once(event, listener);
+    return this;
+  }
+
+  removeListener(event: "end", listener: () => void) {
+    this.inner.removeListener(event, listener);
+    return this;
   }
 }
 
+const mailPool = new Pool({
+  application_name: "codestead_mail_delivery_races",
+  connectionString:
+    process.env.DATABASE_WORKER_URL
+    ?? process.env.DATABASE_URL
+    ?? "postgresql://learncoding:learncoding@localhost:5432/learncoding",
+  connectionTimeoutMillis: 5_000,
+  idleTimeoutMillis: 30_000,
+  max: 3,
+});
+
+let mailInspection: MailDispatchRuntimeStartupInspection | null = null;
+
 class InstrumentedPool implements OutboxPgPool {
+  readonly options = Object.freeze({
+    max: 3,
+    connectionTimeoutMillis: 5_000,
+    idleTimeoutMillis: 30_000,
+  });
+
   private nextClientOrdinal = 1;
   private commitFaultConsumed = false;
 
   constructor(
     private readonly hooks: QueryHooks = {},
     private readonly commitFault: CommitFault | null = null,
+    private readonly sourcePool: Pool = mailPool,
   ) {}
 
+  async query(text: string) {
+    return await this.sourcePool.query(text);
+  }
+
   async connect() {
-    const inner = await pool.connect();
+    const inner = await this.sourcePool.connect();
     const pid = (await inner.query<{ pid: number }>("select pg_backend_pid() pid")).rows[0]!.pid;
     const clientOrdinal = this.nextClientOrdinal;
     this.nextClientOrdinal += 1;
@@ -276,14 +325,68 @@ class InstrumentedPool implements OutboxPgPool {
   }
 }
 
-const liveOutboxPool: OutboxPgPool = {
-  async connect() {
-    return await pool.connect() as unknown as OutboxPgClient;
-  },
-};
+const liveOutboxPool = mailPool as unknown as OutboxPgPool;
 
-function store(outboxPool: OutboxPgPool = liveOutboxPool) {
-  return new PostgresOutboxStore(outboxPool);
+function store() {
+  if (!mailInspection) {
+    throw new Error("Mail dispatch runtime was not inspected.");
+  }
+  return new PostgresOutboxStore(liveOutboxPool, mailInspection);
+}
+
+async function instrumentedStore(outboxPool: InstrumentedPool) {
+  const inspection = await inspectMailDispatchRuntime(outboxPool);
+  return new PostgresOutboxStore(outboxPool, inspection);
+}
+
+function productionTemplate(value: string): EmailTemplate {
+  const template = PRODUCTION_EMAIL_TEMPLATES.find(
+    (candidate) => candidate === value,
+  );
+  if (!template) throw new Error("Outbox template is not production mail.");
+  return template;
+}
+
+function preparedEnvelope(
+  claim: OutboxClaim<EmailOutboxPayload>,
+  selectedStore: PostgresOutboxStore,
+  adapter: "console" | "gmail" = "console",
+): PreparedDispatchEnvelope {
+  const runtimePlan = mailDispatchPreparedRuntimePlan(selectedStore);
+  if (!runtimePlan) throw new Error("Mail dispatch runtime plan was not issued.");
+  const materialized = createConfiguredMaterializedDispatch({
+    source: {
+      applicationUrl: "http://localhost:3000",
+      outboxId: claim.id,
+      operationId: claim.operationId,
+      claimToken: claim.claimToken,
+      claimOwner: claim.claimOwner,
+      claimVersion: claim.claimVersion,
+      deliveryScopeKey: claim.deliveryScopeKey,
+      recipient: claim.payload.to,
+      template: productionTemplate(claim.payload.template),
+      templateVersion: claim.payload.templateVersion,
+      variables: claim.payload.variables,
+    },
+    adapter,
+    from: "Codestead <mail@codestead.test>",
+    messageId: outboxMessageId(claim.operationId),
+    runtimePlan,
+  });
+  const envelope = materializedDispatchEnvelope(materialized);
+  if (!envelope) throw new Error("Prepared dispatch envelope was not issued.");
+  return envelope;
+}
+
+async function beginBoundary(
+  claim: OutboxClaim<EmailOutboxPayload>,
+  selectedStore: PostgresOutboxStore,
+  adapter: "console" | "gmail" = "console",
+) {
+  return await selectedStore.beginProviderCall(claim, {
+    adapter,
+    envelope: preparedEnvelope(claim, selectedStore, adapter),
+  });
 }
 
 function assertDisposableDatabase() {
@@ -370,26 +473,23 @@ async function requirePermit(
   claim: OutboxClaim<EmailOutboxPayload>,
   selectedStore = store(),
 ): Promise<ProviderCallPermit> {
-  const boundary = await selectedStore.beginProviderCall(claim, {
-    adapter: "console",
-    leaseMs: 120_000,
-  });
+  const boundary = await beginBoundary(claim, selectedStore);
   expect(boundary.kind).toBe("applied");
   if (boundary.kind !== "applied") throw new Error("Expected provider boundary authority.");
   return boundary.permit;
 }
 
-async function expiredPermit() {
+async function expiredPermit(selectedStore = store()) {
   await seedOutboxRows("pending", 1);
   const claim = await requireClaim(CLAIM_TOKENS[0], "provider-worker");
-  const permit = await requirePermit(claim);
+  const permit = await requirePermit(claim, selectedStore);
   await pool.query(
     `update email_outbox
         set lease_expires_at = lease_expires_at - interval '4 minutes'
       where id = $1::uuid`,
     [claim.id],
   );
-  return { claim, permit };
+  return { claim, permit, selectedStore };
 }
 
 async function markUnresolvedQuarantined(rowId = ROW_IDS[0]) {
@@ -464,8 +564,10 @@ function zeroErasureDependencies(pause?: QueryPause) {
 const previousDeletionKey = process.env.DELETION_TOMBSTONE_KEY;
 let objectStorageRoot = "";
 
-beforeAll(() => {
+beforeAll(async () => {
+  assertDisposableDatabase();
   process.env.DELETION_TOMBSTONE_KEY = "mail-race-deletion-key-long-enough-for-integration";
+  mailInspection = await inspectMailDispatchRuntime(mailPool);
 });
 
 beforeEach(async () => {
@@ -500,14 +602,17 @@ afterEach(async () => {
 afterAll(async () => {
   if (previousDeletionKey === undefined) delete process.env.DELETION_TOMBSTONE_KEY;
   else process.env.DELETION_TOMBSTONE_KEY = previousDeletionKey;
-  await pool.end();
+  await Promise.all([
+    mailPool.end(),
+    pool.end(),
+  ]);
 });
 
 describe("real PostgreSQL mail delivery races", () => {
   it("revalidates a selected claim candidate at the CAS after a concurrent winner changes it", async () => {
     await seedOutboxRows("pending", 1);
     const candidatePause = new QueryPause();
-    const claimantStore = store(new InstrumentedPool({
+    const claimantStore = await instrumentedStore(new InstrumentedPool({
       after: async (event) => {
         if (isCandidateSelect(event.sql)) await candidatePause.hold(event.pid);
       },
@@ -647,9 +752,10 @@ describe("real PostgreSQL mail delivery races", () => {
   it("permits deletion after a failed provider call is definitely rejected", async () => {
     await seedOutboxRows("pending", 1);
     const claim = await requireClaim(CLAIM_TOKENS[0], "definitely-rejected-worker");
-    const permit = await requirePermit(claim);
+    const selectedStore = store();
+    const permit = await requirePermit(claim, selectedStore);
 
-    await expect(store().finishAfterProvider(permit, {
+    await expect(selectedStore.finishAfterProvider(permit, {
       kind: "failed",
       code: "PROVIDER_DEFINITELY_REJECTED",
     })).resolves.toEqual({ kind: "applied" });
@@ -680,7 +786,7 @@ describe("real PostgreSQL mail delivery races", () => {
   ])("allows one of two %s and keeps the delivery scope single-active", async (_name, fixtureKind) => {
     await seedOutboxRows(fixtureKind);
     const race = new ClaimRaceCoordinator();
-    const racingStore = store(new InstrumentedPool(race.hooks));
+    const racingStore = await instrumentedStore(new InstrumentedPool(race.hooks));
     const first = racingStore.claimNext({
       owner: "racing-worker-one",
       token: CLAIM_TOKENS[0],
@@ -718,12 +824,10 @@ describe("real PostgreSQL mail delivery races", () => {
   it("rolls back a provider boundary when its transaction does not commit", async () => {
     await seedOutboxRows("pending", 1);
     const claim = await requireClaim(CLAIM_TOKENS[0], "rollback-boundary-worker");
-    const rollbackStore = store(new InstrumentedPool({}, "rollback-before-ack"));
+    const rollbackStore = await instrumentedStore(new InstrumentedPool({}, "rollback-before-ack"));
 
-    await expect(rollbackStore.beginProviderCall(claim, {
-      adapter: "console",
-      leaseMs: 120_000,
-    })).rejects.toThrow("forced boundary rollback");
+    await expect(beginBoundary(claim, rollbackStore))
+      .rejects.toThrow("forced boundary rollback");
 
     expect((await outboxState())[0]).toMatchObject({
       status: "sending",
@@ -731,80 +835,71 @@ describe("real PostgreSQL mail delivery races", () => {
       provider_call_started: null,
       claim_version: claim.claimVersion,
     });
-    await expect(store().beginProviderCall(claim, {
-      adapter: "console",
-      leaseMs: 120_000,
-    })).resolves.toMatchObject({ kind: "applied" });
+    const retryStore = store();
+    await expect(beginBoundary(claim, retryStore))
+      .resolves.toMatchObject({ kind: "applied" });
   });
 
   it("persists an unknown provider-boundary commit without reconstructing a permit", async () => {
     await seedOutboxRows("pending", 1);
     const claim = await requireClaim(CLAIM_TOKENS[0], "unknown-commit-worker");
-    const unknownCommitStore = store(new InstrumentedPool({}, "commit-ack-lost"));
+    const unknownCommitStore = await instrumentedStore(new InstrumentedPool({}, "commit-ack-lost"));
 
-    await expect(unknownCommitStore.beginProviderCall(claim, {
-      adapter: "console",
-      leaseMs: 120_000,
-    })).rejects.toThrow("forced boundary commit acknowledgement loss");
+    await expect(beginBoundary(claim, unknownCommitStore))
+      .rejects.toThrow("forced boundary commit acknowledgement loss");
 
     expect((await outboxState())[0]).toMatchObject({
       status: "sending",
       adapter: "console",
     });
     expect((await outboxState())[0]!.provider_call_started).not.toBeNull();
-    await expect(store().beginProviderCall(claim, {
-      adapter: "console",
-      leaseMs: 120_000,
-    })).resolves.toEqual({ kind: "lost" });
+    const retryStore = store();
+    await expect(beginBoundary(claim, retryStore))
+      .resolves.toEqual({ kind: "lost" });
   });
 
-  it("carries exact non-millisecond PostgreSQL boundary text through finalization", async () => {
+  it("keeps provider boundary details opaque while finalizing exact stored authority", async () => {
     await seedOutboxRows("pending", 1);
     const claim = await requireClaim(CLAIM_TOKENS[0], "precision-worker");
-    const permit = await requirePermit(claim);
+    const selectedStore = store();
+    const permit = await requirePermit(claim, selectedStore);
+    expect(Object.isFrozen(permit)).toBe(true);
+    expect(Reflect.ownKeys(permit)).toEqual([]);
+
     const captured = await pool.query<{ provider_call_started: string }>(`
       select provider_call_started::text as provider_call_started
         from email_outbox
        where id = $1::uuid
     `, [claim.id]);
-    expect(captured.rows[0]?.provider_call_started).toBe(permit.providerCallStartedAt);
+    expect(captured.rows[0]?.provider_call_started).toMatch(
+      /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d{1,6})?\+00$/u,
+    );
 
-    const exactBoundary = "2026-07-22 19:00:05.123456+00";
-    const rewritten = await pool.query<{ provider_call_started: string }>(`
-      update email_outbox
-         set provider_call_started = $2::timestamptz
-       where id = $1::uuid
-         and provider_call_started = $3::timestamptz
-      returning provider_call_started::text as provider_call_started
-    `, [claim.id, exactBoundary, permit.providerCallStartedAt]);
-    expect(rewritten.rows[0]?.provider_call_started).toBe(exactBoundary);
-    const exactPermit = {
-      ...permit,
-      providerCallStartedAt: exactBoundary,
-    } as ProviderCallPermit;
-
-    await expect(store().finishAfterProvider(exactPermit, {
-      kind: "sent",
-      providerMessageId: "console-microsecond-boundary",
+    await expect(selectedStore.finishAfterProvider(permit, {
+      kind: "failed",
+      code: "PROVIDER_DEFINITELY_REJECTED",
     })).resolves.toEqual({ kind: "applied" });
   });
-  it("lets a finalizer that owns the scope lock beat the abandoned-send sweeper", async () => {
-    const { permit } = await expiredPermit();
+  it("lets a definite-rejection finalizer that owns the scope lock beat the sweeper", async () => {
     const finalizerPause = new QueryPause();
-    const finalizerStore = store(new InstrumentedPool({
+    const finalizerStore = await instrumentedStore(new InstrumentedPool({
       after: async (event) => {
         if (isBlockingAdvisoryLock(event.sql)) await finalizerPause.hold(event.pid);
       },
     }));
+    const { permit } = await expiredPermit(finalizerStore);
     const finalizing = finalizerStore.finishAfterProvider(permit, {
-      kind: "sent",
-      providerMessageId: "console-finalizer-first",
+      kind: "failed",
+      code: "PROVIDER_DEFINITELY_REJECTED",
     });
     await within(finalizerPause.reached, "finalizer scope lock");
 
     let swept: number;
     try {
-      swept = await within(store().quarantineAbandoned({ limit: 10 }), "non-blocking abandoned-send sweep");
+      swept = await within(
+        store().quarantineAbandoned({ limit: 10 }),
+        "non-blocking abandoned-send sweep",
+      );
     } finally {
       finalizerPause.release();
     }
@@ -813,17 +908,17 @@ describe("real PostgreSQL mail delivery races", () => {
     expect(swept).toBe(0);
     expect(finalized).toEqual({ kind: "applied" });
     expect((await outboxState())[0]).toMatchObject({
-      status: "sent",
-      provider_message_id: "console-finalizer-first",
+      status: "failed",
+      provider_message_id: null,
       quarantined_at: null,
-      last_error_code: null,
+      last_error_code: "PROVIDER_DEFINITELY_REJECTED",
     });
   });
 
-  it("preserves quarantine evidence when the sweeper owns the scope before a late finalizer", async () => {
-    const { permit } = await expiredPermit();
+  it("lets a late definite rejection finalize the released sweeper successor", async () => {
+    const { claim, permit, selectedStore } = await expiredPermit();
     const sweeperPause = new QueryPause();
-    const sweeperStore = store(new InstrumentedPool({
+    const sweeperStore = await instrumentedStore(new InstrumentedPool({
       after: async (event, result) => {
         if (isTryAdvisoryLock(event.sql) && result.rows[0]?.locked === true) {
           await sweeperPause.hold(event.pid);
@@ -832,9 +927,9 @@ describe("real PostgreSQL mail delivery races", () => {
     }));
     const sweeping = sweeperStore.quarantineAbandoned({ limit: 10 });
     await within(sweeperPause.reached, "sweeper scope lock");
-    const finalizing = store().finishAfterProvider(permit, {
-      kind: "sent",
-      providerMessageId: "console-sweeper-first",
+    const finalizing = selectedStore.finishAfterProvider(permit, {
+      kind: "failed",
+      code: "PROVIDER_DEFINITELY_REJECTED",
     });
 
     let waitError: unknown = null;
@@ -851,30 +946,8 @@ describe("real PostgreSQL mail delivery races", () => {
     expect(swept).toBe(1);
     expect(finalized).toEqual({ kind: "applied" });
     expect((await outboxState())[0]).toMatchObject({
-      status: "quarantined",
-      claim_version: permit.claimVersion + 1,
-      claim_token: null,
-      claim_owner: null,
-      lease_expires_at: null,
-      provider_message_id: "console-sweeper-first",
-      last_error_code: "ABANDONED_POST_PROVIDER_BOUNDARY",
-    });
-    expect((await outboxState())[0]!.sent_at).not.toBeNull();
-    expect((await outboxState())[0]!.quarantined_at).not.toBeNull();
-  });
-
-  it("finalizes a definite rejection from the released sweeper successor without another provider call", async () => {
-    const { permit } = await expiredPermit();
-
-    await expect(store().quarantineAbandoned({ limit: 10 })).resolves.toBe(1);
-    await expect(store().finishAfterProvider(permit, {
-      kind: "failed",
-      code: "PROVIDER_DEFINITELY_REJECTED",
-    })).resolves.toEqual({ kind: "applied" });
-
-    expect((await outboxState())[0]).toMatchObject({
       status: "failed",
-      claim_version: permit.claimVersion + 1,
+      claim_version: claim.claimVersion + 1,
       claim_token: null,
       claim_owner: null,
       lease_expires_at: null,
@@ -884,19 +957,39 @@ describe("real PostgreSQL mail delivery races", () => {
       last_error_code: "PROVIDER_DEFINITELY_REJECTED",
     });
   });
+
+  it("rejects public sent finalization and preserves unresolved quarantine", async () => {
+    const { claim, permit, selectedStore } = await expiredPermit();
+
+    await expect(store().quarantineAbandoned({ limit: 10 })).resolves.toBe(1);
+    await expect(selectedStore.finishAfterProvider(permit, {
+      kind: "sent",
+      providerMessageId: "forged-public-sent-result",
+    })).rejects.toThrow(
+      "Sent finalization requires a module-issued guarded-dispatch uncertainty.",
+    );
+
+    expect((await outboxState())[0]).toMatchObject({
+      status: "quarantined",
+      claim_version: claim.claimVersion + 1,
+      claim_token: null,
+      claim_owner: null,
+      lease_expires_at: null,
+      provider_message_id: null,
+      sent_at: null,
+      last_error_code: "ABANDONED_POST_PROVIDER_BOUNDARY",
+    });
+  });
   it("makes a committed provider boundary win when deletion queues behind its account lock", async () => {
     await seedOutboxRows("pending", 1);
     const claim = await requireClaim(CLAIM_TOKENS[0], "boundary-before-deletion-worker");
     const boundaryPause = new QueryPause();
-    const boundaryStore = store(new InstrumentedPool({
+    const boundaryStore = await instrumentedStore(new InstrumentedPool({
       after: async (event) => {
         if (isBlockingAdvisoryLock(event.sql)) await boundaryPause.hold(event.pid);
       },
     }));
-    const boundary = boundaryStore.beginProviderCall(claim, {
-      adapter: "console",
-      leaseMs: 120_000,
-    });
+    const boundary = beginBoundary(claim, boundaryStore);
     await within(boundaryPause.reached, "provider boundary account lock");
     const deletion = deleteLearnerAccount(
       deletionInput(objectStorageRoot, "95000000-0000-4000-8000-000000000001"),
@@ -939,10 +1032,8 @@ describe("real PostgreSQL mail delivery races", () => {
     );
     await within(erasurePause.reached, "deletion file-erasure checkpoint");
 
-    const boundary = await store().beginProviderCall(claim, {
-      adapter: "console",
-      leaseMs: 120_000,
-    });
+    const selectedStore = store();
+    const boundary = await beginBoundary(claim, selectedStore);
     expect(boundary).toEqual({ kind: "lost" });
 
     erasurePause.release();
@@ -958,9 +1049,8 @@ describe("real PostgreSQL mail delivery races", () => {
 
     const noticeClaim = await requireClaim(CLAIM_TOKENS[1], "deletion-notice-worker");
     expect(noticeClaim.id).toBe(notices[0]!.id);
-    await expect(store().beginProviderCall(noticeClaim, {
-      adapter: "console",
-      leaseMs: 120_000,
-    })).resolves.toMatchObject({ kind: "applied" });
+    const noticeStore = store();
+    await expect(beginBoundary(noticeClaim, noticeStore))
+      .resolves.toMatchObject({ kind: "applied" });
   });
 });
