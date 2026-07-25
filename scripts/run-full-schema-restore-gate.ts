@@ -1,12 +1,5 @@
 import { randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import {
-  chmodSync,
-  mkdirSync,
-  mkdtempSync,
-  realpathSync,
-  rmSync,
-} from "node:fs";
 import { readFile } from "node:fs/promises";
 import net from "node:net";
 import { tmpdir } from "node:os";
@@ -14,6 +7,15 @@ import path from "node:path";
 
 import pg from "pg";
 
+import {
+  runFullSchemaArchiveDump,
+  runFullSchemaArchiveRestore,
+  type FullSchemaRestoreBuildChildLaunch,
+  type FullSchemaRestoreChildController,
+} from "./lib/full-schema-restore-archive";
+import {
+  createFullSchemaRestoreLifecycle,
+} from "./lib/full-schema-restore-lifecycle";
 import {
   collectFullSchemaRestoreSnapshot,
   runFullSchemaRestoreDatabaseSmoke,
@@ -23,19 +25,16 @@ import {
   seedRepresentativeMailAuthorityRows,
 } from "./lib/full-schema-restore-fixtures";
 import {
-  deriveMigrationTailContract,
+  deriveMigrationLedgerContract,
+  requireFullSchemaRestoreMigrationContract,
   runFullSchemaRestoreVerification,
 } from "./lib/full-schema-restore-gate";
 import {
   buildPostgresArchiveCommands,
+  createSafeFullSchemaRestoreTaskRoot,
   parseFullSchemaRestorePostgresMajor,
   requireOwnedRestoreContainerId,
-  runWithRestoreContainerPair,
-  runWithRestoreTaskRoot,
 } from "./lib/full-schema-restore-runtime";
-import {
-  installFullSchemaRestoreSignalHandlers,
-} from "./lib/full-schema-restore-signal";
 import {
   type DisposableRoleUrls,
   verifyDisposableIntegrationRoleBoundaries,
@@ -58,6 +57,7 @@ type RoleCredentials = Readonly<{
   migrator: string;
   worker: string;
   ops: string;
+  backupReporter: string;
 }>;
 
 type ContainerIdentity = Readonly<{
@@ -96,6 +96,16 @@ type ToolEnvironmentModule = Readonly<{
   ) => NodeJS.ProcessEnv;
 }>;
 
+type ChildControllerModule = Readonly<{
+  createDisposableIntegrationChildController:
+    () => FullSchemaRestoreChildController;
+}>;
+
+type ChildLaunchModule = Readonly<{
+  buildDisposableIntegrationChildLaunch:
+    FullSchemaRestoreBuildChildLaunch;
+}>;
+
 type BootstrapModule = Readonly<{
   runDatabaseRoleBootstrap: (input: Readonly<{
     postgresUser: string;
@@ -105,6 +115,7 @@ type BootstrapModule = Readonly<{
     databaseMigratorUrl: string;
     databaseWorkerUrl: string;
     databaseOpsUrl: string;
+    databaseBackupReporterUrl: string;
     lockTimeoutMs: number;
     cleanupTimeoutMs: number;
     pool: InstanceType<typeof Pool>;
@@ -178,6 +189,10 @@ function roleUrls(
     migrator: url("learncoding_migrator", credentials.migrator),
     worker: url("learncoding_worker", credentials.worker),
     ops: url("learncoding_ops", credentials.ops),
+    backupReporter: url(
+      "learncoding_backup_reporter",
+      credentials.backupReporter,
+    ),
   };
 }
 
@@ -322,6 +337,11 @@ async function createDatabaseContext(input: Readonly<{
             input.credentials.ops,
             input.database,
           ),
+          databaseBackupReporterUrl: canonicalRoleUrl(
+            "learncoding_backup_reporter",
+            input.credentials.backupReporter,
+            input.database,
+          ),
           lockTimeoutMs: 10_000,
           cleanupTimeoutMs: 5_000,
           pool,
@@ -352,9 +372,17 @@ async function createDatabaseContext(input: Readonly<{
       });
     },
     seedRepresentativeMailRows: () => withPools(
-      [scopedOwnerUrl, scopedRoleUrls.worker],
-      async ([owner, worker]) => {
-        await seedRepresentativeMailAuthorityRows({ owner: owner!, worker: worker! });
+      [
+        scopedOwnerUrl,
+        scopedRoleUrls.worker,
+        scopedRoleUrls.backupReporter,
+      ],
+      async ([owner, worker, backupReporter]) => {
+        await seedRepresentativeMailAuthorityRows({
+          owner: owner!,
+          worker: worker!,
+          backupReporter: backupReporter!,
+        });
       },
     ),
     snapshot: () => withPools(
@@ -491,77 +519,6 @@ function resolveContainerId(input: Readonly<{
   });
 }
 
-function runArchiveDump(input: Readonly<{
-  command: string;
-  args: readonly string[];
-  environment: NodeJS.ProcessEnv;
-}>): Buffer {
-  const result = spawnSync(input.command, [...input.args], {
-    encoding: null,
-    env: input.environment,
-    maxBuffer: ARCHIVE_MAX_BYTES,
-    timeout: TOOL_TIMEOUT_MS,
-    windowsHide: true,
-  });
-  if (
-    result.status !== 0
-    || !Buffer.isBuffer(result.stdout)
-    || result.stdout.length === 0
-  ) {
-    throw new Error("full-schema restore dump failed");
-  }
-  return result.stdout;
-}
-
-function runArchiveRestore(input: Readonly<{
-  command: string;
-  args: readonly string[];
-  environment: NodeJS.ProcessEnv;
-  archive: Buffer;
-}>): void {
-  const result = spawnSync(input.command, [...input.args], {
-    encoding: null,
-    env: input.environment,
-    input: input.archive,
-    maxBuffer: 1024 * 1024,
-    timeout: TOOL_TIMEOUT_MS,
-    windowsHide: true,
-  });
-  if (result.status !== 0) {
-    throw new Error("full-schema restore archive restore failed");
-  }
-}
-
-function safeTaskRoot(): Readonly<{
-  root: string;
-  sourceHome: string;
-  targetHome: string;
-  cleanup: () => void;
-}> {
-  const temporaryRoot = realpathSync(tmpdir());
-  const root = mkdtempSync(path.join(temporaryRoot, "codestead-full-restore-"));
-  chmodSync(root, 0o700);
-  const sourceHome = path.join(root, "source-home");
-  const targetHome = path.join(root, "target-home");
-  mkdirSync(sourceHome, { mode: 0o700 });
-  mkdirSync(targetHome, { mode: 0o700 });
-  return {
-    root,
-    sourceHome,
-    targetHome,
-    cleanup() {
-      const resolved = realpathSync(root);
-      if (
-        path.dirname(resolved) !== temporaryRoot
-        || !path.basename(resolved).startsWith("codestead-full-restore-")
-      ) {
-        throw new Error("full-schema restore temporary root is invalid");
-      }
-      rmSync(resolved, { recursive: true, force: false });
-    },
-  };
-}
-
 async function expectedMigrationContract() {
   const journalPath = path.resolve(
     process.cwd(),
@@ -577,29 +534,50 @@ async function expectedMigrationContract() {
   ) {
     throw new Error("full-schema restore migration journal is invalid");
   }
-  const tail = journal.entries.at(-1) as { tag?: unknown } | undefined;
-  if (typeof tail?.tag !== "string") {
+  if (journal.entries.some((entry) =>
+    typeof entry !== "object" || entry === null
+    || !("tag" in entry) || typeof entry.tag !== "string")) {
     throw new Error("full-schema restore migration journal is invalid");
   }
-  const tailSql = await readFile(
-    path.resolve(process.cwd(), "drizzle", `${tail.tag}.sql`),
-    "utf8",
+  const sqlSources = await Promise.all(journal.entries.map((entry) =>
+    readFile(path.resolve(process.cwd(), "drizzle", `${entry.tag}.sql`), "utf8")));
+  return requireFullSchemaRestoreMigrationContract(
+    deriveMigrationLedgerContract(journal, sqlSources),
   );
-  return deriveMigrationTailContract(journal, tailSql);
 }
 
 async function loadSecureRunner() {
   const containerModulePath = "./lib/disposable-postgres-container";
   const environmentModulePath = "./lib/disposable-tool-environment";
-  const [containerModule, environmentModule] = await Promise.all([
+  const childControllerModulePath =
+    "./lib/disposable-integration-child-controller";
+  const childLaunchModulePath =
+    "./lib/disposable-integration-child-launch";
+  const [
+    containerModule,
+    environmentModule,
+    childControllerModule,
+    childLaunchModule,
+  ] = await Promise.all([
     import(/* @vite-ignore */ containerModulePath) as Promise<
       SecureContainerModule
     >,
     import(/* @vite-ignore */ environmentModulePath) as Promise<
       ToolEnvironmentModule
     >,
+    import(/* @vite-ignore */ childControllerModulePath) as Promise<
+      ChildControllerModule
+    >,
+    import(/* @vite-ignore */ childLaunchModulePath) as Promise<
+      ChildLaunchModule
+    >,
   ]);
-  return { containerModule, environmentModule };
+  return {
+    containerModule,
+    environmentModule,
+    childControllerModule,
+    childLaunchModule,
+  };
 }
 
 function credentials(): RoleCredentials {
@@ -609,6 +587,7 @@ function credentials(): RoleCredentials {
     migrator: generatedPassword(),
     worker: generatedPassword(),
     ops: generatedPassword(),
+    backupReporter: generatedPassword(),
   });
 }
 
@@ -617,154 +596,170 @@ async function main(): Promise<void> {
     process.argv.slice(2),
   );
   const migration = await expectedMigrationContract();
-  const { containerModule, environmentModule } = await loadSecureRunner();
+  const {
+    containerModule,
+    environmentModule,
+    childControllerModule,
+    childLaunchModule,
+  } = await loadSecureRunner();
+  const childController =
+    childControllerModule.createDisposableIntegrationChildController();
+  const lifecycle = createFullSchemaRestoreLifecycle({
+    childController,
+    processTarget: process,
+    writeError: (message) => {
+      process.stderr.write(message);
+    },
+  });
   const dockerCommand = executable("docker");
-  const taskRoot = safeTaskRoot();
-  await runWithRestoreTaskRoot({
-    cleanup: taskRoot.cleanup,
-    operation: async () => {
-      const suffix = randomBytes(8).toString("hex");
-      const sourceName = `codestead-full-restore-source-${suffix}`;
-      const targetName = `codestead-full-restore-target-${suffix}`;
-      const sourcePort = await availablePort();
-      let targetPort = await availablePort();
-      while (targetPort === sourcePort) targetPort = await availablePort();
-      const sourceCredentials = credentials();
-      const targetCredentials = credentials();
-      const image = postgresMajor === 17
-        ? containerModule.POSTGRES_17_INTEGRATION_IMAGE
-        : containerModule.POSTGRES_18_INTEGRATION_IMAGE;
-      const source = containerModule.createDisposablePostgresContainer({
-        dockerCommand,
-        containerName: sourceName,
-        image,
-        port: sourcePort,
-        database: SOURCE_DATABASE,
-        username: POSTGRES_USER,
-        password: sourceCredentials.bootstrap,
-        taskHomeDirectory: taskRoot.sourceHome,
-        sourceEnvironment: process.env,
-      });
-      const target = containerModule.createDisposablePostgresContainer({
-        dockerCommand,
-        containerName: targetName,
-        image,
-        port: targetPort,
-        database: TARGET_DATABASE,
-        username: POSTGRES_USER,
-        password: targetCredentials.bootstrap,
-        taskHomeDirectory: taskRoot.targetHome,
-        sourceEnvironment: process.env,
-      });
-      const toolEnvironment = environmentModule.buildDisposableToolEnvironment(
+  try {
+    const taskRoot = createSafeFullSchemaRestoreTaskRoot({
+      temporaryDirectory: tmpdir(),
+      ownTaskRoot: lifecycle.ownTaskRoot,
+    });
+    const suffix = randomBytes(8).toString("hex");
+    const sourceName = `codestead-full-restore-source-${suffix}`;
+    const targetName = `codestead-full-restore-target-${suffix}`;
+    const sourcePort = await availablePort();
+    let targetPort = await availablePort();
+    while (targetPort === sourcePort) targetPort = await availablePort();
+    const sourceCredentials = credentials();
+    const targetCredentials = credentials();
+    const image = postgresMajor === 17
+      ? containerModule.POSTGRES_17_INTEGRATION_IMAGE
+      : containerModule.POSTGRES_18_INTEGRATION_IMAGE;
+    const source = containerModule.createDisposablePostgresContainer({
+      dockerCommand,
+      containerName: sourceName,
+      image,
+      port: sourcePort,
+      database: SOURCE_DATABASE,
+      username: POSTGRES_USER,
+      password: sourceCredentials.bootstrap,
+      taskHomeDirectory: taskRoot.sourceHome,
+      sourceEnvironment: process.env,
+    });
+    lifecycle.ownContainer("source", source);
+    const target = containerModule.createDisposablePostgresContainer({
+      dockerCommand,
+      containerName: targetName,
+      image,
+      port: targetPort,
+      database: TARGET_DATABASE,
+      username: POSTGRES_USER,
+      password: targetCredentials.bootstrap,
+      taskHomeDirectory: taskRoot.targetHome,
+      sourceEnvironment: process.env,
+    });
+    lifecycle.ownContainer("target", target);
+    const toolEnvironment =
+      environmentModule.buildDisposableToolEnvironment(
         process.env,
         taskRoot.root,
       );
-      const uninstallSignalHandlers = installFullSchemaRestoreSignalHandlers({
-        source,
-        target,
-        cleanupTaskRoot: taskRoot.cleanup,
-        processTarget: process,
-        writeError: (message) => {
-          process.stderr.write(message);
-        },
-      });
+    source.start();
+    target.start();
 
-      try {
-        await runWithRestoreContainerPair({
-          source,
-          target,
-          operation: async () => {
-            const sourceAdminUrl = databaseUrl({
-              username: POSTGRES_USER,
-              password: sourceCredentials.bootstrap,
-              host: "127.0.0.1",
-              port: sourcePort,
-              database: SOURCE_DATABASE,
-            });
-            const targetAdminUrl = databaseUrl({
-              username: POSTGRES_USER,
-              password: targetCredentials.bootstrap,
-              host: "127.0.0.1",
-              port: targetPort,
-              database: TARGET_DATABASE,
-            });
-            await Promise.all([
-              waitForPostgres(sourceAdminUrl),
-              waitForPostgres(targetAdminUrl),
-            ]);
-            const sourceId = resolveContainerId({
-              role: "source",
-              name: sourceName,
-              container: source,
-              dockerCommand,
-              environment: toolEnvironment,
-              expectedPort: sourcePort,
-              expectedDatabase: SOURCE_DATABASE,
-            });
-            const targetId = resolveContainerId({
-              role: "target",
-              name: targetName,
-              container: target,
-              dockerCommand,
-              environment: toolEnvironment,
-              expectedPort: targetPort,
-              expectedDatabase: TARGET_DATABASE,
-            });
-            const archiveCommands = buildPostgresArchiveCommands({
-              dockerCommand,
-              sourceContainerId: sourceId,
-              targetContainerId: targetId,
-              sourceDatabase: SOURCE_DATABASE,
-              targetDatabase: TARGET_DATABASE,
-              postgresUser: POSTGRES_USER,
-            });
-            const sourceContext = await createDatabaseContext({
-              port: sourcePort,
-              database: SOURCE_DATABASE,
-              credentials: sourceCredentials,
-            });
-            const targetContext = await createDatabaseContext({
-              port: targetPort,
-              database: TARGET_DATABASE,
-              credentials: targetCredentials,
-            });
+    const sourceAdminUrl = databaseUrl({
+      username: POSTGRES_USER,
+      password: sourceCredentials.bootstrap,
+      host: "127.0.0.1",
+      port: sourcePort,
+      database: SOURCE_DATABASE,
+    });
+    const targetAdminUrl = databaseUrl({
+      username: POSTGRES_USER,
+      password: targetCredentials.bootstrap,
+      host: "127.0.0.1",
+      port: targetPort,
+      database: TARGET_DATABASE,
+    });
+    await Promise.all([
+      waitForPostgres(sourceAdminUrl),
+      waitForPostgres(targetAdminUrl),
+    ]);
+    const sourceId = resolveContainerId({
+      role: "source",
+      name: sourceName,
+      container: source,
+      dockerCommand,
+      environment: toolEnvironment,
+      expectedPort: sourcePort,
+      expectedDatabase: SOURCE_DATABASE,
+    });
+    const targetId = resolveContainerId({
+      role: "target",
+      name: targetName,
+      container: target,
+      dockerCommand,
+      environment: toolEnvironment,
+      expectedPort: targetPort,
+      expectedDatabase: TARGET_DATABASE,
+    });
+    const archiveCommands = buildPostgresArchiveCommands({
+      dockerCommand,
+      sourceContainerId: sourceId,
+      targetContainerId: targetId,
+      sourceDatabase: SOURCE_DATABASE,
+      targetDatabase: TARGET_DATABASE,
+      postgresUser: POSTGRES_USER,
+    });
+    const sourceContext = await createDatabaseContext({
+      port: sourcePort,
+      database: SOURCE_DATABASE,
+      credentials: sourceCredentials,
+    });
+    const targetContext = await createDatabaseContext({
+      port: targetPort,
+      database: TARGET_DATABASE,
+      credentials: targetCredentials,
+    });
+    const buildChildLaunch =
+      childLaunchModule.buildDisposableIntegrationChildLaunch;
 
-            const evidence = await runFullSchemaRestoreVerification({
-              expectedPostgresMajor: postgresMajor,
-              migration,
-              source: sourceContext,
-              target: targetContext,
-              dumpSource: async () => runArchiveDump({
-                ...archiveCommands.dump,
-                environment: toolEnvironment,
-              }),
-              restoreTarget: async (archive) => runArchiveRestore({
-                ...archiveCommands.restore,
-                environment: toolEnvironment,
-                archive,
-              }),
-              disposeArchive: (archive) => {
-                archive.fill(0);
-              },
-            });
-            process.stdout.write(`${JSON.stringify({
-              event: "full_schema_restore.verified",
-              postgresMajor,
-              migrationCount: evidence.migration.entryCount,
-              migrationTail: evidence.migration.tailTag,
-              mailRows: evidence.restored.mailRowCount,
-              claimedRows: evidence.smoke.claimedRows,
-              redactedRows: evidence.smoke.redactedRows,
-              externalCalls: evidence.smoke.externalCalls,
-            })}\n`);
-          },
-        });
-      } finally {
-        uninstallSignalHandlers();
-      }
-    },
-  });
+    const evidence = await runFullSchemaRestoreVerification({
+      expectedPostgresMajor: postgresMajor,
+      migration,
+      source: sourceContext,
+      target: targetContext,
+      dumpSource: () => runFullSchemaArchiveDump({
+        ...archiveCommands.dump,
+        environment: toolEnvironment,
+        maxStdoutBytes: ARCHIVE_MAX_BYTES,
+        timeoutMs: TOOL_TIMEOUT_MS,
+        controller: childController,
+        buildChildLaunch,
+      }),
+      restoreTarget: (archive) => runFullSchemaArchiveRestore({
+        ...archiveCommands.restore,
+        environment: toolEnvironment,
+        archive,
+        maxStdoutBytes: 1024 * 1024,
+        timeoutMs: TOOL_TIMEOUT_MS,
+        controller: childController,
+        buildChildLaunch,
+      }),
+      disposeArchive: (archive) => {
+        archive.fill(0);
+      },
+    });
+    process.stdout.write(`${JSON.stringify({
+      event: "full_schema_restore.verified",
+      postgresMajor,
+      migrationCount: evidence.migration.entryCount,
+      migrationTail: evidence.migration.tailTag,
+      mailRows: evidence.restored.mailRowCount,
+      claimedRows: evidence.smoke.claimedRows,
+      redactedRows: evidence.smoke.redactedRows,
+      externalCalls: evidence.smoke.externalCalls,
+    })}\n`);
+  } finally {
+    try {
+      await lifecycle.cleanup();
+    } finally {
+      lifecycle.uninstallSignalHandlers();
+    }
+  }
 }
 
 main().catch(() => {

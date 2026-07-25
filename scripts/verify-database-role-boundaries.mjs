@@ -24,11 +24,22 @@ const ROLE_SPECS = Object.freeze([
   ["migrator", "databaseMigratorUrl", "learncoding_migrator"],
   ["worker", "databaseWorkerUrl", "learncoding_worker"],
   ["ops", "databaseOpsUrl", "learncoding_ops"],
+  [
+    "backupReporter",
+    "databaseBackupReporterUrl",
+    "learncoding_backup_reporter",
+  ],
 ]);
 const RESTRICTED_ROLE_NAMES = Object.freeze(
   ROLE_SPECS.map(([, , role]) => role),
 );
 const RUNTIME_ROLES = new Set([
+  "learncoding_app",
+  "learncoding_worker",
+  "learncoding_ops",
+  "learncoding_backup_reporter",
+]);
+const APPLICATION_OBJECT_ROLES = new Set([
   "learncoding_app",
   "learncoding_worker",
   "learncoding_ops",
@@ -1054,8 +1065,9 @@ async function verifyRole({ client, role, database, objects }) {
   if (RUNTIME_ROLES.has(role)) {
     await expectInsufficientPrivilege(client, "set role learncoding_owner");
     negativeChecks += 1;
-    if (objects)
+    if (objects && APPLICATION_OBJECT_ROLES.has(role)) {
       positiveChecks += await verifyApplicationObjectAccess(client, objects);
+    }
   } else {
     await client.query("begin read only");
     try {
@@ -1180,6 +1192,8 @@ async function main() {
     databaseMigratorUrl: process.env.DATABASE_MIGRATOR_URL ?? "",
     databaseWorkerUrl: process.env.DATABASE_WORKER_URL ?? "",
     databaseOpsUrl: process.env.DATABASE_OPS_URL ?? "",
+    databaseBackupReporterUrl:
+      process.env.DATABASE_BACKUP_REPORTER_URL ?? "",
     requireApplicationObjects,
   });
   process.stdout.write(

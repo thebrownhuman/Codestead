@@ -32,6 +32,8 @@ const validInput = () => ({
   databaseMigratorUrl: `postgresql://learncoding_migrator:${password("m")}@postgres:5432/learncoding`,
   databaseWorkerUrl: `postgresql://learncoding_worker:${password("w")}@postgres:5432/learncoding`,
   databaseOpsUrl: `postgresql://learncoding_ops:${password("o")}@postgres:5432/learncoding`,
+  databaseBackupReporterUrl:
+    `postgresql://learncoding_backup_reporter:${password("r")}@postgres:5432/learncoding`,
 });
 
 const PLATFORM_ENVIRONMENT_KEYS = Object.freeze([
@@ -237,9 +239,12 @@ test("replays post-migration privilege reconciliation idempotently", async () =>
   );
 });
 
-test("accepts only the exact four distinct restricted-role URLs", () => {
+test("accepts only the exact five distinct restricted-role URLs", () => {
   const parsed = validateDatabaseRoleBoundaryUrls(validInput());
-  assert.deepEqual(Object.keys(parsed), ["app", "migrator", "worker", "ops"]);
+  assert.deepEqual(
+    Object.keys(parsed),
+    ["app", "migrator", "worker", "ops", "backupReporter"],
+  );
   assert.equal(parsed.app.username, "learncoding_app");
 
   for (const mutate of [
@@ -741,9 +746,9 @@ test("authenticates every restricted role under the shared administration lock",
   });
 
   assert.deepEqual(result, {
-    rolesAuthenticated: 4,
-    positiveChecks: 13,
-    negativeChecks: 15,
+    rolesAuthenticated: 5,
+    positiveChecks: 16,
+    negativeChecks: 19,
   });
   assert.equal(
     harness.pools.every((pool) => pool.ended),
@@ -759,6 +764,7 @@ test("authenticates every restricted role under the shared administration lock",
     "learncoding_app",
     "learncoding_worker",
     "learncoding_ops",
+    "learncoding_backup_reporter",
   ]) {
     assert.equal(
       harness.clients.get(role).queries.includes("set role learncoding_owner"),
@@ -777,9 +783,9 @@ test("proves application-object access without mutating application rows", async
   });
 
   assert.deepEqual(result, {
-    rolesAuthenticated: 4,
-    positiveChecks: 38,
-    negativeChecks: 23,
+    rolesAuthenticated: 5,
+    positiveChecks: 41,
+    negativeChecks: 29,
   });
   for (const role of [
     "learncoding_app",
@@ -812,9 +818,9 @@ test("requires the exact reviewed 0062 through 0064 routine contracts in applica
   });
 
   assert.deepEqual(result, {
-    rolesAuthenticated: 4,
-    positiveChecks: 38,
-    negativeChecks: 23,
+    rolesAuthenticated: 5,
+    positiveChecks: 41,
+    negativeChecks: 29,
   });
   const routineQueries = verified.clients
     .get("learncoding_ops")
@@ -846,6 +852,7 @@ test("requires the exact reviewed 0062 through 0064 routine contracts in applica
     "learncoding_migrator",
     "learncoding_worker",
     "learncoding_ops",
+    "learncoding_backup_reporter",
   ];
   assert.deepEqual(
     verified.clients
@@ -946,9 +953,9 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
     requireApplicationObjects: true,
   });
   assert.deepEqual(result, {
-    rolesAuthenticated: 4,
-    positiveChecks: 38,
-    negativeChecks: 23,
+    rolesAuthenticated: 5,
+    positiveChecks: 41,
+    negativeChecks: 29,
   });
 
   const opsClient = verified.clients.get("learncoding_ops");
@@ -1102,9 +1109,9 @@ test("grounds PostgreSQL's successful no-op GRANT in unchanged effective and cat
   });
 
   assert.deepEqual(result, {
-    rolesAuthenticated: 4,
-    positiveChecks: 38,
-    negativeChecks: 23,
+    rolesAuthenticated: 5,
+    positiveChecks: 41,
+    negativeChecks: 29,
   });
   for (const role of [
     "learncoding_app",
@@ -1307,6 +1314,8 @@ test("CLI failure output never includes credential material", () => {
       DATABASE_MIGRATOR_URL: validInput().databaseMigratorUrl,
       DATABASE_WORKER_URL: validInput().databaseWorkerUrl,
       DATABASE_OPS_URL: validInput().databaseOpsUrl,
+      DATABASE_BACKUP_REPORTER_URL:
+        validInput().databaseBackupReporterUrl,
     },
   });
   assert.equal(result.status, 1);

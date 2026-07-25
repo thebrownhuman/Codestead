@@ -3,6 +3,7 @@ export type DisposableRoleUrls = Readonly<{
   migrator: string;
   worker: string;
   ops: string;
+  backupReporter: string;
 }>;
 
 type BoundaryPoolProbe = Readonly<{
@@ -26,6 +27,7 @@ type RoleBoundaryVerifierOptions<Pool> = Readonly<{
   databaseMigratorUrl: string;
   databaseWorkerUrl: string;
   databaseOpsUrl: string;
+  databaseBackupReporterUrl: string;
   requireApplicationObjects: boolean;
   lockTimeoutMs: number;
   poolFactory: (input: BoundaryPoolProbe) => Pool;
@@ -36,6 +38,7 @@ const ROLE_URL_KEY_BY_DATABASE_ROLE = Object.freeze({
   learncoding_migrator: "migrator",
   learncoding_worker: "worker",
   learncoding_ops: "ops",
+  learncoding_backup_reporter: "backupReporter",
 } as const);
 
 function canonicalDatabaseRoleUrl(scopedConnectionString: string) {
@@ -62,6 +65,8 @@ export async function verifyDisposableIntegrationRoleBoundaries<Pool>(
     databaseMigratorUrl: canonicalDatabaseRoleUrl(input.roleUrls.migrator),
     databaseWorkerUrl: canonicalDatabaseRoleUrl(input.roleUrls.worker),
     databaseOpsUrl: canonicalDatabaseRoleUrl(input.roleUrls.ops),
+    databaseBackupReporterUrl:
+      canonicalDatabaseRoleUrl(input.roleUrls.backupReporter),
     requireApplicationObjects: input.requireApplicationObjects,
     lockTimeoutMs: 10_000,
     poolFactory: ({ connectionString, role }) => {

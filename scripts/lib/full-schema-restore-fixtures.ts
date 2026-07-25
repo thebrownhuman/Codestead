@@ -1,5 +1,6 @@
-import type {
-  FullSchemaRestoreQueryClient,
+import {
+  stableSha256,
+  type FullSchemaRestoreQueryClient,
 } from "./full-schema-restore-database";
 
 const QUARANTINED_ACCOUNT_ID =
@@ -248,10 +249,59 @@ const RELEASE_PRE_BINDING_ROWS_SQL = `
   returning id
 `;
 
+const BACKUP_AUTHORITY_CATALOG_SQL = `
+  select
+    pg_catalog.to_regclass(
+      'public.backup_status_mail_authority'
+    ) is not null as authority_table_present,
+    pg_catalog.to_regprocedure(
+      'public.enqueue_backup_status_mail_authority(text,text)'
+    ) is not null as enqueue_routine_present,
+    pg_catalog.to_regprocedure(
+      'public.backup_status_mail_authorized(uuid)'
+    ) is not null as authorize_routine_present
+`;
+
+const ENQUEUE_BACKUP_AUTHORITY_SQL = `
+  select acknowledgement,
+         authority_id::text as authority_id,
+         outbox_id::text as outbox_id,
+         operation_id::text as operation_id
+    from public.enqueue_backup_status_mail_authority($1, $2)
+`;
+
+const VERIFY_BACKUP_AUTHORITY_SQL = `
+  select authority.id::text as id,
+         authority.run_key,
+         authority.outcome,
+         authority.recipient_user_id,
+         authority.recipient_email,
+         authority.outbox_id::text as outbox_id,
+         authority.operation_id::text as operation_id,
+         outbox.user_id,
+         outbox.delivery_scope_key,
+         outbox.to_email,
+         outbox.template,
+         outbox.template_version,
+         outbox.variables,
+         outbox.idempotency_key
+    from public.backup_status_mail_authority authority
+    join public.email_outbox outbox
+      on outbox.id = authority.outbox_id
+   where authority.run_key = $1
+     and authority.outbox_id = $2::uuid
+`;
+
+const VERIFY_BACKUP_AUTHORIZED_SQL = `
+  select public.backup_status_mail_authorized($1::uuid) as authorized
+`;
+
 const VERIFY_FIXTURES_SQL = `
   select pg_catalog.count(*)::text as fixture_count
     from public.email_outbox outbox
    where outbox.idempotency_key like 'full-schema-restore:%'
+      or outbox.idempotency_key =
+         'backup-status:v1:20260725T000000Z'
 `;
 
 function exactReturnedRows(
@@ -263,9 +313,121 @@ function exactReturnedRows(
   }
 }
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
+const BACKUP_RUN_KEY = "20260725T000000Z";
+const BACKUP_SUMMARY =
+  "The nightly encrypted backup completed and passed local verification. "
+  + "No archive is attached to this email.";
+
+function verifiedBackupAuthority(
+  row: Record<string, unknown> | undefined,
+  queued: Readonly<{
+    authorityId: string;
+    outboxId: string;
+    operationId: string;
+  }>,
+): boolean {
+  const expectedVariables = {
+    name: "Administrator",
+    summary: BACKUP_SUMMARY,
+  };
+  try {
+    return (
+      row?.id === queued.authorityId
+      && row.run_key === BACKUP_RUN_KEY
+      && row.outcome === "success"
+      && row.recipient_user_id === "full-schema-restore-admin"
+      && row.recipient_email === "admin.restore@invalid.local"
+      && row.outbox_id === queued.outboxId
+      && row.operation_id === queued.operationId
+      && row.user_id === "full-schema-restore-admin"
+      && row.delivery_scope_key === "a:full-schema-restore-admin"
+      && row.to_email === "admin.restore@invalid.local"
+      && row.template === "backup-status"
+      && row.template_version === "1"
+      && row.idempotency_key ===
+        `backup-status:v1:${BACKUP_RUN_KEY}`
+      && row.variables !== null
+      && typeof row.variables === "object"
+      && !Array.isArray(row.variables)
+      && stableSha256(row.variables) === stableSha256(expectedVariables)
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function seedBackupAuthorityWhenPresent(input: Readonly<{
+  owner: FullSchemaRestoreQueryClient;
+  worker: FullSchemaRestoreQueryClient;
+  backupReporter: FullSchemaRestoreQueryClient;
+}>): Promise<boolean> {
+  const catalog = (await input.owner.query(
+    BACKUP_AUTHORITY_CATALOG_SQL,
+  )).rows[0];
+  const tablePresent = catalog?.authority_table_present === true;
+  const enqueuePresent = catalog?.enqueue_routine_present === true;
+  const authorizePresent = catalog?.authorize_routine_present === true;
+  if (!tablePresent && !enqueuePresent && !authorizePresent) return false;
+  if (!tablePresent || !enqueuePresent || !authorizePresent) {
+    throw new Error(
+      "full-schema restore backup authority catalog is invalid",
+    );
+  }
+
+  const enqueued = await input.backupReporter.query(
+    ENQUEUE_BACKUP_AUTHORITY_SQL,
+    [BACKUP_RUN_KEY, "success"],
+  );
+  const row = enqueued.rows[0];
+  const authorityId = row?.authority_id;
+  const outboxId = row?.outbox_id;
+  const operationId = row?.operation_id;
+  if (
+    enqueued.rows.length !== 1
+    || row?.acknowledgement !== "queued"
+    || typeof authorityId !== "string"
+    || !UUID_PATTERN.test(authorityId)
+    || typeof outboxId !== "string"
+    || !UUID_PATTERN.test(outboxId)
+    || typeof operationId !== "string"
+    || !UUID_PATTERN.test(operationId)
+  ) {
+    throw new Error(
+      "full-schema restore backup authority enqueue failed",
+    );
+  }
+
+  const verification = await input.owner.query(
+    VERIFY_BACKUP_AUTHORITY_SQL,
+    [BACKUP_RUN_KEY, outboxId],
+  );
+  const authorization = await input.worker.query(
+    VERIFY_BACKUP_AUTHORIZED_SQL,
+    [outboxId],
+  );
+  if (
+    verification.rows.length !== 1
+    || !verifiedBackupAuthority(verification.rows[0], {
+      authorityId,
+      outboxId,
+      operationId,
+    })
+    || authorization.rows.length !== 1
+    || authorization.rows[0]?.authorized !== true
+  ) {
+    throw new Error(
+      "full-schema restore backup authority verification failed",
+    );
+  }
+  return true;
+}
+
 export async function seedRepresentativeMailAuthorityRows(input: Readonly<{
   owner: FullSchemaRestoreQueryClient;
   worker: FullSchemaRestoreQueryClient;
+  backupReporter: FullSchemaRestoreQueryClient;
 }>): Promise<void> {
   await input.owner.query(BASE_FIXTURES_SQL);
   const bindingColumns = await input.owner.query(BINDING_COLUMNS_SQL);
@@ -300,8 +462,12 @@ export async function seedRepresentativeMailAuthorityRows(input: Readonly<{
     );
   }
 
+  const backupAuthorityPresent = await seedBackupAuthorityWhenPresent(
+    input,
+  );
   const verification = await input.owner.query(VERIFY_FIXTURES_SQL);
-  if (verification.rows[0]?.fixture_count !== "4") {
+  const expectedCount = backupAuthorityPresent ? "5" : "4";
+  if (verification.rows[0]?.fixture_count !== expectedCount) {
     throw new Error("full-schema restore fixture verification failed");
   }
 }

@@ -13,6 +13,7 @@ type EnvironmentHardeningModule = Readonly<{
       databaseMigratorUrl: string;
       databaseWorkerUrl: string;
       databaseOpsUrl: string;
+      databaseBackupReporterUrl: string;
       databaseUrl: string;
       betterAuthSecret: string;
     }>,
@@ -73,6 +74,8 @@ const hostileAmbientEnvironment = Object.freeze({
   DATABASE_MIGRATOR_URL: "postgresql://ambient:migrator@wrong.invalid/ambient",
   DATABASE_WORKER_URL: "postgresql://ambient:worker@wrong.invalid/ambient",
   DATABASE_OPS_URL: "postgresql://ambient:ops@wrong.invalid/ambient",
+  DATABASE_BACKUP_REPORTER_URL:
+    "postgresql://ambient:backup@wrong.invalid/ambient",
   PGHOST: "ambient-pg-host.invalid",
   PGPASSWORD: "ambient-pg-password-canary",
   POSTGRES_PASSWORD: "ambient-postgres-password-canary",
@@ -127,6 +130,7 @@ describe("disposable integration environment hardening", () => {
       databaseMigratorUrl: "postgresql://explicit-migrator",
       databaseWorkerUrl: "postgresql://explicit-worker",
       databaseOpsUrl: "postgresql://explicit-ops",
+      databaseBackupReporterUrl: "postgresql://explicit-backup-reporter",
       databaseUrl: "postgresql://explicit-owner",
       betterAuthSecret: "explicit-integration-auth-secret",
     };
@@ -144,6 +148,7 @@ describe("disposable integration environment hardening", () => {
       DATABASE_MIGRATOR_URL: explicit.databaseMigratorUrl,
       DATABASE_WORKER_URL: explicit.databaseWorkerUrl,
       DATABASE_OPS_URL: explicit.databaseOpsUrl,
+      DATABASE_BACKUP_REPORTER_URL: explicit.databaseBackupReporterUrl,
       DATABASE_URL: explicit.databaseUrl,
       DATABASE_POOL_SIZE: "8",
       NODE_ENV: "test",
