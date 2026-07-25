@@ -25,7 +25,7 @@ type Candidate = {
   id: string;
   name: string;
   email: string;
-  last_meaningful_activity_at: Date | null;
+  last_meaningful_activity_at: Date | string | null;
   timezone: string;
   daily_study_enabled: boolean;
   revision_enabled: boolean;
@@ -130,8 +130,16 @@ export function localClock(now: Date, requestedTimezone: string): LocalClock {
   };
 }
 
-function localDateKey(value: Date | null, timezone: string) {
-  return value ? localClock(value, timezone).dateKey : null;
+function localDateKey(value: Candidate["last_meaningful_activity_at"], timezone: string) {
+  if (value === null) return null;
+  // Drizzle's raw SQL boundary returns PostgreSQL timestamptz columns as
+  // strings, while schema-mapped queries return Date instances. Normalize
+  // both representations before applying the same local-day policy.
+  const timestamp = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(timestamp.getTime())) {
+    throw new RangeError("Persisted meaningful-activity timestamp is invalid.");
+  }
+  return localClock(timestamp, timezone).dateKey;
 }
 
 export function insideQuietHours(minute: number, start: number, end: number) {

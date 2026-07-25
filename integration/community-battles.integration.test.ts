@@ -25,11 +25,14 @@ import { pool } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { deleteLearnerAccount } from "@/lib/data-lifecycle/deletion";
 import { createLearnerExport } from "@/lib/data-lifecycle/export";
+import { DrizzleLearningStore } from "@/lib/learning-service/drizzle-store";
+import { LearningService } from "@/lib/learning-service/service";
 import {
   scheduleSmartReminders,
   scheduleSmartRemindersWithDatabase,
 } from "@/lib/notifications/smart-reminders";
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
+import { createProjectRevision } from "@/lib/projects/revision-service";
 
 const NOW = new Date("2026-07-14T12:00:00.000Z");
 const ADMIN = "community-battle-admin";
@@ -47,6 +50,12 @@ const CONCEPT = "cb100000-0000-4000-8000-000000000005";
 const ACTIVITY = "cb100000-0000-4000-8000-000000000006";
 const ARTIFACT = "cb100000-0000-4000-8000-000000000007";
 const ITEM = "python.variables.choice.1";
+const LEARNER_A_ENROLLMENT = "cb600000-0000-4000-8000-000000000001";
+const MEANINGFUL_SESSION = "cb700000-0000-4000-8000-000000000001";
+const MEANINGFUL_ATTEMPT = "cb700000-0000-4000-8000-000000000002";
+const MEANINGFUL_EVIDENCE = "cb700000-0000-4000-8000-000000000003";
+const MEANINGFUL_PROJECT = "cb700000-0000-4000-8000-000000000004";
+const PROJECT_REVISION_REQUEST = "cb700000-0000-4000-8000-000000000005";
 let communityOperationSequence = 0;
 let reminderRaceSequence = 0;
 
@@ -446,6 +455,248 @@ async function runRestrictedPreferenceRace(runAt: Date, mutationSql: string) {
     writerClient.release();
     schedulerClient.release();
     observerClient.release();
+  }
+}
+
+type ExactBlockedQueryFragments = readonly [string, string, string];
+
+type MeaningfulWriterRaceResult = Readonly<{
+  writerPid: number;
+  schedulerPid: number;
+  outcome:
+    | Readonly<{ kind: "blocked"; pid: number; blockerPid: number }>
+    | Readonly<{ kind: "completed" }>;
+  schedule: Awaited<ReturnType<typeof scheduleSmartRemindersWithDatabase>>;
+  counts: Readonly<{
+    dispatches: string;
+    notifications: string;
+    outbox: string;
+  }>;
+}>;
+
+function createRestrictedRacePool(applicationName: string) {
+  return new Pool({
+    connectionString: reminderAppDatabaseUrl,
+    application_name: applicationName,
+    max: 1,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 5_000,
+  });
+}
+
+async function identifySinglePoolBackend(
+  databasePool: Pool,
+  applicationName: string,
+) {
+  const client = await databasePool.connect();
+  try {
+    return await identifyReminderBackend(client, applicationName);
+  } finally {
+    client.release();
+  }
+}
+
+async function waitForExactBlockedQuery(
+  observer: PoolClient,
+  waiting: ReminderBackendIdentity,
+  blocker: ReminderBackendIdentity,
+  fragments: ExactBlockedQueryFragments,
+) {
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    const blocked = await observer.query<{ pid: number }>(`
+      select activity.pid
+        from pg_stat_activity activity
+       where activity.pid=$1
+         and activity.backend_type='client backend'
+         and activity.datname=$2
+         and activity.usename=$3
+         and activity.application_name=$4
+         and activity.state='active'
+         and activity.wait_event_type='Lock'
+         and activity.query ilike $5
+         and activity.query ilike $6
+         and activity.query ilike $7
+         and $8::integer = any(pg_blocking_pids(activity.pid))
+    `, [
+      waiting.pid,
+      waiting.databaseName,
+      waiting.sessionUser,
+      waiting.applicationName,
+      ...fragments,
+      blocker.pid,
+    ]);
+    if (blocked.rows[0]?.pid === waiting.pid) return waiting.pid;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  const diagnostics = await observer.query<{
+    pid: number;
+    state: string | null;
+    wait_event_type: string | null;
+    wait_event: string | null;
+    blockers: number[];
+    application_name: string;
+    query: string | null;
+  }>(`
+    select activity.pid,activity.state,activity.wait_event_type,activity.wait_event,
+           pg_blocking_pids(activity.pid) blockers,
+           activity.application_name,left(activity.query,300) query
+      from pg_stat_activity activity
+     where activity.pid=$1
+  `, [waiting.pid]);
+  throw new Error(
+    `Backend ${waiting.pid} did not reach its exact source lock behind backend ${blocker.pid}: ${JSON.stringify(diagnostics.rows)}`,
+  );
+}
+
+async function observeSchedulerUserLock(
+  observer: PoolClient,
+  scheduler: ReminderBackendIdentity,
+  writer: ReminderBackendIdentity,
+  isSchedulerSettled: () => boolean,
+) {
+  const fragments = REMINDER_LOCK_QUERY_FRAGMENTS.user;
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    const blocked = await observer.query<{ pid: number }>(`
+      select activity.pid
+        from pg_stat_activity activity
+       where activity.pid=$1
+         and activity.backend_type='client backend'
+         and activity.datname=$2
+         and activity.usename=$3
+         and activity.application_name=$4
+         and activity.state='active'
+         and activity.wait_event_type='Lock'
+         and activity.query ilike $5
+         and activity.query ilike $6
+         and activity.query ilike $7
+         and $8::integer = any(pg_blocking_pids(activity.pid))
+    `, [
+      scheduler.pid,
+      scheduler.databaseName,
+      scheduler.sessionUser,
+      scheduler.applicationName,
+      ...fragments,
+      writer.pid,
+    ]);
+    if (blocked.rows[0]?.pid === scheduler.pid) {
+      return { kind: "blocked" as const, pid: scheduler.pid, blockerPid: writer.pid };
+    }
+    if (isSchedulerSettled()) return { kind: "completed" as const };
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(
+    `Scheduler backend ${scheduler.pid} neither blocked behind writer ${writer.pid} nor completed.`,
+  );
+}
+
+async function runRestrictedMeaningfulWriterRace(input: Readonly<{
+  label: string;
+  runAt: Date;
+  sourceLockSql: string;
+  sourceLockValues: readonly unknown[];
+  writerQueryFragments: ExactBlockedQueryFragments;
+  runWriter: (writerPool: Pool) => Promise<unknown>;
+}>): Promise<MeaningfulWriterRaceResult> {
+  const sequence = ++reminderRaceSequence;
+  const sourcePool = createRestrictedRacePool(
+    `codestead.reminder.${input.label}-source.${sequence}`,
+  );
+  const writerPool = createRestrictedRacePool(
+    `codestead.reminder.${input.label}-writer.${sequence}`,
+  );
+  const schedulerPool = createRestrictedRacePool(
+    `codestead.reminder.${input.label}-scheduler.${sequence}`,
+  );
+  const observerPool = createRestrictedRacePool(
+    `codestead.reminder.${input.label}-observer.${sequence}`,
+  );
+  const sourceClient = await sourcePool.connect();
+  const observerClient = await observerPool.connect();
+  let sourceOpen = false;
+  let writer: Promise<unknown> | null = null;
+  let scheduled: ReturnType<typeof scheduleSmartRemindersWithDatabase> | null = null;
+  try {
+    const sourceIdentity = await identifyReminderBackend(
+      sourceClient,
+      `codestead.reminder.${input.label}-source.${sequence}`,
+    );
+    const writerIdentity = await identifySinglePoolBackend(
+      writerPool,
+      `codestead.reminder.${input.label}-writer.${sequence}`,
+    );
+    const schedulerIdentity = await identifySinglePoolBackend(
+      schedulerPool,
+      `codestead.reminder.${input.label}-scheduler.${sequence}`,
+    );
+    await identifyReminderBackend(
+      observerClient,
+      `codestead.reminder.${input.label}-observer.${sequence}`,
+    );
+
+    await sourceClient.query("begin");
+    sourceOpen = true;
+    await sourceClient.query(input.sourceLockSql, [...input.sourceLockValues]);
+    writer = input.runWriter(writerPool);
+    const blockedWriterPid = await waitForExactBlockedQuery(
+      observerClient,
+      writerIdentity,
+      sourceIdentity,
+      input.writerQueryFragments,
+    );
+    expect(blockedWriterPid).toBe(writerIdentity.pid);
+
+    let schedulerSettled = false;
+    scheduled = scheduleSmartRemindersWithDatabase(
+      drizzle(schedulerPool, { schema }),
+      input.runAt,
+      1,
+    );
+    void scheduled.then(
+      () => { schedulerSettled = true; },
+      () => { schedulerSettled = true; },
+    );
+    const outcome = await observeSchedulerUserLock(
+      observerClient,
+      schedulerIdentity,
+      writerIdentity,
+      () => schedulerSettled,
+    );
+
+    await sourceClient.query("commit");
+    sourceOpen = false;
+    await writer;
+    const schedule = await scheduled;
+    const counts = await pool.query<{
+      dispatches: string;
+      notifications: string;
+      outbox: string;
+    }>(
+      `select
+         (select count(*)::text from smart_reminder_dispatch where user_id=$1) dispatches,
+         (select count(*)::text from notification
+           where user_id=$1 and type='smart_reminder.daily_study') notifications,
+         (select count(*)::text from email_outbox where user_id=$1) outbox`,
+      [LEARNER_A],
+    );
+    return {
+      writerPid: writerIdentity.pid,
+      schedulerPid: schedulerIdentity.pid,
+      outcome,
+      schedule,
+      counts: counts.rows[0]!,
+    };
+  } finally {
+    if (sourceOpen) await sourceClient.query("rollback").catch(() => undefined);
+    if (writer) await writer.catch(() => undefined);
+    if (scheduled) await scheduled.catch(() => undefined);
+    sourceClient.release();
+    observerClient.release();
+    await Promise.all([
+      sourcePool.end(),
+      writerPool.end(),
+      schedulerPool.end(),
+      observerPool.end(),
+    ]);
   }
 }
 
@@ -1101,6 +1352,158 @@ describe("smart-reminder consent and concurrency", () => {
       "select 1 from notification where type like 'smart_reminder.%'",
     )).rowCount).toBe(0);
     expect((await pool.query("select 1 from email_outbox where user_id=$1", [LEARNER_A])).rowCount).toBe(0);
+  });
+
+  it("serializes an authoritative lesson event on the user before its session write", async () => {
+    const runAt = new Date("2026-07-14T14:00:00.000Z");
+    const meaningfulAt = new Date("2026-07-14T13:59:00.000Z");
+    await pool.query(
+      `insert into lesson_concept (lesson_id,concept_id,coverage,weight)
+       values ($1,$2,'primary',1)`,
+      [LESSON, CONCEPT],
+    );
+    await pool.query(
+      `insert into attempt
+        (id,user_id,activity_id,enrollment_id,kind,status,policy_version,content_version,
+         score,passed,mastery_awarded,infrastructure_failure,assistance_level,
+         solution_revealed,started_at,submitted_at,graded_at)
+       values ($1,$2,$3,$4,'quiz','graded','adaptive-learning-v1','1.0.0',
+         1,true,true,false,'A0',false,$5,$5,$5)`,
+      [MEANINGFUL_ATTEMPT, LEARNER_A, ACTIVITY, LEARNER_A_ENROLLMENT, meaningfulAt],
+    );
+    await pool.query(
+      `insert into mastery_evidence
+        (id,user_id,enrollment_id,concept_id,language_context,evidence_type,source_type,
+         source_id,score,weight,validity,policy_version,recorded_by,recorded_at)
+       values ($1,$2,$3,$4,'conceptual','assessment','deterministic_attempt',
+         $5,1,1,'valid','adaptive-learning-v1','integration',$6)`,
+      [
+        MEANINGFUL_EVIDENCE,
+        LEARNER_A,
+        LEARNER_A_ENROLLMENT,
+        CONCEPT,
+        MEANINGFUL_ATTEMPT,
+        meaningfulAt,
+      ],
+    );
+    await pool.query(
+      `insert into learning_session
+        (id,user_id,enrollment_id,goal,planned_minutes,status,started_at,last_activity_at,row_version)
+       values ($1,$2,$3,'Complete the reviewed variables lesson.',25,'active',$4,$4,1)`,
+      [MEANINGFUL_SESSION, LEARNER_A, LEARNER_A_ENROLLMENT, NOW],
+    );
+    await pool.query(
+      `insert into notification_preference
+        (user_id,daily_study_enabled,learning_email_enabled,timezone,daily_study_minute,
+         quiet_hours_enabled,row_version)
+       values ($1,true,true,'Asia/Kolkata',1080,false,1)`,
+      [LEARNER_A],
+    );
+
+    const race = await runRestrictedMeaningfulWriterRace({
+      label: "session-event",
+      runAt,
+      sourceLockSql: "select id from learning_session where id=$1 for update",
+      sourceLockValues: [MEANINGFUL_SESSION],
+      writerQueryFragments: [
+        "%update \"learning_session\"%",
+        "%row_version%",
+        "%returning%",
+      ],
+      runWriter: async (writerPool) => {
+        const learning = new LearningService({
+          store: new DrizzleLearningStore(drizzle(writerPool, { schema })),
+          now: () => meaningfulAt,
+        });
+        await learning.recordSessionEvent({
+          userId: LEARNER_A,
+          sessionId: MEANINGFUL_SESSION,
+          clientEventId: "meaningful-session-event-0001",
+          expectedRowVersion: 1,
+          type: "lesson_completed",
+          subjectType: "lesson",
+          subjectId: LESSON,
+        });
+      },
+    });
+
+    expect(race.outcome).toEqual({
+      kind: "blocked",
+      pid: race.schedulerPid,
+      blockerPid: race.writerPid,
+    });
+    expect(race.schedule).toEqual({ candidates: 1, dispatched: 0, failed: 0 });
+    expect(race.counts).toEqual({ dispatches: "0", notifications: "0", outbox: "0" });
+    const committed = await pool.query<{
+      last_meaningful_activity_at: Date;
+      event_count: string;
+      session_version: string;
+    }>(
+      `select u.last_meaningful_activity_at,
+              (select count(*)::text from learning_session_event
+                where user_id=$1 and client_event_id='meaningful-session-event-0001') event_count,
+              (select row_version::text from learning_session where id=$2) session_version
+         from "user" u where u.id=$1`,
+      [LEARNER_A, MEANINGFUL_SESSION],
+    );
+    expect(committed.rows[0]?.last_meaningful_activity_at.toISOString()).toBe(meaningfulAt.toISOString());
+    expect(committed.rows[0]).toMatchObject({ event_count: "1", session_version: "2" });
+  });
+
+  it("serializes a project milestone on the user before its project lock", async () => {
+    const runAt = new Date("2026-07-14T14:00:00.000Z");
+    const meaningfulAt = new Date("2026-07-14T13:59:30.000Z");
+    await pool.query(
+      `insert into project (id,user_id,title,summary,status,visibility)
+       values ($1,$2,'Race-safe project','A deterministic meaningful project checkpoint.','active','private')`,
+      [MEANINGFUL_PROJECT, LEARNER_A],
+    );
+    await pool.query(
+      `insert into notification_preference
+        (user_id,daily_study_enabled,learning_email_enabled,timezone,daily_study_minute,
+         quiet_hours_enabled,row_version)
+       values ($1,true,true,'Asia/Kolkata',1080,false,1)`,
+      [LEARNER_A],
+    );
+
+    const race = await runRestrictedMeaningfulWriterRace({
+      label: "project-revision",
+      runAt,
+      sourceLockSql: "select id from project where id=$1 for update",
+      sourceLockValues: [MEANINGFUL_PROJECT],
+      writerQueryFragments: [
+        "%select id from project%",
+        "%where id = $1 and user_id = $2%",
+        "%for update%",
+      ],
+      runWriter: (writerPool) => createProjectRevision({
+        userId: LEARNER_A,
+        projectId: MEANINGFUL_PROJECT,
+        clientRequestId: PROJECT_REVISION_REQUEST,
+        expectedLatestRevision: 0,
+        changeSummary: "Recorded a deterministic race-safe project checkpoint.",
+        now: meaningfulAt,
+      }, writerPool),
+    });
+
+    expect(race.outcome).toEqual({
+      kind: "blocked",
+      pid: race.schedulerPid,
+      blockerPid: race.writerPid,
+    });
+    expect(race.schedule).toEqual({ candidates: 1, dispatched: 0, failed: 0 });
+    expect(race.counts).toEqual({ dispatches: "0", notifications: "0", outbox: "0" });
+    const committed = await pool.query<{
+      last_meaningful_activity_at: Date;
+      revision_count: string;
+    }>(
+      `select u.last_meaningful_activity_at,
+              (select count(*)::text from project_revision where project_id=$2) revision_count
+         from "user" u where u.id=$1`,
+      [LEARNER_A, MEANINGFUL_PROJECT],
+    );
+    expect(committed.rows[0]?.last_meaningful_activity_at.toISOString()).toBe(meaningfulAt.toISOString());
+    expect(committed.rows[0]?.revision_count).toBe("1");
   });
 
   it("sends nothing without opt-in and lets a racing opt-out or email-off change win", async () => {

@@ -15,6 +15,7 @@ const USER_ID = "learner-1";
 const SERIALIZATION_METHODS = new Set([
   "lockPlanInitialization",
   "lockSessionStart",
+  "lockMeaningfulActivityUser",
   "lockAttemptCreation",
   "lockDsaLanguageSwitch",
 ]);
