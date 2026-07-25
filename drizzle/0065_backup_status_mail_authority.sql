@@ -72,18 +72,25 @@ SET search_path = pg_catalog
 AS $function$
 DECLARE
   authority_change boolean := false;
+  selected_user_id text;
 BEGIN
   IF TG_OP = 'INSERT' THEN
+    selected_user_id := NEW.id;
     authority_change :=
       NEW.role = 'admin'
       AND NEW.status = 'active'
       AND coalesce(NEW.banned, false) = false;
+  ELSIF TG_OP = 'UPDATE' AND OLD.id IS DISTINCT FROM NEW.id THEN
+    RAISE EXCEPTION 'user identifier is immutable'
+      USING ERRCODE = '23514';
   ELSIF TG_OP = 'DELETE' THEN
+    selected_user_id := OLD.id;
     authority_change :=
       OLD.role = 'admin'
       AND OLD.status = 'active'
       AND coalesce(OLD.banned, false) = false;
   ELSE
+    selected_user_id := NEW.id;
     authority_change := (
       OLD.role = 'admin'
       AND OLD.status = 'active'
@@ -96,6 +103,17 @@ BEGIN
   END IF;
 
   IF authority_change THEN
+    IF selected_user_id IS NULL
+       OR NOT pg_catalog.pg_try_advisory_xact_lock(
+         pg_catalog.hashtext(
+           'user-authority:' || selected_user_id
+         )::pg_catalog.int8
+       ) THEN
+      RAISE EXCEPTION
+        'canonical user authority lock is not available'
+        USING ERRCODE = '55P03';
+    END IF;
+
     UPDATE public.backup_status_mail_admin_guard
        SET authority_epoch = pg_catalog.gen_random_uuid()
      WHERE singleton IS TRUE;
@@ -121,7 +139,7 @@ BEFORE INSERT ON "public"."user"
 FOR EACH ROW
 EXECUTE FUNCTION "public"."lock_backup_status_mail_admin_authority"();--> statement-breakpoint
 CREATE TRIGGER "backup_status_mail_admin_update_lock"
-BEFORE UPDATE OF email, role, status, banned ON "public"."user"
+BEFORE UPDATE OF id, email, role, status, banned ON "public"."user"
 FOR EACH ROW
 EXECUTE FUNCTION "public"."lock_backup_status_mail_admin_authority"();--> statement-breakpoint
 CREATE TRIGGER "backup_status_mail_admin_delete_lock"
@@ -147,6 +165,7 @@ DECLARE
   requested_outcome text := p_outcome;
   selected_admin_count integer;
   revalidated_admin_count integer;
+  hinted_admin_id text;
   selected_admin_id text;
   selected_admin_email text;
   selected_authority_epoch uuid;
@@ -174,6 +193,41 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
+  SELECT candidate.user_id
+    INTO hinted_admin_id
+    FROM public.backup_status_mail_authority AS source
+    JOIN public.email_outbox AS candidate
+      ON candidate.id = source.outbox_id
+   WHERE source.run_key = p_run_key
+     AND source.outbox_id = candidate.id
+     AND source.operation_id = candidate.operation_id;
+
+  IF FOUND AND hinted_admin_id IS NULL THEN
+    RAISE EXCEPTION
+      'backup status mail replay conflicts with durable authority'
+      USING ERRCODE = '23514';
+  END IF;
+
+  IF NOT FOUND THEN
+    SELECT pg_catalog.count(*), pg_catalog.min(admin_recipient.id)
+      INTO selected_admin_count, hinted_admin_id
+      FROM public."user" AS admin_recipient
+     WHERE admin_recipient.role = 'admin'
+       AND admin_recipient.status = 'active'
+       AND coalesce(admin_recipient.banned, false) = false;
+    IF selected_admin_count <> 1 OR hinted_admin_id IS NULL THEN
+      RAISE EXCEPTION
+        'backup status mail requires exactly one active administrator'
+        USING ERRCODE = '23514';
+    END IF;
+  END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtext(
+      'user-authority:' || hinted_admin_id
+    )::pg_catalog.int8
+  );
+
   PERFORM pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended(
       'backup-status-authority:' || p_run_key,
@@ -196,10 +250,14 @@ BEGIN
       RAISE EXCEPTION 'backup status mail replay conflicts with durable authority'
         USING ERRCODE = '23514';
     END IF;
+    IF selected_admin_id IS DISTINCT FROM hinted_admin_id THEN
+      RAISE EXCEPTION 'backup status mail replay conflicts with durable authority'
+        USING ERRCODE = '23514';
+    END IF;
 
     PERFORM locked_recipient.id
       FROM public."user" AS locked_recipient
-     WHERE locked_recipient.id = selected_admin_id
+     WHERE locked_recipient.id = hinted_admin_id
      FOR SHARE OF locked_recipient;
     IF NOT FOUND THEN
       RAISE EXCEPTION 'backup status mail replay conflicts with durable authority'
@@ -210,7 +268,7 @@ BEGIN
       FROM public.email_outbox AS locked_candidate
      WHERE locked_candidate.id = existing_source.outbox_id
        AND locked_candidate.operation_id = existing_source.operation_id
-       AND locked_candidate.user_id = selected_admin_id
+       AND locked_candidate.user_id = hinted_admin_id
      FOR SHARE OF locked_candidate;
     IF NOT FOUND THEN
       RAISE EXCEPTION 'backup status mail replay conflicts with durable authority'
@@ -251,6 +309,7 @@ BEGIN
        AND source.outbox_id = candidate.id
        AND source.operation_id = candidate.operation_id
        AND source.authority_epoch = current_authority_epoch
+       AND candidate.user_id = hinted_admin_id
        AND candidate.user_id = admin_recipient.id
        AND candidate.delivery_scope_key =
          'a:' || candidate.user_id
@@ -294,23 +353,13 @@ BEGIN
     RETURN;
   END IF;
 
-  SELECT pg_catalog.count(*)
-    INTO selected_admin_count
-    FROM public."user" AS admin_recipient
-   WHERE admin_recipient.role = 'admin'
-     AND admin_recipient.status = 'active'
-     AND coalesce(admin_recipient.banned, false) = false;
-  IF selected_admin_count <> 1 THEN
-    RAISE EXCEPTION 'backup status mail requires exactly one active administrator'
-      USING ERRCODE = '23514';
-  END IF;
-
   SELECT
     admin_recipient.id,
     pg_catalog.lower(pg_catalog.btrim(admin_recipient.email))
     INTO selected_admin_id, selected_admin_email
     FROM public."user" AS admin_recipient
-   WHERE admin_recipient.role = 'admin'
+   WHERE admin_recipient.id = hinted_admin_id
+     AND admin_recipient.role = 'admin'
      AND admin_recipient.status = 'active'
      AND coalesce(admin_recipient.banned, false) = false
    FOR SHARE OF admin_recipient;
@@ -322,8 +371,7 @@ BEGIN
   SELECT authority_guard.authority_epoch
     INTO selected_authority_epoch
     FROM public.backup_status_mail_admin_guard AS authority_guard
-   WHERE authority_guard.singleton IS TRUE
-   FOR SHARE OF authority_guard;
+   WHERE authority_guard.singleton IS TRUE;
   IF NOT FOUND OR selected_authority_epoch IS NULL THEN
     RAISE EXCEPTION 'backup status administrator authority guard is missing'
       USING ERRCODE = '23514';
@@ -354,6 +402,31 @@ BEGIN
       'The nightly encrypted backup did not complete. Review the protected operations logs; no archive or log is attached to this email.'
   END;
 
+  INSERT INTO public.email_outbox (
+    id,
+    operation_id,
+    user_id,
+    delivery_scope_key,
+    to_email,
+    template,
+    template_version,
+    variables,
+    idempotency_key
+  ) VALUES (
+    new_outbox_id,
+    new_operation_id,
+    hinted_admin_id,
+    'a:' || hinted_admin_id,
+    selected_admin_email,
+    'backup-status',
+    '1',
+    pg_catalog.jsonb_build_object(
+      'name', 'Administrator',
+      'summary', fixed_summary
+    ),
+    'backup-status:v1:' || p_run_key
+  );
+
   INSERT INTO public.backup_status_mail_authority (
     id,
     run_key,
@@ -370,30 +443,90 @@ BEGIN
     selected_authority_epoch
   );
 
-  INSERT INTO public.email_outbox (
-    id,
-    operation_id,
-    user_id,
-    delivery_scope_key,
-    to_email,
-    template,
-    template_version,
-    variables,
-    idempotency_key
-  ) VALUES (
-    new_outbox_id,
-    new_operation_id,
-    selected_admin_id,
-    'a:' || selected_admin_id,
-    selected_admin_email,
-    'backup-status',
-    '1',
-    pg_catalog.jsonb_build_object(
-      'name', 'Administrator',
-      'summary', fixed_summary
-    ),
-    'backup-status:v1:' || p_run_key
-  );
+  PERFORM locked_candidate.id
+    FROM public.email_outbox AS locked_candidate
+   WHERE locked_candidate.id = new_outbox_id
+     AND locked_candidate.operation_id = new_operation_id
+     AND locked_candidate.user_id = hinted_admin_id
+   FOR SHARE OF locked_candidate;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION
+      'backup status mail authority changed during creation'
+      USING ERRCODE = '23514';
+  END IF;
+
+  PERFORM locked_source.id
+    FROM public.backup_status_mail_authority AS locked_source
+   WHERE locked_source.id = new_authority_id
+     AND locked_source.run_key = p_run_key
+     AND locked_source.outbox_id = new_outbox_id
+     AND locked_source.operation_id = new_operation_id
+   FOR SHARE OF locked_source;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION
+      'backup status mail authority changed during creation'
+      USING ERRCODE = '23514';
+  END IF;
+
+  SELECT authority_guard.authority_epoch
+    INTO current_authority_epoch
+    FROM public.backup_status_mail_admin_guard AS authority_guard
+   WHERE authority_guard.singleton IS TRUE
+   FOR SHARE OF authority_guard;
+  IF NOT FOUND OR current_authority_epoch IS NULL THEN
+    RAISE EXCEPTION 'backup status administrator authority guard is missing'
+      USING ERRCODE = '23514';
+  END IF;
+  IF current_authority_epoch IS DISTINCT FROM selected_authority_epoch THEN
+    RAISE EXCEPTION
+      'backup status mail authority changed during creation'
+      USING ERRCODE = '23514';
+  END IF;
+
+  SELECT TRUE
+    INTO replay_authorized
+    FROM public.backup_status_mail_authority AS source
+    JOIN public.email_outbox AS candidate
+      ON candidate.id = source.outbox_id
+    JOIN public."user" AS admin_recipient
+      ON admin_recipient.id = candidate.user_id
+   WHERE source.id = new_authority_id
+     AND source.run_key = p_run_key
+     AND source.outcome = requested_outcome
+     AND source.outbox_id = new_outbox_id
+     AND source.operation_id = new_operation_id
+     AND source.authority_epoch = current_authority_epoch
+     AND candidate.operation_id = new_operation_id
+     AND candidate.user_id = hinted_admin_id
+     AND candidate.delivery_scope_key =
+       'a:' || candidate.user_id
+     AND candidate.to_email = selected_admin_email
+     AND candidate.template = 'backup-status'
+     AND candidate.template_version = '1'
+     AND candidate.idempotency_key =
+       'backup-status:v1:' || source.run_key
+     AND candidate.variables = pg_catalog.jsonb_build_object(
+       'name', 'Administrator',
+       'summary', fixed_summary
+     )
+     AND admin_recipient.id = hinted_admin_id
+     AND admin_recipient.role = 'admin'
+     AND admin_recipient.status = 'active'
+     AND coalesce(admin_recipient.banned, false) = false
+     AND pg_catalog.lower(pg_catalog.btrim(admin_recipient.email)) =
+       candidate.to_email
+     AND (
+       SELECT pg_catalog.count(*) = 1
+         FROM public."user" AS sole_admin
+        WHERE sole_admin.role = 'admin'
+          AND sole_admin.status = 'active'
+          AND coalesce(sole_admin.banned, false) = false
+     );
+  IF replay_authorized IS DISTINCT FROM TRUE THEN
+    RAISE EXCEPTION
+      'backup status mail authority changed during creation'
+      USING ERRCODE = '23514';
+  END IF;
 
   RETURN QUERY
   SELECT
@@ -422,7 +555,7 @@ SET search_path = pg_catalog
 AS $function$
 DECLARE
   authorized boolean := false;
-  selected_admin_id text;
+  hinted_admin_id text;
   selected_operation_id uuid;
   current_authority_epoch uuid;
 BEGIN
@@ -436,20 +569,26 @@ BEGIN
   END IF;
 
   SELECT candidate.user_id, candidate.operation_id
-    INTO selected_admin_id, selected_operation_id
+    INTO hinted_admin_id, selected_operation_id
     FROM public.backup_status_mail_authority AS source
     JOIN public.email_outbox AS candidate
       ON candidate.id = source.outbox_id
    WHERE candidate.id = p_candidate_outbox_id
      AND source.outbox_id = candidate.id
      AND source.operation_id = candidate.operation_id;
-  IF NOT FOUND OR selected_admin_id IS NULL THEN
+  IF NOT FOUND OR hinted_admin_id IS NULL THEN
     RETURN false;
   END IF;
 
+  PERFORM pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtext(
+      'user-authority:' || hinted_admin_id
+    )::pg_catalog.int8
+  );
+
   PERFORM locked_recipient.id
     FROM public."user" AS locked_recipient
-   WHERE locked_recipient.id = selected_admin_id
+   WHERE locked_recipient.id = hinted_admin_id
    FOR SHARE OF locked_recipient;
   IF NOT FOUND THEN
     RETURN false;
@@ -459,7 +598,7 @@ BEGIN
     FROM public.email_outbox AS locked_candidate
    WHERE locked_candidate.id = p_candidate_outbox_id
      AND locked_candidate.operation_id = selected_operation_id
-     AND locked_candidate.user_id = selected_admin_id
+     AND locked_candidate.user_id = hinted_admin_id
    FOR SHARE OF locked_candidate;
   IF NOT FOUND THEN
     RETURN false;
@@ -495,6 +634,7 @@ BEGIN
      AND source.outbox_id = candidate.id
      AND source.operation_id = candidate.operation_id
      AND source.authority_epoch = current_authority_epoch
+     AND candidate.user_id = hinted_admin_id
      AND candidate.user_id = admin_recipient.id
      AND candidate.delivery_scope_key =
        'a:' || candidate.user_id

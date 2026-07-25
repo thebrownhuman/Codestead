@@ -235,9 +235,9 @@ export const BACKUP_STATUS_AUTHORITY_ROUTINES = Object.freeze([
     configuration: ["search_path=pg_catalog"],
     allowedRoles: [],
     bodySha256:
-      "7a1fff52745e58ac45f1840e88c437a59a7d669d25a86fa5fcf259959024efef",
+      "3c9e8f9ba6e0095a3f6868150677cf450942d9ffc91d0a34b7c2a65d044ccb1f",
     definitionSha256:
-      "f942cdda522f28a0cc8f6446c7ea7ff0615743363c9182e71e12179e425d8eef",
+      "58188d5627aed8c443f506e3cda54ac171c2f8219bad481f26a832ace66df3bc",
     argumentNames: [],
     argumentModes: [],
     argumentTypes: [],
@@ -252,9 +252,9 @@ export const BACKUP_STATUS_AUTHORITY_ROUTINES = Object.freeze([
     configuration: ["search_path=pg_catalog"],
     allowedRoles: ["learncoding_backup_reporter"],
     bodySha256:
-      "62f209f2ccfd469078900bf87ed920f04869629aa67dad224694f50ca3da67ba",
+      "e2d042d4948b883aa3ee307b360fc386367a496f672c37a3ba278e93cc6e2aae",
     definitionSha256:
-      "b33f672d6be288af17835f24b831154a6f85f46d555d2822e38217f0506ae835",
+      "25e91d413020f5ef0d6965b32079b38fa9f26cd5b75fc7eedfb131080dd705b9",
     argumentNames: [
       "p_run_key",
       "p_outcome",
@@ -276,9 +276,9 @@ export const BACKUP_STATUS_AUTHORITY_ROUTINES = Object.freeze([
     configuration: ["search_path=pg_catalog"],
     allowedRoles: ["learncoding_worker"],
     bodySha256:
-      "a8acb4f84b1e72fa78a69e5334bfa695dc8256c523271b54150172d69e8ac227",
+      "c947fcc0d019174fcb76c39d61fa736bd552dd6f2eeae6f46cfc772aa4dc95ae",
     definitionSha256:
-      "0eaa1f83e8e83c241421a510c6a5c6c887536a92e031aad05ed0cb34ba32f813",
+      "bb7765a31c1e9e2796e554cb1445ddeba3f8ff078e210312486b817db1da4180",
     argumentNames: ["p_candidate_outbox_id"],
     argumentModes: [],
     argumentTypes: ["uuid"],
@@ -945,7 +945,7 @@ async function verifyTriggers(client) {
               FROM pg_catalog.pg_attribute attribute
              WHERE attribute.attrelid = pg_catalog.to_regclass('public."user"')
                AND attribute.attname = ANY(
-                 ARRAY['email', 'role', 'status', 'banned']::name[]
+                 ARRAY['id', 'email', 'role', 'status', 'banned']::name[]
                )
              ORDER BY attribute.attnum
           )::smallint[],
