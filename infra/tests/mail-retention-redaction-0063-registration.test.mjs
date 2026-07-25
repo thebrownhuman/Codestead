@@ -287,6 +287,27 @@ for (const requiredLiveProof of [
     `0063 live harness is missing hostile-catalog proof: ${requiredLiveProof}`,
   );
 }
+const reporterUrlPattern =
+  /databaseBackupReporterUrl:\s*roleUrl\(\s*"learncoding_backup_reporter",\s*"r"\.repeat\(48\),?\s*\)/u;
+const liveBootstrapDefinition =
+  integrationHarness.match(
+    /async function runLiveRoleBootstrap[\s\S]*?(?=\nasync function runProductionApplicationBoundaryVerifier)/u,
+  )?.[0] ?? "";
+const broadBoundaryDefinition =
+  integrationHarness.match(
+    /async function runProductionApplicationBoundaryVerifier[\s\S]*?(?=\nasync function applyMigrationsWithFramework)/u,
+  )?.[0] ?? "";
+for (const [label, definition] of [
+  ["role bootstrap", liveBootstrapDefinition],
+  ["application boundary verifier", broadBoundaryDefinition],
+]) {
+  assert.match(
+    definition,
+    reporterUrlPattern,
+    `0063 ${label} must authenticate the distinct backup-reporter role`,
+  );
+}
+
 const rawCatalogAssertion = integrationHarness.indexOf(
   "assertHostileFunctionAclsRemoved(port, database)",
 );
