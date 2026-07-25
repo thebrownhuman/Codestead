@@ -430,7 +430,7 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     createdAt: "1784936400000",
     migrationFile: "0065_backup_status_mail_authority.sql",
     migrationSha256:
-      "d97e88fdb1819e9e4b186d13f07a13a2bc8004a01f9e80127633f99950519c2e",
+      "1274dda8013fe80f09df63f7ddc73b24b0a9a482a40e5f5042eaef2373c14b3c",
     routines: REVIEWED_APPLICATION_FUNCTIONS,
     triggers: REVIEWED_APPLICATION_TRIGGERS,
     requiresWorkerContract: true,

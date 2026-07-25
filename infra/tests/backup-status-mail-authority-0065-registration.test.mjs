@@ -30,7 +30,7 @@ const expected0065LedgerEntry = Object.freeze({
   when: 1784936400000,
   tag: "0065_backup_status_mail_authority",
   breakpoints: true,
-  sqlSha256: "d97e88fdb1819e9e4b186d13f07a13a2bc8004a01f9e80127633f99950519c2e",
+  sqlSha256: "1274dda8013fe80f09df63f7ddc73b24b0a9a482a40e5f5042eaef2373c14b3c",
 });
 
 const packageManifest = JSON.parse(read("package.json"));
@@ -76,7 +76,7 @@ assert.equal(REVIEWED_MIGRATION_LEDGER.at(-1)?.idx, 65);
 assert.deepEqual(REVIEWED_MIGRATION_LEDGER.at(-1), expected0065LedgerEntry);
 assert.equal(
   REVIEWED_MIGRATION_LEDGER_SHA256,
-  "ff4f0930eef8a40ab316378078dcabe136f78d5957f3b6a7daaa0f0993976f3a",
+  "76f3a90cef0a543f030843be244d65b5ac9a2f31ce31783a7246886e569c004c",
 );
 assert.deepEqual(verifyReviewedMigrationRepository(), {
   entryCount: 66,
