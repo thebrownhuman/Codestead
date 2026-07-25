@@ -1,6 +1,8 @@
 import {
   dispatchBinding,
+  preparedEmailBindingMatches,
   type DispatchBinding,
+  type MailDispatchAuthority,
   type PreparedEmail,
 } from "./prepared-dispatch";
 import type { LostDeviceAuthorityEvidence } from "./revocable-source-authority";
@@ -23,14 +25,17 @@ const AUTHORIZATION_STATES = new WeakMap<
 
 export function createDispatchAuthorizationEnvelope(
   input: Readonly<{
+    authority: MailDispatchAuthority;
     prepared: PreparedEmail;
     authorityEvidence?: LostDeviceAuthorityEvidence;
   }>,
 ): DispatchAuthorizationEnvelope {
   if (
     !Object.isFrozen(input.prepared) ||
+    !Object.isFrozen(input.authority) ||
     (input.authorityEvidence !== undefined &&
-      !Object.isFrozen(input.authorityEvidence))
+      !Object.isFrozen(input.authorityEvidence)) ||
+    !preparedEmailBindingMatches(input.prepared, input.authority)
   ) {
     throw new Error("Dispatch authorization input is not sealed.");
   }
