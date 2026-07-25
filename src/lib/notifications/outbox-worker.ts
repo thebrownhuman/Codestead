@@ -4,6 +4,12 @@ import type {
   GuardedPreparedDispatch,
   PreparedDispatchEnvelope,
 } from "./guarded-prepared-dispatch";
+import {
+  FatalProviderTransportError,
+  type PostProviderExit,
+} from "./provider-dispatch-contract";
+
+export { FatalProviderTransportError, type PostProviderExit };
 
 export type ClaimFence = Readonly<{
   id: string;
@@ -57,22 +63,12 @@ export type PreProviderExit =
   | { readonly kind: "failed"; readonly code: string }
   | { readonly kind: "suppressed"; readonly code: string };
 
-export type PostProviderExit =
-  | { readonly kind: "sent"; readonly providerMessageId: string }
-  | { readonly kind: "failed"; readonly code: string }
-  | { readonly kind: "quarantined"; readonly code: string };
 
 export type GuardedDispatchResult =
   | { readonly kind: "applied"; readonly exit: PostProviderExit }
   | { readonly kind: "lost" };
 
 
-export class FatalProviderTransportError extends Error {
-  constructor(readonly code: string) {
-    super(`Fatal provider transport failure (${code}).`);
-    this.name = "FatalProviderTransportError";
-  }
-}
 
 export type FatalProviderExit = (
   error: FatalProviderTransportError,
@@ -104,7 +100,8 @@ export type MaterializeResult<M> =
 export type ProviderSendResult =
   | { readonly kind: "accepted"; readonly providerMessageId: string }
   | { readonly kind: "definitely-rejected"; readonly code: string }
-  | { readonly kind: "ambiguous"; readonly code: string };
+  | { readonly kind: "ambiguous"; readonly code: string }
+  | { readonly kind: "fatal"; readonly code: string };
 
 export interface OutboxStore<P = unknown> {
   claimNext(

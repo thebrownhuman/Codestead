@@ -4,6 +4,10 @@ const CANONICAL_UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const CORRELATION_DOMAIN =
   "codestead.mail.provider-correlation.v1";
+export const PROVIDER_CORRELATION_VERSION =
+  "opaque-sha256-v1" as const;
+export type ProviderCorrelationVersion =
+  typeof PROVIDER_CORRELATION_VERSION;
 
 function updateLengthFramed(
   hash: ReturnType<typeof createHash>,
