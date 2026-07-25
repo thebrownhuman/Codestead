@@ -25,29 +25,38 @@ export interface MailProviderContext {
 
 export type MailAdapter = "console" | "gmail";
 
-export type MailDispatchAuthority = Readonly<{
+type DispatchAuthority<SourceDigest extends string> = Readonly<{
   id: string;
   operationId: string;
   claimToken: string;
   claimOwner: string;
   claimVersion: number;
   deliveryScopeKey: string;
-  sourceAuthoritySha256: SourceAuthoritySha256;
+  sourceAuthoritySha256: SourceDigest;
   recipient: string;
   template: EmailTemplate;
   templateVersion: string;
 }>;
 
+export type MailDispatchAuthority =
+  DispatchAuthority<SourceAuthoritySha256>;
+export type CompatibilityMailDispatchAuthority =
+  DispatchAuthority<CompatibilitySourceAuthoritySha256>;
+export type PreparedMailDispatchAuthority =
+  | MailDispatchAuthority
+  | CompatibilityMailDispatchAuthority;
+
 export type MailPreparationContext = Readonly<{
   adapter: MailAdapter;
   from: string;
   messageId: string;
-  authority: MailDispatchAuthority;
+  authority: PreparedMailDispatchAuthority;
 }>;
 
 declare const providerPayloadSha256Brand: unique symbol;
 declare const authoritySealSha256Brand: unique symbol;
 declare const sourceAuthoritySha256Brand: unique symbol;
+declare const compatibilitySourceAuthoritySha256Brand: unique symbol;
 
 export type ProviderPayloadSha256 = string & Readonly<{
   [providerPayloadSha256Brand]: "ProviderPayloadSha256";
@@ -61,6 +70,10 @@ export type SourceAuthoritySha256 = string & Readonly<{
   [sourceAuthoritySha256Brand]: "SourceAuthoritySha256";
 }>;
 
+export type CompatibilitySourceAuthoritySha256 = string & Readonly<{
+  [compatibilitySourceAuthoritySha256Brand]:
+    "CompatibilitySourceAuthoritySha256";
+}>;
 export type DispatchBinding = Readonly<{
   bindingVersion: "gmail-raw-v1" | "console-json-v1";
   bindingSha256: ProviderPayloadSha256;
@@ -144,7 +157,7 @@ function assertBindingText(value: string, name: string, maximumLength: number) {
   return value;
 }
 
-function assertAuthority(authority: MailDispatchAuthority) {
+function assertAuthority(authority: PreparedMailDispatchAuthority) {
   assertBindingText(authority.id, "ID", 200);
   assertBindingText(authority.operationId, "operation ID", 200);
   assertBindingText(authority.claimToken, "claim token", 200);
@@ -204,7 +217,7 @@ function payloadBindingSha256(
 
 function authorityBindingSha256(
   prepared: PreparedWithoutAuthorityBinding,
-  authority: MailDispatchAuthority,
+  authority: PreparedMailDispatchAuthority,
 ) {
   assertAuthority(authority);
   const hash = createHash("sha256");
@@ -369,7 +382,7 @@ export function prepareEmail(
 
 export function preparedEmailBindingMatches(
   prepared: PreparedEmail,
-  authority: MailDispatchAuthority,
+  authority: PreparedMailDispatchAuthority,
 ) {
   try {
     if (
