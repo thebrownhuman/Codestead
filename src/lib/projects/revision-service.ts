@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 
-import type { PoolClient } from "pg";
+import type { Pool, PoolClient } from "pg";
 
 import { pool } from "@/lib/db/client";
+import { lockUserAuthorityOnPgClient } from "@/lib/security/user-authority-lock";
 
 export const MAX_PROJECT_REVISION_FILES = 20;
 export const MAX_PROJECT_REVISION_PAGE = 50;
@@ -17,6 +18,8 @@ export type ProjectRevisionErrorCode =
   | "IDEMPOTENCY_MISMATCH"
   | "FILE_NOT_AVAILABLE"
   | "WRITE_CONFLICT";
+
+type ProjectRevisionPool = Pick<Pool, "connect">;
 
 export class ProjectRevisionError extends Error {
   constructor(
@@ -304,7 +307,8 @@ export async function createProjectRevision(input: {
   reflection?: string | null;
   fileIds?: readonly string[];
   now?: Date;
-}): Promise<Readonly<{ revision: ProjectRevisionRecord; duplicate: boolean }>> {
+}, databasePool: ProjectRevisionPool = pool): Promise<
+  Readonly<{ revision: ProjectRevisionRecord; duplicate: boolean }>> {
   if (!input.userId || input.userId.length > 255) {
     throw new ProjectRevisionError("INVALID_INPUT", "Authenticated owner is invalid.");
   }
@@ -315,9 +319,20 @@ export async function createProjectRevision(input: {
     throw new ProjectRevisionError("INVALID_INPUT", "Revision timestamp is invalid.");
   }
 
-  const client = await pool.connect();
+  const client = await databasePool.connect();
   try {
     await client.query("begin");
+    await lockUserAuthorityOnPgClient(client, input.userId);
+    // This checkpoint will advance account-level meaningful activity. Lock
+    // the account authority before its user row and project/session sources
+    // so dispatch, deletion, and every source writer share A -> U -> source.
+    const authority = await client.query<{ id: string }>(
+      "select id from \"user\" where id = $1 for update",
+      [input.userId],
+    );
+    if (!authority.rows[0]) {
+      throw new ProjectRevisionError("PROJECT_NOT_FOUND", "Project was not found.");
+    }
     const owned = await client.query<{ id: string }>(
       "select id from project where id = $1 and user_id = $2 for update",
       [mutation.projectId, input.userId],
