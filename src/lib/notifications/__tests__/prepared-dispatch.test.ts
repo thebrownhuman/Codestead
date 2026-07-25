@@ -1,19 +1,30 @@
 import { createHash } from "node:crypto";
+import { inspect } from "node:util";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  authorizePreparedEmail,
-  classifyMailDeliveryError,
+  consumeMaterializedGmailPreparation,
   dispatchBinding,
+  issueMaterializedGmailPreparation,
   prepareEmail,
   preparedEmailBindingMatches,
-  sendPreparedEmail,
+  type AuthoritativeOutgoingEmail,
   type DispatchBinding,
   type MailDispatchAuthority,
-  type PreparedEmailAuthorization,
+  type MailPreparationContext,
+  type PreparedEmail,
   type SourceAuthoritySha256,
-} from "../mailer";
+} from "../prepared-dispatch";
+import { classifyMailDeliveryError } from "../provider-dispatch-contract";
+import {
+  authorizePreparedEmail,
+  captureMailTransportConfiguration,
+  capturePreparedMailTransportPlan,
+  sendPreparedEmail,
+  type PreparedEmailAuthorization,
+} from "../mailer-transport-internal";
+
 import { outboxMessageId } from "../provider-correlation";
 
 const OPERATION_ID = "22222222-2222-4222-8222-222222222222";
@@ -37,6 +48,44 @@ const AUTHORITY: MailDispatchAuthority = Object.freeze({
   templateVersion: "1",
 });
 
+const TEST_TRANSPORT_TIMING = Object.freeze({
+  oauthDeadlineMs: 20_000,
+  guardedSendDeadlineMs: 20_000,
+  providerAbortSettlementMs: 5_000,
+});
+function prepareForTest(
+  input: AuthoritativeOutgoingEmail,
+  context: MailPreparationContext,
+) {
+  if (context.adapter !== "gmail") {
+    return prepareEmail(input, context);
+  }
+  const capability = issueMaterializedGmailPreparation(
+    input,
+    context as MailPreparationContext & Readonly<{ adapter: "gmail" }>,
+  );
+  const prepared = consumeMaterializedGmailPreparation(capability);
+  if (!prepared) throw new Error("Expected issued Gmail preparation.");
+  return prepared;
+}
+
+function authorizeForTest(
+  prepared: PreparedEmail,
+  authority: MailDispatchAuthority,
+) {
+  const transportConfiguration = captureMailTransportConfiguration(
+    prepared.adapter,
+  );
+  return authorizePreparedEmail(
+    prepared,
+    authority,
+    capturePreparedMailTransportPlan(
+      prepared.adapter,
+      TEST_TRANSPORT_TIMING,
+      transportConfiguration,
+    ),
+  );
+}
 function gmailPreparation() {
   return {
     adapter: "gmail" as const,
@@ -80,6 +129,31 @@ afterEach(() => {
 });
 
 describe("prepared mail dispatch", () => {
+  it("issues an empty, non-serializing, one-shot Gmail preparation capability", () => {
+    const capability = issueMaterializedGmailPreparation({
+      to: "learner@example.test",
+      template: "invitation",
+      templateVersion: "1",
+      variables: {},
+    }, gmailPreparation());
+
+    expect(issueMaterializedGmailPreparation).toHaveLength(2);
+    expect(Object.isFrozen(capability)).toBe(true);
+    expect(Reflect.ownKeys(capability)).toEqual([]);
+    expect(Object.getOwnPropertyDescriptors(capability)).toEqual({});
+    expect(JSON.stringify(capability)).toBe("{}");
+    const rendered = inspect(capability, { showHidden: true });
+    expect(rendered).not.toContain(OPERATION_ID);
+    expect(rendered).not.toContain("learner@example.test");
+
+    const prepared = consumeMaterializedGmailPreparation(capability);
+    expect(prepared?.adapter).toBe("gmail");
+    expect(consumeMaterializedGmailPreparation(capability)).toBeNull();
+    expect(consumeMaterializedGmailPreparation(
+      Object.freeze({}) as typeof capability,
+    )).toBeNull();
+  });
+
   it("freezes one exact Gmail rendering, raw value, request body, and internal authority binding", () => {
     const randomUuid = vi
       .spyOn(crypto, "randomUUID")
@@ -89,7 +163,7 @@ describe("prepared mail dispatch", () => {
       url: "https://example.test/activate?token=single-use",
     };
 
-    const prepared = prepareEmail({
+    const prepared = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -152,7 +226,7 @@ describe("prepared mail dispatch", () => {
 
   it("invalidates the prepared binding when source authority changes", () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
-    const prepared = prepareEmail({
+    const prepared = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -175,7 +249,7 @@ describe("prepared mail dispatch", () => {
   ) => {
     const randomUuid = vi.spyOn(crypto, "randomUUID");
 
-    expect(() => prepareEmail({
+    expect(() => prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -192,7 +266,7 @@ describe("prepared mail dispatch", () => {
 
   it("accepts randomized MIME only for the same authority and source digest without rerendering", () => {
     const randomUuid = vi.spyOn(crypto, "randomUUID");
-    const prepared = prepareEmail({
+    const prepared = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -231,7 +305,7 @@ describe("prepared mail dispatch", () => {
       .spyOn(crypto, "randomUUID")
       .mockReturnValue(BOUNDARY_UUID);
 
-    expect(() => prepareEmail({
+    expect(() => prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -254,7 +328,7 @@ describe("prepared mail dispatch", () => {
     authorityOverride,
   ) => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
-    const prepared = prepareEmail({
+    const prepared = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -272,7 +346,7 @@ describe("prepared mail dispatch", () => {
       .spyOn(crypto, "randomUUID")
       .mockReturnValue(BOUNDARY_UUID);
 
-    expect(() => prepareEmail({
+    expect(() => prepareForTest({
       to: "learner@example.test",
       template: "exam-result" as never,
       templateVersion: "1",
@@ -291,7 +365,7 @@ describe("prepared mail dispatch", () => {
     const randomUuid = vi
       .spyOn(crypto, "randomUUID")
       .mockReturnValue(BOUNDARY_UUID);
-    const prepared = prepareEmail({
+    const prepared = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -316,7 +390,7 @@ describe("prepared mail dispatch", () => {
     vi.stubEnv("MAIL_FROM", "Attacker <attacker@example.test>");
 
     const stringify = vi.spyOn(JSON, "stringify");
-    const authorization = await authorizePreparedEmail(prepared, AUTHORITY);
+    const authorization = await authorizeForTest(prepared, AUTHORITY);
     await expect(
       sendPreparedEmail(authorization),
     ).resolves.toEqual({ providerId: "gmail-message-1" });
@@ -337,7 +411,7 @@ describe("prepared mail dispatch", () => {
 
   it("rejects mutated dispatch evidence before OAuth or delivery in the public sequence", async () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
-    const original = prepareEmail({
+    const original = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -371,7 +445,7 @@ describe("prepared mail dispatch", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const error = await (async () => {
-      const authorization = await authorizePreparedEmail(
+      const authorization = await authorizeForTest(
         mutatedPrepared,
         mutatedAuthority,
       );
@@ -394,7 +468,7 @@ describe("prepared mail dispatch", () => {
   });
   it("uses only entry snapshots when callers mutate inputs while OAuth is in flight", async () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
-    const original = prepareEmail({
+    const original = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -417,7 +491,7 @@ describe("prepared mail dispatch", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    const authorizationPromise = authorizePreparedEmail(
+    const authorizationPromise = authorizeForTest(
       mutablePrepared,
       mutableAuthority,
     );
@@ -464,7 +538,7 @@ describe("prepared mail dispatch", () => {
 
   it("reads every caller-supplied prepared and authority scalar exactly once at authorization entry", async () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
-    const original = prepareEmail({
+    const original = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -485,9 +559,15 @@ describe("prepared mail dispatch", () => {
         new Response('{"id":"gmail-read-once"}', { status: 200 }),
       ));
 
+    const transportPlan = capturePreparedMailTransportPlan(
+      "gmail",
+      TEST_TRANSPORT_TIMING,
+      captureMailTransportConfiguration("gmail"),
+    );
     const authorization = await authorizePreparedEmail(
       prepared.value,
       authority.value,
+      transportPlan,
     );
     await expect(sendPreparedEmail(authorization))
       .resolves.toEqual({ providerId: "gmail-read-once" });
@@ -501,7 +581,7 @@ describe("prepared mail dispatch", () => {
       .spyOn(crypto, "randomUUID")
       .mockReturnValue(BOUNDARY_UUID);
 
-    expect(() => prepareEmail({
+    expect(() => prepareForTest({
       to: "privacy-canary@example.test",
       template: 'weekly-summary","recipient":"privacy-canary' as never,
       templateVersion: "1",
@@ -520,7 +600,7 @@ describe("prepared mail dispatch", () => {
       .spyOn(crypto, "randomUUID")
       .mockReturnValue(BOUNDARY_UUID);
 
-    expect(() => prepareEmail({
+    expect(() => prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -535,7 +615,7 @@ describe("prepared mail dispatch", () => {
   it("reserves five seconds of the 25-second provider budget for abort settlement", async () => {
     vi.useFakeTimers();
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
-    const prepared = prepareEmail({
+    const prepared = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -564,7 +644,7 @@ describe("prepared mail dispatch", () => {
       ));
     vi.stubGlobal("fetch", fetchMock);
 
-    const authorization = await authorizePreparedEmail(prepared, AUTHORITY);
+    const authorization = await authorizeForTest(prepared, AUTHORITY);
     let outcome: unknown = "pending";
     void sendPreparedEmail(authorization).then(
       (value) => { outcome = value; },
@@ -581,7 +661,7 @@ describe("prepared mail dispatch", () => {
     expect(abortObserved).toBe(true);
     expect(outcome).toBeInstanceOf(Error);
     expect((outcome as Error).message).toBe(
-      "Gmail delivery request timed out.",
+      "Mail provider operation failed.",
     );
     expect(classifyMailDeliveryError(outcome)).toEqual({
       kind: "ambiguous",
@@ -592,7 +672,7 @@ describe("prepared mail dispatch", () => {
   it("fails fatally when OAuth ignores abort and never reaches Gmail delivery", async () => {
     vi.useFakeTimers();
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
-    const prepared = prepareEmail({
+    const prepared = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -610,7 +690,7 @@ describe("prepared mail dispatch", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     let outcome: unknown = "pending";
-    void authorizePreparedEmail(prepared, AUTHORITY).then(
+    void authorizeForTest(prepared, AUTHORITY).then(
       (value) => { outcome = value; },
       (error: unknown) => { outcome = error; },
     );
@@ -620,7 +700,7 @@ describe("prepared mail dispatch", () => {
       "https://oauth2.googleapis.com/token",
     );
 
-    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.advanceTimersByTimeAsync(15_000);
     expect(observed.signal?.aborted).toBe(true);
     expect(outcome).toBe("pending");
 
@@ -629,7 +709,7 @@ describe("prepared mail dispatch", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(outcome).toBeInstanceOf(Error);
     expect((outcome as Error).message).toBe(
-      "Gmail OAuth request did not settle after abort.",
+      "Mail provider operation failed.",
     );
     expect(classifyMailDeliveryError(outcome)).toEqual({
       kind: "fatal",
@@ -645,7 +725,7 @@ describe("prepared mail dispatch", () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
     const bearerUrl =
       "https://example.test/activate?token=opaque-handle-bearer-canary";
-    const preparedA = prepareEmail({
+    const preparedA = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -662,7 +742,7 @@ describe("prepared mail dispatch", () => {
       deliveryScopeKey: "a:other-learner",
       recipient: "other-learner@example.test",
     });
-    const preparedB = prepareEmail({
+    const preparedB = prepareForTest({
       to: authorityB.recipient,
       template: authorityB.template,
       templateVersion: authorityB.templateVersion,
@@ -686,7 +766,7 @@ describe("prepared mail dispatch", () => {
         { status: 200 },
       ));
     vi.stubGlobal("fetch", fetchMock);
-    const authorization = await authorizePreparedEmail(
+    const authorization = await authorizeForTest(
       preparedA,
       AUTHORITY,
     );
@@ -753,7 +833,7 @@ describe("prepared mail dispatch", () => {
 
   it("rejects a one-byte prepared-body mutation before any provider call", async () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
-    const prepared = prepareEmail({
+    const prepared = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -770,7 +850,7 @@ describe("prepared mail dispatch", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const error = await authorizePreparedEmail(
+    const error = await authorizeForTest(
       tampered,
       AUTHORITY,
     ).catch((caught: unknown) => caught);
@@ -786,7 +866,7 @@ describe("prepared mail dispatch", () => {
   it("awaits Gmail fetch settlement after abort before reporting the bounded timeout", async () => {
     vi.useFakeTimers();
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
-    const prepared = prepareEmail({
+    const prepared = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -814,14 +894,14 @@ describe("prepared mail dispatch", () => {
         },
       ));
     vi.stubGlobal("fetch", fetchMock);
-    const authorization = await authorizePreparedEmail(prepared, AUTHORITY);
+    const authorization = await authorizeForTest(prepared, AUTHORITY);
 
     let outcome: unknown = "pending";
     void sendPreparedEmail(authorization).then(
       (value) => { outcome = value; },
       (error: unknown) => { outcome = error; },
     );
-    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.advanceTimersByTimeAsync(20_000);
 
     expect(abortObserved).toBe(true);
     expect(outcome).toBe("pending");
@@ -830,7 +910,7 @@ describe("prepared mail dispatch", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(outcome).toBeInstanceOf(Error);
     expect((outcome as Error).message).toBe(
-      "Gmail delivery request timed out.",
+      "Mail provider operation failed.",
     );
     expect(classifyMailDeliveryError(outcome)).toEqual({
       kind: "ambiguous",
@@ -841,7 +921,7 @@ describe("prepared mail dispatch", () => {
   it("fails closed after a bounded reserve when an aborted Gmail fetch never settles", async () => {
     vi.useFakeTimers();
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
-    const prepared = prepareEmail({
+    const prepared = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -862,7 +942,7 @@ describe("prepared mail dispatch", () => {
         return new Promise<Response>(() => undefined);
       });
     vi.stubGlobal("fetch", fetchMock);
-    const authorization = await authorizePreparedEmail(prepared, AUTHORITY);
+    const authorization = await authorizeForTest(prepared, AUTHORITY);
     fetchMock.mockClear();
 
     let outcome: unknown = "pending";
@@ -873,7 +953,7 @@ describe("prepared mail dispatch", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(fetchMock).toHaveBeenCalledOnce();
 
-    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.advanceTimersByTimeAsync(20_000);
     expect(observed.signal?.aborted).toBe(true);
     expect(outcome).toBe("pending");
 
@@ -882,7 +962,7 @@ describe("prepared mail dispatch", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(outcome).toBeInstanceOf(Error);
     expect((outcome as Error).message).toBe(
-      "Gmail delivery request did not settle after abort.",
+      "Mail provider operation failed.",
     );
     expect(classifyMailDeliveryError(outcome)).toEqual({
       kind: "fatal",
@@ -892,7 +972,7 @@ describe("prepared mail dispatch", () => {
 
   it("does not invoke the delivery callback for a pre-aborted signal", async () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
-    const prepared = prepareEmail({
+    const prepared = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -910,7 +990,7 @@ describe("prepared mail dispatch", () => {
       }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    const authorization = await authorizePreparedEmail(prepared, AUTHORITY);
+    const authorization = await authorizeForTest(prepared, AUTHORITY);
     fetchMock.mockClear();
 
     const error = await sendPreparedEmail(
@@ -920,7 +1000,7 @@ describe("prepared mail dispatch", () => {
 
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toBe(
-      "Gmail delivery request aborted.",
+      "Mail provider operation failed.",
     );
     expect(classifyMailDeliveryError(error)).toEqual({
       kind: "ambiguous",
@@ -932,7 +1012,7 @@ describe("prepared mail dispatch", () => {
   it("drains an externally aborted Gmail fetch, discards its late success, and remains ambiguous", async () => {
     vi.useFakeTimers();
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
-    const prepared = prepareEmail({
+    const prepared = prepareForTest({
       to: "learner@example.test",
       template: "invitation",
       templateVersion: "1",
@@ -958,7 +1038,7 @@ describe("prepared mail dispatch", () => {
         return lateDelivery;
       });
     vi.stubGlobal("fetch", fetchMock);
-    const authorization = await authorizePreparedEmail(prepared, AUTHORITY);
+    const authorization = await authorizeForTest(prepared, AUTHORITY);
     fetchMock.mockClear();
 
     let outcome: unknown = "pending";
@@ -983,7 +1063,7 @@ describe("prepared mail dispatch", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(outcome).toBeInstanceOf(Error);
     expect((outcome as Error).message).toBe(
-      "Gmail delivery request aborted.",
+      "Mail provider operation failed.",
     );
     expect(classifyMailDeliveryError(outcome)).toEqual({
       kind: "ambiguous",
@@ -1000,7 +1080,7 @@ describe("prepared mail dispatch", () => {
       recipient: "privacy-canary@recipient.private.example",
       template: "account-deleted",
     });
-    const prepared = prepareEmail({
+    const prepared = prepareForTest({
       to: "privacy-canary@recipient.private.example",
       template: "account-deleted",
       templateVersion: "1",
@@ -1059,7 +1139,7 @@ describe("prepared mail dispatch", () => {
     expect(invalidDispatchBinding.bindingSha256).not.toBe(
       binding.bindingSha256,
     );
-    const authorization = await authorizePreparedEmail(
+    const authorization = await authorizeForTest(
       prepared,
       deletionAuthority,
     );

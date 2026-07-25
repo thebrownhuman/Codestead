@@ -1,6 +1,12 @@
 import { outboxMessageId } from "./provider-correlation";
 import type { DispatchBinding } from "./prepared-dispatch";
 import type { DispatchAuthorizationEnvelope } from "./dispatch-authorization";
+import {
+  FatalProviderTransportError,
+  type PostProviderExit,
+} from "./provider-dispatch-contract";
+
+export { FatalProviderTransportError, type PostProviderExit };
 
 export type ClaimFence = Readonly<{
   id: string;
@@ -54,10 +60,6 @@ export type PreProviderExit =
   | { readonly kind: "failed"; readonly code: string }
   | { readonly kind: "suppressed"; readonly code: string };
 
-export type PostProviderExit =
-  | { readonly kind: "sent"; readonly providerMessageId: string }
-  | { readonly kind: "failed"; readonly code: string }
-  | { readonly kind: "quarantined"; readonly code: string };
 
 export type GuardedDispatchResult =
   | { readonly kind: "applied"; readonly exit: PostProviderExit }
@@ -68,12 +70,6 @@ export type GuardedDispatchInput = Readonly<{
   invoke(signal: AbortSignal): Promise<PostProviderExit>;
 }>;
 
-export class FatalProviderTransportError extends Error {
-  constructor(readonly code: string) {
-    super(`Fatal provider transport failure (${code}).`);
-    this.name = "FatalProviderTransportError";
-  }
-}
 
 export class ProviderBoundaryCommitUnknownError extends Error {
   constructor() {
@@ -98,20 +94,6 @@ export type ProviderSendResult =
   | { readonly kind: "ambiguous"; readonly code: string }
   | { readonly kind: "fatal"; readonly code: string };
 
-/**
- * Fatal means the bounded provider request did not settle after abort, so the
- * caller cannot prove that its transport or database session is reusable.
- * A guarded PostgreSQL dispatch owner must destroy its checked-out client with
- * `client.release(true)` before allowing this error to escape. The process
- * owner must then hard-exit after bounded pool cleanup; setting `exitCode`
- * alone is not a fail-stop because the event loop can continue doing work.
- */
-export class FatalProviderTransportError extends Error {
-  constructor(readonly code: string) {
-    super(`Fatal provider transport failure (${code}).`);
-    this.name = "FatalProviderTransportError";
-  }
-}
 
 export interface OutboxStore<P = unknown> {
   claimNext(
