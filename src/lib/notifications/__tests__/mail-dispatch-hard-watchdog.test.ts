@@ -107,7 +107,7 @@ async function runFatalFixture(input: Readonly<{
       clearTimeout(timeout);
       reject(error);
     });
-    child.once("exit", (code, signal) => {
+    child.once("close", (code, signal) => {
       clearTimeout(timeout);
       resolve({ code, signal });
     });
@@ -264,7 +264,7 @@ describe("mail dispatch external hard watchdog", () => {
   );
 
   it.each(["return", "throw"] as const)(
-    "parks under the armed child when process.exit is patched to %s",
+    "uses captured reallyExit when public process.exit is patched to %s",
     { timeout: 10_000 },
     async (exitMode) => {
       const result = await runFatalFixture({
@@ -273,16 +273,12 @@ describe("mail dispatch external hard watchdog", () => {
         exitMode,
       });
 
-      expect(result.stdout).toBe("ARMED\n");
-      expect(result.stderr).toBe("");
-      expect(result.stdout).not.toMatch(
-        /CATCH|FINALLY|SURVIVED|UNCAUGHT|UNHANDLED/u,
-      );
-      if (process.platform === "win32") {
-        expect(result.code).not.toBe(0);
-      } else {
-        expect(result.signal).toBe("SIGKILL");
-      }
+      expect(result).toEqual({
+        code: 1,
+        signal: null,
+        stdout: "ARMED\n",
+        stderr: "",
+      });
     },
   );
 
@@ -349,7 +345,7 @@ describe("mail dispatch external hard watchdog", () => {
           clearTimeout(timeout);
           reject(error);
         });
-        child.once("exit", (code, signal) => {
+        child.once("close", (code, signal) => {
           clearTimeout(timeout);
           resolve({ code, signal });
         });
@@ -427,7 +423,7 @@ describe("mail dispatch external hard watchdog", () => {
           clearTimeout(timeout);
           reject(error);
         });
-        child.once("exit", (code, signal) => {
+        child.once("close", (code, signal) => {
           clearTimeout(timeout);
           resolve({ code, signal });
         });
