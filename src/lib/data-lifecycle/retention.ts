@@ -210,6 +210,8 @@ async function queryRedactionCapability(
     blockedTransitioned !== 0
     || eligibleTransitioned > eligibleCount
     || malformedTransitioned > malformedCount
+    || eligibleTransitioned > batchLimit
+    || malformedTransitioned > batchLimit - eligibleTransitioned
   ) {
     throw new Error("Email outbox redaction summary is invalid.");
   }

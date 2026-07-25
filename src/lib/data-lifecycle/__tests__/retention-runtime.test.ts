@@ -42,7 +42,6 @@ const mocks = vi.hoisted(() => {
     { id: "d2000000-0000-4000-8000-000000000002", storage_key: "owner/object-2" },
   ];
   const query = vi.fn(async (statement: string, parameters?: unknown[]) => {
-    void parameters;
     const sql = statement.replace(/\s+/g, " ").trim().toLowerCase();
     if (sql.startsWith("insert into data_lifecycle_run")) {
       return state.claim === "new" ? { rows: [{ id: "retention-run-1" }], rowCount: 1 } : { rows: [], rowCount: 0 };
@@ -186,7 +185,9 @@ const mocks = vi.hoisted(() => {
           {
             disposition: "eligible",
             eligible: "2",
-            transitioned: String(state.redactionEligibleTransitioned),
+            transitioned: String(parameters?.[1] === 0
+              ? 0
+              : state.redactionEligibleTransitioned),
           },
           {
             disposition: "blocked",
@@ -531,6 +532,7 @@ describe("retention runtime orchestration", () => {
     });
   });
   it("makes malformed or unclassified recipient PII monitorably repair-required", async () => {
+    mocks.state.redactionEligibleTransitioned = 1;
     mocks.state.redactionMalformedCount = 1;
     mocks.state.redactionMalformedTransitioned = 1;
     mocks.state.unclassifiedRepairCount = 2;
@@ -565,7 +567,7 @@ describe("retention runtime orchestration", () => {
     const report = await runRetention({
       idempotencyKey: "retention:test:mail-authority-malformed-redacted",
       dryRun: false,
-      batchSize: 2,
+      batchSize: 3,
       now,
       objectStorageRoot: "C:/retention-objects",
     });
@@ -590,6 +592,30 @@ describe("retention runtime orchestration", () => {
 
     const report = await runRetention({
       idempotencyKey: "retention:test:mail-authority-invalid-summary",
+      dryRun: false,
+      batchSize: 2,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    });
+
+    expect(report).toMatchObject({
+      outcome: "completed_with_errors",
+      requiresRetry: true,
+      categories: {
+        unresolvedEmailDeliveryAuthority: {
+          outcome: "failed",
+          failureCode: "EMAIL_OUTBOX_REDACTION_RETRYABLE",
+        },
+      },
+    });
+  });
+  it("fails closed when redaction transitions exceed the bounded batch", async () => {
+    mocks.state.redactionEligibleTransitioned = 2;
+    mocks.state.redactionMalformedCount = 1;
+    mocks.state.redactionMalformedTransitioned = 1;
+
+    const report = await runRetention({
+      idempotencyKey: "retention:test:mail-authority-over-batch-summary",
       dryRun: false,
       batchSize: 2,
       now,
