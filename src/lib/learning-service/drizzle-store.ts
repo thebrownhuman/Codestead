@@ -80,6 +80,7 @@ import {
   attempt,
   user,
 } from "@/lib/db/schema";
+import { lockUserAuthority } from "@/lib/security/user-authority-lock";
 
 type DrizzleTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 type Executor = Database | DrizzleTransaction;
@@ -242,8 +243,10 @@ function mapReview(
 }
 
 export class DrizzleLearningStore implements LearningStore {
+  constructor(private readonly database: Database = db) {}
+
   async transaction<T>(work: (transaction: LearningTransaction) => Promise<T>): Promise<T> {
-    return db.transaction((transaction) => work(new DrizzleLearningTransaction(transaction)));
+    return this.database.transaction((transaction) => work(new DrizzleLearningTransaction(transaction)));
   }
 }
 
@@ -259,8 +262,17 @@ class DrizzleLearningTransaction implements LearningTransaction {
     );
   }
 
-  async lockPlanInitialization(userId: string): Promise<void> {
+  async lockPlanInitialization(userId: string): Promise<boolean> {
+    await lockUserAuthority(this.executor, userId);
+    const [activeUser] = await this.executor
+      .select({ id: user.id })
+      .from(user)
+      .where(and(eq(user.id, userId), eq(user.status, "active")))
+      .limit(1)
+      .for("update");
+    if (!activeUser) return false;
     await this.lock("learning-plan", userId);
+    return true;
   }
 
   async getPlanningProfile(userId: string): Promise<PlanningProfile | null> {
@@ -303,7 +315,13 @@ class DrizzleLearningTransaction implements LearningTransaction {
   async persistPlan(input: PlanPersistenceInput): Promise<PersistedPlan> {
     // persistPlan can also be called directly by maintenance jobs, so retain
     // the lock here in addition to the service's pre-read lock.
-    await this.lockPlanInitialization(input.userId);
+    if (!(await this.lockPlanInitialization(input.userId))) {
+      throw new LearningServiceError(
+        "LEARNER_NOT_FOUND",
+        "The learner account is unavailable.",
+        404,
+      );
+    }
     let [ownedEnrollment] = await this.executor
       .select({ id: enrollment.id })
       .from(enrollment)
@@ -1421,7 +1439,13 @@ class DrizzleLearningTransaction implements LearningTransaction {
   async lockDsaLanguageSwitch(userId: string): Promise<void> {
     // DSA switches and adaptive initialization both append plan revisions;
     // share one learner-local lock so they cannot allocate the same revision.
-    await this.lockPlanInitialization(userId);
+    if (!(await this.lockPlanInitialization(userId))) {
+      throw new LearningServiceError(
+        "LEARNER_NOT_FOUND",
+        "The learner account is unavailable.",
+        404,
+      );
+    }
   }
 
   async writeDsaLanguageSwitch(input: DsaLanguageWriteInput): Promise<
