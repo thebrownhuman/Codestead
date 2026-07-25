@@ -70,7 +70,7 @@ export type GuardedDispatchInput = Readonly<{
 
 export class FatalProviderTransportError extends Error {
   constructor(readonly code: string) {
-    super(Fatal provider transport failure (${code}).);
+    super(`Fatal provider transport failure (${code}).`);
     this.name = "FatalProviderTransportError";
   }
 }
