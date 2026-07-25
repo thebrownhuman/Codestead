@@ -3,6 +3,9 @@ import { performance } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
 
 import { Pool } from "pg";
+import {
+  verifyBackupStatusMailAuthorityObjects,
+} from "./verify-backup-status-mail-authority.mjs";
 
 export const DATABASE_ADMIN_LOCK_NAME = "codestead:database-administration:v1";
 const MIN_PASSWORD_BYTES = 32;
@@ -15,7 +18,11 @@ const ROLE_SPECS = Object.freeze([
   ["migrator", "databaseMigratorUrl", "learncoding_migrator"],
   ["worker", "databaseWorkerUrl", "learncoding_worker"],
   ["ops", "databaseOpsUrl", "learncoding_ops"],
+  ["backupReporter", "databaseBackupReporterUrl", "learncoding_backup_reporter"],
 ]);
+const RESTRICTED_ROLE_NAMES = Object.freeze(
+  ROLE_SPECS.map(([, , role]) => role),
+);
 const RUNTIME_ROLES = new Set(["learncoding_app", "learncoding_worker", "learncoding_ops"]);
 
 export class DatabaseRoleBoundaryError extends Error {
@@ -145,32 +152,67 @@ async function expectInsufficientPrivilege(client, sql) {
   }
 }
 
-async function expectTablePrivilegeNotDelegated(client, table, objectOid) {
+async function tablePrivilegeDelegationState(client, grantee, objectOid) {
+  const result = await client.query(`
+    select has_table_privilege($1::name, $2::oid, 'SELECT') delegated,
+           has_table_privilege(
+             current_user,
+             $2::oid,
+             'SELECT WITH GRANT OPTION'
+           ) current_role_effective_grantable,
+           coalesce(
+             bool_or(acl.is_grantable) filter (
+               where acl.grantee = active_role.oid
+                 and acl.privilege_type = 'SELECT'
+             ),
+             false
+           ) current_role_direct_grantable,
+           coalesce(
+             string_agg(
+               pg_catalog.concat_ws(
+                 ':',
+                 acl.grantor::text,
+                 acl.grantee::text,
+                 acl.privilege_type,
+                 acl.is_grantable::text
+               ),
+               ',' order by acl.grantor,
+                            acl.grantee,
+                            acl.privilege_type,
+                            acl.is_grantable
+             ),
+             ''
+           ) table_acl
+      from pg_catalog.pg_class c
+      join pg_catalog.pg_roles active_role
+        on active_role.rolname = current_user
+      cross join lateral pg_catalog.aclexplode(
+        coalesce(c.relacl, pg_catalog.acldefault('r', c.relowner))
+      ) acl
+     where c.oid = $2::oid
+     group by c.oid, active_role.oid`,
+    [grantee, objectOid],
+  );
+  if (!result.rows[0]) fail();
+  return result.rows[0];
+}
+
+async function expectTablePrivilegeNotDelegated(client, role, table, objectOid) {
   const grantee = "learncoding_migrator";
   await client.query("begin");
   try {
-    const before = await client.query(
-      "select has_table_privilege($1::name, $2::oid, 'SELECT') delegated",
-      [grantee, objectOid],
-    );
-    if (before.rows[0]?.delegated !== false) fail();
-
-    let rejected = false;
-    try {
+    const before = await tablePrivilegeDelegationState(client, grantee, objectOid);
+    if (
+      before.delegated !== false ||
+      before.current_role_effective_grantable !== false ||
+      before.current_role_direct_grantable !== false
+    ) fail();
+    if (RUNTIME_ROLES.has(role)) {
       await client.query(
         `grant select on table ${table} to ${quoteIdentifier(grantee)}`,
       );
-    } catch (error) {
-      if (error instanceof DatabaseRoleBoundaryError || error?.code !== "42501") fail();
-      rejected = true;
-    }
-
-    if (!rejected) {
-      const after = await client.query(
-        "select has_table_privilege($1::name, $2::oid, 'SELECT') delegated",
-        [grantee, objectOid],
-      );
-      if (after.rows[0]?.delegated !== false) fail();
+      const after = await tablePrivilegeDelegationState(client, grantee, objectOid);
+      if (!exactRow(after, before)) fail();
     }
   } finally {
     await bounded(() => client.query("rollback"));
@@ -239,69 +281,6 @@ async function verifyApplicationObjectAccess(client, objects) {
   return positiveChecks;
 }
 
-async function verifyPrivilegedApplicationRoutines(client) {
-  const expected = JSON.stringify([
-    {
-      signature: "public.enqueue_backup_status_mail_authority(text,text)",
-      allowedRole: "learncoding_backup_reporter",
-    },
-    {
-      signature: "public.backup_status_mail_authorized(uuid)",
-      allowedRole: "learncoding_worker",
-    },
-  ]);
-  const result = await client.query(
-    `select count(p.oid) = pg_catalog.jsonb_array_length($1::jsonb)
-              and pg_catalog.coalesce(
-                pg_catalog.bool_and(
-                  p.prokind = 'f'
-                  and owner_role.rolname = 'learncoding_owner'
-                  and p.prosecdef
-                  and p.proconfig =
-                      array['search_path=pg_catalog']::text[]
-                  and not pg_catalog.has_function_privilege(
-                    0, p.oid, 'EXECUTE'
-                  )
-                  and (
-                    select pg_catalog.count(*) = 1
-                      from pg_catalog.aclexplode(
-                        pg_catalog.coalesce(
-                          p.proacl,
-                          pg_catalog.acldefault('f', p.proowner)
-                        )
-                      ) acl
-                     where acl.grantee <> p.proowner
-                  )
-                  and exists (
-                    select 1
-                      from pg_catalog.aclexplode(
-                        pg_catalog.coalesce(
-                          p.proacl,
-                          pg_catalog.acldefault('f', p.proowner)
-                        )
-                      ) acl
-                     where acl.grantee <> p.proowner
-                       and acl.grantee = allowed_role.oid
-                       and acl.grantor = p.proowner
-                       and acl.privilege_type = 'EXECUTE'
-                       and acl.is_grantable = false
-                  )
-                ),
-                false
-              ) routines_exact
-       from pg_catalog.jsonb_to_recordset($1::jsonb)
-            expected(signature text, "allowedRole" text)
-       left join pg_catalog.pg_proc p
-         on p.oid = pg_catalog.to_regprocedure(expected.signature)
-       left join pg_catalog.pg_roles owner_role
-         on owner_role.oid = p.proowner
-       left join pg_catalog.pg_roles allowed_role
-         on allowed_role.rolname = expected."allowedRole"`,
-    [expected],
-  );
-  if (result.rows[0]?.routines_exact !== true) fail();
-}
-
 async function verifyRole({ client, role, database, objects }) {
   let positiveChecks = 0;
   let negativeChecks = 0;
@@ -356,7 +335,7 @@ async function verifyRole({ client, role, database, objects }) {
     await expectInsufficientPrivilege(client, "set role learncoding_owner");
     negativeChecks += 1;
     if (objects) positiveChecks += await verifyApplicationObjectAccess(client, objects);
-  } else {
+  } else if (role === "learncoding_migrator") {
     await client.query("begin read only");
     try {
       await client.query("set local role learncoding_owner");
@@ -369,13 +348,21 @@ async function verifyRole({ client, role, database, objects }) {
     } finally {
       await bounded(() => client.query("rollback"));
     }
+  } else {
+    await expectInsufficientPrivilege(client, "set role learncoding_owner");
+    negativeChecks += 1;
   }
 
   if (objects) {
     const table = qualifiedName(objects.table);
     await expectInsufficientPrivilege(client, `alter table ${table} owner to ${quoteIdentifier(role)}`);
     negativeChecks += 1;
-    await expectTablePrivilegeNotDelegated(client, table, objects.table.object_oid);
+    await expectTablePrivilegeNotDelegated(
+      client,
+      role,
+      table,
+      objects.table.object_oid,
+    );
     negativeChecks += 1;
   }
   return { positiveChecks, negativeChecks };
@@ -411,8 +398,10 @@ export async function verifyDatabaseRoleBoundaries(options) {
       ? await discoverApplicationObjects(lockClient)
       : undefined;
     if (requireApplicationObjects) {
-      await verifyPrivilegedApplicationRoutines(lockClient);
-      positiveChecks += 1;
+      positiveChecks += await verifyBackupStatusMailAuthorityObjects(
+        lockClient,
+        RESTRICTED_ROLE_NAMES,
+      );
     }
     for (const [name] of ROLE_SPECS) {
       const role = parsed[name];
@@ -456,6 +445,7 @@ async function main() {
     databaseMigratorUrl: process.env.DATABASE_MIGRATOR_URL ?? "",
     databaseWorkerUrl: process.env.DATABASE_WORKER_URL ?? "",
     databaseOpsUrl: process.env.DATABASE_OPS_URL ?? "",
+    databaseBackupReporterUrl: process.env.DATABASE_BACKUP_REPORTER_URL ?? "",
     requireApplicationObjects,
   });
   process.stdout.write(`${JSON.stringify({

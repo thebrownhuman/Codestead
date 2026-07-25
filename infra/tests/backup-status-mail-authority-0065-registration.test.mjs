@@ -8,6 +8,9 @@ const read = (relativePath) =>
 
 const packageManifest = JSON.parse(read("package.json"));
 const workflow = read(".github/workflows/ci.yml");
+const harnessSource = read(
+  "infra/tests/backup-status-mail-authority-0065.integration.mjs",
+);
 const scripts = packageManifest.scripts;
 const registrationScript =
   "test:backup-status-mail-authority-0065:registration";
@@ -75,5 +78,22 @@ assert.doesNotMatch(
   /postgres(?:ql)?[-_: ]*16|\b16\/18\b/iu,
   "0065 must not substitute PostgreSQL 16 for production-pinned 17",
 );
+assert.match(harnessSource, /let primaryError;/u);
+assert.match(harnessSource, /const cleanupErrors = \[\];/u);
+assert.match(harnessSource, /primaryError\.cause \?\?= new AggregateError/u);
+assert.match(harnessSource, /if \(primaryError\) throw primaryError;/u);
+assert.doesNotMatch(
+  harnessSource,
+  /allowFailure:\s*true[\s\S]{0,120}pg_ctl|pg_ctl[\s\S]{0,120}allowFailure:\s*true/u,
+);
+assert.match(harnessSource, /let serverStartAttempted = false;/u);
+assert.match(harnessSource, /"--log",\s*serverLog/u);
+assert.match(harnessSource, /serverStartAttempted && existsSync\(postmasterPid\)/u);
+assert.match(harnessSource, /"--no-wait",\s*"start"/u);
+assert.match(harnessSource, /await waitForPostgres\(port\);/u);
+assert.match(harnessSource, /stdio: options\.stdio \?\? "pipe"/u);
+assert.match(harnessSource, /BACKUP_STATUS_POSTGRES_PORT/u);
+assert.match(harnessSource, /assert\.notEqual\(port, 5432/u);
+assert.match(harnessSource, /SHOW server_version_num/u);
 
 console.log("backup-status-mail-authority-0065-registration-tests-ok");

@@ -137,6 +137,7 @@ services:
       DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
       DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
       DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
+      DATABASE_BACKUP_REPORTER_URL_FILE: /run/secrets/database_backup_reporter_url
     secrets:
       - source: database_url
         target: database_url
@@ -146,6 +147,8 @@ services:
         target: database_worker_url
       - source: database_ops_url
         target: database_ops_url
+      - source: database_backup_reporter_url
+        target: database_backup_reporter_url
     group_add:
       - $SECRETS_GID
     depends_on:
@@ -176,6 +179,7 @@ services:
       DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
       DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
       DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
+      DATABASE_BACKUP_REPORTER_URL_FILE: /run/secrets/database_backup_reporter_url
     secrets:
       - source: database_url
         target: database_url
@@ -185,6 +189,8 @@ services:
         target: database_worker_url
       - source: database_ops_url
         target: database_ops_url
+      - source: database_backup_reporter_url
+        target: database_backup_reporter_url
     group_add:
       - $SECRETS_GID
     depends_on:

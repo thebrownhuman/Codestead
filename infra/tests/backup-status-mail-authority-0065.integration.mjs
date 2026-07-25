@@ -4,32 +4,81 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
   mkdtempSync,
+  existsSync,
   readFileSync,
   rmSync,
 } from "node:fs";
-import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { setTimeout as delay } from "node:timers/promises";
 
 import pg from "pg";
+import {
+  BackupStatusMailAuthorityContractError,
+  verifyBackupStatusMailAuthorityObjects,
+} from "../../scripts/verify-backup-status-mail-authority.mjs";
+import {
+  reconcileBackupStatusAuthorityPrivileges,
+  verifyBackupStatusAuthorityAfterRepair,
+  verifyBackupStatusAuthorityBeforeRepair,
+} from "../../scripts/bootstrap-database-roles.mjs";
+import { allocateDisposableLoopbackPort } from
+  "../../scripts/lib/disposable-loopback-port.mjs";
 
 const { Client } = pg;
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(testDirectory, "../..");
 const executableSuffix = process.platform === "win32" ? ".exe" : "";
-const postgresBin = process.env.BACKUP_STATUS_POSTGRES_BIN ?? "";
-const expectedMajor = process.env.BACKUP_STATUS_POSTGRES_MAJOR ?? "";
+function resolvePostgresRuntime(environment) {
+  const canonical = [
+    ["17", environment.POSTGRES_17_BIN ?? ""],
+    ["18", environment.POSTGRES_18_BIN ?? ""],
+  ].filter(([, binaryDirectory]) => binaryDirectory !== "");
+  const fallbackBin = environment.BACKUP_STATUS_POSTGRES_BIN ?? "";
+  const fallbackMajor = environment.BACKUP_STATUS_POSTGRES_MAJOR ?? "";
 
-assert.match(
-  expectedMajor,
-  /^(?:17|18)$/u,
-  "BACKUP_STATUS_POSTGRES_MAJOR must be exactly 17 or 18",
-);
-assert.ok(
-  postgresBin,
-  "BACKUP_STATUS_POSTGRES_BIN must name the reviewed PostgreSQL binary directory",
-);
+  if (canonical.length > 0) {
+    assert.equal(
+      canonical.length,
+      1,
+      "exactly one canonical PostgreSQL runtime must be selected",
+    );
+    assert.equal(
+      fallbackBin,
+      "",
+      "canonical and fallback PostgreSQL binaries cannot be combined",
+    );
+    assert.equal(
+      fallbackMajor,
+      "",
+      "canonical and fallback PostgreSQL majors cannot be combined",
+    );
+    return {
+      expectedMajor: canonical[0][0],
+      postgresBin: canonical[0][1],
+    };
+  }
+
+  assert.match(
+    fallbackMajor,
+    /^(?:17|18)$/u,
+    "BACKUP_STATUS_POSTGRES_MAJOR must be exactly 17 or 18",
+  );
+  assert.ok(
+    fallbackBin,
+    "a reviewed PostgreSQL binary directory is required",
+  );
+  return {
+    expectedMajor: fallbackMajor,
+    postgresBin: fallbackBin,
+  };
+}
+
+const { postgresBin, expectedMajor } =
+  resolvePostgresRuntime(process.env);
+const externalPostgresPortText =
+  process.env.BACKUP_STATUS_POSTGRES_PORT ?? "";
 
 function executable(name) {
   return path.join(postgresBin, `${name}${executableSuffix}`);
@@ -65,6 +114,7 @@ function run(command, args, options = {}) {
     maxBuffer: 4 * 1024 * 1024,
     timeout: options.timeoutMs ?? 30_000,
     windowsHide: true,
+    stdio: options.stdio ?? "pipe",
   });
   if (result.error) throw result.error;
   if (!options.allowFailure && result.status !== 0) {
@@ -76,18 +126,48 @@ function run(command, args, options = {}) {
   return result;
 }
 
-async function unusedLoopbackPort() {
-  const server = net.createServer();
-  await new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", resolve);
-  });
-  const address = server.address();
-  assert.ok(address && typeof address === "object");
-  const { port } = address;
-  await new Promise((resolve, reject) => {
-    server.close((error) => error ? reject(error) : resolve());
-  });
+async function waitForPostgres(port) {
+  const deadline = Date.now() + 30_000;
+  let lastStatus = "not-started";
+  while (Date.now() < deadline) {
+    const probe = run(
+      executable("pg_isready"),
+      [
+        "--host",
+        "127.0.0.1",
+        "--port",
+        String(port),
+        "--username",
+        "postgres",
+        "--dbname",
+        "postgres",
+      ],
+      { allowFailure: true, timeoutMs: 5_000 },
+    );
+    lastStatus = `${probe.status}:${probe.stderr ?? probe.stdout ?? ""}`.trim();
+    if (probe.status === 0) return;
+    await delay(100);
+  }
+  throw new Error(
+    `PostgreSQL did not become ready on the loopback port: ${lastStatus}`,
+  );
+}
+
+
+function parseExternalPostgresPort(value) {
+  if (value === "") return undefined;
+  assert.match(
+    value,
+    /^[1-9][0-9]{0,4}$/u,
+    "BACKUP_STATUS_POSTGRES_PORT must be a decimal loopback port",
+  );
+  const port = Number(value);
+  assert.ok(port <= 65_535, "BACKUP_STATUS_POSTGRES_PORT is out of range");
+  assert.notEqual(
+    port,
+    5432,
+    "the disposable PostgreSQL proof must never use host port 5432",
+  );
   return port;
 }
 
@@ -141,51 +221,85 @@ const fixedSummary = Object.freeze({
 });
 
 async function main() {
-  const version = run(executable("postgres"), ["--version"]).stdout.trim();
-  assert.match(
-    version,
-    new RegExp(`PostgreSQL\\) ${expectedMajor}\\.`, "u"),
-    "the harness must run against its declared PostgreSQL major",
+  const externalPostgresPort = parseExternalPostgresPort(
+    externalPostgresPortText,
   );
+  const managedServer = externalPostgresPort === undefined;
+  if (managedServer) {
+    const version = run(executable("postgres"), ["--version"]).stdout.trim();
+    assert.match(
+      version,
+      new RegExp(`PostgreSQL\\) ${expectedMajor}\\.`, "u"),
+      "the harness must run against its declared PostgreSQL major",
+    );
+  }
 
-  const temporaryRoot = mkdtempSync(
-    path.join(os.tmpdir(), `codestead-backup-status-0065-pg${expectedMajor}-`),
-  );
-  const dataDirectory = path.join(temporaryRoot, "data");
-  const port = await unusedLoopbackPort();
-  let serverStarted = false;
+  const temporaryRoot = managedServer
+    ? mkdtempSync(
+      path.join(os.tmpdir(), `codestead-backup-status-0065-pg${expectedMajor}-`),
+    )
+    : undefined;
+  const dataDirectory = temporaryRoot
+    ? path.join(temporaryRoot, "data")
+    : undefined;
+  const serverLog = temporaryRoot
+    ? path.join(temporaryRoot, "postgres.log")
+    : undefined;
+  const postmasterPid = dataDirectory
+    ? path.join(dataDirectory, "postmaster.pid")
+    : undefined;
+  const port = externalPostgresPort ??
+    await allocateDisposableLoopbackPort();
+  assert.notEqual(port, 5432, "the disposable PostgreSQL proof must never use host port 5432");
+  let serverStartAttempted = false;
+  let bootstrap;
   let admin;
   let reporter;
   let worker;
   let app;
+  let authorityWriter;
+  let primaryError;
+  const cleanupErrors = [];
 
   try {
-    run(executable("initdb"), [
-      "--pgdata",
-      dataDirectory,
-      "--username=postgres",
-      "--auth-local=trust",
-      "--auth-host=trust",
-      "--encoding=UTF8",
-      "--no-locale",
-    ]);
-    run(
-      executable("pg_ctl"),
-      [
+    if (managedServer) {
+      run(executable("initdb"), [
         "--pgdata",
         dataDirectory,
-        "--options",
-        `-h 127.0.0.1 -p ${port} -F -c listen_addresses=127.0.0.1`,
-        "--wait",
-        "start",
-      ],
-      { timeoutMs: 30_000 },
-    );
-    serverStarted = true;
+        "--username=postgres",
+        "--auth-local=trust",
+        "--auth-host=trust",
+        "--encoding=UTF8",
+        "--no-locale",
+      ]);
+      serverStartAttempted = true;
+      run(
+        executable("pg_ctl"),
+        [
+          "--pgdata",
+          dataDirectory,
+          "--log",
+          serverLog,
+          "--options",
+          `-h 127.0.0.1 -p ${port} -F -c listen_addresses=127.0.0.1`,
+          "--no-wait",
+          "start",
+        ],
+        { stdio: "ignore", timeoutMs: 10_000 },
+      );
+    }
+    await waitForPostgres(port);
 
-    const bootstrap = await connected(clientConfig(port, "postgres", "postgres"));
+    bootstrap = await connected(clientConfig(port, "postgres", "postgres"));
+    const serverVersion = await bootstrap.query("SHOW server_version_num");
+    assert.equal(
+      Math.trunc(Number(serverVersion.rows[0].server_version_num) / 10_000),
+      Number(expectedMajor),
+      "the live server must match BACKUP_STATUS_POSTGRES_MAJOR",
+    );
     await bootstrap.query("CREATE DATABASE backup_status_0065");
     await bootstrap.end();
+    bootstrap = undefined;
 
     admin = await connected(clientConfig(port, "postgres"));
     await admin.query(`
@@ -247,68 +361,289 @@ async function main() {
       throw error;
     }
 
-    const routines = await admin.query(`
-      SELECT p.oid::regprocedure::text signature,
-             owner_role.rolname owner_name,
-             p.prosecdef security_definer,
-             p.proconfig settings,
-             COALESCE(
-               jsonb_agg(
-                 jsonb_build_object(
-                   'grantee',
-                   CASE WHEN acl.grantee = 0
-                     THEN 'PUBLIC'
-                     ELSE pg_get_userbyid(acl.grantee)
-                   END,
-                   'privilege', acl.privilege_type,
-                   'grantable', acl.is_grantable,
-                   'grantor', pg_get_userbyid(acl.grantor)
-                 )
-                 ORDER BY acl.grantee
-               ) FILTER (WHERE acl.grantee <> p.proowner),
-               '[]'::jsonb
-             ) direct_acl
-        FROM pg_proc p
-        JOIN pg_namespace n ON n.oid = p.pronamespace
-        JOIN pg_roles owner_role ON owner_role.oid = p.proowner
-        CROSS JOIN LATERAL aclexplode(
-          COALESCE(p.proacl, acldefault('f', p.proowner))
-        ) acl
-       WHERE p.oid IN (
-         'public.enqueue_backup_status_mail_authority(text,text)'::regprocedure,
-         'public.backup_status_mail_authorized(uuid)'::regprocedure
-       )
-       GROUP BY p.oid, owner_role.rolname, p.prosecdef, p.proconfig
-       ORDER BY signature
+    assert.equal(
+      await verifyBackupStatusAuthorityBeforeRepair(admin),
+      true,
+      "a freshly migrated authority must pass the pre-repair boundary",
+    );
+    await admin.query(`
+      GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
+        public.backup_status_mail_authority,
+        public.backup_status_mail_admin_guard
+        TO learncoding_app, learncoding_worker, learncoding_ops;
+      GRANT SELECT (authority_epoch) ON TABLE
+        public.backup_status_mail_admin_guard
+        TO learncoding_backup_reporter;
+      GRANT UPDATE (run_key) ON TABLE
+        public.backup_status_mail_authority
+        TO learncoding_migrator
     `);
-    assert.equal(routines.rowCount, 2);
-    const routineBySignature = Object.fromEntries(
-      routines.rows.map((row) => [row.signature, row]),
+    await assert.rejects(
+      verifyBackupStatusAuthorityBeforeRepair(admin),
+      /backup-status-authority-pre-repair/u,
+      "pre-repair verification must expose privilege drift",
     );
-    for (const routine of routines.rows) {
-      assert.equal(routine.owner_name, "learncoding_owner");
-      assert.equal(routine.security_definer, true);
-      assert.deepEqual(routine.settings, ["search_path=pg_catalog"]);
+    assert.equal(
+      await reconcileBackupStatusAuthorityPrivileges(admin),
+      true,
+      "the focused reconciler must detect both authority relations",
+    );
+    assert.equal(
+      await verifyBackupStatusAuthorityAfterRepair(admin),
+      true,
+      "post-repair verification must prove the exact authority contract",
+    );
+
+    const restrictedAuthorityRoles = [
+      "learncoding_app",
+      "learncoding_migrator",
+      "learncoding_worker",
+      "learncoding_ops",
+      "learncoding_backup_reporter",
+    ];
+    const verifyExactAuthority = () =>
+      verifyBackupStatusMailAuthorityObjects(
+        admin,
+        restrictedAuthorityRoles,
+      );
+    assert.equal(
+      await verifyExactAuthority(),
+      7,
+    );
+    const expectVerifierTamper = async (statements, label) => {
+      await admin.query("BEGIN");
+      try {
+        await admin.query("SET LOCAL ROLE learncoding_owner");
+        for (const statement of statements) await admin.query(statement);
+        await assert.rejects(
+          verifyExactAuthority,
+          BackupStatusMailAuthorityContractError,
+          label,
+        );
+      } finally {
+        await admin.query("ROLLBACK");
+      }
+      assert.equal(
+        await verifyExactAuthority(),
+        7,
+        `${label}: rollback must restore the exact manifest`,
+      );
+    };
+    const expectVerifierClusterTamper = async (statements, label) => {
+      await admin.query("BEGIN");
+      try {
+        for (const statement of statements) await admin.query(statement);
+        await assert.rejects(
+          verifyExactAuthority,
+          BackupStatusMailAuthorityContractError,
+          label,
+        );
+      } finally {
+        await admin.query("ROLLBACK");
+      }
+      assert.equal(
+        await verifyExactAuthority(),
+        7,
+        `${label}: rollback must restore the exact manifest`,
+      );
+    };
+    await expectVerifierTamper(
+      [
+        `ALTER TABLE public.backup_status_mail_admin_guard
+           ALTER COLUMN authority_epoch DROP DEFAULT`,
+      ],
+      "guard epoch default tamper must fail closed",
+    );
+    await expectVerifierTamper(
+      [
+        `ALTER TABLE public.backup_status_mail_authority
+           ALTER COLUMN authority_epoch DROP NOT NULL`,
+      ],
+      "source epoch nullability tamper must fail closed",
+    );
+    await expectVerifierTamper(
+      [
+        `ALTER TABLE public.backup_status_mail_admin_guard
+           DROP CONSTRAINT backup_status_mail_admin_guard_epoch_valid`,
+        `ALTER TABLE public.backup_status_mail_admin_guard
+           ADD CONSTRAINT backup_status_mail_admin_guard_epoch_valid
+           CHECK (
+             authority_epoch <>
+               '00000000-0000-0000-0000-000000000000'::uuid
+           ) NOT VALID`,
+      ],
+      "unvalidated guard epoch constraint must fail closed",
+    );
+    await expectVerifierTamper(
+      [
+        `ALTER TABLE public.backup_status_mail_authority
+           DROP CONSTRAINT backup_status_mail_authority_epoch_valid`,
+      ],
+      "missing source epoch constraint must fail closed",
+    );
+    await expectVerifierTamper(
+      [
+        `ALTER TABLE public.backup_status_mail_admin_guard
+           DROP CONSTRAINT backup_status_mail_admin_guard_pkey`,
+      ],
+      "missing primary-key constraint and index must fail closed",
+    );
+    await expectVerifierTamper(
+      [
+        `ALTER TABLE public.backup_status_mail_authority
+           DROP CONSTRAINT backup_status_mail_authority_operation_id_key`,
+      ],
+      "missing unique constraint and index must fail closed",
+    );
+    await expectVerifierTamper(
+      [
+        `ALTER TABLE public.backup_status_mail_authority
+           DROP CONSTRAINT backup_status_mail_authority_run_key_valid`,
+      ],
+      "missing check constraint must fail closed",
+    );
+    await expectVerifierTamper(
+      [
+        `CREATE INDEX backup_status_mail_authority_unexpected_probe
+             ON public.backup_status_mail_authority (created_at)`,
+      ],
+      "an unexpected index must fail closed",
+    );
+    await expectVerifierTamper(
+      [
+        `ALTER INDEX public.backup_status_mail_authority_run_key_key
+           SET (fillfactor = 80)`,
+      ],
+      "index reloptions tamper must fail closed",
+    );
+    await expectVerifierTamper(
+      [
+        `ALTER TABLE public.backup_status_mail_authority
+           SET (fillfactor = 80)`,
+      ],
+      "relation reloptions tamper must fail closed",
+    );
+    await expectVerifierTamper(
+      [
+        `ALTER TABLE public.backup_status_mail_authority
+           REPLICA IDENTITY FULL`,
+      ],
+      "replica-identity tamper must fail closed",
+    );
+    await expectVerifierTamper(
+      [
+        `CREATE TRIGGER backup_status_mail_admin_guard_unexpected_probe
+           BEFORE UPDATE ON public.backup_status_mail_admin_guard
+           FOR EACH ROW
+           EXECUTE FUNCTION
+             public.reject_backup_status_mail_authority_mutation()`,
+      ],
+      "an unexpected guard-table trigger must fail closed",
+    );
+
+
+    const routineTamperContracts = [
+      {
+        signature:
+          "public.reject_backup_status_mail_authority_mutation()",
+        replacement: `
+          CREATE OR REPLACE FUNCTION
+            public.reject_backup_status_mail_authority_mutation()
+          RETURNS trigger
+          LANGUAGE plpgsql
+          SET search_path = pg_catalog
+          AS $tamper$
+          BEGIN
+            RETURN NEW;
+          END
+          $tamper$`,
+      },
+      {
+        signature:
+          "public.lock_backup_status_mail_admin_authority()",
+        replacement: `
+          CREATE OR REPLACE FUNCTION
+            public.lock_backup_status_mail_admin_authority()
+          RETURNS trigger
+          LANGUAGE plpgsql
+          SECURITY DEFINER
+          SET search_path = pg_catalog
+          AS $tamper$
+          BEGIN
+            IF TG_OP = 'DELETE' THEN
+              RETURN OLD;
+            END IF;
+            RETURN NEW;
+          END
+          $tamper$`,
+      },
+      {
+        signature:
+          "public.enqueue_backup_status_mail_authority(text,text)",
+        replacement: `
+          CREATE OR REPLACE FUNCTION
+            public.enqueue_backup_status_mail_authority(
+              p_run_key text,
+              p_outcome text
+            )
+          RETURNS TABLE(
+            acknowledgement text,
+            authority_id uuid,
+            outbox_id uuid,
+            operation_id uuid
+          )
+          LANGUAGE plpgsql
+          SECURITY DEFINER
+          SET search_path = pg_catalog
+          AS $tamper$
+          BEGIN
+            RETURN;
+          END
+          $tamper$`,
+      },
+      {
+        signature: "public.backup_status_mail_authorized(uuid)",
+        replacement: `
+          CREATE OR REPLACE FUNCTION
+            public.backup_status_mail_authorized(
+              p_candidate_outbox_id uuid
+            )
+          RETURNS boolean
+          LANGUAGE plpgsql
+          SECURITY DEFINER
+          SET search_path = pg_catalog
+          AS $tamper$
+          BEGIN
+            RETURN false;
+          END
+          $tamper$`,
+      },
+    ];
+    for (const routine of routineTamperContracts) {
+      await expectVerifierTamper(
+        [routine.replacement],
+        `${routine.signature}: body tamper must fail closed`,
+      );
+      await expectVerifierTamper(
+        [`ALTER FUNCTION ${routine.signature} COST 99`],
+        `${routine.signature}: metadata tamper must fail closed`,
+      );
+      await expectVerifierTamper(
+        [`GRANT EXECUTE ON FUNCTION ${routine.signature}
+            TO learncoding_app`],
+        `${routine.signature}: direct ACL tamper must fail closed`,
+      );
     }
-    assert.deepEqual(
-      routineBySignature["backup_status_mail_authorized(uuid)"].direct_acl,
-      [{
-        grantee: "learncoding_worker",
-        privilege: "EXECUTE",
-        grantable: false,
-        grantor: "learncoding_owner",
-      }],
-    );
-    assert.deepEqual(
-      routineBySignature[
-        "enqueue_backup_status_mail_authority(text,text)"
-      ].direct_acl,
-      [{
-        grantee: "learncoding_backup_reporter",
-        privilege: "EXECUTE",
-        grantable: false,
-        grantor: "learncoding_owner",
-      }],
+    await expectVerifierClusterTamper(
+      [
+        "CREATE ROLE backup_status_authority_inherited_probe NOLOGIN",
+        `GRANT EXECUTE ON FUNCTION
+           public.enqueue_backup_status_mail_authority(text,text)
+           TO backup_status_authority_inherited_probe`,
+        `GRANT backup_status_authority_inherited_probe
+           TO learncoding_app`,
+      ],
+      "inherited effective EXECUTE tamper must fail closed",
     );
 
     reporter = await connected(
@@ -316,6 +651,39 @@ async function main() {
     );
     worker = await connected(clientConfig(port, "learncoding_worker"));
     app = await connected(clientConfig(port, "learncoding_app"));
+    authorityWriter = await connected(clientConfig(port, "postgres"));
+    for (const client of [reporter, worker]) {
+      await client.query("SET plpgsql.variable_conflict = 'error'");
+      assert.equal(
+        (await client.query(
+          "SELECT current_setting('plpgsql.variable_conflict') setting",
+        )).rows[0].setting,
+        "error",
+      );
+    }
+
+    const ledgerColumns = await admin.query(`
+      SELECT attribute.attname
+        FROM pg_catalog.pg_attribute AS attribute
+       WHERE attribute.attrelid =
+             'public.backup_status_mail_authority'::regclass
+         AND attribute.attnum > 0
+         AND NOT attribute.attisdropped
+       ORDER BY attribute.attnum
+    `);
+    assert.deepEqual(
+      ledgerColumns.rows.map(({ attname }) => attname),
+      [
+        "id",
+        "run_key",
+        "outcome",
+        "outbox_id",
+        "operation_id",
+        "authority_epoch",
+        "created_at",
+      ],
+      "the immutable authority ledger must not retain a durable user identifier",
+    );
 
     await expectCode(
       () => reporter.query(
@@ -342,6 +710,72 @@ async function main() {
       admin,
       "UPDATE public.\"user\" SET role = 'learner' WHERE id = 'admin-2'",
     );
+
+    const guardEpoch = async (client = admin) => (
+      await client.query(
+        `SELECT authority_epoch
+           FROM public.backup_status_mail_admin_guard
+          WHERE singleton IS TRUE`,
+      )
+    ).rows[0].authority_epoch;
+    const committedEpochBeforeRoundTrip = await guardEpoch();
+    await authorityWriter.query("BEGIN");
+    try {
+      await authorityWriter.query("SET LOCAL ROLE learncoding_owner");
+      await authorityWriter.query(
+        `UPDATE public."user"
+            SET email = 'round-trip@example.invalid'
+          WHERE id = 'admin-1'`,
+      );
+      const firstRoundTripEpoch = await guardEpoch(authorityWriter);
+      assert.notEqual(
+        firstRoundTripEpoch,
+        committedEpochBeforeRoundTrip,
+        "the first eligible change in a transaction must rotate authority",
+      );
+      await authorityWriter.query(
+        `UPDATE public."user"
+            SET email = 'admin@example.invalid'
+          WHERE id = 'admin-1'`,
+      );
+      const secondRoundTripEpoch = await guardEpoch(authorityWriter);
+      assert.notEqual(
+        secondRoundTripEpoch,
+        firstRoundTripEpoch,
+        "returning to the original value must rotate authority again",
+      );
+      await authorityWriter.query("COMMIT");
+      assert.equal(await guardEpoch(), secondRoundTripEpoch);
+    } catch (error) {
+      await authorityWriter.query("ROLLBACK");
+      throw error;
+    }
+
+    const committedEpochBeforeRollback = await guardEpoch();
+    await authorityWriter.query("BEGIN");
+    try {
+      await authorityWriter.query("SET LOCAL ROLE learncoding_owner");
+      await authorityWriter.query(
+        `UPDATE public."user"
+            SET email = email
+          WHERE id = 'admin-1'`,
+      );
+      assert.notEqual(
+        await guardEpoch(authorityWriter),
+        committedEpochBeforeRollback,
+        "an identical-value eligible update must still rotate in-transaction",
+      );
+      await authorityWriter.query("ROLLBACK");
+    } catch (error) {
+      await authorityWriter.query("ROLLBACK");
+      throw error;
+    }
+    assert.equal(
+      await guardEpoch(),
+      committedEpochBeforeRollback,
+      "a rolled-back admin change must not durably rotate authority",
+    );
+
     await expectCode(
       () => reporter.query(
         "SELECT * FROM public.enqueue_backup_status_mail_authority($1, $2)",
@@ -359,8 +793,8 @@ async function main() {
       "unknown outcomes must fail closed",
     );
 
-    const runKey = "20260101T000003Z";
-    const queued = await reporter.query(
+    let runKey = "20260101T000003Z";
+    let queued = await reporter.query(
       "SELECT * FROM public.enqueue_backup_status_mail_authority($1, $2)",
       [runKey, "success"],
     );
@@ -372,10 +806,10 @@ async function main() {
         /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u,
       );
     }
-    const outboxId = queued.rows[0].outbox_id;
+    let outboxId = queued.rows[0].outbox_id;
     const payload = await admin.query(
-      `SELECT source.run_key, source.outcome, source.recipient_user_id,
-              source.recipient_email, source.operation_id,
+      `SELECT source.run_key, source.outcome,
+              source.operation_id,
               candidate.user_id, candidate.delivery_scope_key,
               candidate.to_email, candidate.template,
               candidate.template_version, candidate.variables,
@@ -389,8 +823,6 @@ async function main() {
     assert.deepEqual(payload.rows, [{
       run_key: runKey,
       outcome: "success",
-      recipient_user_id: "admin-1",
-      recipient_email: "admin@example.invalid",
       operation_id: queued.rows[0].operation_id,
       user_id: "admin-1",
       delivery_scope_key: "a:admin-1",
@@ -404,6 +836,11 @@ async function main() {
       idempotency_key: `backup-status:v1:${runKey}`,
       has_url: false,
     }]);
+    assert.doesNotMatch(
+      JSON.stringify(payload.rows[0].variables),
+      /authority_epoch|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/iu,
+      "the opaque authority epoch must never enter the mail payload",
+    );
 
     const replay = await reporter.query(
       "SELECT * FROM public.enqueue_backup_status_mail_authority($1, $2)",
@@ -432,6 +869,293 @@ async function main() {
         [outboxId],
       )).rows[0].authorized,
       true,
+    );
+
+    await worker.query("BEGIN");
+    try {
+      assert.equal(
+        (await worker.query(
+          "SELECT public.backup_status_mail_authorized($1) authorized",
+          [outboxId],
+        )).rows[0].authorized,
+        true,
+      );
+
+      await authorityWriter.query("BEGIN");
+      try {
+        await authorityWriter.query("SET LOCAL ROLE learncoding_owner");
+        await authorityWriter.query("SET LOCAL lock_timeout = '500ms'");
+        const unrelatedWrite = await authorityWriter.query(
+          `UPDATE public."user"
+              SET email = 'learner-updated@example.invalid'
+            WHERE id = 'admin-2' AND role = 'learner'`,
+        );
+        assert.equal(
+          unrelatedWrite.rowCount,
+          1,
+          "the provider-boundary guard must not block unrelated user writes",
+        );
+        await authorityWriter.query("COMMIT");
+      } catch (error) {
+        await authorityWriter.query("ROLLBACK");
+        throw error;
+      }
+
+      await authorityWriter.query("BEGIN");
+      try {
+        await authorityWriter.query("SET LOCAL ROLE learncoding_owner");
+        await authorityWriter.query("SET LOCAL lock_timeout = '500ms'");
+        await expectCode(
+          () => authorityWriter.query(
+            `UPDATE public."user"
+                SET role = 'admin'
+              WHERE id = 'admin-2'`,
+          ),
+          "55P03",
+          "a second administrator must not become active across the boundary",
+        );
+      } finally {
+        await authorityWriter.query("ROLLBACK");
+      }
+
+      await authorityWriter.query("BEGIN");
+      try {
+        await authorityWriter.query("SET LOCAL ROLE learncoding_owner");
+        await authorityWriter.query("SET LOCAL lock_timeout = '500ms'");
+        await expectCode(
+          () => authorityWriter.query(
+            `SELECT id
+               FROM public."user"
+              WHERE id = 'admin-1'
+              FOR UPDATE`,
+          ),
+          "55P03",
+          "canonical deletion must stop at the boundary-held user row",
+        );
+      } finally {
+        await authorityWriter.query("ROLLBACK");
+      }
+    } finally {
+      await worker.query("ROLLBACK");
+    }
+
+    const authorityWriterPid = (
+      await authorityWriter.query("SELECT pg_backend_pid() pid")
+    ).rows[0].pid;
+    let guardTransactionOpen = false;
+    let writerTransactionOpen = false;
+    let adminChangeOutcome;
+    let boundaryOutcome;
+    try {
+      await admin.query("BEGIN");
+      guardTransactionOpen = true;
+      await admin.query("SET LOCAL ROLE learncoding_owner");
+      await admin.query(`
+        SELECT authority_guard.singleton
+          FROM public.backup_status_mail_admin_guard AS authority_guard
+         WHERE authority_guard.singleton IS TRUE
+         FOR SHARE OF authority_guard
+      `);
+
+      await authorityWriter.query("BEGIN");
+      writerTransactionOpen = true;
+      await authorityWriter.query("SET LOCAL ROLE learncoding_owner");
+      await authorityWriter.query("SET LOCAL statement_timeout = '5s'");
+      adminChangeOutcome = authorityWriter.query(
+        `UPDATE public."user"
+            SET email = 'admin-raced@example.invalid'
+          WHERE id = 'admin-1'`,
+      ).then(
+        (value) => ({ value }),
+        (error) => ({ error }),
+      );
+
+      await delay(25);
+      let writerWaitObserved = false;
+      let lastWriterActivity;
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        const writerActivity = await admin.query(
+          `SELECT state, wait_event_type, wait_event,
+                  pg_catalog.cardinality(
+                    pg_catalog.pg_blocking_pids(pid)
+                  ) blocking_count
+             FROM pg_catalog.pg_stat_activity
+            WHERE pid = $1`,
+          [authorityWriterPid],
+        );
+        lastWriterActivity = writerActivity.rows[0];
+        if (Number(lastWriterActivity?.blocking_count) > 0) {
+          writerWaitObserved = true;
+          break;
+        }
+        await delay(25);
+      }
+      assert.equal(
+        writerWaitObserved,
+        true,
+        `the admin change must own its user row before waiting on the guard: ${JSON.stringify(lastWriterActivity)}`,
+      );
+
+      boundaryOutcome = worker.query(
+        "SELECT public.backup_status_mail_authorized($1) authorized",
+        [outboxId],
+      ).then(
+        (value) => ({ value }),
+        (error) => ({ error }),
+      );
+      await delay(100);
+      await admin.query("COMMIT");
+      guardTransactionOpen = false;
+
+      const adminChange = await adminChangeOutcome;
+      if (adminChange.error) throw adminChange.error;
+      assert.equal(adminChange.value.rowCount, 1);
+      await authorityWriter.query("COMMIT");
+      writerTransactionOpen = false;
+
+      const boundary = await boundaryOutcome;
+      if (boundary.error) throw boundary.error;
+      assert.equal(
+        boundary.value.rows[0].authorized,
+        false,
+        "the boundary must revalidate after the earlier admin change",
+      );
+    } finally {
+      if (guardTransactionOpen) await admin.query("ROLLBACK");
+      if (adminChangeOutcome) await adminChangeOutcome;
+      if (writerTransactionOpen) await authorityWriter.query("ROLLBACK");
+      if (boundaryOutcome) await boundaryOutcome;
+    }
+    await asOwner(
+      admin,
+      `UPDATE public."user"
+          SET email = 'admin@example.invalid'
+        WHERE id = 'admin-1'`,
+    );
+
+    const workerPid = (
+      await worker.query("SELECT pg_backend_pid() pid")
+    ).rows[0].pid;
+    let deletionTransactionOpen = false;
+    let deletionBoundaryOutcome;
+    try {
+      await authorityWriter.query("BEGIN");
+      deletionTransactionOpen = true;
+      await authorityWriter.query("SET LOCAL ROLE learncoding_owner");
+      await authorityWriter.query("SET LOCAL statement_timeout = '5s'");
+      await authorityWriter.query(
+        `SELECT id
+           FROM public."user"
+          WHERE id = 'admin-1'
+          FOR UPDATE`,
+      );
+      await authorityWriter.query(
+        "DELETE FROM public.email_outbox WHERE id = $1",
+        [outboxId],
+      );
+      await authorityWriter.query(
+        `DELETE FROM public."user" WHERE id = 'admin-1'`,
+      );
+
+      deletionBoundaryOutcome = worker.query(
+        "SELECT public.backup_status_mail_authorized($1) authorized",
+        [outboxId],
+      ).then(
+        (value) => ({ value }),
+        (error) => ({ error }),
+      );
+
+      let boundaryWaitObserved = false;
+      let lastBoundaryActivity;
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        const boundaryActivity = await admin.query(
+          `SELECT state, wait_event_type, wait_event,
+                  pg_catalog.cardinality(
+                    pg_catalog.pg_blocking_pids(pid)
+                  ) blocking_count
+             FROM pg_catalog.pg_stat_activity
+            WHERE pid = $1`,
+          [workerPid],
+        );
+        lastBoundaryActivity = boundaryActivity.rows[0];
+        if (Number(lastBoundaryActivity?.blocking_count) > 0) {
+          boundaryWaitObserved = true;
+          break;
+        }
+        await delay(25);
+      }
+      assert.equal(
+        boundaryWaitObserved,
+        true,
+        `the boundary must wait on deletion's canonical user lock: ${JSON.stringify(lastBoundaryActivity)}`,
+      );
+
+      await authorityWriter.query("COMMIT");
+      deletionTransactionOpen = false;
+      const deletionBoundary = await deletionBoundaryOutcome;
+      if (deletionBoundary.error) throw deletionBoundary.error;
+      assert.equal(
+        deletionBoundary.value.rows[0].authorized,
+        false,
+        "a committed deletion must revoke the provider boundary",
+      );
+    } finally {
+      if (deletionTransactionOpen) await authorityWriter.query("ROLLBACK");
+      if (deletionBoundaryOutcome) await deletionBoundaryOutcome;
+    }
+    await asOwner(
+      admin,
+      `INSERT INTO public."user" (id, email, role, status, banned)
+       VALUES ('admin-1', 'admin@example.invalid', 'admin', 'active', false)`,
+    );
+    await asOwner(
+      admin,
+      `INSERT INTO public.email_outbox (
+         id, operation_id, user_id, delivery_scope_key, to_email, template,
+         template_version, variables, idempotency_key
+       ) VALUES (
+         $1, $2, 'admin-1', 'a:admin-1', 'admin@example.invalid',
+         'backup-status', '1',
+         pg_catalog.jsonb_build_object('name','Administrator','summary',$3::text),
+         'backup-status:v1:' || $4::text
+       )`,
+      [outboxId, queued.rows[0].operation_id, fixedSummary.success, runKey],
+    );
+    assert.equal(
+      (await worker.query(
+        "SELECT public.backup_status_mail_authorized($1) authorized",
+        [outboxId],
+      )).rows[0].authorized,
+      false,
+      "same-ID recreation plus exact outbox restoration must stay revoked",
+    );
+    await expectCode(
+      () => reporter.query(
+        "SELECT * FROM public.enqueue_backup_status_mail_authority($1, $2)",
+        [runKey, "success"],
+      ),
+      "23514",
+      "same-ID recreation must not make exact replay authoritative",
+    );
+    runKey = "20260101T000004Z";
+    queued = await reporter.query(
+      "SELECT * FROM public.enqueue_backup_status_mail_authority($1, $2)",
+      [runKey, "success"],
+    );
+    outboxId = queued.rows[0].outbox_id;
+    assert.equal(
+      (await worker.query(
+        "SELECT public.backup_status_mail_authorized($1) authorized",
+        [outboxId],
+      )).rows[0].authorized,
+      true,
+      "a new run must bind to the recreated administrator generation",
+    );
+    await asOwner(
+      admin,
+      `UPDATE public."user"
+          SET email = 'admin-2@example.invalid'
+        WHERE id = 'admin-2'`,
     );
     for (const [label, mutation, restore] of [
       [
@@ -467,7 +1191,7 @@ async function main() {
       [
         "variables",
         "UPDATE public.email_outbox SET variables = '{\"name\":\"Administrator\",\"summary\":\"forged\",\"url\":\"https://invalid.example\"}'::jsonb WHERE id = $1",
-        "UPDATE public.email_outbox SET variables = jsonb_build_object('name','Administrator','summary',$2) WHERE id = $1",
+        "UPDATE public.email_outbox SET variables = jsonb_build_object('name','Administrator','summary',$2::text) WHERE id = $1",
       ],
       [
         "idempotency",
@@ -559,6 +1283,20 @@ async function main() {
       admin,
       "UPDATE public.\"user\" SET role = 'learner' WHERE id = 'admin-2'",
     );
+    runKey = "20260101T000005Z";
+    queued = await reporter.query(
+      "SELECT * FROM public.enqueue_backup_status_mail_authority($1, $2)",
+      [runKey, "success"],
+    );
+    outboxId = queued.rows[0].outbox_id;
+    assert.equal(
+      (await worker.query(
+        "SELECT public.backup_status_mail_authorized($1) authorized",
+        [outboxId],
+      )).rows[0].authorized,
+      true,
+      "the exact pre-deletion operation must begin authorized",
+    );
     await asOwner(
       admin,
       "DELETE FROM public.\"user\" WHERE id = 'admin-1'",
@@ -571,10 +1309,51 @@ async function main() {
       false,
       "administrator deletion must revoke authority",
     );
+    const durableSource = await admin.query(
+      `SELECT pg_catalog.row_to_json(source)::text AS source_json
+         FROM public.backup_status_mail_authority AS source
+        WHERE source.outbox_id = $1`,
+      [outboxId],
+    );
+    assert.equal(durableSource.rowCount, 1);
+    assert.doesNotMatch(
+      durableSource.rows[0].source_json,
+      /admin-1|@/u,
+      "the immutable ledger must remain free of user identifiers after deletion",
+    );
     await asOwner(
       admin,
       `INSERT INTO public."user" (id, email, role, status, banned)
        VALUES ('admin-1', 'admin@example.invalid', 'admin', 'active', false)`,
+    );
+    assert.equal(
+      (await worker.query(
+        "SELECT public.backup_status_mail_authorized($1) authorized",
+        [outboxId],
+      )).rows[0].authorized,
+      false,
+      "same-ID/email/admin recreation must never resurrect an old operation",
+    );
+    await expectCode(
+      () => reporter.query(
+        "SELECT * FROM public.enqueue_backup_status_mail_authority($1, $2)",
+        [runKey, "success"],
+      ),
+      "23514",
+      "same-ID recreation must not make exact replay authoritative",
+    );
+    const postRecreation = await reporter.query(
+      "SELECT * FROM public.enqueue_backup_status_mail_authority($1, $2)",
+      ["20260101T000006Z", "failure"],
+    );
+    assert.equal(postRecreation.rows[0].acknowledgement, "queued");
+    assert.equal(
+      (await worker.query(
+        "SELECT public.backup_status_mail_authorized($1) authorized",
+        [postRecreation.rows[0].outbox_id],
+      )).rows[0].authorized,
+      true,
+      "a new operation may bind to the new administrator generation",
     );
 
     const forgedOutboxId = (
@@ -586,7 +1365,7 @@ async function main() {
          ) VALUES (
            gen_random_uuid(), gen_random_uuid(), 'admin-1', 'a:admin-1',
            'admin@example.invalid', 'backup-status', '1',
-           jsonb_build_object('name','Administrator','summary',$1),
+           jsonb_build_object('name','Administrator','summary',$1::text),
            'backup-status:v1:20990101T000000Z'
          ) RETURNING id`,
         [fixedSummary.success],
@@ -604,7 +1383,7 @@ async function main() {
       () => asOwner(
         admin,
         `UPDATE public.backup_status_mail_authority
-            SET recipient_email = 'forged@example.invalid'
+            SET outcome = 'failure'
           WHERE outbox_id = $1`,
         [outboxId],
       ),
@@ -679,21 +1458,69 @@ async function main() {
     process.stdout.write(
       "backup_status_mail_authority_0065=replay_revocation_forgery:pass\n",
     );
+    process.stdout.write(
+      "backup_status_mail_authority_0065=narrow_admin_lock:pass\n",
+    );
+    process.stdout.write(
+      "backup_status_mail_authority_0065=both_order_admin_lock:pass\n",
+    );
+    process.stdout.write(
+      "backup_status_mail_authority_0065=deletion_boundary_both_orders:pass\n",
+    );
+    process.stdout.write(
+      "backup_status_mail_authority_0065=epoch_incarnation_and_catalog_tamper:pass\n",
+    );
+  } catch (error) {
+    primaryError = error;
   } finally {
-    await Promise.allSettled(
-      [app, worker, reporter, admin]
+    const clientCleanup = await Promise.allSettled(
+      [authorityWriter, app, worker, reporter, admin, bootstrap]
         .filter(Boolean)
         .map((client) => client.end()),
     );
-    if (serverStarted) {
-      run(
-        executable("pg_ctl"),
-        ["--pgdata", dataDirectory, "--wait", "--mode=immediate", "stop"],
-        { allowFailure: true, timeoutMs: 15_000 },
+    for (const result of clientCleanup) {
+      if (result.status === "rejected") cleanupErrors.push(result.reason);
+    }
+    if (serverStartAttempted && existsSync(postmasterPid)) {
+      try {
+        run(
+          executable("pg_ctl"),
+          [
+            "--pgdata",
+            dataDirectory,
+            "--wait",
+            "--timeout=30",
+            "--mode=immediate",
+            "stop",
+          ],
+          { timeoutMs: 35_000 },
+        );
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+    }
+    if (temporaryRoot !== undefined) {
+      try {
+        rmSync(temporaryRoot, { recursive: true, force: true });
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+    }
+  }
+  if (cleanupErrors.length > 0) {
+    if (primaryError instanceof Error) {
+      primaryError.cause ??= new AggregateError(
+        cleanupErrors,
+        "PostgreSQL 0065 integration cleanup failed",
+      );
+    } else {
+      primaryError = new AggregateError(
+        cleanupErrors,
+        "PostgreSQL 0065 integration cleanup failed",
       );
     }
-    rmSync(temporaryRoot, { recursive: true, force: true });
   }
+  if (primaryError) throw primaryError;
 }
 
 await main();

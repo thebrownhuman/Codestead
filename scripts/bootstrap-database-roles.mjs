@@ -4,6 +4,9 @@ import { pathToFileURL } from "node:url";
 
 import { Pool } from "pg";
 
+import { verifyBackupStatusMailAuthorityObjects }
+  from "./verify-backup-status-mail-authority.mjs";
+
 export const DATABASE_ADMIN_LOCK_NAME = "codestead:database-administration:v1";
 const OWNER_ROLE = "learncoding_owner";
 const MIGRATOR_ROLE = "learncoding_migrator";
@@ -22,45 +25,68 @@ export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
   Object.freeze({
     signature:
       "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
-    role: OPS_ROLE,
-    grantSql:
-      "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone, integer) to learncoding_ops",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: Object.freeze(["search_path=pg_catalog"]),
+    allowedRoles: Object.freeze([OPS_ROLE]),
+  }),
+  Object.freeze({
+    signature: "public.reject_backup_status_mail_authority_mutation()",
+    owner: OWNER_ROLE,
+    securityDefiner: false,
+    configuration: Object.freeze(["search_path=pg_catalog"]),
+    allowedRoles: Object.freeze([]),
+  }),
+  Object.freeze({
+    signature: "public.lock_backup_status_mail_admin_authority()",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: Object.freeze(["search_path=pg_catalog"]),
+    allowedRoles: Object.freeze([]),
   }),
   Object.freeze({
     signature: "public.enqueue_backup_status_mail_authority(text,text)",
-    role: BACKUP_REPORTER_ROLE,
-    grantSql:
-      "grant execute on function public.enqueue_backup_status_mail_authority(text, text) to learncoding_backup_reporter",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: Object.freeze(["search_path=pg_catalog"]),
+    allowedRoles: Object.freeze([BACKUP_REPORTER_ROLE]),
   }),
   Object.freeze({
     signature: "public.backup_status_mail_authorized(uuid)",
-    role: WORKER_ROLE,
-    grantSql:
-      "grant execute on function public.backup_status_mail_authorized(uuid) to learncoding_worker",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: Object.freeze(["search_path=pg_catalog"]),
+    allowedRoles: Object.freeze([WORKER_ROLE]),
   }),
 ]);
-const BACKUP_STATUS_SECURITY_DEFINER_FUNCTIONS = Object.freeze([
-  "public.enqueue_backup_status_mail_authority(text,text)",
-  "public.backup_status_mail_authorized(uuid)",
-]);
+const REVIEWED_SECURITY_DEFINER_FUNCTIONS = Object.freeze(
+  REVIEWED_APPLICATION_FUNCTIONS
+    .filter(({ securityDefiner }) => securityDefiner)
+    .map(({ signature }) => signature),
+);
 
 function sqlLiteral(value) {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
 export function reviewedApplicationFunctionPrivilegesSql() {
-  return REVIEWED_APPLICATION_FUNCTIONS.map((routine, index) => {
-    const blockTag = `codestead_reviewed_function_${index}`;
-    return `
+  return REVIEWED_APPLICATION_FUNCTIONS.flatMap((routine, routineIndex) =>
+    routine.allowedRoles.map((role, roleIndex) => {
+      const blockTag = `codestead_reviewed_function_${routineIndex}_${roleIndex}`;
+      const grantSql = `grant execute on function ${routine.signature} to ${role}`;
+      return `
       do $${blockTag}$
       begin
-        if pg_catalog.to_regprocedure(${sqlLiteral(routine.signature)})
+        if pg_catalog.to_regrole(${sqlLiteral(role)})
+             is not null
+           and pg_catalog.to_regprocedure(${sqlLiteral(routine.signature)})
              is not null then
-          execute ${sqlLiteral(routine.grantSql)};
+          execute ${sqlLiteral(grantSql)};
         end if;
       end
       $${blockTag}$`;
-  }).join(";\n");
+    }),
+  ).join(";\n");
 }
 
 const MAIL_WORKER_OUTBOX_COLUMNS = Object.freeze([
@@ -133,10 +159,46 @@ export function mailWorkerOutboxPrivilegesSql() {
 
 export function backupStatusAuthorityPrivilegesSql() {
   return `
-    revoke all on table public.backup_status_mail_authority
+    revoke all on table
+      public.backup_status_mail_authority,
+      public.backup_status_mail_admin_guard
+      from public, current_user, learncoding_migrator, learncoding_app,
+           learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+    revoke all (
+      id, run_key, outcome, outbox_id, operation_id, authority_epoch,
+      created_at
+    ) on table public.backup_status_mail_authority
+      from public, current_user, learncoding_migrator, learncoding_app,
+           learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+    revoke all (
+      singleton, authority_epoch
+    ) on table public.backup_status_mail_admin_guard
       from public, current_user, learncoding_migrator, learncoding_app,
            learncoding_worker, learncoding_ops, learncoding_backup_reporter;
   `;
+}
+
+export async function reconcileBackupStatusAuthorityPrivileges(client) {
+  const presence = await client.query(
+    `select
+       to_regclass(
+         'public.backup_status_mail_authority'
+       ) is not null source_present,
+       to_regclass(
+         'public.backup_status_mail_admin_guard'
+       ) is not null guard_present`,
+  );
+  const sourcePresent = presence.rows[0]?.source_present === true;
+  const guardPresent = presence.rows[0]?.guard_present === true;
+  if (sourcePresent !== guardPresent) {
+    throw databaseRoleBootstrapInvariantError(
+      "backup-status-authority-partial",
+    );
+  }
+  if (!sourcePresent) return false;
+
+  await client.query(backupStatusAuthorityPrivilegesSql());
+  return true;
 }
 
 const MAX_LOCK_TIMEOUT_MS = 120_000;
@@ -838,12 +900,7 @@ async function reconcilePrivileges(client) {
     await client.query(mailWorkerOutboxPrivilegesSql());
   }
 
-  const backupStatusAuthority = await client.query(
-    "select to_regclass('public.backup_status_mail_authority') is not null present",
-  );
-  if (backupStatusAuthority.rows[0]?.present === true) {
-    await client.query(backupStatusAuthorityPrivilegesSql());
-  }
+  await reconcileBackupStatusAuthorityPrivileges(client);
 
   const drizzleExists = await client.query(
     "select exists(select 1 from pg_namespace where nspname = 'drizzle') present",
@@ -892,6 +949,62 @@ function databaseRoleBootstrapInvariantError(section, details = []) {
   const detailSuffix = details.length > 0 ? `: ${details.join(",")}` : "";
   return new Error(
     `database role bootstrap invariant verification failed [${section}${detailSuffix}]`,
+  );
+}
+
+async function verifyBackupStatusAuthorityAtBoundary(
+  client,
+  section,
+) {
+  const presence = await client.query(`
+    select (
+      pg_catalog.to_regclass(
+        'public.backup_status_mail_authority'
+      ) is not null
+      or pg_catalog.to_regclass(
+        'public.backup_status_mail_admin_guard'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.reject_backup_status_mail_authority_mutation()'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.lock_backup_status_mail_admin_authority()'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.enqueue_backup_status_mail_authority(text,text)'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.backup_status_mail_authorized(uuid)'
+      ) is not null
+    ) present`);
+  if (presence.rows[0]?.present !== true) return false;
+
+  try {
+    await verifyBackupStatusMailAuthorityObjects(
+      client,
+      LOGIN_ROLES,
+    );
+  } catch (error) {
+    const invariant = databaseRoleBootstrapInvariantError(
+      section,
+    );
+    invariant.cause = error;
+    throw invariant;
+  }
+  return true;
+}
+
+export function verifyBackupStatusAuthorityBeforeRepair(client) {
+  return verifyBackupStatusAuthorityAtBoundary(
+    client,
+    "backup-status-authority-pre-repair",
+  );
+}
+
+export function verifyBackupStatusAuthorityAfterRepair(client) {
+  return verifyBackupStatusAuthorityAtBoundary(
+    client,
+    "backup-status-authority-post-repair",
   );
 }
 
@@ -1086,7 +1199,10 @@ export async function verifyDatabaseRoleBootstrapState(
            join pg_namespace n on n.oid = c.relnamespace
            cross join unnest(array['learncoding_app','learncoding_ops']) role_name
           where n.nspname = 'public' and c.relkind in ('r','p','v','m','f')
-            and c.relname <> 'backup_status_mail_authority'
+            and c.relname not in (
+              'backup_status_mail_authority',
+              'backup_status_mail_admin_guard'
+            )
             and (
               not has_table_privilege(role_name, c.oid, 'SELECT')
               or not has_table_privilege(role_name, c.oid, 'INSERT')
@@ -1103,7 +1219,11 @@ export async function verifyDatabaseRoleBootstrapState(
            from pg_class c
            join pg_namespace n on n.oid = c.relnamespace
           where n.nspname = 'public' and c.relkind in ('r','p','v','m','f')
-            and c.relname not in ('email_outbox', 'backup_status_mail_authority')
+            and c.relname not in (
+              'email_outbox',
+              'backup_status_mail_authority',
+              'backup_status_mail_admin_guard'
+            )
             and (
               not has_table_privilege('learncoding_worker', c.oid, 'SELECT')
               or not has_table_privilege('learncoding_worker', c.oid, 'INSERT')
@@ -1145,7 +1265,21 @@ export async function verifyDatabaseRoleBootstrapState(
              'learncoding_worker', 'public.email_outbox', 'updated_at', 'UPDATE'
            )
        end worker_outbox_privileges_exact,
-       case when to_regclass('public.backup_status_mail_authority') is null then true
+       case
+         when to_regclass(
+           'public.backup_status_mail_authority'
+         ) is null
+         and to_regclass(
+           'public.backup_status_mail_admin_guard'
+         ) is null
+           then true
+         when to_regclass(
+           'public.backup_status_mail_authority'
+         ) is null
+         or to_regclass(
+           'public.backup_status_mail_admin_guard'
+         ) is null
+           then false
          else not exists (
            select 1
              from unnest(
@@ -1157,65 +1291,47 @@ export async function verifyDatabaseRoleBootstrapState(
                  'learncoding_backup_reporter'
                ]
              ) role_name
+             cross join unnest(
+               array[
+                 'public.backup_status_mail_authority',
+                 'public.backup_status_mail_admin_guard'
+               ]
+             ) relation_name
             where has_table_privilege(
-                    role_name,
-                    'public.backup_status_mail_authority',
-                    'SELECT'
+                    role_name, relation_name, 'SELECT'
                   )
                or has_table_privilege(
-                    role_name,
-                    'public.backup_status_mail_authority',
-                    'INSERT'
+                    role_name, relation_name, 'INSERT'
                   )
                or has_table_privilege(
-                    role_name,
-                    'public.backup_status_mail_authority',
-                    'UPDATE'
+                    role_name, relation_name, 'UPDATE'
                   )
                or has_table_privilege(
-                    role_name,
-                    'public.backup_status_mail_authority',
-                    'DELETE'
+                    role_name, relation_name, 'DELETE'
                   )
                or has_table_privilege(
-                    role_name,
-                    'public.backup_status_mail_authority',
-                    'TRUNCATE'
+                    role_name, relation_name, 'TRUNCATE'
                   )
                or has_table_privilege(
-                    role_name,
-                    'public.backup_status_mail_authority',
-                    'REFERENCES'
+                    role_name, relation_name, 'REFERENCES'
                   )
                or has_table_privilege(
-                    role_name,
-                    'public.backup_status_mail_authority',
-                    'TRIGGER'
+                    role_name, relation_name, 'TRIGGER'
                   )
                or has_table_privilege(
-                    role_name,
-                    'public.backup_status_mail_authority',
-                    'MAINTAIN'
+                    role_name, relation_name, 'MAINTAIN'
                   )
                or has_any_column_privilege(
-                    role_name,
-                    'public.backup_status_mail_authority',
-                    'SELECT'
+                    role_name, relation_name, 'SELECT'
                   )
                or has_any_column_privilege(
-                    role_name,
-                    'public.backup_status_mail_authority',
-                    'INSERT'
+                    role_name, relation_name, 'INSERT'
                   )
                or has_any_column_privilege(
-                    role_name,
-                    'public.backup_status_mail_authority',
-                    'UPDATE'
+                    role_name, relation_name, 'UPDATE'
                   )
                or has_any_column_privilege(
-                    role_name,
-                    'public.backup_status_mail_authority',
-                    'REFERENCES'
+                    role_name, relation_name, 'REFERENCES'
                   )
          )
        end backup_status_authority_table_restricted,
@@ -1437,12 +1553,13 @@ export async function verifyDatabaseRoleBootstrapState(
     [
       postgresDatabase,
       JSON.stringify(
-        REVIEWED_APPLICATION_FUNCTIONS.map(({ signature, role }) => ({
-          signature,
-          allowed_role: role,
-        })),
+        REVIEWED_APPLICATION_FUNCTIONS.flatMap(({ signature, allowedRoles }) =>
+          allowedRoles.map((allowedRole) => ({
+            signature,
+            allowed_role: allowedRole,
+          }))),
       ),
-      JSON.stringify(BACKUP_STATUS_SECURITY_DEFINER_FUNCTIONS),
+      JSON.stringify(REVIEWED_SECURITY_DEFINER_FUNCTIONS),
     ],
   );
   if (Object.values(privileges.rows[0] ?? {}).some((value) => value !== true)) {
@@ -1733,6 +1850,7 @@ export async function runDatabaseRoleBootstrap(options) {
       options.postgresDatabase,
     );
     validateOwnershipInventory(inventory);
+    await verifyBackupStatusAuthorityBeforeRepair(client);
     await createAndResetRoles(client);
     const rolePasswords = {
       [MIGRATOR_ROLE]: parsed.migrator,
@@ -1750,9 +1868,11 @@ export async function runDatabaseRoleBootstrap(options) {
       options.postgresUser,
     );
     if (options.beforeCommit) await options.beforeCommit(client);
+    await verifyBackupStatusAuthorityAfterRepair(client);
     await client.query("commit");
     transactionOpen = false;
 
+    await verifyBackupStatusAuthorityAfterRepair(client);
     return await verifyDatabaseRoleBootstrapState(
       client,
       options.postgresDatabase,
