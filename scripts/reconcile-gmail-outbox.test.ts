@@ -4,6 +4,11 @@ const OPERATION_ID = "22222222-2222-4222-8222-222222222222";
 const VALID_READ_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
 const SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
 const METADATA_SCOPE = "https://www.googleapis.com/auth/gmail.metadata";
+const UUID_LOG_CANARY = "0f4f18c1-2fb5-45ec-9fb4-f8a856922a12";
+const BASE64URL_LOG_CANARY = "ZXlKdmNHVnlZWFJwYjI1SlpDSTZJakJtTkdZeE9HTXhMVEptWWpVdE5EVmxZeTA1Wm1JMExXWTRZVGcxTmpreU1tRXhNaUo5";
+const RECIPIENT_LOG_CANARY = "reconcile-private@recipient.example";
+const RAW_MIME_LOG_CANARY =
+  "TWVzc2FnZS1JRDogPHByaXZhdGVAZXhhbXBsZS50ZXN0Pg0KVG86IHJlY29uY2lsZS1wcml2YXRlQHJlY2lwaWVudC5leGFtcGxl";
 
 
 const mocks = vi.hoisted(() => {
@@ -80,12 +85,86 @@ describe("Gmail reconciliation operator command", () => {
       expect(logs).toEqual([
         JSON.stringify({
           event: "email.gmail_reconciliation_failed",
-          code: "Error",
+          code: "GMAIL_RECONCILIATION_OAUTH_SCOPE_INVALID",
         }),
       ]);
       if (scopes) expect(logs.join(" ")).not.toContain(scopes);
     },
   );
+
+  it("never logs UUID, base64url, provider, recipient, or MIME fields from a failure", async () => {
+    const failure = Object.assign(new Error(
+      `recipient=${RECIPIENT_LOG_CANARY}; raw=${RAW_MIME_LOG_CANARY}`,
+      { cause: { claimId: UUID_LOG_CANARY } },
+    ), {
+      name: UUID_LOG_CANARY,
+      code: BASE64URL_LOG_CANARY,
+      stack: `provider=${BASE64URL_LOG_CANARY}; operation=${UUID_LOG_CANARY}`,
+    });
+    mocks.reconcileGmailDelivery.mockRejectedValueOnce(failure);
+    process.argv = [
+      originalArgv[0]!,
+      originalArgv[1]!,
+      "--operation-id",
+      OPERATION_ID,
+    ];
+
+    await import("./reconcile-gmail-outbox");
+    await vi.waitFor(() => expect(mocks.pool.end).toHaveBeenCalledOnce());
+
+    const logs = vi.mocked(console.error).mock.calls.map(([entry]) => String(entry));
+    expect(logs).toEqual([
+      JSON.stringify({
+        event: "email.gmail_reconciliation_failed",
+        code: "GMAIL_RECONCILIATION_FAILED",
+      }),
+    ]);
+    for (const canary of [
+      UUID_LOG_CANARY,
+      BASE64URL_LOG_CANARY,
+      RECIPIENT_LOG_CANARY,
+      RAW_MIME_LOG_CANARY,
+    ]) {
+      expect(logs.join("\n")).not.toContain(canary);
+    }
+  });
+
+  it("contains pool-close failures without serializing their error fields", async () => {
+    const failure = Object.assign(new Error(
+      `recipient=${RECIPIENT_LOG_CANARY}; raw=${RAW_MIME_LOG_CANARY}`,
+      { cause: { scopeId: UUID_LOG_CANARY } },
+    ), {
+      name: UUID_LOG_CANARY,
+      code: BASE64URL_LOG_CANARY,
+      stack: `provider=${BASE64URL_LOG_CANARY}; claim=${UUID_LOG_CANARY}`,
+    });
+    mocks.pool.end.mockRejectedValueOnce(failure);
+    process.argv = [
+      originalArgv[0]!,
+      originalArgv[1]!,
+      "--operation-id",
+      OPERATION_ID,
+    ];
+
+    await import("./reconcile-gmail-outbox");
+    await vi.waitFor(() => expect(console.error).toHaveBeenCalledWith(
+      JSON.stringify({
+        event: "email.gmail_reconciliation_cleanup_failed",
+        code: "GMAIL_RECONCILIATION_POOL_CLOSE_FAILED",
+      }),
+    ));
+
+    const logs = vi.mocked(console.error).mock.calls.map(([entry]) => String(entry));
+    for (const canary of [
+      UUID_LOG_CANARY,
+      BASE64URL_LOG_CANARY,
+      RECIPIENT_LOG_CANARY,
+      RAW_MIME_LOG_CANARY,
+    ]) {
+      expect(logs.join("\n")).not.toContain(canary);
+    }
+    expect(process.exitCode).toBe(1);
+  });
 
   it("requires explicit apply confirmation and logs no operation, correlation, or provider identity", async () => {
     process.argv = [

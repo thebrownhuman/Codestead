@@ -95,6 +95,11 @@ vi.mock("./lib/worker-health", () => ({
 }));
 
 const originalArgv = [...process.argv];
+const UUID_LOG_CANARY = "550e8400-e29b-41d4-a716-446655440000";
+const BASE64URL_LOG_CANARY = "ZXlKamJHRnBiVWxrSWpvaVkyOWhhVzB0YzJWamNtVjBJaXdpYzJOdmNHVWlPaUp0WVdsc0luMA";
+const RECIPIENT_LOG_CANARY = "private.person@recipient.example";
+const RAW_MIME_LOG_CANARY =
+  "RnJvbTogcHJpdmF0ZUBleGFtcGxlLnRlc3QNCkF1dGhvcml6YXRpb246IEJlYXJlciBwcml2YXRl";
 
 type BatchResult = {
   claimed: number;
@@ -415,13 +420,16 @@ describe("mail worker production composition", () => {
     expect(entries[0]).not.toMatch(/row-|operation-secret|recipient|token/i);
   });
 
-  it("redacts recipient, token, and body canaries from fatal worker errors", async () => {
-    const recipient = "private.person@recipient.example";
-    const token = "bearer-token=worker-log-canary";
-    const body = "private mail body must not reach worker logs";
-    const failure = Object.assign(new Error(body), {
-      name: `WorkerFailure:${recipient}:${token}:${body}`,
-      code: `DATABASE:${token}`,
+  it("rejects UUID and base64url-shaped identifiers from fatal worker logs", async () => {
+    const failure = Object.assign(new Error(
+      `claim=${UUID_LOG_CANARY}; recipient=${RECIPIENT_LOG_CANARY}; raw=${RAW_MIME_LOG_CANARY}`,
+      {
+        cause: new Error(`scope=${BASE64URL_LOG_CANARY}`),
+      },
+    ), {
+      name: UUID_LOG_CANARY,
+      code: BASE64URL_LOG_CANARY,
+      stack: `provider=${BASE64URL_LOG_CANARY}; outbox=${UUID_LOG_CANARY}`,
     });
     mocks.scheduleInactivityReminders.mockRejectedValueOnce(failure);
 
@@ -433,9 +441,14 @@ describe("mail worker production composition", () => {
     expect(entries).toHaveLength(1);
     expect(JSON.parse(entries[0]!)).toEqual({
       event: "email.worker_failed",
-      code: "ERROR",
+      code: "MAIL_WORKER_FAILED",
     });
-    for (const canary of [recipient, token, body]) {
+    for (const canary of [
+      UUID_LOG_CANARY,
+      BASE64URL_LOG_CANARY,
+      RECIPIENT_LOG_CANARY,
+      RAW_MIME_LOG_CANARY,
+    ]) {
       expect(entries[0]).not.toContain(canary);
     }
     expect(mocks.health.retry).toHaveBeenCalledWith(failure);

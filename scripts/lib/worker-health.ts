@@ -13,11 +13,25 @@ import {
 import { randomUUID } from "node:crypto";
 import { isAbsolute, join } from "node:path";
 
-import { operationalErrorCode } from "../../src/lib/security/operational-code";
+import {
+  allowlistedOperationalErrorCode,
+} from "../../src/lib/security/operational-code";
 
 const HEALTH_FILE_NAME = "status.json";
 const MAX_HEALTH_FILE_BYTES = 4_096;
 const FUTURE_CLOCK_SKEW_MS = 5_000;
+const WORKER_HEALTH_ERROR_CODES = new Set([
+  "WORKER_CYCLE_FAILED",
+  "WORKER_OPERATION_FAILED",
+] as const);
+
+function workerHealthErrorCode(error: unknown) {
+  return allowlistedOperationalErrorCode(
+    error,
+    WORKER_HEALTH_ERROR_CODES,
+  ) ?? "WORKER_OPERATION_FAILED";
+}
+
 const RECORD_KEYS = [
   "consecutiveFailures",
   "lastSuccessAt",
@@ -191,7 +205,7 @@ export function createWorkerHealthReporter(options: ReporterOptions) {
         pid,
         sequence,
         consecutiveFailures,
-        code: operationalErrorCode(error),
+        code: workerHealthErrorCode(error),
       }));
       return record;
     },
@@ -205,7 +219,7 @@ export function createWorkerHealthReporter(options: ReporterOptions) {
         pid,
         sequence,
         consecutiveFailures,
-        code: operationalErrorCode(error),
+        code: workerHealthErrorCode(error),
       }));
       return record;
     },
