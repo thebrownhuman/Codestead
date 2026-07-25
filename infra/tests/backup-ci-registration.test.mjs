@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { postgresCiProjectionThrough0065 } from "./backup-status-mail-authority-0065-ci-contract.mjs";
+import { postgresCiProjectionThrough0066 } from "./mail-provider-correlation-0066-ci-contract.mjs";
 import {
   assertPostgresCiProjectionContract,
   projectPostgresCiProjectionContract,
@@ -783,7 +783,7 @@ function runtimeEvidenceUploadProjection(artifactName) {
 }
 
 const canonicalPostgresProjection = projectPostgresCiProjectionContract(
-  postgresCiProjectionThrough0065,
+  postgresCiProjectionThrough0066,
 );
 const reviewedJobContracts = new Map([
   [
@@ -887,6 +887,7 @@ const reviewedJobContracts = new Map([
       "      - run: npm ci",
       ...canonicalPostgresProjection.registrationLines,
       "      - run: npm run test:mail-dispatch-binding-0064:roles",
+      "      - run: npm run test:mail-provider-correlation-0066:roles",
       canonicalPostgresProjection.livePg17IntegrationLine,
       canonicalPostgresProjection.dockerPg17PullLine,
       "      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
@@ -1094,7 +1095,7 @@ function requireCanonicalPostgresCiCrossGuard(blocks) {
     ).join("\n");
     assertPostgresCiProjectionContract(
       projection,
-      postgresCiProjectionThrough0065,
+      postgresCiProjectionThrough0066,
     );
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
