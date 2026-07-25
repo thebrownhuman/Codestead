@@ -20,6 +20,7 @@ const OPERATION = "22222222-2222-4222-8222-222222222222";
 const TOKEN = "33333333-3333-4333-8333-333333333333";
 const SOURCE = "44444444-4444-4444-8444-444444444444";
 const ACTIVATION_TOKEN = "A".repeat(43);
+const GMAIL_BINDING_SHA256 = "a".repeat(64);
 
 type Step = Readonly<{
   contains: string;
@@ -175,8 +176,20 @@ const reconciliationFence: GmailReconciliationFence = {
   leaseExpiresAt: null,
   adapter: "gmail",
   providerCallStartedAt: "2026-07-22 19:00:05+00",
+  providerMessageId: null,
+  sentAt: null,
+  dispatchBindingVersion: "gmail-raw-v1",
+  dispatchBindingSha256: GMAIL_BINDING_SHA256,
   quarantinedAt: "2026-07-22 19:01:05+00",
   lastErrorCode: "PROVIDER_OUTCOME_AMBIGUOUS",
+};
+
+const hybridReconciliationFence: GmailReconciliationFence = {
+  ...reconciliationFence,
+  claimVersion: 5,
+  providerMessageId: "gmail-sweeper-first",
+  sentAt: "2026-07-22 19:00:07+00",
+  lastErrorCode: "ABANDONED_POST_PROVIDER_BOUNDARY",
 };
 
 describe("PostgresOutboxStore", () => {
@@ -781,14 +794,14 @@ describe("PostgresOutboxStore", () => {
       {
         contains: "last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'",
         rows: [{
-          status: "quarantined",
+          status: "sent",
           claim_version: 5,
           adapter: "gmail",
           provider_message_id: "gmail-sweeper-first",
           provider_call_started: "2026-07-22 19:00:05.123456+00",
           sent_at: new Date("2026-07-22T19:00:07.000Z"),
-          quarantined_at: new Date("2026-07-22T19:00:06.000Z"),
-          last_error_code: "ABANDONED_POST_PROVIDER_BOUNDARY",
+          quarantined_at: null,
+          last_error_code: null,
         }],
       },
       { contains: "commit" },
@@ -817,8 +830,13 @@ describe("PostgresOutboxStore", () => {
     expect(successorSql).toContain("last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'");
     expect(successorSql).toContain("provider_message_id is null");
     expect(successorSql).toContain("sent_at is null");
-    expect(successorSql).toContain("then status");
-    expect(successorSql).toContain("then last_error_code");
+    expect(successorSql).toContain("provider_message_id = $9::text");
+    expect(successorSql).toContain("sent_at is not null");
+    expect(successorSql).toContain("dispatch_binding_version = 'gmail-raw-v1'");
+    expect(successorSql).toContain("dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'");
+    expect(successorSql).toContain("then 'sent'::public.notification_status");
+    expect(successorSql).not.toContain("then status");
+    expect(successorSql).not.toContain("then last_error_code");
   });
 
   it("accepts an exact reconciled sent receipt at the released successor generation", async () => {
@@ -915,8 +933,8 @@ describe("PostgresOutboxStore", () => {
 
     const successorSql = input.client.calls[4]!.sql;
     expect(successorSql).toContain("else 'failed'::public.notification_status");
-    expect(successorSql).toContain("quarantined_at = case when $8::text = 'sent' then quarantined_at else null end");
-    expect(successorSql).toContain("last_error_code = case when $8::text = 'sent' then last_error_code else $10::text end");
+    expect(successorSql).toContain("quarantined_at = null");
+    expect(successorSql).toContain("last_error_code = case when $8::text = 'sent' then null else $10::text end");
   });
   it("rejects a conflicting already-persisted provider identity", async () => {
     const input = harness([
@@ -1001,6 +1019,8 @@ describe("PostgresOutboxStore", () => {
           provider_message_id: null,
           sent_at: null,
           quarantined_at: "2026-07-22 19:01:05+00",
+          dispatch_binding_version: "gmail-raw-v1",
+          dispatch_binding_sha256: GMAIL_BINDING_SHA256,
           last_error_code: "PROVIDER_OUTCOME_AMBIGUOUS",
         }],
       },
@@ -1016,6 +1036,49 @@ describe("PostgresOutboxStore", () => {
     expect(sql).toContain("provider_call_started is not null");
     expect(sql).toContain("provider_message_id is null");
     expect(sql).toContain("sent_at is null");
+  });
+
+  it("observes a full released late-sent hybrid as an exact reconciliation fence", async () => {
+    const input = harness([
+      { contains: "begin" },
+      {
+        contains: "status = 'quarantined'",
+        rows: [{
+          id: ID,
+          user_id: "learner-1",
+          operation_id: OPERATION,
+          delivery_scope_key: "a:learner-1",
+          claim_version: 5,
+          claim_token: null,
+          claim_owner: null,
+          lease_expires_at: null,
+          adapter: "gmail",
+          provider_call_started: "2026-07-22 19:00:05+00",
+          status: "quarantined",
+          provider_message_id: "gmail-sweeper-first",
+          sent_at: "2026-07-22 19:00:07+00",
+          quarantined_at: "2026-07-22 19:01:05+00",
+          last_error_code: "ABANDONED_POST_PROVIDER_BOUNDARY",
+          dispatch_binding_version: "gmail-raw-v1",
+          dispatch_binding_sha256: GMAIL_BINDING_SHA256,
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.findGmailReconciliationFence({
+      operationId: OPERATION,
+    })).resolves.toEqual({ kind: "ready", fence: hybridReconciliationFence });
+
+    const sql = input.client.calls[1]!.sql;
+    expect(sql).toContain("provider_message_id is not null");
+    expect(sql).toContain("sent_at is not null");
+    expect(sql).toContain("claim_token is null");
+    expect(sql).toContain("claim_owner is null");
+    expect(sql).toContain("lease_expires_at is null");
+    expect(sql).toContain("last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'");
+    expect(sql).toContain("dispatch_binding_version = 'gmail-raw-v1'");
+    expect(sql).toContain("dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'");
   });
 
   it("finalizes a Gmail match only under the exact fence and delivery-scope lock", async () => {
@@ -1051,7 +1114,44 @@ describe("PostgresOutboxStore", () => {
     expect(update.sql).toContain("last_error_code = $12::text");
     expect(update.sql).toContain("status = 'quarantined'");
     expect(update.values).toContain("a:learner-1");
+    expect(update.sql).toContain("provider_message_id is not distinct from $13::text");
+    expect(update.sql).toContain("sent_at is not distinct from $14::timestamptz");
+    expect(update.sql).toContain("dispatch_binding_version is not distinct from $15::text");
+    expect(update.sql).toContain("dispatch_binding_sha256 is not distinct from $16::text");
     expect(update.values).toContain("gmail-1");
+  });
+
+  it("cleans a stored hybrid only when every receipt and binding field still matches", async () => {
+    const input = harness([
+      { contains: "begin" },
+      { contains: "status = 'quarantined'", rows: [scopeRow(5)] },
+      { contains: "pg_advisory_xact_lock" },
+      {
+        contains: "update public.email_outbox",
+        rows: [{
+          status: "sent",
+          claim_version: 5,
+          adapter: "gmail",
+          provider_message_id: "gmail-sweeper-first",
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
+          sent_at: new Date("2026-07-22T19:00:07.000Z"),
+          quarantined_at: null,
+          last_error_code: null,
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.finalizeGmailReconciliation({
+      fence: hybridReconciliationFence,
+      providerMessageId: "gmail-sweeper-first",
+    })).resolves.toEqual({ kind: "applied" });
+
+    const update = input.client.calls[3]!;
+    expect(update.sql).toContain("provider_message_id = coalesce(provider_message_id, $17::text)");
+    expect(update.sql).toContain("sent_at = coalesce(sent_at, pg_catalog.statement_timestamp())");
+    expect(update.values).toContain(hybridReconciliationFence.sentAt);
+    expect(update.values).toContain(hybridReconciliationFence.dispatchBindingSha256);
   });
 
   it("quarantines only expired post-boundary rows with the exact observed fence", async () => {

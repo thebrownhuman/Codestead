@@ -59,7 +59,7 @@ const mocks = vi.hoisted(() => {
         rows: [{
           id: "existing-run",
           operation: state.claim === "mismatch" ? "export" : "retention",
-          policy_version: "2026-07-14.v4",
+          policy_version: "2026-07-25.v5",
           dry_run: resume || state.claim === "replay_degraded" ? false : true,
           cutoff_manifest: { rawChat: "2025-07-12T00:00:00.000Z" },
           cutoff_matches: state.claim !== "mismatch"
@@ -100,7 +100,7 @@ const mocks = vi.hoisted(() => {
             },
           } : {
             runId: "existing-run",
-            policyVersion: "2026-07-14.v4",
+            policyVersion: "2026-07-25.v5",
             dryRun: state.claim === "replay_degraded" ? false : true,
             evaluatedAt: "2026-07-12T00:00:00.000Z",
             cutoffs: {},
@@ -130,7 +130,7 @@ const mocks = vi.hoisted(() => {
         rows: [{
           id: "existing-run",
           operation: "retention",
-          policy_version: "2026-07-14.v4",
+          policy_version: "2026-07-25.v5",
           dry_run: false,
           cutoff_manifest: { rawChat: "2025-07-11T00:00:00.000Z" },
           status: "failed",
@@ -381,12 +381,14 @@ describe("retention runtime orchestration", () => {
     expect(statements[redaction]).toContain("$1::timestamptz, $2::integer");
     expect(statements[redaction]).not.toContain("update email_outbox");
     expect(report).toMatchObject({ outcome: "succeeded", requiresRetry: false });
+    expect(report.policyVersion).toBe("2026-07-25.v5");
     expect(report.categories.unresolvedEmailDeliveryAuthority).toMatchObject({
       eligible: 2,
       deleted: 0,
       retained: 2,
       transitioned: 1,
       hasMore: true,
+      note: expect.stringContaining("Recipient payload redacted"),
     });
     expect(report.categories.unresolvedEmailDeliveryAuthorityBlocked).toMatchObject({
       eligible: 3,

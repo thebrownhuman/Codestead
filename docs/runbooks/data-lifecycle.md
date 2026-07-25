@@ -1,6 +1,6 @@
 # Data lifecycle, export, and account deletion
 
-Policy version `2026-07-14.v4` is authoritative in `src/lib/data-lifecycle/policy.ts`. All cutoffs are calculated from one injected UTC timestamp. Changing a duration requires a new policy version, review of this runbook, a migration if storage classification changes, and updated tests. Version v4 adds account-lifetime certificate and public-portfolio records; version v3 added account-lifetime append-only project revision history and file metadata snapshots; version v2 added authoritative learner drafts and their idempotency receipts. Browser session cache remains outside retention authority and is never a backup.
+Policy version `2026-07-25.v5` is authoritative in `src/lib/data-lifecycle/policy.ts`. All cutoffs are calculated from one injected UTC timestamp. Changing a duration requires a new policy version, review of this runbook, a migration if storage classification changes, and updated tests. Version v5 distinguishes deletable terminal email receipts from valid unresolved delivery authority whose recipient PII is redacted while non-PII correlation evidence remains. Version v4 added account-lifetime certificate and public-portfolio records; version v3 added account-lifetime append-only project revision history and file metadata snapshots; version v2 added authoritative learner drafts and their idempotency receipts. Browser session cache remains outside retention authority and is never a backup.
 
 ## Retention categories
 
@@ -15,8 +15,11 @@ Policy version `2026-07-14.v4` is authoritative in `src/lib/data-lifecycle/polic
 | Administrator audit chain | At least 24 months | No automatic purge at launch; reports the older population as retained |
 | `temporary` objects | 24 hours | Remove file, quota rows, and metadata |
 | Quarantined, terminal scanner-error, or user-soft-deleted objects | 7 days | Remove file, quota rows, and metadata |
-| Terminal sent/suppressed/failed/quarantined email delivery records | 30 days | Delete delivery record |
+| Terminal sent/suppressed/failed email delivery records, pre-provider quarantines, and exact released late Gmail receipt records | 30 days | Delete delivery record |
+| Valid released unresolved provider-started email authority with no provider ID | 30 days | Redact recipient PII; retain non-PII correlation authority until reconciliation |
 | Mastery state and official evidence | Until administrator account deletion | Never touched by scheduled retention |
+
+Provider-started quarantines fail closed. A quarantined late receipt is terminal only when it has the complete Gmail shape: a nonblank provider ID, `sent_at` and `quarantined_at`, released claim/lease fields, `ABANDONED_POST_PROVIDER_BOUNDARY`, exact `gmail-raw-v1` binding with a lowercase 64-hex digest, and a valid account or system delivery scope. A stored shape that is missing evidence or is internally inconsistent or malformed remains quarantined for explicit operator repair and is never selected by terminal deletion. A mismatching provider identity observed during reconciliation never cleans the row on that attempt; scheduled deletion still classifies only the complete stored shape. After 30 days, the 0063 capability redacts recipient PII from valid released started/no-provider-ID rows while retaining their non-PII operation, deterministic message binding, immutable dispatch digest, boundary, scope, and error authority until reconciliation; held or malformed authority is reported and retained without an automatic mutation.
 
 User uploads classified `user_upload` remain until user deletion or administrator account deletion. Future AI attachment writers must set `retention_class=ai_request_attachment`; temporary writers must set `temporary`. The database rejects unknown classes.
 
@@ -29,7 +32,7 @@ cd /opt/learncoding
 docker compose --env-file /etc/learncoding/compose.env \
   -f /opt/learncoding/compose.yaml --profile operations run --rm --no-deps lifecycle \
   node --import tsx /app/scripts/data-lifecycle.ts retention --dry-run \
-  --idempotency-key retention:2026-07-14.v4:YYYY-MM-DD:dry-run
+  --idempotency-key retention:2026-07-25.v5:YYYY-MM-DD:dry-run
 ```
 
 Apply requires the exact reviewed policy version:
@@ -38,8 +41,8 @@ Apply requires the exact reviewed policy version:
 docker compose --env-file /etc/learncoding/compose.env \
   -f /opt/learncoding/compose.yaml --profile operations run --rm --no-deps lifecycle \
   node --import tsx /app/scripts/data-lifecycle.ts retention --apply \
-  --confirm 2026-07-14.v4 \
-  --idempotency-key retention:2026-07-14.v4:YYYY-MM-DD:apply
+  --confirm 2026-07-25.v5 \
+  --idempotency-key retention:2026-07-25.v5:YYYY-MM-DD:apply
 ```
 
 The default key is policy/version/date/mode. Reusing a successful key returns the recorded report without deleting again. A running key fails closed; a failed key requires a new reviewed key. Every category reports eligible, physically deleted, retained, and `hasMore`; state-only changes such as expiring a request or marking a backup tombstone eligible for operator review use `transitioned` and keep `deleted=0`. Rerun with a new key when a bounded batch reports more. Failed object-file removal leaves metadata in place for retry.

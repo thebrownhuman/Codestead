@@ -10,7 +10,7 @@ import {
 
 describe("versioned retention policy", () => {
   it("matches the approved category defaults without an automatic evidence or audit purge", () => {
-    expect(RETENTION_POLICY.version).toBe("2026-07-14.v4");
+    expect(RETENTION_POLICY.version).toBe("2026-07-25.v5");
     expect(RETENTION_POLICY.categories.rawChat.duration).toEqual({ unit: "months", value: 12 });
     expect(RETENTION_POLICY.categories.rawCode.duration).toEqual({ unit: "months", value: 12 });
     expect(RETENTION_POLICY.categories.aiRequestMetadataAndAttachments.duration).toEqual({ unit: "months", value: 12 });
@@ -19,6 +19,14 @@ describe("versioned retention policy", () => {
     });
     expect(RETENTION_POLICY.categories.adminAudit).toMatchObject({
       duration: { unit: "minimum_months", value: 24 }, action: "retain_no_automatic_purge",
+    });
+    expect(RETENTION_POLICY.categories.terminalEmailDeliveryRecords).toEqual({
+      duration: { unit: "days", value: 30 },
+      action: "delete",
+    });
+    expect(RETENTION_POLICY.categories.unresolvedEmailDeliveryAuthority).toEqual({
+      duration: { unit: "days", value: 30 },
+      action: "redact_pii_retain_correlation_authority",
     });
     expect(RETENTION_POLICY.categories.masteryAndOfficialEvidence.action).toBe("delete_only_with_account");
     expect(RETENTION_POLICY.categories.learnerDraftsAndSyncReceipts).toMatchObject({
@@ -48,6 +56,8 @@ describe("versioned retention policy", () => {
     expect(manifest.rawChat).toBe("2025-07-12T00:00:00.000Z");
     expect(manifest.securitySessionHistory).toBe("2026-04-13T00:00:00.000Z");
     expect(manifest.adminAuditMinimum).toBe("2024-07-12T00:00:00.000Z");
+    expect(manifest.unresolvedEmailDeliveryAuthority)
+      .toBe(manifest.terminalEmailDeliveryRecords);
     expect(Object.values(manifest).every((value) => value.endsWith("Z"))).toBe(true);
   });
 

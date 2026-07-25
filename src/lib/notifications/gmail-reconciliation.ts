@@ -11,6 +11,10 @@ export type GmailReconciliationFence = Readonly<{
   leaseExpiresAt: string | null;
   adapter: "gmail";
   providerCallStartedAt: string;
+  providerMessageId: string | null;
+  sentAt: string | null;
+  dispatchBindingVersion: "gmail-raw-v1";
+  dispatchBindingSha256: string;
   quarantinedAt: string;
   lastErrorCode: string;
 }>;
@@ -47,6 +51,7 @@ export type GmailReconciliationResult =
   | { readonly kind: "not-found" }
   | { readonly kind: "ambiguous" }
   | { readonly kind: "matched" }
+  | { readonly kind: "receipt-conflict" }
   | { readonly kind: "applied" }
   | { readonly kind: "already-applied" }
   | { readonly kind: "fence-lost" };
@@ -75,6 +80,13 @@ export async function reconcileGmailDelivery(
     outboxMessageId(candidate.fence.operationId),
   );
   if (lookup.kind !== "matched") return lookup;
+  if (
+    candidate.fence.providerMessageId !== null
+    && candidate.fence.providerMessageId !== lookup.providerMessageId
+  ) {
+    return { kind: "receipt-conflict" };
+  }
+
   if (!input.apply) return { kind: "matched" };
 
   const finalized = await deps.store.finalizeGmailReconciliation({

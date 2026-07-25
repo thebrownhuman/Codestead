@@ -752,7 +752,26 @@ export async function runRetention(input: {
           and not (
             status = 'quarantined'
             and provider_call_started is not null
-            and provider_message_id is null
+            and not (
+              adapter = 'gmail'
+              and provider_message_id is not null
+              and btrim(provider_message_id) <> ''
+              and sent_at is not null
+              and quarantined_at is not null
+              and claim_token is null
+              and claim_owner is null
+              and lease_expires_at is null
+              and last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'
+              and dispatch_binding_version = 'gmail-raw-v1'
+              and dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'
+              and (
+                (user_id is not null and delivery_scope_key = 'a:' || user_id)
+                or (
+                  user_id is null
+                  and delivery_scope_key = 's:' || operation_id::text
+                )
+              )
+            )
           )
           and coalesce(sent_at, updated_at) < $1`,
       [cutoffs.terminalEmailDeliveryRecords],
@@ -840,7 +859,7 @@ export async function runRetention(input: {
       categories.terminalEmailDeliveryRecords = category(emailEligible, 0, "dry-run");
       const redaction = await runRedactionCapability(
         client,
-        cutoffs.terminalEmailDeliveryRecords,
+        cutoffs.unresolvedEmailDeliveryAuthority,
         0,
         "report-only",
       );
@@ -947,7 +966,7 @@ export async function runRetention(input: {
 
         const redaction = await runRedactionCapability(
           client,
-          cutoffs.terminalEmailDeliveryRecords,
+          cutoffs.unresolvedEmailDeliveryAuthority,
           limit,
           "apply",
         );
@@ -960,7 +979,26 @@ export async function runRetention(input: {
                 and not (
                   status = 'quarantined'
                   and provider_call_started is not null
-                  and provider_message_id is null
+                  and not (
+                    adapter = 'gmail'
+                    and provider_message_id is not null
+                    and btrim(provider_message_id) <> ''
+                    and sent_at is not null
+                    and quarantined_at is not null
+                    and claim_token is null
+                    and claim_owner is null
+                    and lease_expires_at is null
+                    and last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'
+                    and dispatch_binding_version = 'gmail-raw-v1'
+                    and dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'
+                    and (
+                      (user_id is not null and delivery_scope_key = 'a:' || user_id)
+                      or (
+                        user_id is null
+                        and delivery_scope_key = 's:' || operation_id::text
+                      )
+                    )
+                  )
                 )
                 and coalesce(sent_at, updated_at) < $1
               order by coalesce(sent_at, updated_at) asc, id asc limit $2

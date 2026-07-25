@@ -18,6 +18,10 @@ const fence: GmailReconciliationFence = {
   leaseExpiresAt: null,
   adapter: "gmail",
   providerCallStartedAt: "2026-07-22 19:00:05+00",
+  providerMessageId: null,
+  sentAt: null,
+  dispatchBindingVersion: "gmail-raw-v1",
+  dispatchBindingSha256: "a".repeat(64),
   quarantinedAt: "2026-07-22 19:01:05+00",
   lastErrorCode: "PROVIDER_OUTCOME_AMBIGUOUS",
 };
@@ -123,5 +127,31 @@ describe("Gmail outbox reconciliation", () => {
 
       expect(input.finalizeGmailReconciliation).not.toHaveBeenCalled();
     }
+  });
+
+  it("keeps a stored late receipt quarantined when Gmail returns a different provider identity", async () => {
+    const input = harness();
+    input.findGmailReconciliationFence.mockResolvedValueOnce({
+      kind: "ready",
+      fence: {
+        ...fence,
+        claimVersion: 5,
+        providerMessageId: "gmail-stored",
+        sentAt: "2026-07-22 19:02:00+00",
+        lastErrorCode: "ABANDONED_POST_PROVIDER_BOUNDARY",
+      },
+    } as never);
+    input.findByMessageId.mockResolvedValueOnce({
+      kind: "matched",
+      providerMessageId: "gmail-conflicting",
+    });
+
+    await expect(reconcileGmailDelivery({
+      operationId: OPERATION_ID,
+      apply: true,
+      confirmOperationId: OPERATION_ID,
+    }, input)).resolves.toEqual({ kind: "receipt-conflict" });
+
+    expect(input.finalizeGmailReconciliation).not.toHaveBeenCalled();
   });
 });

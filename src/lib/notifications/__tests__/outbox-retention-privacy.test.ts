@@ -31,12 +31,30 @@ describe("mail outbox retention privacy", () => {
   it.each([
     ["eligibility count", fragments.count],
     ["bounded delete", fragments.delete],
-  ] as const)("includes quarantined rows in the terminal-email %s", (_label, fragment) => {
+  ] as const)("requires the full released late-sent shape in terminal-email %s", (_label, fragment) => {
     expect(fragment).toMatch(/status\s+in\s*\([^)]*'quarantined'[^)]*\)/u);
     expect(fragment).toContain("coalesce(sent_at, updated_at) < $1");
     expect(fragment).toContain("status = 'quarantined'");
     expect(fragment).toContain("provider_call_started is not null");
-    expect(fragment).toContain("provider_message_id is null");
+    expect(fragment).toContain("adapter = 'gmail'");
+    expect(fragment).toContain("provider_message_id is not null");
+    expect(fragment).toContain("btrim(provider_message_id) <> ''");
+    expect(fragment).toContain("sent_at is not null");
+    expect(fragment).toContain("quarantined_at is not null");
+    expect(fragment).toContain("claim_token is null");
+    expect(fragment).toContain("claim_owner is null");
+    expect(fragment).toContain("lease_expires_at is null");
+    expect(fragment).toContain("delivery_scope_key = 'a:' || user_id");
+    expect(fragment).toContain("delivery_scope_key = 's:' || operation_id::text");
+    expect(fragment).toContain(
+      "last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'",
+    );
+    expect(fragment).toContain(
+      "dispatch_binding_version = 'gmail-raw-v1'",
+    );
+    expect(fragment).toContain(
+      "dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'",
+    );
     expect(fragment).toMatch(/not\s*\(\s*status\s*=\s*'quarantined'/u);
   });
 

@@ -1,6 +1,12 @@
 import pg from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
+import {
+  PostgresOutboxStore,
+  type OutboxPgPool,
+} from "../src/lib/notifications/postgres-outbox-store";
+import type { ProviderCallPermit } from "../src/lib/notifications/outbox-worker";
+
 const { Pool } = pg;
 const ROW_PREFIX = "65000000-0000-4000-8000-";
 const OPERATION_PREFIX = "65100000-0000-4000-8000-";
@@ -64,6 +70,7 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
     connectionString: requiredEnvironment("DATABASE_OPS_URL"),
     max: 1,
   });
+  const store = new PostgresOutboxStore(worker as unknown as OutboxPgPool);
   const insertedIds = new Set<string>();
 
   async function insertAndClaim(row: ReturnType<typeof fixture>) {
@@ -142,6 +149,33 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
       input.digest,
       input.leaseSeconds ?? 30,
     ]);
+  }
+
+  async function permitFor(
+    row: ReturnType<typeof fixture>,
+  ): Promise<ProviderCallPermit> {
+    const snapshot = await owner.query<{
+      provider_call_started: string;
+      lease_expires_at: Date;
+    }>(
+      `SELECT provider_call_started::text, lease_expires_at
+         FROM public.email_outbox
+        WHERE id = $1::uuid`,
+      [row.id],
+    );
+    const authority = snapshot.rows[0];
+    if (!authority) throw new Error(`Missing permit authority for ${row.id}`);
+    return {
+      phase: "post-provider",
+      id: row.id,
+      operationId: row.operationId,
+      claimToken: row.claimToken,
+      claimOwner: "mail-dispatch-0064-pg17",
+      claimVersion: 1,
+      adapter: "gmail",
+      providerCallStartedAt: authority.provider_call_started,
+      leaseExpiresAt: authority.lease_expires_at,
+    } as unknown as ProviderCallPermit;
   }
 
   beforeAll(async () => {
@@ -445,6 +479,202 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
         ],
       ),
     ).rejects.toMatchObject({ code: "42501" });
+  });
+
+  it("cleans only an exact bound late Gmail receipt after the abandonment sweep", async () => {
+    const exact = fixture(270);
+    const conflict = fixture(271);
+    const incomplete = fixture(272);
+    const reconciled = fixture(273);
+    await Promise.all([
+      insertAndClaim(exact),
+      insertAndClaim(conflict),
+      insertAndClaim(incomplete),
+      insertAndClaim(reconciled),
+    ]);
+    await Promise.all([
+      arm(exact, {
+        adapter: "gmail",
+        version: "gmail-raw-v1",
+        digest: "7".repeat(64),
+      }),
+      arm(conflict, {
+        adapter: "gmail",
+        version: "gmail-raw-v1",
+        digest: "8".repeat(64),
+      }),
+      arm(incomplete, {
+        adapter: "gmail",
+        version: "gmail-raw-v1",
+        digest: "9".repeat(64),
+      }),
+      arm(reconciled, {
+        adapter: "gmail",
+        version: "gmail-raw-v1",
+        digest: "a".repeat(64),
+      }),
+    ]);
+    const [exactPermit, conflictPermit, incompletePermit] = await Promise.all([
+      permitFor(exact),
+      permitFor(conflict),
+      permitFor(incomplete),
+    ]);
+
+    await worker.query(
+      `
+      UPDATE public.email_outbox
+         SET status = 'quarantined',
+             claim_token = NULL,
+             claim_owner = NULL,
+             lease_expires_at = NULL,
+             claim_version = claim_version + 1,
+             quarantined_at = pg_catalog.statement_timestamp(),
+             last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY',
+             updated_at = pg_catalog.statement_timestamp()
+       WHERE id = ANY($1::uuid[])
+    `,
+      [[exact.id, conflict.id, incomplete.id, reconciled.id]],
+    );
+    await worker.query(
+      `
+      UPDATE public.email_outbox
+         SET provider_message_id = 'gmail-conflict-stored',
+             sent_at = pg_catalog.statement_timestamp(),
+             updated_at = pg_catalog.statement_timestamp()
+       WHERE id = $1::uuid
+    `,
+      [conflict.id],
+    );
+    await worker.query(
+      `
+      UPDATE public.email_outbox
+         SET provider_message_id = 'gmail-reconciled-stored',
+             sent_at = pg_catalog.statement_timestamp(),
+             updated_at = pg_catalog.statement_timestamp()
+       WHERE id = $1::uuid
+    `,
+      [reconciled.id],
+    );
+    await worker.query(
+      `
+      UPDATE public.email_outbox
+         SET provider_message_id = 'gmail-incomplete',
+             updated_at = pg_catalog.statement_timestamp()
+       WHERE id = $1::uuid
+    `,
+      [incomplete.id],
+    );
+
+    await expect(
+      store.finishAfterProvider(exactPermit, {
+        kind: "sent",
+        providerMessageId: "gmail-exact",
+      }),
+    ).resolves.toEqual({ kind: "applied" });
+    await expect(
+      store.finishAfterProvider(conflictPermit, {
+        kind: "sent",
+        providerMessageId: "gmail-conflict-new",
+      }),
+    ).resolves.toEqual({ kind: "lost" });
+    await expect(
+      store.finishAfterProvider(incompletePermit, {
+        kind: "sent",
+        providerMessageId: "gmail-incomplete",
+      }),
+    ).resolves.toEqual({ kind: "lost" });
+
+    const historical = await store.findGmailReconciliationFence({
+      operationId: reconciled.operationId,
+    });
+    expect(historical.kind).toBe("ready");
+    if (historical.kind !== "ready") {
+      throw new Error("Expected the exact historical hybrid to be reconcilable");
+    }
+    expect(historical.fence).toMatchObject({
+      providerMessageId: "gmail-reconciled-stored",
+      sentAt: expect.any(String),
+      dispatchBindingVersion: "gmail-raw-v1",
+      dispatchBindingSha256: "a".repeat(64),
+    });
+    await expect(store.finalizeGmailReconciliation({
+      fence: historical.fence,
+      providerMessageId: "gmail-reconciled-stored",
+    })).resolves.toEqual({ kind: "applied" });
+
+    const rows = await owner.query<{
+      id: string;
+      status: string;
+      claim_version: number;
+      claim_token: string | null;
+      claim_owner: string | null;
+      lease_expires_at: Date | null;
+      provider_message_id: string | null;
+      sent_at: Date | null;
+      quarantined_at: Date | null;
+      last_error_code: string | null;
+      dispatch_binding_version: string | null;
+      dispatch_binding_sha256: string | null;
+    }>(
+      `
+      SELECT id::text, status::text, claim_version, claim_token::text,
+             claim_owner, lease_expires_at, provider_message_id, sent_at,
+             quarantined_at, last_error_code, dispatch_binding_version,
+             dispatch_binding_sha256
+        FROM public.email_outbox
+       WHERE id = ANY($1::uuid[])
+       ORDER BY id
+    `,
+      [[exact.id, conflict.id, incomplete.id, reconciled.id]],
+    );
+    expect(rows.rows).toEqual([
+      expect.objectContaining({
+        id: exact.id,
+        status: "sent",
+        claim_version: 2,
+        claim_token: null,
+        claim_owner: null,
+        lease_expires_at: null,
+        provider_message_id: "gmail-exact",
+        sent_at: expect.any(Date),
+        quarantined_at: null,
+        last_error_code: null,
+        dispatch_binding_version: "gmail-raw-v1",
+        dispatch_binding_sha256: "7".repeat(64),
+      }),
+      expect.objectContaining({
+        id: conflict.id,
+        status: "quarantined",
+        claim_version: 2,
+        provider_message_id: "gmail-conflict-stored",
+        sent_at: expect.any(Date),
+        quarantined_at: expect.any(Date),
+        last_error_code: "ABANDONED_POST_PROVIDER_BOUNDARY",
+      }),
+      expect.objectContaining({
+        id: incomplete.id,
+        status: "quarantined",
+        claim_version: 2,
+        provider_message_id: "gmail-incomplete",
+        sent_at: null,
+        quarantined_at: expect.any(Date),
+        last_error_code: "ABANDONED_POST_PROVIDER_BOUNDARY",
+      }),
+      expect.objectContaining({
+        id: reconciled.id,
+        status: "sent",
+        claim_version: 2,
+        claim_token: null,
+        claim_owner: null,
+        lease_expires_at: null,
+        provider_message_id: "gmail-reconciled-stored",
+        sent_at: expect.any(Date),
+        quarantined_at: null,
+        last_error_code: null,
+        dispatch_binding_version: "gmail-raw-v1",
+        dispatch_binding_sha256: "a".repeat(64),
+      }),
+    ]);
   });
 
   it("proves rollback, competing-arm CAS, and 0063 redaction preservation", async () => {
