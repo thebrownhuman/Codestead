@@ -1,4 +1,7 @@
-import { pool } from "../src/lib/db/client";
+import {
+  createMailDispatchDatabaseResources,
+  type MailDispatchDatabaseResources,
+} from "../src/lib/notifications/mail-dispatch-pool";
 import { assertGmailReconciliationOAuthScopes } from "../src/lib/notifications/gmail-oauth-scopes";
 import {
   reconcileGmailDelivery,
@@ -9,10 +12,9 @@ import {
   allowlistedOperationalErrorCode,
 } from "../src/lib/security/operational-code";
 
-export const GMAIL_RECONCILIATION_POOL_MAXIMUM_CONNECTIONS = 1;
-
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const GMAIL_RECONCILIATION_POOL_CLOSE_TIMEOUT_MS = 5_000;
 const GMAIL_RECONCILIATION_ERROR_CODE_VALUES = [
   "GMAIL_RECONCILIATION_ADAPTER_INVALID",
   "GMAIL_RECONCILIATION_DISABLED",
@@ -47,20 +49,6 @@ function reconciliationErrorCode(error: unknown) {
     error,
     GMAIL_RECONCILIATION_ERROR_CODES,
   ) ?? "GMAIL_RECONCILIATION_FAILED";
-}
-
-function hasExactReconciliationPoolOptions(): boolean {
-  try {
-    const options = pool.options;
-    return (
-      options?.max
-        === GMAIL_RECONCILIATION_POOL_MAXIMUM_CONNECTIONS
-      && options.connectionTimeoutMillis === 5_000
-      && options.idleTimeoutMillis === 30_000
-    );
-  } catch {
-    return false;
-  }
 }
 
 function commandInput(args: readonly string[]) {
@@ -117,6 +105,8 @@ function commandInput(args: readonly string[]) {
   return { operationId, apply, confirmOperationId };
 }
 
+let databaseResources: MailDispatchDatabaseResources | undefined;
+
 async function main() {
   if (process.env.GMAIL_RECONCILIATION_ENABLED !== "true") {
     failReconciliation("GMAIL_RECONCILIATION_DISABLED");
@@ -130,10 +120,9 @@ async function main() {
     failReconciliation("GMAIL_RECONCILIATION_OAUTH_SCOPE_INVALID");
   }
   const input = commandInput(process.argv.slice(2));
-  if (!hasExactReconciliationPoolOptions()) {
-    failReconciliation("GMAIL_RECONCILIATION_POOL_INVALID");
-  }
-  const store = new PostgresOutboxStore(pool);
+  const resources = await createMailDispatchDatabaseResources();
+  databaseResources = resources;
+  const store = new PostgresOutboxStore(resources.pool);
   const result = await reconcileGmailDelivery(input, {
     store,
     gmail: { findByMessageId: findGmailMessageByMessageId },
@@ -149,14 +138,27 @@ async function main() {
 }
 
 async function closePool() {
+  const pool = databaseResources?.pool;
+  if (!pool) return;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
-    await pool.end();
+    await Promise.race([
+      pool.end(),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error("Gmail reconciliation pool close timed out.")),
+          GMAIL_RECONCILIATION_POOL_CLOSE_TIMEOUT_MS,
+        );
+      }),
+    ]);
   } catch {
     console.error(JSON.stringify({
       event: "email.gmail_reconciliation_cleanup_failed",
       code: "GMAIL_RECONCILIATION_POOL_CLOSE_FAILED",
     }));
     process.exitCode = 1;
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
   }
 }
 

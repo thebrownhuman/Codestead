@@ -14,13 +14,20 @@ const RAW_MIME_LOG_CANARY =
 const mocks = vi.hoisted(() => {
   const pool = {
     options: {
-      max: 1,
-      connectionTimeoutMillis: 5_000,
+      max: 3,
+      connectionTimeoutMillis: 2_000,
       idleTimeoutMillis: 30_000,
     },
     connect: vi.fn(),
     end: vi.fn(async () => undefined),
   };
+  const database = { kind: "dedicated-mail-database" };
+  const inspection = { kind: "live-mail-startup-inspection" };
+  const createMailDispatchDatabaseResources = vi.fn(async () => ({
+    pool,
+    database,
+    inspection,
+  }));
   const store = { kind: "gmail-reconciliation-store" };
   const PostgresOutboxStore = vi.fn(function PostgresOutboxStore() {
     return store;
@@ -29,6 +36,9 @@ const mocks = vi.hoisted(() => {
   const reconcileGmailDelivery = vi.fn(async () => ({ kind: "applied" }));
   return {
     pool,
+    database,
+    inspection,
+    createMailDispatchDatabaseResources,
     store,
     PostgresOutboxStore,
     findGmailMessageByMessageId,
@@ -36,7 +46,13 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("../src/lib/db/client", () => ({ pool: mocks.pool }));
+vi.mock("../src/lib/db/client", () => {
+  throw new Error("Gmail reconciler imported the application database client.");
+});
+vi.mock("../src/lib/notifications/mail-dispatch-pool", () => ({
+  createMailDispatchDatabaseResources:
+    mocks.createMailDispatchDatabaseResources,
+}));
 vi.mock("../src/lib/notifications/postgres-outbox-store", () => ({
   PostgresOutboxStore: mocks.PostgresOutboxStore,
 }));
@@ -54,8 +70,8 @@ describe("Gmail reconciliation operator command", () => {
     vi.resetModules();
     vi.clearAllMocks();
     Object.assign(mocks.pool.options, {
-      max: 1,
-      connectionTimeoutMillis: 5_000,
+      max: 3,
+      connectionTimeoutMillis: 2_000,
       idleTimeoutMillis: 30_000,
     });
     vi.stubEnv("MAIL_ADAPTER", "gmail");
@@ -67,6 +83,7 @@ describe("Gmail reconciliation operator command", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     process.argv = [...originalArgv];
     process.exitCode = undefined;
     vi.unstubAllEnvs();
@@ -89,8 +106,10 @@ describe("Gmail reconciliation operator command", () => {
       ];
 
       await import("./reconcile-gmail-outbox");
-      await vi.waitFor(() => expect(mocks.pool.end).toHaveBeenCalledOnce());
+      await vi.waitFor(() => expect(console.error).toHaveBeenCalled());
 
+      expect(mocks.createMailDispatchDatabaseResources).not.toHaveBeenCalled();
+      expect(mocks.pool.end).not.toHaveBeenCalled();
       expect(mocks.PostgresOutboxStore).not.toHaveBeenCalled();
       expect(mocks.reconcileGmailDelivery).not.toHaveBeenCalled();
       expect(process.exitCode).toBe(1);
@@ -105,15 +124,17 @@ describe("Gmail reconciliation operator command", () => {
     },
   );
 
-  it.each([
-    ["maximum", { max: 2 }],
-    ["acquire timeout", { connectionTimeoutMillis: 4_999 }],
-    ["idle timeout", { idleTimeoutMillis: 29_999 }],
-  ])("fails closed before database or Gmail access when the pool %s drifts", async (
-    _label,
-    drift,
-  ) => {
-    Object.assign(mocks.pool.options, drift);
+  it("fails closed when dedicated resource startup rejects pool authority", async () => {
+    const failure = Object.assign(
+      new Error("private startup detail"),
+      { code: "GMAIL_RECONCILIATION_POOL_INVALID" },
+    );
+    mocks.createMailDispatchDatabaseResources.mockImplementationOnce(
+      async () => {
+        await mocks.pool.end();
+        throw failure;
+      },
+    );
     process.argv = [
       originalArgv[0]!,
       originalArgv[1]!,
@@ -122,14 +143,14 @@ describe("Gmail reconciliation operator command", () => {
     ];
 
     await import("./reconcile-gmail-outbox");
-    await vi.waitFor(() => expect(mocks.pool.end).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(console.error).toHaveBeenCalled());
 
+    expect(mocks.createMailDispatchDatabaseResources).toHaveBeenCalledWith();
+    expect(mocks.pool.end).toHaveBeenCalledOnce();
     expect(mocks.PostgresOutboxStore).not.toHaveBeenCalled();
     expect(mocks.reconcileGmailDelivery).not.toHaveBeenCalled();
     expect(process.exitCode).toBe(1);
-    const logs = vi.mocked(console.error).mock.calls
-      .map(([entry]) => String(entry));
-    expect(logs).toEqual([
+    expect(vi.mocked(console.error).mock.calls.map(([entry]) => String(entry))).toEqual([
       JSON.stringify({
         event: "email.gmail_reconciliation_failed",
         code: "GMAIL_RECONCILIATION_POOL_INVALID",
@@ -211,6 +232,42 @@ describe("Gmail reconciliation operator command", () => {
     expect(process.exitCode).toBe(1);
   });
 
+  it("bounds dedicated pool cleanup to five seconds", async () => {
+    vi.useFakeTimers();
+    mocks.pool.end.mockImplementationOnce(
+      () => new Promise<undefined>(() => undefined),
+    );
+    process.argv = [
+      originalArgv[0]!,
+      originalArgv[1]!,
+      "--operation-id",
+      OPERATION_ID,
+    ];
+
+    await import("./reconcile-gmail-outbox");
+    for (let index = 0; index < 12; index += 1) {
+      await Promise.resolve();
+    }
+
+    expect(mocks.pool.end).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(console.error).not.toHaveBeenCalledWith(
+      JSON.stringify({
+        event: "email.gmail_reconciliation_cleanup_failed",
+        code: "GMAIL_RECONCILIATION_POOL_CLOSE_FAILED",
+      }),
+    );
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(console.error).toHaveBeenCalledWith(
+      JSON.stringify({
+        event: "email.gmail_reconciliation_cleanup_failed",
+        code: "GMAIL_RECONCILIATION_POOL_CLOSE_FAILED",
+      }),
+    );
+    expect(process.exitCode).toBe(1);
+  });
+
   it("requires explicit apply confirmation and logs no operation, correlation, or provider identity", async () => {
     process.argv = [
       originalArgv[0]!,
@@ -225,6 +282,7 @@ describe("Gmail reconciliation operator command", () => {
     await import("./reconcile-gmail-outbox");
     await vi.waitFor(() => expect(mocks.pool.end).toHaveBeenCalledOnce());
 
+    expect(mocks.createMailDispatchDatabaseResources).toHaveBeenCalledWith();
     expect(mocks.PostgresOutboxStore).toHaveBeenCalledWith(mocks.pool);
     expect(mocks.reconcileGmailDelivery).toHaveBeenCalledWith({
       operationId: OPERATION_ID,
