@@ -40,6 +40,7 @@ type RoleBootstrapRunner = (options: {
   readonly databaseMigratorUrl: string;
   readonly databaseWorkerUrl: string;
   readonly databaseOpsUrl: string;
+  readonly databaseBackupReporterUrl: string;
   readonly lockTimeoutMs: number;
   readonly cleanupTimeoutMs: number;
   readonly pool: InstanceType<typeof Pool>;
@@ -62,6 +63,7 @@ type RoleBoundaryVerifier = (options: {
   readonly databaseMigratorUrl: string;
   readonly databaseWorkerUrl: string;
   readonly databaseOpsUrl: string;
+  readonly databaseBackupReporterUrl: string;
   readonly requireApplicationObjects: boolean;
   readonly lockTimeoutMs: number;
   readonly poolFactory: (input: Readonly<{
@@ -77,6 +79,7 @@ type DisposableRoleCredentials = Readonly<{
   migrator: string;
   worker: string;
   ops: string;
+  backupReporter: string;
 }>;
 
 function executable(name: "docker" | "npm") {
@@ -212,6 +215,10 @@ function disposableRoleUrls(
     migrator: loopback("learncoding_migrator", credentials.migrator),
     worker: loopback("learncoding_worker", credentials.worker),
     ops: loopback("learncoding_ops", credentials.ops),
+    backupReporter: loopback(
+      "learncoding_backup_reporter",
+      credentials.backupReporter,
+    ),
   };
 }
 
@@ -267,6 +274,10 @@ async function reconcileDisposableIntegrationRoles(input: {
       input.credentials.worker,
     ),
     databaseOpsUrl: canonical("learncoding_ops", input.credentials.ops),
+    databaseBackupReporterUrl: canonical(
+      "learncoding_backup_reporter",
+      input.credentials.backupReporter,
+    ),
     lockTimeoutMs: 10_000,
     cleanupTimeoutMs: 5_000,
     pool,
@@ -451,6 +462,7 @@ async function main() {
     migrator: generatedPassword(),
     worker: generatedPassword(),
     ops: generatedPassword(),
+    backupReporter: generatedPassword(),
   });
   const port = await allocateDisposableLoopbackPort();
   const databaseUrl = databaseRoleUrl({
@@ -472,10 +484,12 @@ async function main() {
     roleCredentials.migrator,
     roleCredentials.worker,
     roleCredentials.ops,
+    roleCredentials.backupReporter,
     roleUrls.app,
     roleUrls.migrator,
     roleUrls.worker,
     roleUrls.ops,
+    roleUrls.backupReporter,
   ];
   const childController = createDisposableIntegrationChildController();
   const requestedImage = process.env.INTEGRATION_POSTGRES_IMAGE;
@@ -520,6 +534,7 @@ async function main() {
         databaseMigratorUrl: roleUrls.migrator,
         databaseWorkerUrl: roleUrls.worker,
         databaseOpsUrl: roleUrls.ops,
+        databaseBackupReporterUrl: roleUrls.backupReporter,
         databaseUrl: ownerDatabaseUrl,
         betterAuthSecret,
       });

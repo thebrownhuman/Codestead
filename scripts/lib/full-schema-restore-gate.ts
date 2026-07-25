@@ -8,12 +8,24 @@ type MigrationJournalEntry = Readonly<{
   breakpoints: boolean;
 }>;
 
+const MINIMUM_RESTORE_MIGRATION_INDEX = 63;
+const MIGRATION_LEDGER_VERSION = "drizzle-migration-ledger-v1";
+
+export type MigrationLedgerEntryContract = Readonly<{
+  idx: number;
+  tag: string;
+  when: number;
+  sqlSha256: string;
+}>;
+
 export type MigrationTailContract = Readonly<{
+  entries: readonly MigrationLedgerEntryContract[];
   entryCount: number;
   tailIndex: number;
   tailTag: string;
   tailWhen: number;
   tailSha256: string;
+  databaseLedgerSha256: string;
 }>;
 
 export type FullSchemaRestoreSnapshot = Readonly<{
@@ -21,6 +33,7 @@ export type FullSchemaRestoreSnapshot = Readonly<{
   journalEntryCount: number;
   journalTailSha256: string;
   journalTailWhen: number;
+  migrationLedgerSha256: string;
   objectContractSha256: string;
   mailRowsSha256: string;
   mailRowCount: number;
@@ -110,27 +123,95 @@ function validatedJournalEntries(value: unknown): readonly MigrationJournalEntry
   return entries;
 }
 
-export function deriveMigrationTailContract(
+function databaseLedgerRows(
+  entries: readonly MigrationLedgerEntryContract[],
+): readonly Record<string, string>[] {
+  return entries.map((entry) => ({
+    migration_index: String(entry.idx),
+    migration_sha256: entry.sqlSha256,
+    migration_when: String(entry.when),
+  }));
+}
+
+function databaseLedgerSha256(
+  entries: readonly MigrationLedgerEntryContract[],
+): string {
+  return createHash("sha256").update(JSON.stringify({
+    entries: databaseLedgerRows(entries),
+    version: MIGRATION_LEDGER_VERSION,
+  }), "utf8").digest("hex");
+}
+
+export function deriveMigrationLedgerContract(
   journal: unknown,
-  tailSql: string,
+  sqlSources: readonly string[],
 ): MigrationTailContract {
-  const entries = validatedJournalEntries(journal);
+  const journalEntries = validatedJournalEntries(journal);
   if (
-    typeof tailSql !== "string"
-    || tailSql.length === 0
-    || tailSql.includes("\0")
+    !Array.isArray(sqlSources)
+    || sqlSources.length !== journalEntries.length
   ) {
     return invalidJournal();
   }
+  const entries = journalEntries.map((entry, index) => {
+    const sql = sqlSources[index];
+    if (typeof sql !== "string" || sql.length === 0 || sql.includes("\0")) {
+      return invalidJournal();
+    }
+    return {
+      idx: entry.idx,
+      tag: entry.tag,
+      when: entry.when,
+      sqlSha256: createHash("sha256").update(sql, "utf8").digest("hex"),
+    };
+  });
   const tail = entries.at(-1);
   if (tail === undefined) return invalidJournal();
   return {
+    entries,
     entryCount: entries.length,
     tailIndex: tail.idx,
     tailTag: tail.tag,
     tailWhen: tail.when,
-    tailSha256: createHash("sha256").update(tailSql, "utf8").digest("hex"),
+    tailSha256: tail.sqlSha256,
+    databaseLedgerSha256: databaseLedgerSha256(entries),
   };
+}
+
+export function requireFullSchemaRestoreMigrationContract(
+  migration: MigrationTailContract,
+): MigrationTailContract {
+  const entries = Array.isArray(migration.entries)
+    ? migration.entries
+    : [];
+  const tail = entries.at(-1);
+  if (
+    migration.tailIndex < MINIMUM_RESTORE_MIGRATION_INDEX
+    || migration.entryCount !== migration.tailIndex + 1
+    || entries.length !== migration.entryCount
+    || tail === undefined
+    || tail.idx !== migration.tailIndex
+    || tail.tag !== migration.tailTag
+    || tail.when !== migration.tailWhen
+    || tail.sqlSha256 !== migration.tailSha256
+    || migration.databaseLedgerSha256 !==
+      databaseLedgerSha256(entries)
+    || entries.some((entry, index) =>
+      entry.idx !== index
+      || !Number.isSafeInteger(entry.when)
+      || entry.when <= 0
+      || typeof entry.tag !== "string"
+      || !new RegExp(`^${String(index).padStart(4, "0")}_`, "u")
+        .test(entry.tag)
+      || !/^[0-9a-f]{64}$/u.test(entry.sqlSha256)
+      || (
+        index > 0
+        && entry.when <= entries[index - 1]!.when
+      ))
+  ) {
+    throw new Error("full-schema restore requires migration 0063 or later");
+  }
+  return migration;
 }
 
 function validSha256(value: string): boolean {
@@ -147,6 +228,7 @@ function validSnapshot(
     && validSha256(value.journalTailSha256)
     && Number.isSafeInteger(value.journalTailWhen)
     && value.journalTailWhen > 0
+    && validSha256(value.migrationLedgerSha256)
     && validSha256(value.objectContractSha256)
     && validSha256(value.mailRowsSha256)
     && Number.isSafeInteger(value.mailRowCount)
@@ -163,6 +245,7 @@ function sameSnapshot(
     && left.journalEntryCount === right.journalEntryCount
     && left.journalTailSha256 === right.journalTailSha256
     && left.journalTailWhen === right.journalTailWhen
+    && left.migrationLedgerSha256 === right.migrationLedgerSha256
     && left.objectContractSha256 === right.objectContractSha256
     && left.mailRowsSha256 === right.mailRowsSha256
     && left.mailRowCount === right.mailRowCount
@@ -179,6 +262,7 @@ function snapshotMatchesMigration(
     && snapshot.journalEntryCount === migration.entryCount
     && snapshot.journalTailSha256 === migration.tailSha256
     && snapshot.journalTailWhen === migration.tailWhen
+    && snapshot.migrationLedgerSha256 === migration.databaseLedgerSha256
   );
 }
 
@@ -204,6 +288,9 @@ function validatedSmoke(
 export async function runFullSchemaRestoreVerification<Archive>(
   dependencies: FullSchemaRestoreDependencies<Archive>,
 ) {
+  requireFullSchemaRestoreMigrationContract(
+    dependencies.migration,
+  );
   const { source, target } = dependencies;
 
   await source.reconcileRoles();

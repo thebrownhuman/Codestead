@@ -13,6 +13,7 @@ export function buildDisposableIntegrationRuntimeEnvironment(
     databaseMigratorUrl: string;
     databaseWorkerUrl: string;
     databaseOpsUrl: string;
+    databaseBackupReporterUrl: string;
     databaseUrl: string;
     betterAuthSecret: string;
   }>,
@@ -26,6 +27,7 @@ export function buildDisposableIntegrationRuntimeEnvironment(
     DATABASE_MIGRATOR_URL: input.databaseMigratorUrl,
     DATABASE_WORKER_URL: input.databaseWorkerUrl,
     DATABASE_OPS_URL: input.databaseOpsUrl,
+    DATABASE_BACKUP_REPORTER_URL: input.databaseBackupReporterUrl,
     DATABASE_URL: input.databaseUrl,
     DATABASE_POOL_SIZE: "8",
     NODE_ENV: "test",

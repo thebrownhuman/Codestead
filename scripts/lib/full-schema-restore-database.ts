@@ -48,20 +48,13 @@ export function stableSha256(value: unknown): string {
 
 const JOURNAL_SQL = `
   select
-    pg_catalog.count(*)::text as journal_entry_count,
     (
-      select migration.hash
-        from drizzle.__drizzle_migrations migration
-       order by migration.id desc
-       limit 1
-    ) as journal_tail_sha256,
-    (
-      select migration.created_at::text
-        from drizzle.__drizzle_migrations migration
-       order by migration.id desc
-       limit 1
-    ) as journal_tail_when
-  from drizzle.__drizzle_migrations
+      pg_catalog.row_number() over (order by migration.id) - 1
+    )::text as migration_index,
+    migration.hash as migration_sha256,
+    migration.created_at::text as migration_when
+    from drizzle.__drizzle_migrations migration
+   order by migration.id
 `;
 
 const OBJECT_CONTRACT_SQL = `
@@ -112,7 +105,8 @@ const OBJECT_CONTRACT_SQL = `
        'learncoding_migrator',
        'learncoding_app',
        'learncoding_worker',
-       'learncoding_ops'
+       'learncoding_ops',
+       'learncoding_backup_reporter'
      )
 
     union all
@@ -148,7 +142,76 @@ const OBJECT_CONTRACT_SQL = `
             from pg_catalog.unnest(
               coalesce(relation.relacl, '{}'::aclitem[])
             ) item
-        ), '[]'::jsonb)
+        ), '[]'::jsonb),
+        'definition', case relation.relkind
+          when 'i' then pg_catalog.pg_get_indexdef(
+            relation.oid, 0, true
+          )
+          when 'I' then pg_catalog.pg_get_indexdef(
+            relation.oid, 0, true
+          )
+          when 'v' then pg_catalog.pg_get_viewdef(
+            relation.oid, true
+          )
+          when 'm' then pg_catalog.pg_get_viewdef(
+            relation.oid, true
+          )
+          else null
+        end,
+        'force_row_security', relation.relforcerowsecurity,
+        'policies', coalesce((
+          select pg_catalog.jsonb_agg(
+            pg_catalog.jsonb_build_object(
+              'command', policy.polcmd,
+              'name', policy.polname,
+              'permissive', policy.polpermissive,
+              'roles', coalesce((
+                select pg_catalog.jsonb_agg(
+                  case role_oid
+                    when 0 then 'PUBLIC'
+                    else pg_catalog.pg_get_userbyid(role_oid)
+                  end
+                  order by case role_oid
+                    when 0 then 'PUBLIC'
+                    else pg_catalog.pg_get_userbyid(role_oid)
+                  end
+                )
+                  from pg_catalog.unnest(policy.polroles)
+                       role_oid
+              ), '[]'::jsonb),
+              'using', pg_catalog.pg_get_expr(
+                policy.polqual,
+                policy.polrelid
+              ),
+              'with_check', pg_catalog.pg_get_expr(
+                policy.polwithcheck,
+                policy.polrelid
+              )
+            )
+            order by policy.polname, policy.oid
+          )
+            from pg_catalog.pg_policy policy
+           where policy.polrelid = relation.oid
+        ), '[]'::jsonb),
+        'row_security', relation.relrowsecurity,
+        'sequence', case when relation.relkind = 'S' then (
+          select pg_catalog.jsonb_build_object(
+            'cache', sequence.seqcache::text,
+            'cycle', sequence.seqcycle,
+            'data_type', pg_catalog.format_type(
+              sequence.seqtypid, -1
+            ),
+            'increment', sequence.seqincrement::text,
+            'last_value', pg_catalog.pg_sequence_last_value(
+              relation.oid::pg_catalog.regclass
+            )::text,
+            'maximum', sequence.seqmax::text,
+            'minimum', sequence.seqmin::text,
+            'start', sequence.seqstart::text
+          )
+            from pg_catalog.pg_sequence sequence
+           where sequence.seqrelid = relation.oid
+        ) else null end
       )
       from pg_catalog.pg_class relation
       join pg_catalog.pg_namespace namespace
@@ -238,6 +301,7 @@ const OBJECT_CONTRACT_SQL = `
           pg_catalog.to_jsonb(routine.proconfig),
           '[]'::jsonb
         ),
+        'definition', pg_catalog.pg_get_functiondef(routine.oid),
         'language', language.lanname,
         'security_definer', routine.prosecdef
       )
@@ -285,7 +349,90 @@ const OBJECT_CONTRACT_SQL = `
             from pg_catalog.unnest(
               coalesce(type_row.typacl, '{}'::aclitem[])
             ) item
-        ), '[]'::jsonb)
+        ), '[]'::jsonb),
+        'domain', case when type_row.typtype = 'd' then
+          pg_catalog.jsonb_build_object(
+            'base_type', pg_catalog.format_type(
+              type_row.typbasetype,
+              type_row.typtypmod
+            ),
+            'constraints', coalesce((
+              select pg_catalog.jsonb_agg(
+                pg_catalog.jsonb_build_object(
+                  'definition', pg_catalog.pg_get_constraintdef(
+                    domain_constraint.oid,
+                    true
+                  ),
+                  'name', domain_constraint.conname,
+                  'validated', domain_constraint.convalidated
+                )
+                order by domain_constraint.conname,
+                         domain_constraint.oid
+              )
+                from pg_catalog.pg_constraint domain_constraint
+               where domain_constraint.contypid = type_row.oid
+            ), '[]'::jsonb),
+            'default', pg_catalog.pg_get_expr(
+              type_row.typdefaultbin,
+              0
+            ),
+            'not_null', type_row.typnotnull
+          )
+          else null
+        end,
+        'enum_labels', case when type_row.typtype = 'e' then
+          coalesce((
+            select pg_catalog.jsonb_agg(
+              pg_catalog.jsonb_build_object(
+                'label', enum_label.enumlabel,
+                'sort_order', enum_label.enumsortorder::text
+              )
+              order by enum_label.enumsortorder,
+                       enum_label.enumlabel
+            )
+              from pg_catalog.pg_enum enum_label
+             where enum_label.enumtypid = type_row.oid
+          ), '[]'::jsonb)
+          else null
+        end,
+        'range', (
+          select pg_catalog.jsonb_build_object(
+            'canonical', case range_row.rngcanonical
+              when 0 then null
+              else range_row.rngcanonical::pg_catalog.regprocedure::text
+            end,
+            'collation', case range_row.rngcollation
+              when 0 then null
+              else range_row.rngcollation::pg_catalog.regcollation::text
+            end,
+            'kind', case
+              when range_row.rngtypid = type_row.oid then 'range'
+              else 'multirange'
+            end,
+            'opclass', (
+              select pg_catalog.quote_ident(opclass_namespace.nspname)
+                     || '.'
+                     || pg_catalog.quote_ident(opclass.opcname)
+                from pg_catalog.pg_opclass opclass
+                join pg_catalog.pg_namespace opclass_namespace
+                  on opclass_namespace.oid = opclass.opcnamespace
+               where opclass.oid = range_row.rngsubopc
+            ),
+            'subdiff', case range_row.rngsubdiff
+              when 0 then null
+              else range_row.rngsubdiff::pg_catalog.regprocedure::text
+            end,
+            'subtype', pg_catalog.format_type(
+              range_row.rngsubtype,
+              -1
+            )
+          )
+            from pg_catalog.pg_range range_row
+           where range_row.rngtypid = type_row.oid
+              or range_row.rngmultitypid = type_row.oid
+           order by range_row.rngtypid
+           limit 1
+        )
       )
       from pg_catalog.pg_type type_row
       join pg_catalog.pg_namespace namespace
@@ -326,8 +473,27 @@ const MAIL_ROWS_SQL = `
   select pg_catalog.to_jsonb(outbox) as payload
     from public.email_outbox outbox
    where outbox.idempotency_key like 'full-schema-restore:%'
+      or outbox.idempotency_key =
+         'backup-status:v1:20260725T000000Z'
    order by outbox.idempotency_key, outbox.id
 `;
+
+const BACKUP_AUTHORITY_CATALOG_SQL = `
+  select pg_catalog.to_regclass(
+    'public.backup_status_mail_authority'
+  ) is not null as authority_table_present
+`;
+
+const BACKUP_AUTHORITY_ROWS_SQL = `
+  select pg_catalog.to_jsonb(authority) as payload
+    from public.backup_status_mail_authority authority
+   where authority.run_key = '20260725T000000Z'
+   order by authority.run_key, authority.id
+`;
+
+const MIGRATION_LEDGER_VERSION = "drizzle-migration-ledger-v1";
+const OBJECT_CONTRACT_VERSION = "postgres-object-contract-v2";
+const MAIL_AUTHORITY_VERSION = "mail-authority-rows-v2";
 
 function positiveInteger(value: unknown): number | undefined {
   if (typeof value !== "string" || !/^[1-9][0-9]*$/u.test(value)) {
@@ -335,6 +501,85 @@ function positiveInteger(value: unknown): number | undefined {
   }
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) ? parsed : undefined;
+}
+
+function parsedMigrationLedger(
+  rows: readonly Record<string, unknown>[],
+): Readonly<{
+  entryCount: number;
+  tailSha256: string;
+  tailWhen: number;
+  sha256: string;
+}> | undefined {
+  if (rows.length === 0) return undefined;
+  let priorWhen = 0;
+  for (const [index, row] of rows.entries()) {
+    const keys = Object.keys(row).sort();
+    const when = positiveInteger(row.migration_when);
+    if (
+      keys.join(",") !==
+        "migration_index,migration_sha256,migration_when"
+      || row.migration_index !== String(index)
+      || typeof row.migration_sha256 !== "string"
+      || !/^[0-9a-f]{64}$/u.test(row.migration_sha256)
+      || when === undefined
+      || when <= priorWhen
+    ) {
+      return undefined;
+    }
+    priorWhen = when;
+  }
+  const tail = rows.at(-1)!;
+  return {
+    entryCount: rows.length,
+    tailSha256: tail.migration_sha256 as string,
+    tailWhen: positiveInteger(tail.migration_when)!,
+    sha256: stableSha256({
+      entries: rows,
+      version: MIGRATION_LEDGER_VERSION,
+    }),
+  };
+}
+
+function objectContractSortKey(
+  row: Record<string, unknown>,
+): string | undefined {
+  const fields = [
+    row.kind,
+    row.schema_name,
+    row.object_name,
+    row.identity,
+    row.owner_name,
+  ];
+  if (
+    fields.some((field) => typeof field !== "string")
+    || row.attributes === null
+    || typeof row.attributes !== "object"
+    || Array.isArray(row.attributes)
+  ) {
+    return undefined;
+  }
+  return (fields as string[]).join("\u0000");
+}
+
+export function hashFullSchemaObjectContract(
+  rows: readonly Record<string, unknown>[],
+): string {
+  if (rows.length === 0) {
+    throw new Error("full-schema restore object contract is invalid");
+  }
+  let prior: string | undefined;
+  for (const row of rows) {
+    const key = objectContractSortKey(row);
+    if (key === undefined || (prior !== undefined && key <= prior)) {
+      throw new Error("full-schema restore object contract is invalid");
+    }
+    prior = key;
+  }
+  return stableSha256({
+    objects: rows,
+    version: OBJECT_CONTRACT_VERSION,
+  });
 }
 
 export async function collectFullSchemaRestoreSnapshot(
@@ -350,31 +595,64 @@ export async function collectFullSchemaRestoreSnapshot(
   const versionNumber = positiveInteger(
     versionResult.rows[0]?.server_version_num,
   );
-  const journal = journalResult.rows[0];
-  const journalEntryCount = positiveInteger(journal?.journal_entry_count);
-  const journalTailWhen = positiveInteger(journal?.journal_tail_when);
-  const journalTailSha256 = journal?.journal_tail_sha256;
+  const migrationLedger = parsedMigrationLedger(journalResult.rows);
   const mailRows = mailResult.rows.map((row) => row.payload);
+  let objectContractSha256: string | undefined;
+  try {
+    objectContractSha256 = hashFullSchemaObjectContract(
+      objectResult.rows,
+    );
+  } catch {
+    objectContractSha256 = undefined;
+  }
   if (
     versionNumber === undefined
-    || journalEntryCount === undefined
-    || journalTailWhen === undefined
-    || typeof journalTailSha256 !== "string"
-    || !/^[0-9a-f]{64}$/u.test(journalTailSha256)
-    || objectResult.rows.length === 0
+    || migrationLedger === undefined
+    || objectContractSha256 === undefined
     || mailRows.length === 0
     || mailRows.some((row) => row === null || typeof row !== "object")
   ) {
     throw new Error("full-schema restore database snapshot failed");
   }
 
+  const authorityCatalog = await client.query(
+    BACKUP_AUTHORITY_CATALOG_SQL,
+  );
+  if (
+    authorityCatalog.rows.length !== 1
+    || typeof authorityCatalog.rows[0]?.authority_table_present !==
+      "boolean"
+  ) {
+    throw new Error("full-schema restore database snapshot failed");
+  }
+  const authorityRows = authorityCatalog.rows[0].authority_table_present
+    ? (await client.query(BACKUP_AUTHORITY_ROWS_SQL)).rows.map(
+      (row) => row.payload,
+    )
+    : [];
+  if (
+    authorityCatalog.rows[0].authority_table_present === true
+    && (
+      authorityRows.length !== 1
+      || authorityRows.some((row) =>
+        row === null || typeof row !== "object")
+    )
+  ) {
+    throw new Error("full-schema restore database snapshot failed");
+  }
+
   return {
     postgresMajor: Math.floor(versionNumber / 10_000),
-    journalEntryCount,
-    journalTailSha256,
-    journalTailWhen,
-    objectContractSha256: stableSha256(objectResult.rows),
-    mailRowsSha256: stableSha256(mailRows),
+    journalEntryCount: migrationLedger.entryCount,
+    journalTailSha256: migrationLedger.tailSha256,
+    journalTailWhen: migrationLedger.tailWhen,
+    migrationLedgerSha256: migrationLedger.sha256,
+    objectContractSha256,
+    mailRowsSha256: stableSha256({
+      backupStatusAuthority: authorityRows,
+      outbox: mailRows,
+      version: MAIL_AUTHORITY_VERSION,
+    }),
     mailRowCount: mailRows.length,
   };
 }
@@ -405,34 +683,33 @@ const CLAIM_SQL = `
 `;
 
 const REDACT_SQL = `
-  select pg_catalog.count(*)::text as redacted_rows
+  select summary.disposition,
+         summary.eligible::text as eligible,
+         summary.transitioned::text as transitioned
     from public.redact_unresolved_email_outbox_authority(
       pg_catalog.statement_timestamp() - interval '30 days',
       100
-    )
+    ) summary
+   order by case summary.disposition
+     when 'eligible' then 1
+     when 'blocked' then 2
+     when 'malformed' then 3
+     else 4
+   end
 `;
 
 const VERIFY_REDACTION_SQL = `
-  select pg_catalog.count(*)::text as redacted_rows
+  select outbox.id::text as id,
+         outbox.idempotency_key,
+         outbox.user_id,
+         outbox.to_email,
+         outbox.variables
     from public.email_outbox outbox
-   where outbox.idempotency_key like
-         'full-schema-restore:%quarantined:%'
-     and outbox.to_email =
-         'redacted+' || outbox.id::text || '@invalid.local'
-     and (
-       (
-         outbox.user_id is not null
-         and outbox.variables = '{}'::jsonb
-       )
-       or (
-         outbox.user_id is null
-         and pg_catalog.jsonb_object_length(outbox.variables) = 4
-         and outbox.variables ->> '_mailRecipient' = outbox.to_email
-         and outbox.variables ? '_mailOperationId'
-         and outbox.variables ? '_mailProducer'
-         and outbox.variables ? '_mailSourceId'
-       )
+   where outbox.idempotency_key in (
+     'full-schema-restore:account-quarantined:v1',
+     'full-schema-restore:system-quarantined:v1'
      )
+   order by outbox.idempotency_key
 `;
 
 async function probeWorkerClaim(
@@ -464,6 +741,92 @@ async function probeWorkerClaim(
   return claimedRows;
 }
 
+function nonNegativeInteger(value: unknown): number | undefined {
+  if (typeof value !== "string" || !/^(?:0|[1-9][0-9]*)$/u.test(value)) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
+}
+
+function transitionedRedactionRows(
+  rows: readonly Record<string, unknown>[],
+): number | undefined {
+  const expected = [
+    { disposition: "eligible", eligible: 2, transitioned: 2 },
+    { disposition: "blocked", eligible: 0, transitioned: 0 },
+    { disposition: "malformed", eligible: 0, transitioned: 0 },
+  ] as const;
+  if (rows.length !== expected.length) return undefined;
+
+  let transitioned = 0;
+  for (const [index, contract] of expected.entries()) {
+    const row = rows[index];
+    const eligible = nonNegativeInteger(row?.eligible);
+    const rowTransitioned = nonNegativeInteger(row?.transitioned);
+    if (
+      row?.disposition !== contract.disposition
+      || eligible !== contract.eligible
+      || rowTransitioned !== contract.transitioned
+    ) {
+      return undefined;
+    }
+    transitioned += rowTransitioned;
+  }
+  return transitioned;
+}
+
+function verifiedRedactedRows(
+  rows: readonly Record<string, unknown>[],
+): number | undefined {
+  const expected = [
+    {
+      id: "20000000-0000-4000-8000-000000000002",
+      idempotencyKey: "full-schema-restore:account-quarantined:v1",
+      userId: "full-schema-restore-learner",
+      toEmail:
+        "redacted+20000000-0000-4000-8000-000000000002@invalid.local",
+      variables: {},
+    },
+    {
+      id: "20000000-0000-4000-8000-000000000004",
+      idempotencyKey: "full-schema-restore:system-quarantined:v1",
+      userId: null,
+      toEmail:
+        "redacted+20000000-0000-4000-8000-000000000004@invalid.local",
+      variables: {
+        _mailOperationId: "30000000-0000-4000-8000-000000000004",
+        _mailRecipient:
+          "redacted+20000000-0000-4000-8000-000000000004@invalid.local",
+        _mailProducer: "access-request-admin",
+        _mailSourceId: "10000000-0000-4000-8000-000000000001",
+      },
+    },
+  ] as const;
+  if (rows.length !== expected.length) return undefined;
+
+  try {
+    for (const [index, contract] of expected.entries()) {
+      const row = rows[index];
+      if (
+        row?.id !== contract.id
+        || row.idempotency_key !== contract.idempotencyKey
+        || row.user_id !== contract.userId
+        || row.to_email !== contract.toEmail
+        || row.variables === null
+        || typeof row.variables !== "object"
+        || Array.isArray(row.variables)
+        || stableSha256(row.variables) !== stableSha256(contract.variables)
+      ) {
+        return undefined;
+      }
+    }
+  } catch {
+    return undefined;
+  }
+  return rows.length;
+}
+
 export async function runFullSchemaRestoreDatabaseSmoke(input: Readonly<{
   worker: FullSchemaRestoreQueryClient;
   ops: FullSchemaRestoreQueryClient;
@@ -472,8 +835,8 @@ export async function runFullSchemaRestoreDatabaseSmoke(input: Readonly<{
   const claimedRows = await probeWorkerClaim(input.worker);
   const redaction = await input.ops.query(REDACT_SQL);
   const verification = await input.verifier.query(VERIFY_REDACTION_SQL);
-  const redactedRows = positiveInteger(redaction.rows[0]?.redacted_rows);
-  const verifiedRows = positiveInteger(verification.rows[0]?.redacted_rows);
+  const redactedRows = transitionedRedactionRows(redaction.rows);
+  const verifiedRows = verifiedRedactedRows(verification.rows);
   if (
     redactedRows === undefined
     || verifiedRows === undefined
