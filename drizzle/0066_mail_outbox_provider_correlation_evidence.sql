@@ -458,7 +458,7 @@ BEGIN
     SELECT DISTINCT expanded.grantee
       FROM pg_catalog.pg_proc AS routine
       CROSS JOIN LATERAL pg_catalog.aclexplode(
-        pg_catalog.coalesce(
+        COALESCE(
           routine.proacl,
           pg_catalog.acldefault('f', routine.proowner)
         )
@@ -504,10 +504,7 @@ BEGIN
     SELECT DISTINCT expanded.grantee
       FROM pg_catalog.pg_attribute AS attribute
       CROSS JOIN LATERAL pg_catalog.aclexplode(
-        pg_catalog.coalesce(
-          attribute.attacl,
-          '{}'::pg_catalog.aclitem[]
-        )
+        attribute.attacl
       ) AS expanded
      WHERE attribute.attrelid = 'public.email_outbox'::pg_catalog.regclass
        AND attribute.attname = ANY (ARRAY[
