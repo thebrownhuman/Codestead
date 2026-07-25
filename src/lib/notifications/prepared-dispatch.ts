@@ -1,13 +1,23 @@
 import { createHash } from "node:crypto";
 
-import type { EmailTemplate } from "./outbox";
+import { outboxMessageId } from "./provider-correlation";
+import {
+  PRODUCTION_EMAIL_TEMPLATES,
+  resolveEmailTemplateAuthorityPolicy,
+  type EmailTemplate,
+} from "./template-authority-policy";
 import { renderEmail } from "./templates";
 
 export interface OutgoingEmail {
   to: string;
   template: EmailTemplate;
+  templateVersion?: string;
   variables: Record<string, string>;
 }
+
+export type AuthoritativeOutgoingEmail = OutgoingEmail & Readonly<{
+  templateVersion: string;
+}>;
 
 export interface MailProviderContext {
   messageId: string;
@@ -21,6 +31,10 @@ export type MailDispatchAuthority = Readonly<{
   claimToken: string;
   claimOwner: string;
   claimVersion: number;
+  deliveryScopeKey: string;
+  recipient: string;
+  template: EmailTemplate;
+  templateVersion: string;
 }>;
 
 export type MailPreparationContext = Readonly<{
@@ -34,6 +48,8 @@ export type PreparedGmailEmail = Readonly<{
   adapter: "gmail";
   bindingVersion: "gmail-raw-v1";
   bindingSha256: string;
+  authorityBindingVersion: "prepared-authority-v1";
+  authorityBindingSha256: string;
   messageId: string;
   rfc822: string;
   raw: string;
@@ -44,6 +60,8 @@ export type PreparedConsoleEmail = Readonly<{
   adapter: "console";
   bindingVersion: "console-json-v1";
   bindingSha256: string;
+  authorityBindingVersion: "prepared-authority-v1";
+  authorityBindingSha256: string;
   eventLine: string;
   requestBody: string;
   providerId: string;
@@ -54,39 +72,8 @@ export type PreparedEmail = PreparedGmailEmail | PreparedConsoleEmail;
 const OUTBOX_MESSAGE_ID =
   /^<codestead\.outbox\.[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}@mail\.codestead\.invalid>$/i;
 const SHA256_HEX = /^[0-9a-f]{64}$/;
-const DISPATCH_BINDING_DOMAIN = "codestead.mail.dispatch-binding.v1";
-const EMAIL_TEMPLATES: readonly EmailTemplate[] = Object.freeze([
-  "verify-email",
-  "reset-password",
-  "invitation",
-  "access-request-admin",
-  "lost-device-proof",
-  "access-rejected",
-  "learning-request-updated",
-  "new-device",
-  "session-revocation-requested",
-  "session-revocation-updated",
-  "session-revoked",
-  "account-deleted",
-  "credential-changed",
-  "credential-revealed",
-  "fallback-grant-changed",
-  "learning-plan-changed",
-  "storage-quota-changed",
-  "inactivity-reminder",
-  "inactivity-reminder-followup",
-  "inactivity-admin-notice",
-  "daily-study-reminder",
-  "revision-reminder",
-  "goal-reminder",
-  "challenge-reminder",
-  "exam-result",
-  "mastery-awarded",
-  "appeal-updated",
-  "assessment-corrected",
-  "weekly-summary",
-  "backup-status",
-]);
+const AUTHORITY_BINDING_DOMAIN = "codestead.mail.prepared-authority.v1";
+const AUTHORITY_BINDING_VERSION = "prepared-authority-v1";
 
 function assertMailAdapter(value: unknown): asserts value is MailAdapter {
   if (value !== "console" && value !== "gmail") {
@@ -94,8 +81,15 @@ function assertMailAdapter(value: unknown): asserts value is MailAdapter {
   }
 }
 
-function assertEmailTemplate(value: unknown): asserts value is EmailTemplate {
-  if (!EMAIL_TEMPLATES.includes(value as EmailTemplate)) {
+function assertEmailTemplate(
+  value: unknown,
+): asserts value is EmailTemplate {
+  if (
+    typeof value !== "string"
+    || !PRODUCTION_EMAIL_TEMPLATES.some(
+      (template) => template === value,
+    )
+  ) {
     throw new Error("Invalid email template.");
   }
 }
@@ -132,12 +126,28 @@ function assertAuthority(authority: MailDispatchAuthority) {
   assertBindingText(authority.operationId, "operation ID", 200);
   assertBindingText(authority.claimToken, "claim token", 200);
   assertBindingText(authority.claimOwner, "claim owner", 128);
+  assertBindingText(authority.deliveryScopeKey, "delivery scope", 512);
+  const recipient = assertBindingText(
+    authority.recipient,
+    "recipient",
+    320,
+  );
+  headerValue(recipient, "authoritative recipient");
+  assertEmailTemplate(authority.template);
+  assertBindingText(authority.templateVersion, "template version", 64);
   if (
     !Number.isSafeInteger(authority.claimVersion)
     || authority.claimVersion <= 0
   ) {
     throw new Error("Invalid mail dispatch claim version.");
   }
+  if (!resolveEmailTemplateAuthorityPolicy(
+    authority.template,
+    authority.templateVersion,
+  )) {
+    throw new Error("Invalid mail dispatch template version.");
+  }
+  outboxMessageId(authority.operationId);
 }
 
 function updateLengthFramed(
@@ -149,21 +159,41 @@ function updateLengthFramed(
   hash.update(value, "utf8");
 }
 
-function bindingSha256(
-  prepared: Omit<PreparedGmailEmail, "bindingSha256">
-    | Omit<PreparedConsoleEmail, "bindingSha256">,
+type PreparedWithoutAuthorityBinding =
+  | Omit<PreparedGmailEmail, "authorityBindingSha256">
+  | Omit<PreparedConsoleEmail, "authorityBindingSha256">;
+
+function payloadBindingSha256(
+  prepared:
+    | Pick<PreparedGmailEmail, "adapter" | "rfc822">
+    | Pick<PreparedConsoleEmail, "adapter" | "eventLine">,
+) {
+  const bytes = prepared.adapter === "gmail"
+    ? prepared.rfc822
+    : prepared.eventLine;
+  return createHash("sha256").update(bytes, "utf8").digest("hex");
+}
+
+function authorityBindingSha256(
+  prepared: PreparedWithoutAuthorityBinding,
   authority: MailDispatchAuthority,
 ) {
   assertAuthority(authority);
   const hash = createHash("sha256");
-  updateLengthFramed(hash, DISPATCH_BINDING_DOMAIN);
-  updateLengthFramed(hash, prepared.bindingVersion);
+  updateLengthFramed(hash, AUTHORITY_BINDING_DOMAIN);
+  updateLengthFramed(hash, prepared.authorityBindingVersion);
   updateLengthFramed(hash, prepared.adapter);
+  updateLengthFramed(hash, prepared.bindingVersion);
+  updateLengthFramed(hash, prepared.bindingSha256);
   updateLengthFramed(hash, authority.id);
   updateLengthFramed(hash, authority.operationId);
   updateLengthFramed(hash, authority.claimToken);
   updateLengthFramed(hash, authority.claimOwner);
   updateLengthFramed(hash, String(authority.claimVersion));
+  updateLengthFramed(hash, authority.deliveryScopeKey);
+  updateLengthFramed(hash, authority.recipient);
+  updateLengthFramed(hash, authority.template);
+  updateLengthFramed(hash, authority.templateVersion);
   if (prepared.adapter === "gmail") {
     updateLengthFramed(hash, prepared.messageId);
     updateLengthFramed(hash, prepared.rfc822);
@@ -178,15 +208,16 @@ function bindingSha256(
 }
 
 function mimeMessage(
-  input: OutgoingEmail,
-  context: MailPreparationContext,
+  input: AuthoritativeOutgoingEmail,
+  fromHeader: string,
+  authoritativeMessageId: string,
 ) {
   const rendered = renderEmail(input.template, input.variables);
   const boundary = `learncoding-${crypto.randomUUID()}`;
-  const from = headerValue(context.from, "From");
+  const from = headerValue(fromHeader, "From");
   const to = headerValue(input.to, "To");
   const subject = headerValue(rendered.subject, "Subject");
-  const messageId = gmailCorrelationHeader(context.messageId);
+  const messageId = gmailCorrelationHeader(authoritativeMessageId);
   return [
     `From: ${from}`,
     `To: ${to}`,
@@ -219,44 +250,81 @@ function assertNoBackupArchive(input: OutgoingEmail) {
 }
 
 export function prepareEmail(
-  input: OutgoingEmail,
+  input: AuthoritativeOutgoingEmail,
   context: MailPreparationContext,
 ): PreparedEmail {
   assertMailAdapter(context.adapter);
   assertEmailTemplate(input.template);
-  assertNoBackupArchive(input);
+  headerValue(input.to, "To");
   assertAuthority(context.authority);
+  if (input.to !== context.authority.recipient) {
+    throw new Error("Mail recipient does not match dispatch authority.");
+  }
+  if (input.template !== context.authority.template) {
+    throw new Error("Mail template does not match dispatch authority.");
+  }
+  if (input.templateVersion !== context.authority.templateVersion) {
+    throw new Error("Mail template version does not match dispatch authority.");
+  }
+  if (!resolveEmailTemplateAuthorityPolicy(
+    input.template,
+    input.templateVersion,
+  )) {
+    throw new Error("Invalid email template version.");
+  }
+  const messageId = gmailCorrelationHeader(context.messageId);
+  const expectedMessageId = outboxMessageId(context.authority.operationId);
+  if (messageId !== expectedMessageId) {
+    throw new Error("Message-ID does not match mail dispatch authority.");
+  }
+  assertNoBackupArchive(input);
+
   if (context.adapter === "console") {
     const eventLine =
       `{"event":"email.console_delivery","template":"${input.template}"}`;
-    const withoutBinding = Object.freeze({
+    const payload = Object.freeze({
       adapter: "console" as const,
       bindingVersion: "console-json-v1" as const,
       eventLine,
       requestBody: eventLine,
       providerId: `console-${crypto.randomUUID()}`,
     });
+    const withoutAuthorityBinding = Object.freeze({
+      ...payload,
+      bindingSha256: payloadBindingSha256(payload),
+      authorityBindingVersion: AUTHORITY_BINDING_VERSION,
+    });
     return Object.freeze({
-      ...withoutBinding,
-      bindingSha256: bindingSha256(withoutBinding, context.authority),
+      ...withoutAuthorityBinding,
+      authorityBindingSha256: authorityBindingSha256(
+        withoutAuthorityBinding,
+        context.authority,
+      ),
     });
   }
 
-  const messageId = gmailCorrelationHeader(context.messageId);
-  const rfc822 = mimeMessage(input, context);
+  const rfc822 = mimeMessage(input, context.from, expectedMessageId);
   const raw = Buffer.from(rfc822, "utf8").toString("base64url");
   const requestBody = `{"raw":"${raw}"}`;
-  const withoutBinding = Object.freeze({
+  const payload = Object.freeze({
     adapter: "gmail" as const,
     bindingVersion: "gmail-raw-v1" as const,
-    messageId,
+    messageId: expectedMessageId,
     rfc822,
     raw,
     requestBody,
   });
+  const withoutAuthorityBinding = Object.freeze({
+    ...payload,
+    bindingSha256: payloadBindingSha256(payload),
+    authorityBindingVersion: AUTHORITY_BINDING_VERSION,
+  });
   return Object.freeze({
-    ...withoutBinding,
-    bindingSha256: bindingSha256(withoutBinding, context.authority),
+    ...withoutAuthorityBinding,
+    authorityBindingSha256: authorityBindingSha256(
+      withoutAuthorityBinding,
+      context.authority,
+    ),
   });
 }
 
@@ -265,27 +333,61 @@ export function preparedEmailBindingMatches(
   authority: MailDispatchAuthority,
 ) {
   try {
-    if (!SHA256_HEX.test(prepared.bindingSha256)) return false;
-    const withoutBinding = prepared.adapter === "gmail"
-      ? {
+    if (
+      !SHA256_HEX.test(prepared.bindingSha256)
+      || !SHA256_HEX.test(prepared.authorityBindingSha256)
+      || prepared.authorityBindingVersion !== AUTHORITY_BINDING_VERSION
+    ) {
+      return false;
+    }
+    assertAuthority(authority);
+    if (prepared.adapter === "gmail") {
+      if (
+        prepared.bindingVersion !== "gmail-raw-v1"
+        || prepared.messageId !== outboxMessageId(authority.operationId)
+        || prepared.raw
+          !== Buffer.from(prepared.rfc822, "utf8").toString("base64url")
+        || prepared.requestBody !== `{"raw":"${prepared.raw}"}`
+        || prepared.bindingSha256 !== payloadBindingSha256(prepared)
+      ) {
+        return false;
+      }
+      const withoutAuthorityBinding = {
         adapter: prepared.adapter,
         bindingVersion: prepared.bindingVersion,
+        bindingSha256: prepared.bindingSha256,
+        authorityBindingVersion: prepared.authorityBindingVersion,
         messageId: prepared.messageId,
         rfc822: prepared.rfc822,
         raw: prepared.raw,
         requestBody: prepared.requestBody,
-      }
-      : {
+      };
+      return authorityBindingSha256(
+        withoutAuthorityBinding,
+        authority,
+      ) === prepared.authorityBindingSha256;
+    }
+
+    if (
+      prepared.bindingVersion !== "console-json-v1"
+      || prepared.requestBody !== prepared.eventLine
+      || prepared.bindingSha256 !== payloadBindingSha256(prepared)
+    ) {
+      return false;
+    }
+    const withoutAuthorityBinding = {
         adapter: prepared.adapter,
         bindingVersion: prepared.bindingVersion,
+        bindingSha256: prepared.bindingSha256,
+        authorityBindingVersion: prepared.authorityBindingVersion,
         eventLine: prepared.eventLine,
         requestBody: prepared.requestBody,
         providerId: prepared.providerId,
-      };
-    return (
-      bindingSha256(withoutBinding, authority)
-      === prepared.bindingSha256
-    );
+    };
+    return authorityBindingSha256(
+      withoutAuthorityBinding,
+      authority,
+    ) === prepared.authorityBindingSha256;
   } catch {
     return false;
   }

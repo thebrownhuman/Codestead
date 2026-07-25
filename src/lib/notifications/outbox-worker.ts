@@ -59,7 +59,15 @@ export type MaterializeResult<M> =
 export type ProviderSendResult =
   | { readonly kind: "accepted"; readonly providerMessageId: string }
   | { readonly kind: "definitely-rejected"; readonly code: string }
-  | { readonly kind: "ambiguous"; readonly code: string };
+  | { readonly kind: "ambiguous"; readonly code: string }
+  | { readonly kind: "fatal"; readonly code: string };
+
+export class FatalProviderTransportError extends Error {
+  constructor(readonly code: string) {
+    super(`Fatal provider transport failure (${code}).`);
+    this.name = "FatalProviderTransportError";
+  }
+}
 
 export interface OutboxStore<P = unknown> {
   claimNext(input: Readonly<{
@@ -345,6 +353,10 @@ export async function processOutboxBatch<P, M>(
         kind: "ambiguous",
         code: "PROVIDER_OUTCOME_AMBIGUOUS",
       };
+    }
+
+    if (providerResult.kind === "fatal") {
+      throw new FatalProviderTransportError(providerResult.code);
     }
 
     let exit: PostProviderExit;

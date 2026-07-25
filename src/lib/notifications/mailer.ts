@@ -2,18 +2,27 @@ import {
   gmailCorrelationHeader,
   prepareEmail,
   preparedEmailBindingMatches,
+  type AuthoritativeOutgoingEmail,
   type MailAdapter,
   type MailDispatchAuthority,
   type MailProviderContext,
   type OutgoingEmail,
+  type PreparedConsoleEmail,
   type PreparedEmail,
+  type PreparedGmailEmail,
 } from "./prepared-dispatch";
+import { outboxMessageId } from "./provider-correlation";
+import {
+  resolveEmailTemplateAuthorityPolicy,
+  TEMPLATE_AUTHORITY_POLICIES,
+} from "./template-authority-policy";
 
 export {
   prepareEmail,
   preparedEmailBindingMatches,
 } from "./prepared-dispatch";
 export type {
+  AuthoritativeOutgoingEmail,
   MailAdapter,
   MailDispatchAuthority,
   MailPreparationContext,
@@ -24,7 +33,7 @@ export type {
   PreparedGmailEmail,
 } from "./prepared-dispatch";
 export type MailDeliveryFailure = Readonly<{
-  kind: "definitely-rejected" | "ambiguous";
+  kind: "definitely-rejected" | "ambiguous" | "fatal";
   code: string;
 }>;
 
@@ -95,6 +104,10 @@ async function withGmailRequestDeadline<T>(
   let terminationError: Error | undefined;
   const timeoutError = new Error(`Gmail ${stage} request timed out.`);
   const externalAbortError = new Error(`Gmail ${stage} request aborted.`);
+  if (externalSignal?.aborted) {
+    controller.abort();
+    throw externalAbortError;
+  }
   let rejectTermination!: (error: Error) => void;
   const termination = new Promise<never>((_resolve, reject) => {
     rejectTermination = reject;
@@ -111,9 +124,12 @@ async function withGmailRequestDeadline<T>(
   }
   if (externalSignal?.aborted) onExternalAbort();
 
-  const operationPromise = Promise.resolve().then(() =>
-    operation(controller.signal)
-  );
+  const operationPromise = Promise.resolve().then(() => {
+    if (terminationError) {
+      throw terminationError;
+    }
+    return operation(controller.signal);
+  });
   const requestTimer = setTimeout(() => terminate(timeoutError), timeoutMs);
 
   try {
@@ -381,42 +397,115 @@ export type PreparedEmailSendOptions = Readonly<{
   signal?: AbortSignal;
 }>;
 
+function snapshotPreparedEmail(prepared: PreparedEmail): PreparedEmail {
+  const adapter = prepared.adapter;
+  if (adapter === "gmail") {
+    const gmail = prepared as PreparedGmailEmail;
+    return Object.freeze({
+      adapter,
+      bindingVersion: gmail.bindingVersion,
+      bindingSha256: gmail.bindingSha256,
+      authorityBindingVersion: gmail.authorityBindingVersion,
+      authorityBindingSha256: gmail.authorityBindingSha256,
+      messageId: gmail.messageId,
+      rfc822: gmail.rfc822,
+      raw: gmail.raw,
+      requestBody: gmail.requestBody,
+    });
+  }
+  if (adapter === "console") {
+    const consoleEmail = prepared as PreparedConsoleEmail;
+    return Object.freeze({
+      adapter,
+      bindingVersion: consoleEmail.bindingVersion,
+      bindingSha256: consoleEmail.bindingSha256,
+      authorityBindingVersion: consoleEmail.authorityBindingVersion,
+      authorityBindingSha256: consoleEmail.authorityBindingSha256,
+      eventLine: consoleEmail.eventLine,
+      requestBody: consoleEmail.requestBody,
+      providerId: consoleEmail.providerId,
+    });
+  }
+  throw preparedBindingMismatch();
+}
+
+function snapshotDispatchAuthority(
+  authority: MailDispatchAuthority,
+): MailDispatchAuthority {
+  return Object.freeze({
+    id: authority.id,
+    operationId: authority.operationId,
+    claimToken: authority.claimToken,
+    claimOwner: authority.claimOwner,
+    claimVersion: authority.claimVersion,
+    deliveryScopeKey: authority.deliveryScopeKey,
+    recipient: authority.recipient,
+    template: authority.template,
+    templateVersion: authority.templateVersion,
+  });
+}
+
+function snapshotPreparedAuthorization(
+  authorization: PreparedEmailAuthorization,
+): PreparedEmailAuthorization {
+  const adapter = authorization.adapter;
+  if (adapter === "console") {
+    return Object.freeze({ adapter });
+  }
+  if (adapter === "gmail") {
+    return Object.freeze({
+      adapter,
+      accessToken: authorization.accessToken,
+      requestTimeoutMs: authorization.requestTimeoutMs,
+    });
+  }
+  throw preparedAuthorizationMismatch();
+}
+
 export async function sendPreparedEmail(
   prepared: PreparedEmail,
   authority: MailDispatchAuthority,
   authorization: PreparedEmailAuthorization,
   options: PreparedEmailSendOptions = {},
 ) {
-  if (!preparedEmailBindingMatches(prepared, authority)) {
+  const preparedSnapshot = snapshotPreparedEmail(prepared);
+  const authoritySnapshot = snapshotDispatchAuthority(authority);
+  const authorizationSnapshot = snapshotPreparedAuthorization(authorization);
+  const externalSignal = options.signal;
+
+  if (!preparedEmailBindingMatches(
+    preparedSnapshot,
+    authoritySnapshot,
+  )) {
     throw preparedBindingMismatch();
   }
 
-  if (prepared.adapter === "console") {
-    if (authorization.adapter !== "console") {
+  if (preparedSnapshot.adapter === "console") {
+    if (authorizationSnapshot.adapter !== "console") {
       throw preparedAuthorizationMismatch();
     }
-    console.info(prepared.eventLine);
-    return { providerId: prepared.providerId };
+    console.info(preparedSnapshot.eventLine);
+    return { providerId: preparedSnapshot.providerId };
   }
-  if (authorization.adapter !== "gmail") {
+  if (authorizationSnapshot.adapter !== "gmail") {
     throw preparedAuthorizationMismatch();
   }
-  assertPreparedGmailAuthorization(authorization);
+  assertPreparedGmailAuthorization(authorizationSnapshot);
 
   try {
     return await withGmailRequestDeadline(
       "delivery",
-      authorization.requestTimeoutMs,
+      authorizationSnapshot.requestTimeoutMs,
       async (signal) => {
         const response = await fetch(
           "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
           {
             method: "POST",
             headers: {
-              authorization: `Bearer ${authorization.accessToken}`,
+              authorization: `Bearer ${authorizationSnapshot.accessToken}`,
               "content-type": "application/json",
             },
-            body: prepared.requestBody,
+            body: preparedSnapshot.requestBody,
             cache: "no-store",
             signal,
           },
@@ -446,9 +535,18 @@ export async function sendPreparedEmail(
         }
         return { providerId };
       },
-      options.signal,
+      externalSignal,
     );
   } catch (error) {
+    if (error instanceof GmailAbortSettlementError) {
+      throw new MailDeliveryError(
+        error.message,
+        {
+          kind: "fatal",
+          code: "GMAIL_DELIVERY_TRANSPORT_UNSETTLED",
+        },
+      );
+    }
     throw deliveryError(error, {
       kind: "ambiguous",
       code: "GMAIL_DELIVERY_AMBIGUOUS",
@@ -464,16 +562,61 @@ function configuredAdapter(): MailAdapter {
   return adapter;
 }
 
-function compatibilityAuthority(
+const OUTBOX_MESSAGE_ID_PREFIX = "<codestead.outbox.";
+const OUTBOX_MESSAGE_ID_SUFFIX = "@mail.codestead.invalid>";
+
+function compatibilityOperation(
   context: MailProviderContext | undefined,
+) {
+  const messageId = gmailCorrelationHeader(context?.messageId ?? "");
+  const operationId = messageId.slice(
+    OUTBOX_MESSAGE_ID_PREFIX.length,
+    -OUTBOX_MESSAGE_ID_SUFFIX.length,
+  );
+  if (outboxMessageId(operationId) !== messageId) {
+    throw new Error("Message-ID is not the canonical outbox operation ID.");
+  }
+  return { messageId, operationId };
+}
+
+function compatibilityInput(
+  input: OutgoingEmail,
+): AuthoritativeOutgoingEmail {
+  const policy = TEMPLATE_AUTHORITY_POLICIES[input.template];
+  if (!policy) {
+    throw new Error("Invalid email template.");
+  }
+  const templateVersion = input.templateVersion
+    ?? (policy.versions.length === 1 ? policy.versions[0] : undefined);
+  if (
+    !templateVersion
+    || !resolveEmailTemplateAuthorityPolicy(
+      input.template,
+      templateVersion,
+    )
+  ) {
+    throw new Error("Invalid email template version.");
+  }
+  return {
+    ...input,
+    templateVersion,
+  };
+}
+
+function compatibilityAuthority(
+  input: AuthoritativeOutgoingEmail,
+  operationId: string,
 ): MailDispatchAuthority {
-  const correlation = context?.messageId || "console-compatibility";
   return Object.freeze({
-    id: correlation,
-    operationId: correlation,
+    id: `compatibility:${operationId}`,
+    operationId,
     claimToken: "compatibility-wrapper",
     claimOwner: "compatibility-wrapper",
     claimVersion: 1,
+    deliveryScopeKey: `compatibility:${operationId}`,
+    recipient: input.to,
+    template: input.template,
+    templateVersion: input.templateVersion,
   });
 }
 
@@ -481,13 +624,19 @@ export async function sendEmail(
   input: OutgoingEmail,
   context: MailProviderContext,
 ) {
-  const authority = compatibilityAuthority(context);
   let prepared: PreparedEmail;
+  let authority: MailDispatchAuthority;
   try {
-    prepared = prepareEmail(input, {
+    const operation = compatibilityOperation(context);
+    const authoritativeInput = compatibilityInput(input);
+    authority = compatibilityAuthority(
+      authoritativeInput,
+      operation.operationId,
+    );
+    prepared = prepareEmail(authoritativeInput, {
       adapter: configuredAdapter(),
       from: process.env.MAIL_FROM ?? "Codestead <noreply@example.com>",
-      messageId: context?.messageId ?? "",
+      messageId: operation.messageId,
       authority,
     });
   } catch (error) {
