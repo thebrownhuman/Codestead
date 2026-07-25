@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ACCOUNT_DELETION_NOTICE_CAPABILITIES,
   createTemplateAuthorityRegistry,
+  DELETION_CAPABILITY_TEMPLATE_AUTHORITIES,
   PRODUCTION_EMAIL_TEMPLATES,
+  SYSTEM_EMAIL_PRODUCERS,
+  SYSTEM_EMAIL_TEMPLATE_AUTHORITIES,
   TEMPLATE_AUTHORITY_POLICIES,
 } from "../template-authority-policy";
 
@@ -163,6 +167,84 @@ describe("template authority registry construction", () => {
       .toThrow(/capabilit.*exactly one template/i);
   });
 
+  it("requires every declared system producer when its template is omitted too", () => {
+    const input = mutableCanonicalInput();
+    input.productionTemplates = input.productionTemplates.filter(
+      (template) => template !== "access-rejected",
+    );
+    delete input.policies["access-rejected"];
+
+    expect(() => createTemplateAuthorityRegistry(input))
+      .toThrow(/system email producer.*missing.*access-request-rejected/i);
+  });
+
+  it("rejects an undeclared system producer as extra coverage", () => {
+    const input = mutableCanonicalInput();
+    input.productionTemplates.push("future-system-notice");
+    input.policies["future-system-notice"] = {
+      scope: "system",
+      versions: ["1"],
+      producer: "future-system-producer",
+      account: null,
+    };
+
+    expect(() => createTemplateAuthorityRegistry(input))
+      .toThrow(/undeclared system email producer.*future-system-producer/i);
+  });
+
+  it("requires every declared deletion capability when its template is omitted too", () => {
+    const input = mutableCanonicalInput();
+    input.productionTemplates = input.productionTemplates.filter(
+      (template) => template !== "account-deleted",
+    );
+    delete input.policies["account-deleted"];
+
+    expect(() => createTemplateAuthorityRegistry(input))
+      .toThrow(/deletion capability.*missing.*account-deletion-notice-v1/i);
+  });
+
+  it("rejects an undeclared deletion capability as extra coverage", () => {
+    const input = mutableCanonicalInput();
+    input.productionTemplates.push("future-deletion-notice");
+    input.policies["future-deletion-notice"] = {
+      scope: "deletion-capability",
+      versions: ["1"],
+      capability: "future-deletion-capability",
+      account: structuredClone(policy(input, "account-deleted").account),
+    };
+
+    expect(() => createTemplateAuthorityRegistry(input))
+      .toThrow(/undeclared deletion capability.*future-deletion-capability/i);
+  });
+
+  it("rejects a deletion capability duplicated before its canonical mapping", () => {
+    const input = mutableCanonicalInput();
+    const canonicalIndex = input.productionTemplates.indexOf("account-deleted");
+    input.productionTemplates.splice(
+      canonicalIndex,
+      0,
+      "second-deletion-notice",
+    );
+    input.policies["second-deletion-notice"] = {
+      scope: "deletion-capability",
+      versions: ["1"],
+      capability: policy(input, "account-deleted").capability,
+      account: structuredClone(policy(input, "account-deleted").account),
+    };
+
+    expect(() => createTemplateAuthorityRegistry(input))
+      .toThrow(/deletion capability.*exactly one template/i);
+  });
+
+  it("derives specialized projections from the complete declared sets", () => {
+    expect(SYSTEM_EMAIL_TEMPLATE_AUTHORITIES.map(
+      (authority) => authority.producer,
+    )).toEqual(SYSTEM_EMAIL_PRODUCERS);
+    expect(DELETION_CAPABILITY_TEMPLATE_AUTHORITIES.map(
+      (authority) => authority.capability,
+    )).toEqual(ACCOUNT_DELETION_NOTICE_CAPABILITIES);
+  });
+
   it("rejects missing, malformed, and inconsistent account shapes", () => {
     const missing = mutableCanonicalInput();
     policy(missing, "weekly-summary").account = null;
@@ -196,6 +278,6 @@ describe("template authority registry construction", () => {
     );
     delete noDeletion.policies["account-deleted"];
     expect(() => createTemplateAuthorityRegistry(noDeletion))
-      .toThrow(/at least one deletion capability/i);
+      .toThrow(/deletion capability.*missing.*account-deletion-notice-v1/i);
   });
 });
