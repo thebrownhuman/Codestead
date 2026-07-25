@@ -165,9 +165,11 @@ function collisionDatabase(existing: { id: string; email: string }[] = []) {
 describe("production load seed namespace", () => {
   it("locks every synthetic learner authority in code-point order before reading or mutating users", async () => {
     const plan = buildProductionLoadSeedPlan();
+    const now = new Date("2026-07-25T00:00:00.000Z");
     const { calls, database } = collisionDatabase();
     let tokenSequence = 0;
     const host = createProductionLoadHost({
+      now: () => now,
       project: "learncoding",
       runnerVmId: VM_ID,
       database,
@@ -207,6 +209,35 @@ describe("production load seed namespace", () => {
         .test(text),
     );
     expect(firstUserAccess).toBe(expectedLearnerIds.length + 1);
+    const deleteUserSql =
+      "delete from \"user\" where id = any($1::text[]) and lower(email) = any($2::text[])";
+    const insertUserSql =
+      "insert into \"user\" (id, name, email, email_verified, two_factor_enabled, role, status, must_change_password, adult_confirmed_at) values ($1,$2,$3,true,true,'learner','active',false,$4)";
+    expect(calls.filter(({ text }) => text === deleteUserSql)).toEqual([{
+      text: deleteUserSql,
+      values: [
+        plan.learners.map((learner) => learner.id),
+        plan.learners.map((learner) => learner.email),
+      ],
+    }]);
+
+    const insertUserCalls = calls.filter(({ text }) => text === insertUserSql);
+    expect(insertUserCalls).toEqual(
+      plan.learners.map((learner) => ({
+        text: insertUserSql,
+        values: [
+          learner.id,
+          learner.alias,
+          learner.email,
+          now,
+        ],
+      })),
+    );
+    expect(calls.findIndex(({ text }) => text === deleteUserSql))
+      .toBe(firstUserAccess + 1);
+    expect(calls.indexOf(insertUserCalls[0]!))
+      .toBeGreaterThan(firstUserAccess + 1);
+
     expect(calls.slice(firstUserAccess + 1)).not.toContainEqual(
       expect.objectContaining({ text: USER_AUTHORITY_ADVISORY_LOCK_SQL }),
     );
