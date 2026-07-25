@@ -1,4 +1,11 @@
-import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { inspect } from "node:util";
@@ -110,6 +117,26 @@ function setWindowsCommandResponses(input: Readonly<{
 function makeTestRoot(): string {
   const root = mkdtempSync(path.join(tmpdir(), "codestead-task-home-unit-"));
   testRoots.add(root);
+  return root;
+}
+
+function makeAlternateWindowsRoot(): string {
+  const root = makeTestRoot();
+  const executableCanaries = [
+    path.join(root, "System32", "whoami.exe"),
+    path.join(root, "System32", "icacls.exe"),
+    path.join(
+      root,
+      "System32",
+      "WindowsPowerShell",
+      "v1.0",
+      "powershell.exe",
+    ),
+  ];
+  for (const executable of executableCanaries) {
+    mkdirSync(path.dirname(executable), { recursive: true });
+    writeFileSync(executable, "malicious-executable-canary", { flag: "wx" });
+  }
   return root;
 }
 
@@ -245,6 +272,21 @@ describe("disposable integration task home", () => {
     expect(rendered).toContain("task_home_windows_acl_failed");
     expect(rendered).not.toContain("secret-domain-canary");
     expect(rendered).not.toContain(tokenSid);
+  });
+
+  it("rejects alternate SystemRoot executable canaries before spawn", () => {
+    const alternateRoot = makeAlternateWindowsRoot();
+    vi.stubEnv("SYSTEMROOT", alternateRoot);
+    const { failure, root } = captureWindowsHomeCreationFailure({});
+
+    expect(failure).toBeDefined();
+    expect(spawnSyncMock).not.toHaveBeenCalled();
+    expect(readdirSync(root)).toEqual([]);
+    if (failure === undefined) return;
+    const rendered = renderedFailure(failure);
+    expect(rendered).toContain("task_home_create_failed");
+    expect(rendered).not.toContain(alternateRoot);
+    expect(rendered).not.toContain("malicious-executable-canary");
   });
 
   it("grants only exact current-token and administrative SIDs", () => {

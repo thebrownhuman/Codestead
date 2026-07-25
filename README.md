@@ -51,6 +51,13 @@ This suite refuses to target any database except its generated
 testing a reviewed PostgreSQL-compatible image. Docker daemon access is
 required; no real users, credentials, or production data are used.
 
+Windows authoring-host support for this disposable integration harness is
+intentionally limited to Windows installed at `C:\Windows`. The harness pins
+and natively verifies its required `whoami`, `icacls`, and Windows PowerShell
+executables, and fails closed when the ambient `SystemRoot` points elsewhere.
+Alternate Windows installation roots are unsupported. Production deployment
+remains Linux; this constraint applies only to local Windows integration runs.
+
 Verify the isolated runner separately:
 
 ```bash
