@@ -346,7 +346,7 @@ services:
       context: .
       target: worker
     restart: unless-stopped
-    stop_grace_period: 1m
+    stop_grace_period: 135s
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url

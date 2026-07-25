@@ -186,6 +186,9 @@ const persistentTimers = [
 ];
 const packageJson = read("package.json");
 const composeValidator = read("infra/tests/validate-compose.mjs");
+const mailDispatchRuntimePolicy = read(
+  "src/lib/notifications/mail-dispatch-runtime-policy.ts",
+);
 const retentionPolicy = read("src/lib/data-lifecycle/policy.ts");
 const retentionPolicyTest = read("src/lib/data-lifecycle/__tests__/policy.test.ts");
 const retentionRuntimeTest = read("src/lib/data-lifecycle/__tests__/retention-runtime.test.ts");
@@ -617,6 +620,48 @@ expect(
   "application image examples must use seven independently named repositories",
 );
 expect(!/^APP_IMAGE(?:_TAG)?=/m.test(composeEnv), "derived APP_IMAGE tags must not remain in the Compose environment");
+
+const mailWorkerService = composeService("mail-worker");
+expect(
+  /^\s{4}stop_grace_period:\s+135s\s*$/mu.test(mailWorkerService),
+  "mail-worker Compose source must reserve exactly 135 seconds for platform shutdown",
+);
+expect(
+  /stopTimeoutMs:\s*120_000,/u.test(mailDispatchRuntimePolicy) &&
+    /drainTimeoutMs:\s*100_000,/u.test(mailDispatchRuntimePolicy) &&
+    /exclusiveMaximumDrainMs:\s*105_000,/u.test(mailDispatchRuntimePolicy) &&
+    /poolCloseTimeoutMs:\s*5_000,/u.test(mailDispatchRuntimePolicy),
+  "mail application policy source must retain stop=120s, drain=100s with exclusive 105s bound, and pool-close=5s",
+);
+expect(
+  /mail_application_stop_seconds=120/u.test(runtimeValidation) &&
+    /mail_application_drain_seconds=100/u.test(runtimeValidation) &&
+    /mail_application_drain_exclusive_max_seconds=105/u.test(runtimeValidation) &&
+    /mail_application_pool_close_seconds=5/u.test(runtimeValidation) &&
+    /mail_platform_stop_seconds=135/u.test(runtimeValidation) &&
+    /rendered mail-worker platform stop budget must be exactly 135 seconds and strictly exceed the 120-second application stop policy/u.test(
+      runtimeValidation,
+    ),
+  "runtime validation must bind the reviewed mail application policy to the exact 135-second platform envelope",
+);
+expect(
+  /make_fixture "mail-worker-stop-\$label"/u.test(runtimeHarness) &&
+    /equality\|120s[\s\S]*?shorter\|119s[\s\S]*?longer\|136s/u.test(
+      runtimeHarness,
+    ) &&
+    /2m15s/u.test(composeValidator) &&
+    /mail-dispatch-runtime-policy\.ts/u.test(composeValidator),
+  "runtime and Compose tests must reject mail-worker stop equality, shorter grace, and any non-135-second drift",
+);
+expect(
+  /120-second application stop policy/u.test(deploymentGuide) &&
+    /100-second drain/u.test(deploymentGuide) &&
+    /exclusive 105-second/u.test(deploymentGuide) &&
+    /5-second pool close/u.test(deploymentGuide) &&
+    /135-second Compose grace/u.test(deploymentGuide) &&
+    /15-second platform margin/u.test(deploymentGuide),
+  "deployment guide must document the complete mail shutdown timing envelope",
+);
 
 expect(!/^\s+ports:/m.test(compose), "trusted Compose stack must publish no host ports");
 expect(!/^  runner:/m.test(compose), "runner must not be a service in the trusted Compose stack");

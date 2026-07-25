@@ -562,6 +562,20 @@ postgres_full_page_writes_seen=false
 cloudflared_secret_source_seen=false
 cloudflared_secret_target=
 
+readonly mail_application_stop_seconds=120
+readonly mail_application_drain_seconds=100
+readonly mail_application_drain_exclusive_max_seconds=105
+readonly mail_application_pool_close_seconds=5
+readonly mail_platform_stop_seconds=135
+readonly mail_platform_margin_seconds=15
+if ((
+  mail_application_drain_seconds >= mail_application_drain_exclusive_max_seconds ||
+  mail_application_drain_seconds + mail_application_pool_close_seconds >= mail_application_stop_seconds ||
+  mail_platform_stop_seconds - mail_application_stop_seconds != mail_platform_margin_seconds
+)); then
+  fatal "reviewed mail shutdown envelope is internally inconsistent"
+fi
+
 is_known_service() {
   case "$1" in
     postgres|app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|practice-runner-recovery-worker|project-review-correction-worker|file-erasure-worker|scan-worker|cloudflared|runner-egress-gateway|database-role-bootstrap|database-negative-probes|database-boundary-verifier|migrate|lifecycle|platform-seed|admin-bootstrap|clamav) return 0 ;;
@@ -771,12 +785,18 @@ done
 [[ "${rendered_stop_periods[postgres]:-}" == 2m || "${rendered_stop_periods[postgres]:-}" == 2m0s ]] || {
   fatal "rendered PostgreSQL stop budget must be exactly two minutes"
 }
-for service in app mail-worker reward-worker regrade-worker exam-finalization-worker \
+for service in app reward-worker regrade-worker exam-finalization-worker \
   practice-runner-recovery-worker project-review-correction-worker scan-worker file-erasure-worker; do
   [[ -z "${rendered_services[$service]:-}" || "${rendered_stop_periods[$service]:-}" == 1m || "${rendered_stop_periods[$service]:-}" == 1m0s ]] || {
     fatal "rendered database-mutating service stop budget must be exactly one minute"
   }
 done
+case "${rendered_stop_periods[mail-worker]:-}" in
+  135s|2m15s) ;;
+  *)
+    fatal "rendered mail-worker platform stop budget must be exactly 135 seconds and strictly exceed the 120-second application stop policy"
+    ;;
+esac
 [[ "${rendered_stop_periods[cloudflared]:-}" == 30s ]] || {
   fatal "rendered cloudflared stop budget must be exactly thirty seconds"
 }

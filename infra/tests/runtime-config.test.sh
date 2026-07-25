@@ -11,7 +11,7 @@ sha256_bin=/usr/bin/sha256sum
 perl_bin=/usr/bin/perl
 validator="$repo_root/infra/ops/validate-runtime.sh"
 validator_shebang='#!/usr/bin/env bash'
-validator_reviewed_sha256='ca635db9105e002c0c1a101ffa4d88ece4c146e3e84f49a2cc0b8aa1eb4e13c5'
+validator_reviewed_sha256='d2537fa96c263f2f5a13eb880f4523f07edaf0651efebc27c331f37a99940b82'
 
 if [[ "$(/usr/bin/uname -s 2>/dev/null || true)" != Linux ]]; then
   echo 'FAIL: authoritative runtime contract requires Linux Bubblewrap containment' >&2
@@ -787,7 +787,9 @@ if [[ "${1:-}" == "compose" ]]; then
     practice-runner-recovery-worker project-review-correction-worker file-erasure-worker scan-worker; do
     service_image="$(value_for "$service" image 'registry.example.test/worker@sha256:3333333333333333333333333333333333333333333333333333333333333333')"
     service_restart="$(value_for "$service" restart unless-stopped)"
-    service_stop="$(value_for "$service" stop-grace 1m)"
+    service_stop_default=1m
+    [[ "$service" != mail-worker ]] || service_stop_default=135s
+    service_stop="$(value_for "$service" stop-grace "$service_stop_default")"
     printf '%s\n' \
       "  $service:" \
       "    image: $service_image" \
@@ -1897,6 +1899,20 @@ fake_runner_client_internal='false'
 expect_failure \
   'non-internal runner-client network' \
   'fatal: runner-client network must be internal'
+
+while IFS='|' read -r label stop_period; do
+  make_fixture "mail-worker-stop-$label"
+  fake_mutate_service=mail-worker
+  fake_mutate_field=stop-grace
+  fake_mutate_value="$stop_period"
+  expect_failure \
+    "mail-worker platform stop grace $label" \
+    'fatal: rendered mail-worker platform stop budget must be exactly 135 seconds and strictly exceed the 120-second application stop policy'
+done <<'EOF'
+equality|120s
+shorter|119s
+longer|136s
+EOF
 
 make_fixture wrong-runner-gateway-stop-grace
 fake_mutate_service=runner-egress-gateway
