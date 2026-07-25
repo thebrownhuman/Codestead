@@ -128,7 +128,7 @@ export interface DsaLanguageWriteInput {
 
 export interface LearningTransaction {
   /** Serialize one learner's plan initialization before any check-then-insert work. */
-  lockPlanInitialization(userId: string): Promise<void>;
+  lockPlanInitialization(userId: string): Promise<boolean>;
   getPlanningProfile(userId: string): Promise<PlanningProfile | null>;
   getCoursePublications(trackIds: readonly string[]): Promise<readonly CoursePublication[]>;
   persistPlan(input: PlanPersistenceInput): Promise<PersistedPlan>;

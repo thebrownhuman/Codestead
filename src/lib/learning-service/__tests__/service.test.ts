@@ -26,7 +26,7 @@ function serviceWith(overrides: Partial<LearningTransaction>): LearningService {
     get(target, property) {
       if (property in target) return target[property as keyof typeof target];
       if (typeof property === "string" && SERIALIZATION_METHODS.has(property)) {
-        return vi.fn(async () => undefined);
+        return vi.fn(async () => property === "lockPlanInitialization" ? true : undefined);
       }
       return vi.fn(async () => {
         throw new Error(`Unexpected fake transaction call: ${String(property)}`);
@@ -211,6 +211,32 @@ describe("adaptive learning application service", () => {
     expect(result.placement.selfReportUsedAsEvidence).toBe(false);
     expect(result.placement.reason).toContain("advanced");
     expect(persistPlan).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops plan initialization when the locked learner is no longer active", async () => {
+    const getPlanningProfile = vi.fn();
+    const getCoursePublications = vi.fn();
+    const persistPlan = vi.fn();
+    const service = serviceWith({
+      lockPlanInitialization: vi.fn(async () => false),
+      getPlanningProfile,
+      getCoursePublications,
+      persistPlan,
+    });
+
+    const result = await service.initializePlans(USER_ID, "plan-init-deleted");
+
+    expect(result).toMatchObject({
+      state: "empty",
+      plans: [],
+      selectedTrackIds: [],
+      resolvedTrackIds: [],
+      missingPublications: [],
+    });
+    expect(result.warnings).toEqual(["Learner account is unavailable."]);
+    expect(getPlanningProfile).not.toHaveBeenCalled();
+    expect(getCoursePublications).not.toHaveBeenCalled();
+    expect(persistPlan).not.toHaveBeenCalled();
   });
 
   it("returns a clear degraded plan when a published version is absent", async () => {

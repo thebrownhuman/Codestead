@@ -27,7 +27,7 @@ function serviceWith(overrides: Partial<LearningTransaction>): LearningService {
     get(target, property) {
       if (property in target) return target[property as keyof typeof target];
       if (typeof property === "string" && SERIALIZATION_METHODS.has(property)) {
-        return vi.fn(async () => undefined);
+        return vi.fn(async () => property === "lockPlanInitialization" ? true : undefined);
       }
       return vi.fn(async () => {
         throw new Error(`Unexpected fake transaction call: ${String(property)}`);
