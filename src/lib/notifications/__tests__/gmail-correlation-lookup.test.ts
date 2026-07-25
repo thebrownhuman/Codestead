@@ -1,9 +1,28 @@
+import { createHash } from "node:crypto";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { findGmailMessageByMessageId } from "../mailer";
+import {
+  findGmailMessageByMessageId,
+} from "../gmail-correlation-lookup";
 
 const MESSAGE_ID =
   "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>";
+const OPAQUE_MESSAGE_ID =
+  "<codestead.outbox.v1.okd-aMXCHPuS1pgnjdYfjG17CU5nfw-6stQE23enb8Q@mail.codestead.invalid>";
+const EVIDENCE_TOKEN = "A".repeat(43);
+const EVIDENCE_SHA256 =
+  "6889a4e92ed4f994f2f039da46e2a9d482c8162d1ef9cc1050664b965a7c9d80";
+const LEGACY_UNBOUND_AUTHORITY = {
+  kind: "legacy-unbound-v0" as const,
+};
+
+function lookup() {
+  return findGmailMessageByMessageId({
+    messageId: MESSAGE_ID,
+    authority: LEGACY_UNBOUND_AUTHORITY,
+  });
+}
 
 describe("bounded Gmail correlation lookup", () => {
   beforeEach(() => {
@@ -32,9 +51,10 @@ describe("bounded Gmail correlation lookup", () => {
       }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(findGmailMessageByMessageId(MESSAGE_ID)).resolves.toEqual({
+    await expect(lookup()).resolves.toEqual({
       kind: "matched",
       providerMessageId: "gmail-1",
+      proof: { kind: "legacy-discovery-v0" },
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -60,7 +80,7 @@ describe("bounded Gmail correlation lookup", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ messages }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(findGmailMessageByMessageId(MESSAGE_ID)).resolves.toEqual({ kind });
+    await expect(lookup()).resolves.toEqual({ kind });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -83,7 +103,7 @@ describe("bounded Gmail correlation lookup", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify(body), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(findGmailMessageByMessageId(MESSAGE_ID)).resolves.toEqual({
+    await expect(lookup()).resolves.toEqual({
       kind: "ambiguous",
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -100,7 +120,7 @@ describe("bounded Gmail correlation lookup", () => {
         },
       }), { status: 200 })));
 
-    await expect(findGmailMessageByMessageId(MESSAGE_ID)).resolves.toEqual({
+    await expect(lookup()).resolves.toEqual({
       kind: "ambiguous",
     });
   });
@@ -117,7 +137,7 @@ describe("bounded Gmail correlation lookup", () => {
         },
       }), { status: 200 })));
 
-    await expect(findGmailMessageByMessageId(MESSAGE_ID)).resolves.toEqual({
+    await expect(lookup()).resolves.toEqual({
       kind: "ambiguous",
     });
   });
@@ -134,9 +154,166 @@ describe("bounded Gmail correlation lookup", () => {
         },
       }), { status: 200 })));
 
-    await expect(findGmailMessageByMessageId(MESSAGE_ID)).resolves.toEqual({
+    await expect(lookup()).resolves.toEqual({
       kind: "ambiguous",
     });
+  });
+
+  it("authorizes class B only when decoded Gmail RAW bytes match the persisted SHA", async () => {
+    const raw = Buffer.from(
+      `Message-ID: ${MESSAGE_ID}\r\nSubject: legacy\r\n\r\nbody`,
+      "utf8",
+    );
+    const adapterPayloadSha256 = createHash("sha256").update(raw).digest("hex");
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        access_token: "access",
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        messages: [{ id: "gmail-bound" }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: "gmail-bound",
+        labelIds: ["SENT"],
+        raw: raw.toString("base64url"),
+      }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(findGmailMessageByMessageId({
+      messageId: MESSAGE_ID,
+      authority: {
+        kind: "legacy-raw-bound-v1",
+        adapterPayloadSha256,
+      },
+    })).resolves.toEqual({
+      kind: "matched",
+      providerMessageId: "gmail-bound",
+      proof: { kind: "raw-sha256-v1", adapterPayloadSha256 },
+    });
+    const rawUrl = new URL(String(fetchMock.mock.calls[2]![0]));
+    expect(rawUrl.searchParams.get("format")).toBe("raw");
+    expect(rawUrl.searchParams.has("metadataHeaders")).toBe(false);
+  });
+
+  it("keeps class B unresolved on a RAW digest mismatch", async () => {
+    const raw = Buffer.from(
+      `Message-ID: ${MESSAGE_ID}\r\n\r\nbody`,
+      "utf8",
+    );
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        access_token: "access",
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        messages: [{ id: "gmail-bound" }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: "gmail-bound",
+        labelIds: ["SENT"],
+        raw: raw.toString("base64url"),
+      }), { status: 200 })));
+
+    await expect(findGmailMessageByMessageId({
+      messageId: MESSAGE_ID,
+      authority: {
+        kind: "legacy-raw-bound-v1",
+        adapterPayloadSha256: "b".repeat(64),
+      },
+    })).resolves.toEqual({ kind: "ambiguous" });
+  });
+
+  it("authorizes class C only with the exact authenticated evidence header", async () => {
+    const raw = Buffer.from([
+      `Message-ID: ${OPAQUE_MESSAGE_ID}`,
+      `X-Codestead-Dispatch-Evidence: v1.${EVIDENCE_TOKEN}`,
+      "Subject: opaque",
+      "",
+      "body",
+    ].join("\r\n"), "utf8");
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        access_token: "access",
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        messages: [{ id: "gmail-opaque" }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: "gmail-opaque",
+        labelIds: ["SENT"],
+        raw: raw.toString("base64url"),
+      }), { status: 200 })));
+
+    await expect(findGmailMessageByMessageId({
+      messageId: OPAQUE_MESSAGE_ID,
+      authority: {
+        kind: "opaque-header-v1",
+        operationId: "22222222-2222-4222-8222-222222222222",
+        adapterPayloadSha256: "b".repeat(64),
+        providerEvidenceSha256: EVIDENCE_SHA256,
+      },
+    })).resolves.toEqual({
+      kind: "matched",
+      providerMessageId: "gmail-opaque",
+      proof: {
+        kind: "header-evidence-v1",
+        providerEvidenceSha256: EVIDENCE_SHA256,
+      },
+    });
+  });
+
+  it.each([
+    { label: "missing", evidenceLines: [] },
+    {
+      label: "duplicated",
+      evidenceLines: [
+        `X-Codestead-Dispatch-Evidence: v1.${EVIDENCE_TOKEN}`,
+        `x-codestead-dispatch-evidence: v1.${EVIDENCE_TOKEN}`,
+      ],
+    },
+    {
+      label: "folded",
+      evidenceLines: [
+        "X-Codestead-Dispatch-Evidence: v1.",
+        ` ${EVIDENCE_TOKEN}`,
+      ],
+    },
+    {
+      label: "malformed",
+      evidenceLines: [
+        "X-Codestead-Dispatch-Evidence: v1.not-canonical",
+      ],
+    },
+  ])("keeps class C unresolved for $label evidence", async ({
+    evidenceLines,
+  }) => {
+    const raw = Buffer.from([
+      `Message-ID: ${OPAQUE_MESSAGE_ID}`,
+      ...evidenceLines,
+      "",
+      "body",
+    ].join("\r\n"), "utf8");
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        access_token: "access",
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        messages: [{ id: "gmail-opaque" }],
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        id: "gmail-opaque",
+        labelIds: ["SENT"],
+        raw: raw.toString("base64url"),
+      }), { status: 200 })));
+
+    await expect(findGmailMessageByMessageId({
+      messageId: OPAQUE_MESSAGE_ID,
+      authority: {
+        kind: "opaque-header-v1",
+        operationId: "22222222-2222-4222-8222-222222222222",
+        adapterPayloadSha256: "b".repeat(64),
+        providerEvidenceSha256: EVIDENCE_SHA256,
+      },
+    })).resolves.toEqual({ kind: "ambiguous" });
   });
 
   it.each(["list", "metadata"] as const)(
@@ -163,7 +340,7 @@ describe("bounded Gmail correlation lookup", () => {
       vi.stubGlobal("fetch", fetchMock);
 
       let outcome: unknown;
-      void findGmailMessageByMessageId(MESSAGE_ID).then(
+      void lookup().then(
         (result) => { outcome = result; },
         (error) => { outcome = error; },
       );
