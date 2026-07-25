@@ -2,6 +2,10 @@
 
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
+import {
+  assertMailRetentionRedaction0063PostgresProjection,
+  mailRetentionRedaction0063CiContract,
+} from "./mail-retention-redaction-0063-ci-contract.mjs";
 
 const read = (relativePath) =>
   readFileSync(new URL(`../../${relativePath}`, import.meta.url), "utf8");
@@ -22,17 +26,12 @@ const migration0063 = read(
 const scripts = packageManifest.scripts;
 const staticOnly = process.argv.includes("--static-only");
 
-const registrationScript =
-  "test:mail-retention-redaction-0063:registration";
-const harnessScript = "test:mail-retention-redaction-0063";
-const registrationCommand =
-  "node infra/tests/mail-retention-redaction-0063-registration.test.mjs";
-const harnessCommand =
-  "node infra/tests/mail-retention-redaction-0063.integration.mjs";
-const pg17Command =
-  `POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run ${harnessScript}`;
-const pg18Command =
-  `POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run ${harnessScript}`;
+const {
+  registrationScript,
+  harnessScript,
+  registrationCommand,
+  harnessCommand,
+} = mailRetentionRedaction0063CiContract;
 
 if (!staticOnly) {
   assert.equal(
@@ -177,33 +176,7 @@ if (!staticOnly) {
   const postgresJob = workflow.match(
     /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
   )?.[0] ?? "";
-  assert.match(
-    postgresJob,
-    /^  postgres-integration:\n    runs-on: ubuntu-24\.04\n/mu,
-    "the 0063 matrix must remain in the PostgreSQL integration job",
-  );
-  assert.doesNotMatch(postgresJob, /continue-on-error:/u);
-  for (const command of [
-    `npm run ${registrationScript}`,
-    pg17Command,
-    pg18Command,
-  ]) {
-    assert.equal(
-      workflow.split(`      - run: ${command}`).length,
-      2,
-      `CI command must appear exactly once: ${command}`,
-    );
-  }
-
-  const pg17Index = postgresJob.indexOf(`      - run: ${pg17Command}`);
-  const pg18Index = postgresJob.indexOf(`      - run: ${pg18Command}`);
-  assert.ok(pg17Index >= 0);
-  assert.ok(pg18Index > pg17Index);
-  assert.doesNotMatch(
-    postgresJob.slice(pg17Index, pg18Index),
-    /(?:&|parallel|concurrently)\s+.*mail-retention-redaction/iu,
-    "the PG17 and PG18 live harnesses must remain sequential",
-  );
+  assertMailRetentionRedaction0063PostgresProjection(postgresJob);
 }
 
 console.log(
