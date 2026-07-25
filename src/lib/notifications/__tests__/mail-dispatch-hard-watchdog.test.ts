@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { ChildProcess, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -17,20 +17,9 @@ import {
   type MailDispatchHardWatchdog,
 } from "../mail-dispatch-hard-watchdog";
 
-function fatalExit(error: Error): never {
-  throw error;
-}
-
 const TEST_FAULT_NAME = "MAIL_DISPATCH_WATCHDOG_TEST_FAULT";
 const TEST_HANDSHAKE_NAME =
   "MAIL_DISPATCH_WATCHDOG_TEST_HANDSHAKE_TIMEOUT_MS";
-
-function recordingFatalExit(errors: Error[]) {
-  return ((error: Error) => {
-    errors.push(error);
-    return undefined as never;
-  }) as Parameters<typeof startMailDispatchHardWatchdog>[0]["fatalExit"];
-}
 
 function stubWatchdogFault(fault: string) {
   vi.stubEnv(TEST_FAULT_NAME, fault);
@@ -50,6 +39,80 @@ async function closeController(
     await disarmMailDispatchHardWatchdog(armed);
   }
   await controller?.close();
+}
+
+type FatalFixtureResult = Readonly<{
+  code: number | null;
+  signal: NodeJS.Signals | null;
+  stdout: string;
+  stderr: string;
+}>;
+
+async function runFatalFixture(input: Readonly<{
+  fault: string;
+  phase: "arm" | "armed" | "disarm" | "idle";
+  exitMode: "native" | "return" | "throw";
+}>): Promise<FatalFixtureResult> {
+  const fixture = path.resolve(
+    process.cwd(),
+    "src/lib/notifications/__tests__/fixtures/mail-dispatch-hard-watchdog-fatal-parent.mjs",
+  );
+  const environment: NodeJS.ProcessEnv = {
+    NODE_ENV: "test",
+    MAIL_DISPATCH_WATCHDOG_TEST_TIMEOUT_MS: "250",
+    MAIL_DISPATCH_WATCHDOG_TEST_HANDSHAKE_TIMEOUT_MS: "100",
+    MAIL_DISPATCH_WATCHDOG_TEST_FAULT: input.fault,
+    MAIL_DISPATCH_WATCHDOG_TEST_EXIT_MODE: input.exitMode,
+    MAIL_DISPATCH_WATCHDOG_TEST_FATAL_PHASE: input.phase,
+    DATABASE_URL: "postgresql://watchdog-must-not-inherit",
+    GMAIL_CLIENT_SECRET: "gmail-secret-must-not-inherit",
+    DELETION_TOMBSTONE_KEY: "tombstone-must-not-inherit",
+    LOST_DEVICE_PROOF_KEY: "proof-key-must-not-inherit",
+  };
+  for (const name of ["PATH", "SYSTEMROOT", "WINDIR"] as const) {
+    if (process.env[name]) environment[name] = process.env[name];
+  }
+
+  const child = spawn(
+    process.execPath,
+    ["--import", "tsx", fixture],
+    {
+      cwd: process.cwd(),
+      env: environment,
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    },
+  );
+  let stdout = "";
+  let stderr = "";
+  child.stdout.setEncoding("utf8");
+  child.stderr.setEncoding("utf8");
+  child.stdout.on("data", (chunk: string) => {
+    stdout += chunk;
+  });
+  child.stderr.on("data", (chunk: string) => {
+    stderr += chunk;
+  });
+
+  const result = await new Promise<Readonly<{
+    code: number | null;
+    signal: NodeJS.Signals | null;
+  }>>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      child.kill("SIGKILL");
+      reject(new Error("Watchdog fatal fixture did not terminate."));
+    }, 3_000);
+    child.once("error", (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+    child.once("exit", (code, signal) => {
+      clearTimeout(timeout);
+      resolve({ code, signal });
+    });
+  });
+
+  return { ...result, stdout, stderr };
 }
 
 describe("mail dispatch external hard watchdog", () => {
@@ -85,7 +148,7 @@ describe("mail dispatch external hard watchdog", () => {
     let controller: MailDispatchHardWatchdog | undefined;
     let armed: ArmedMailDispatchHardWatchdog | undefined;
     try {
-      controller = await startMailDispatchHardWatchdog({ fatalExit });
+      controller = await startMailDispatchHardWatchdog();
       armed = await controller.arm();
 
       expect(Object.isFrozen(armed)).toBe(true);
@@ -108,7 +171,7 @@ describe("mail dispatch external hard watchdog", () => {
     let controller: MailDispatchHardWatchdog | undefined;
     let armed: ArmedMailDispatchHardWatchdog | undefined;
     try {
-      controller = await startMailDispatchHardWatchdog({ fatalExit });
+      controller = await startMailDispatchHardWatchdog();
       armed = await controller.arm();
       expect(isMailDispatchHardWatchdogArmed(armed)).toBe(true);
       await disarmMailDispatchHardWatchdog(armed);
@@ -122,7 +185,7 @@ describe("mail dispatch external hard watchdog", () => {
     let controller: MailDispatchHardWatchdog | undefined;
     let current: ArmedMailDispatchHardWatchdog | undefined;
     try {
-      controller = await startMailDispatchHardWatchdog({ fatalExit });
+      controller = await startMailDispatchHardWatchdog();
       const first = await controller.arm();
       await disarmMailDispatchHardWatchdog(first);
 
@@ -148,10 +211,7 @@ describe("mail dispatch external hard watchdog", () => {
     "MALFORMED_READY",
   ])("refuses startup for child fault %s without invoking the post-ready fatal hook", async (fault) => {
     stubWatchdogFault(fault);
-    const fatalities: Error[] = [];
-    const outcome = await startMailDispatchHardWatchdog({
-      fatalExit: recordingFatalExit(fatalities),
-    }).then(
+    const outcome = await startMailDispatchHardWatchdog().then(
       (controller) => ({ kind: "started" as const, controller }),
       (error: unknown) => ({ kind: "failed" as const, error }),
     );
@@ -160,128 +220,59 @@ describe("mail dispatch external hard watchdog", () => {
       await outcome.controller.close();
     }
     expect(outcome.kind).toBe("failed");
-    expect(fatalities).toEqual([]);
-  });
-
-  it("fatal-exits if the ready child disconnects while idle", async () => {
-    stubWatchdogFault("DISCONNECT_AFTER_READY");
-    const fatalities: Error[] = [];
-    let controller: MailDispatchHardWatchdog | undefined;
-    try {
-      controller = await startMailDispatchHardWatchdog({
-        fatalExit: recordingFatalExit(fatalities),
-      });
-      await vi.waitFor(() => expect(fatalities).toHaveLength(1), {
-        timeout: 1_000,
-      });
-      expect(fatalities[0]).toMatchObject({
-        code: "WATCHDOG_CHILD_FAILED",
-      });
-    } finally {
-      await closeController(controller, undefined);
-    }
   });
 
   it.each([
-    "MALFORMED_ARMED",
-    "DROP_ARM_ACK",
-    "DISCONNECT_ON_ARM",
-    "SEND_CALLBACK_ERROR",
-  ])("rejects ARM and fatal-exits for child fault %s", async (fault) => {
-    stubWatchdogFault(fault);
-    const fatalities: Error[] = [];
-    let controller: MailDispatchHardWatchdog | undefined;
-    let armed: ArmedMailDispatchHardWatchdog | undefined;
-    try {
-      controller = await startMailDispatchHardWatchdog({
-        fatalExit: recordingFatalExit(fatalities),
+    ["DISCONNECT_AFTER_READY", "idle"],
+    ["MALFORMED_ARMED", "arm"],
+    ["DROP_ARM_ACK", "arm"],
+    ["DISCONNECT_ON_ARM", "arm"],
+    ["SEND_CALLBACK_ERROR", "arm"],
+    ["SEND_SYNC_THROW", "arm"],
+    ["MALFORMED_DISARMED", "disarm"],
+    ["DROP_DISARM_ACK", "disarm"],
+    ["DISCONNECT_ON_DISARM", "disarm"],
+  ] as const)(
+    "module-owned exit terminates post-READY fault %s without unwind",
+    { timeout: 10_000 },
+    async (fault, phase) => {
+      const result = await runFatalFixture({
+        fault,
+        phase,
+        exitMode: "native",
       });
-      const outcome = await controller.arm().then(
-        (capability) => ({ kind: "armed" as const, capability }),
-        (error: unknown) => ({ kind: "failed" as const, error }),
+
+      expect(result).toEqual({
+        code: 1,
+        signal: null,
+        stdout: "",
+        stderr: "",
+      });
+    },
+  );
+
+  it.each(["return", "throw"] as const)(
+    "parks under the armed child when process.exit is patched to %s",
+    { timeout: 10_000 },
+    async (exitMode) => {
+      const result = await runFatalFixture({
+        fault: "CONTROLLER_FAIL_AFTER_ARMED",
+        phase: "armed",
+        exitMode,
+      });
+
+      expect(result.stdout).toBe("ARMED\n");
+      expect(result.stderr).toBe("");
+      expect(result.stdout).not.toMatch(
+        /CATCH|FINALLY|SURVIVED|UNCAUGHT|UNHANDLED/u,
       );
-      if (outcome.kind === "armed") armed = outcome.capability;
-
-      expect(outcome.kind).toBe("failed");
-      await vi.waitFor(() => expect(fatalities).toHaveLength(1), {
-        timeout: 1_000,
-      });
-      expect(fatalities[0]).toMatchObject({
-        code: expect.stringMatching(
-          /^WATCHDOG_(?:PROTOCOL_INVALID|HANDSHAKE_TIMEOUT|CHILD_FAILED)$/u,
-        ),
-      });
-    } finally {
-      await closeController(controller, armed);
-    }
-  });
-
-  it("invokes the fatal hook before best-effort IPC teardown and contains teardown exceptions", async () => {
-    stubWatchdogFault("MALFORMED_ARMED");
-    const order: string[] = [];
-    const fatalities: Error[] = [];
-    let controller: MailDispatchHardWatchdog | undefined;
-    const kill = vi
-      .spyOn(ChildProcess.prototype, "kill")
-      .mockImplementation(() => {
-        order.push("teardown");
-        throw new Error("injected teardown failure");
-      });
-    try {
-      controller = await startMailDispatchHardWatchdog({
-        fatalExit: ((error: Error) => {
-          order.push("fatal");
-          fatalities.push(error);
-          return undefined as never;
-        }) as Parameters<
-          typeof startMailDispatchHardWatchdog
-        >[0]["fatalExit"],
-      });
-      const outcome = await controller.arm().then(
-        () => "armed" as const,
-        () => "failed" as const,
-      );
-
-      expect(outcome).toBe("failed");
-      expect(fatalities).toHaveLength(1);
-      expect(order[0]).toBe("fatal");
-      expect(order).toContain("teardown");
-    } finally {
-      kill.mockRestore();
-      await closeController(controller, undefined);
-    }
-  });
-
-  it.each([
-    "MALFORMED_DISARMED",
-    "DROP_DISARM_ACK",
-    "DISCONNECT_ON_DISARM",
-  ])("rejects DISARM and fatal-exits for child fault %s", async (fault) => {
-    stubWatchdogFault(fault);
-    const fatalities: Error[] = [];
-    let controller: MailDispatchHardWatchdog | undefined;
-    let armed: ArmedMailDispatchHardWatchdog | undefined;
-    try {
-      controller = await startMailDispatchHardWatchdog({
-        fatalExit: recordingFatalExit(fatalities),
-      });
-      armed = await controller.arm();
-      const capability = armed;
-      const outcome = await disarmMailDispatchHardWatchdog(capability).then(
-        () => ({ kind: "disarmed" as const }),
-        (error: unknown) => ({ kind: "failed" as const, error }),
-      );
-      if (outcome.kind === "disarmed") armed = undefined;
-
-      expect(outcome.kind).toBe("failed");
-      await vi.waitFor(() => expect(fatalities).toHaveLength(1), {
-        timeout: 1_000,
-      });
-      expect(isMailDispatchHardWatchdogArmed(capability)).toBe(false);
-    } finally {
-      await closeController(controller, armed);
-    }
-  });
+      if (process.platform === "win32") {
+        expect(result.code).not.toBe(0);
+      } else {
+        expect(result.signal).toBe("SIGKILL");
+      }
+    },
+  );
 
   it(
     "kills a stalled or SIGSTOPped parent without running cleanup, health, retry, or telemetry callbacks",
