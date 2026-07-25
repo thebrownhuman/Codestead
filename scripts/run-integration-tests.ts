@@ -1,12 +1,25 @@
 import { randomBytes } from "node:crypto";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
 
 import pg, { type PoolClient } from "pg";
 
-import { minimalNodeTestEnvironment } from "./lib/disposable-integration-environment";
+import { buildDisposableIntegrationChildLaunch } from
+  "./lib/disposable-integration-child-launch";
+import {
+  createDisposableIntegrationChildController,
+  type DisposableIntegrationChildController,
+} from "./lib/disposable-integration-child-controller";
+import { runWithDisposableIntegrationHarness } from
+  "./lib/disposable-integration-harness";
+import {
+  buildDisposableIntegrationRuntimeEnvironment,
+  createIntegrationOutputSanitizer,
+} from "./lib/disposable-integration-runtime";
+import { buildDisposableToolEnvironment } from
+  "./lib/disposable-tool-environment";
 import {
   migrationJournalEntryCount,
   runDisposableIntegrationReleaseCycles,
@@ -73,43 +86,95 @@ function executable(name: "docker" | "npm") {
 function run(
   command: string,
   args: readonly string[],
-  options: { readonly env?: NodeJS.ProcessEnv; readonly quiet?: boolean } = {},
+  options: {
+    readonly childController: DisposableIntegrationChildController;
+    readonly env: NodeJS.ProcessEnv;
+    readonly quiet?: boolean;
+    readonly secrets: readonly string[];
+  },
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, [...args], {
-      cwd: process.cwd(),
-      env: options.env ?? process.env,
-      stdio: options.quiet ? "ignore" : "inherit",
-      windowsHide: true,
+    const stdoutSanitizer = options.quiet
+      ? undefined
+      : createIntegrationOutputSanitizer({
+        secrets: options.secrets,
+        write: (value) => process.stdout.write(value),
+      });
+    const stderrSanitizer = options.quiet
+      ? undefined
+      : createIntegrationOutputSanitizer({
+        secrets: options.secrets,
+        write: (value) => process.stderr.write(value),
+      });
+    const launch = buildDisposableIntegrationChildLaunch({
+      command,
+      args,
+      environment: options.env,
     });
-    child.once("error", reject);
-    child.once("exit", (code, signal) => {
-      if (code === 0) resolve();
-      else reject(new Error(`${command} exited with ${code ?? signal ?? "unknown"}.`));
+    const tracked = options.childController.spawnAndTrack(() => spawn(
+      launch.command,
+      [...launch.args],
+      {
+        cwd: process.cwd(),
+        detached: true,
+        env: launch.environment,
+        stdio: options.quiet ? "ignore" : ["ignore", "pipe", "pipe"],
+        windowsHide: true,
+      },
+    ));
+    const { child, completeAndWait } = tracked;
+    child.stdout?.on("data", (value: Uint8Array) => {
+      stdoutSanitizer?.write(value);
+    });
+    child.stderr?.on("data", (value: Uint8Array) => {
+      stderrSanitizer?.write(value);
+    });
+    let spawnFailed = false;
+    child.once("error", () => {
+      spawnFailed = true;
+    });
+    child.once("close", (code, signal) => {
+      void (async () => {
+        stdoutSanitizer?.end();
+        stderrSanitizer?.end();
+        const childSignal = signal === "SIGINT" ? "SIGINT" : "SIGTERM";
+        try {
+          await completeAndWait(childSignal);
+        } catch {
+          reject(new Error(
+            "Disposable integration child tree cleanup failed.",
+          ));
+          return;
+        }
+        if (!spawnFailed && code === 0 && signal === null) {
+          resolve();
+          return;
+        }
+        reject(new Error("Disposable integration child process failed."));
+      })();
     });
   });
 }
 
-function runNpm(args: readonly string[], env: NodeJS.ProcessEnv): Promise<void> {
+function runNpm(
+  args: readonly string[],
+  env: NodeJS.ProcessEnv,
+  secrets: readonly string[],
+  childController: DisposableIntegrationChildController,
+): Promise<void> {
   const npmCli = process.env.npm_execpath;
-  if (npmCli) return run(process.execPath, [npmCli, ...args], { env });
-  return run(executable("npm"), args, { env });
-}
-
-function sanitizedIntegrationEnvironment(
-  environment: NodeJS.ProcessEnv,
-): NodeJS.ProcessEnv {
-  return Object.fromEntries(
-    Object.entries(environment).filter(([name]) => {
-      const normalized = name.toUpperCase();
-      return !normalized.startsWith("PG")
-        && !normalized.includes("PASSWORD")
-        && !(
-          normalized.startsWith("DATABASE_")
-          && (normalized.endsWith("_URL") || normalized.endsWith("_FILE"))
-        );
-    }),
-  ) as NodeJS.ProcessEnv;
+  if (npmCli) {
+    return run(process.execPath, [npmCli, ...args], {
+      childController,
+      env,
+      secrets,
+    });
+  }
+  return run(executable("npm"), args, {
+    childController,
+    env,
+    secrets,
+  });
 }
 
 function generatedPassword() {
@@ -327,23 +392,40 @@ async function availablePort(): Promise<number> {
   });
 }
 
-async function waitForPostgres(connectionString: string): Promise<void> {
+async function waitForPostgres(
+  connectionString: string,
+  expectedMajor: number,
+): Promise<void> {
   const deadline = Date.now() + 60_000;
-  let lastError: unknown = null;
+  const mismatchMessage = "Disposable integration PostgreSQL major mismatch.";
   while (Date.now() < deadline) {
     const client = new Client({ connectionString, connectionTimeoutMillis: 1_000 });
     try {
       await client.connect();
-      await client.query("select 1");
+      const version = await client.query<{ server_version_num: string }>(
+        "show server_version_num",
+      );
+      const versionNumber = Number.parseInt(
+        version.rows[0]?.server_version_num ?? "",
+        10,
+      );
       await client.end();
+      if (
+        !Number.isSafeInteger(versionNumber)
+        || Math.floor(versionNumber / 10_000) !== expectedMajor
+      ) {
+        throw new Error(mismatchMessage);
+      }
       return;
     } catch (error) {
-      lastError = error;
       await client.end().catch(() => undefined);
+      if (error instanceof Error && error.message === mismatchMessage) {
+        throw error;
+      }
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
   }
-  throw new Error(`PostgreSQL did not become ready: ${String(lastError)}`);
+  throw new Error("Disposable integration PostgreSQL readiness failed.");
 }
 
 async function expectedMigrationJournalCount(): Promise<number> {
@@ -363,33 +445,21 @@ async function expectedMigrationJournalCount(): Promise<number> {
 async function main() {
   const requestedTests = process.argv.slice(2);
   for (const requested of requestedTests) {
-    if (!/^integration\/[a-z0-9-]+\.integration\.test\.ts$/.test(requested.replaceAll("\\", "/"))) {
-      throw new Error(`Integration test path is not allowlisted: ${requested}`);
+    const normalized = requested.replaceAll("\\", "/");
+    if (
+      !/^integration\/[a-z0-9-]+\.integration\.test\.ts$/u.test(
+        normalized,
+      )
+    ) {
+      throw new Error("Integration test path is not allowlisted.");
     }
   }
+
   const expectedJournalCount = await expectedMigrationJournalCount();
-  await run(process.execPath, [
-    "--test",
-    path.resolve(process.cwd(), "scripts/database-role-boundaries.test.mjs"),
-  ], {
-    env: minimalNodeTestEnvironment(process.env),
-  });
-
-  const docker = executable("docker");
-  const dockerCheck = spawnSync(docker, ["version", "--format", "{{.Server.Version}}"], {
-    encoding: "utf8",
-    windowsHide: true,
-  });
-  if (dockerCheck.status !== 0) {
-    throw new Error(
-      "Docker is required for test:integration. Start Docker and grant this process access to its daemon. " +
-      (dockerCheck.stderr || dockerCheck.error?.message || "Docker server was unavailable."),
-    );
-  }
-
   const suffix = randomBytes(6).toString("hex");
   const containerName = `learncoding-postgres-it-${suffix}`;
-  const password = randomBytes(24).toString("base64url");
+  const password = generatedPassword();
+  const betterAuthSecret = generatedPassword();
   const integrationUser = "learncoding_it";
   const database = "learncoding_integration";
   const roleCredentials: DisposableRoleCredentials = Object.freeze({
@@ -400,73 +470,76 @@ async function main() {
     ops: generatedPassword(),
   });
   const port = await availablePort();
-  const image = process.env.INTEGRATION_POSTGRES_IMAGE ??
-    "postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193";
   const databaseUrl = databaseRoleUrl({
-    username: integrationUser, password, hostname: "127.0.0.1", port, database,
+    username: integrationUser,
+    password,
+    hostname: "127.0.0.1",
+    port,
+    database,
   });
   const roleUrls = disposableRoleUrls(port, database, roleCredentials);
-  let started = false;
+  const ownerDatabaseUrl = ownerAssumingDatabaseUrl(roleUrls.migrator);
+  const secrets = [
+    password,
+    betterAuthSecret,
+    databaseUrl,
+    ownerDatabaseUrl,
+    roleCredentials.bootstrap,
+    roleCredentials.app,
+    roleCredentials.migrator,
+    roleCredentials.worker,
+    roleCredentials.ops,
+    roleUrls.app,
+    roleUrls.migrator,
+    roleUrls.worker,
+    roleUrls.ops,
+  ];
+  const childController = createDisposableIntegrationChildController();
+  const requestedImage = process.env.INTEGRATION_POSTGRES_IMAGE;
 
-  const cleanup = () => {
-    if (!started) return;
-    spawnSync(docker, ["rm", "--force", containerName], {
-      stdio: "ignore",
-      windowsHide: true,
-    });
-    started = false;
-  };
-
-  process.once("SIGINT", () => {
-    cleanup();
-    process.exit(130);
-  });
-  process.once("SIGTERM", () => {
-    cleanup();
-    process.exit(143);
-  });
-
-  try {
-    await run(docker, [
-      "run",
-      "--detach",
-      "--rm",
-      "--name",
-      containerName,
-      "--label",
-      "com.learncoding.purpose=disposable-integration-test",
-      "--publish",
-      `127.0.0.1:${port}:5432`,
-      "--tmpfs",
-      "/var/lib/postgresql/data:rw,nosuid,nodev,size=512m",
-      "--env",
-      `POSTGRES_DB=${database}`,
-      "--env",
-      `POSTGRES_USER=${integrationUser}`,
-      "--env",
-      "POSTGRES_PASSWORD",
-      image,
+  await runWithDisposableIntegrationHarness({
+    dockerCommand: executable("docker"),
+    containerName,
+    port,
+    database,
+    username: integrationUser,
+    password,
+    sourceEnvironment: process.env,
+    terminateActiveChildren: childController.terminateAndWait,
+    processTarget: {
+      on: (signal, listener) => process.on(signal, listener),
+      exit: (code) => process.exit(code),
+    },
+    writeError: (message) => process.stderr.write(`${message}\n`),
+    ...(requestedImage === undefined ? {} : { requestedImage }),
+  }, async ({ taskHomeDirectory, postgresMajor }) => {
+    const toolEnvironment = buildDisposableToolEnvironment(
+      process.env,
+      taskHomeDirectory,
+    );
+    await run(process.execPath, [
+      "--test",
+      path.resolve(
+        process.cwd(),
+        "scripts/database-role-boundaries.test.mjs",
+      ),
     ], {
-      env: {
-        ...sanitizedIntegrationEnvironment(process.env),
-        POSTGRES_PASSWORD: password,
-      },
+      childController,
+      env: toolEnvironment,
+      secrets,
     });
-    started = true;
-    await waitForPostgres(databaseUrl);
+    await waitForPostgres(databaseUrl, postgresMajor);
 
-    const testEnv = {
-      ...sanitizedIntegrationEnvironment(process.env),
-      DATABASE_APP_URL: roleUrls.app,
-      DATABASE_MIGRATOR_URL: roleUrls.migrator,
-      DATABASE_WORKER_URL: roleUrls.worker,
-      DATABASE_OPS_URL: roleUrls.ops,
-      DATABASE_URL: ownerAssumingDatabaseUrl(roleUrls.migrator),
-      DATABASE_POOL_SIZE: "8",
-      NODE_ENV: "test" as const,
-      BETTER_AUTH_SECRET: "integration-only-secret-never-for-production",
-      INTEGRATION_TEST: "1",
-    };
+    const testEnvironment =
+      buildDisposableIntegrationRuntimeEnvironment(process.env, {
+        taskHomeDirectory,
+        databaseAppUrl: roleUrls.app,
+        databaseMigratorUrl: roleUrls.migrator,
+        databaseWorkerUrl: roleUrls.worker,
+        databaseOpsUrl: roleUrls.ops,
+        databaseUrl: ownerDatabaseUrl,
+        betterAuthSecret,
+      });
     const topology = {
       databaseUrl,
       integrationUser,
@@ -499,13 +572,11 @@ async function main() {
       "run",
       "test:integration:vitest",
       ...(requestedTests.length > 0 ? ["--", ...requestedTests] : []),
-    ], testEnv);
-  } finally {
-    cleanup();
-  }
+    ], testEnvironment, secrets, childController);
+  });
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
+main().catch(() => {
+  console.error("Disposable integration failed.");
   process.exitCode = 1;
 });
