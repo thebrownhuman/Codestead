@@ -13,8 +13,10 @@ import {
 import { enqueueEmailInTransaction } from "@/lib/notifications/outbox";
 import {
   createLostDeviceProofSourceVariables,
+  createLostDeviceAuthorityEvidence,
   createSessionRevocationSourceVariables,
   requireRevocableSourceVariables,
+  type LostDeviceAuthorityEvidence,
 } from "@/lib/notifications/revocable-source-authority";
 import { writeAuditEventInTransaction } from "@/lib/security/audit-writer";
 
@@ -314,7 +316,6 @@ export async function verifyLostDeviceProof(input: {
             createSessionRevocationSourceVariables({
               applicationUrl,
               name: admin.name,
-              device: "the learner's only approved browser profile",
               requestId: existing.id,
               url: actionUrl,
             }),
@@ -342,11 +343,16 @@ export async function verifyLostDeviceProof(input: {
   });
 }
 
-export async function materializeLostDeviceProofVariables(input: {
+export type MaterializedLostDeviceProofDelivery = Readonly<{
+  authorityEvidence: LostDeviceAuthorityEvidence;
+  variables: Readonly<Record<string, string>>;
+}>;
+
+export async function materializeLostDeviceProofDelivery(input: {
   requestId: string;
   name: string;
   now?: Date;
-}): Promise<Record<string, string> | null> {
+}): Promise<MaterializedLostDeviceProofDelivery | null> {
   const now = input.now ?? new Date();
   const [record] = await db
     .select({ proofHash: lostDeviceProof.proofHash })
@@ -361,7 +367,12 @@ export async function materializeLostDeviceProofVariables(input: {
     .limit(1);
   if (!record) return null;
   const rawProof = deriveLostDeviceProof(input.requestId);
-  if (!sameHash(record.proofHash, hashLostDeviceProof(rawProof))) return null;
+  const authorityEvidence = createLostDeviceAuthorityEvidence({
+    sourceId: input.requestId,
+    rawProof,
+    storedProofHash: record.proofHash,
+  });
+  if (!authorityEvidence) return null;
   const applicationUrl = new URL(
     "/lost-device",
     process.env.APP_URL ?? "http://localhost:3000",
@@ -369,5 +380,16 @@ export async function materializeLostDeviceProofVariables(input: {
   // URL fragments are not sent in HTTP requests or Referer headers, keeping
   // the bearer proof out of ordinary reverse-proxy/application access logs.
   applicationUrl.hash = `proof=${encodeURIComponent(rawProof)}`;
-  return { name: input.name, url: applicationUrl.toString() };
+  const variables = Object.freeze({ name: input.name, url: applicationUrl.toString() });
+  return Object.freeze({ authorityEvidence, variables });
+}
+
+/** Variables-only compatibility adapter used until central TX1/TX2 consumes authorityEvidence. */
+export async function materializeLostDeviceProofVariables(input: {
+  requestId: string;
+  name: string;
+  now?: Date;
+}): Promise<Record<string, string> | null> {
+  const delivery = await materializeLostDeviceProofDelivery(input);
+  return delivery ? { ...delivery.variables } : null;
 }

@@ -1,5 +1,10 @@
+import { createHash, timingSafeEqual } from "node:crypto";
+
+import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
+
 export const INACTIVITY_MAIL_POLICY_VERSION = "inactivity-2026-07.v2";
 export const SMART_REMINDER_POLICY_VERSION = "smart-reminders-2026-07.v1";
+export const SESSION_REVOCATION_EMAIL_DEVICE = "an approved browser profile";
 export const SMART_REMINDER_WEEKLY_SUMMARY =
   "Your private, evidence-backed weekly summary is ready inside Codestead.";
 
@@ -20,8 +25,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const STABLE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,254}$/;
 const RESET_TOKEN = /^[A-Za-z0-9_-]{20,128}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
-const DATE_PERIOD = /^\d{4}-\d{2}-\d{2}$/;
-const WEEK_PERIOD = /^\d{4}-W\d{2}$/;
+const LOST_DEVICE_RAW_PROOF = /^[A-Za-z0-9_-]{43}$/;
+const ISSUED_LOST_DEVICE_EVIDENCE = new WeakSet<object>();
+const DATE_PERIOD = /^(\d{4})-(\d{2})-(\d{2})$/;
+const WEEK_PERIOD = /^(\d{4})-W(\d{2})$/;
 const UNSAFE_TEXT = /[\u0000-\u001f\u007f]/;
 
 const SMART_TEMPLATE = Object.freeze({
@@ -85,6 +92,39 @@ export type RevocableSourceAuthorityQuery = Readonly<{
   text: string;
   values: readonly unknown[];
 }>;
+export type LostDeviceAuthorityEvidence = Readonly<{
+  kind: "lost-device-proof";
+  sourceId: string;
+  proofHash: string;
+}>;
+
+function sameSha256(left: string, right: string) {
+  if (!SHA256.test(left) || !SHA256.test(right)) return false;
+  const leftBytes = Buffer.from(left, "hex");
+  const rightBytes = Buffer.from(right, "hex");
+  return timingSafeEqual(leftBytes, rightBytes);
+}
+
+export function createLostDeviceAuthorityEvidence(input: Readonly<{
+  sourceId: string;
+  rawProof: string;
+  storedProofHash: string;
+}>): LostDeviceAuthorityEvidence | null {
+  if (
+    !UUID.test(input.sourceId)
+    || !LOST_DEVICE_RAW_PROOF.test(input.rawProof)
+    || !SHA256.test(input.storedProofHash)
+  ) return null;
+  const proofHash = createHash("sha256").update(input.rawProof).digest("hex");
+  if (!sameSha256(proofHash, input.storedProofHash)) return null;
+  const evidence = Object.freeze({
+    kind: "lost-device-proof" as const,
+    sourceId: input.sourceId,
+    proofHash,
+  });
+  ISSUED_LOST_DEVICE_EVIDENCE.add(evidence);
+  return evidence;
+}
 
 export class RevocableSourceAuthorityError extends Error {
   constructor(readonly code:
@@ -101,6 +141,31 @@ function boundedText(value: unknown, maximum: number) {
     && value.trim().length > 0
     && value.length <= maximum
     && !UNSAFE_TEXT.test(value);
+}
+function leapYear(year: number) {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+function validCalendarDatePeriod(value: string) {
+  const match = DATE_PERIOD.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!Number.isInteger(year) || year < 1 || year > 9_999 || month < 1 || month > 12) return false;
+  const daysInMonth = [31, leapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return day >= 1 && day <= daysInMonth[month - 1]!;
+}
+
+function validIsoWeekPeriod(value: string) {
+  const match = WEEK_PERIOD.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const week = Number(match[2]);
+  if (!Number.isInteger(year) || year < 1 || year > 9_999 || !Number.isInteger(week)) return false;
+  const januaryFirstWeekday = new Date(`${match[1]}-01-01T00:00:00.000Z`).getUTCDay();
+  const maximumWeek = januaryFirstWeekday === 4 || (januaryFirstWeekday === 3 && leapYear(year)) ? 53 : 52;
+  return week >= 1 && week <= maximumWeek;
 }
 
 function exactStringRecord(value: unknown, expectedKeys: readonly string[]): StringRecord | null {
@@ -238,7 +303,7 @@ function parseSessionRevocation(
   );
   if (
     !record
-    || !boundedText(record.device, 200)
+    || record.device !== SESSION_REVOCATION_EMAIL_DEVICE
     || !boundedText(record.name, 200)
     || !UUID.test(record.revocationRequestId)
     || !sessionRevocationUrl(record.url, applicationUrl)
@@ -287,8 +352,8 @@ function parseSmartReminder(
   ];
   const record = exactStringRecord(variables, keys);
   const validPeriod = policy.period === "week"
-    ? WEEK_PERIOD.test(record?.smartReminderPeriodKey ?? "")
-    : DATE_PERIOD.test(record?.smartReminderPeriodKey ?? "");
+    ? validIsoWeekPeriod(record?.smartReminderPeriodKey ?? "")
+    : validCalendarDatePeriod(record?.smartReminderPeriodKey ?? "");
   if (
     !record
     || !boundedText(record.name, 200)
@@ -367,13 +432,12 @@ export function createLostDeviceProofSourceVariables(input: {
 
 export function createSessionRevocationSourceVariables(input: {
   applicationUrl: string;
-  device: string;
   name: string;
   requestId: string;
   url: string;
 }): StringRecord | null {
   const variables = {
-    device: input.device,
+    device: SESSION_REVOCATION_EMAIL_DEVICE,
     name: input.name,
     revocationRequestId: input.requestId,
     url: input.url,
@@ -448,6 +512,7 @@ function resetAuthorityQuery(
        and recipient_user.status in ('pending','active')
        and recipient_user.banned = false
        and lower(btrim(recipient_user.email)) = mail.to_email
+       and mail.variables ->> 'name' = recipient_user.name
      for share of recipient_user, source_verification
   `, [input.outboxId, parsed.sourceId, `reset-password:${token}`, input.now]);
 }
@@ -456,7 +521,13 @@ function lostDeviceAuthorityQuery(
   input: BuildRevocableSourceAuthorityQueryInput,
   parsed: Extract<ParsedRevocableSource, { kind: "lost-device-proof" }>,
 ) {
-  if (!SHA256.test(input.expectedLostDeviceProofHash ?? "")) return null;
+  const evidence = input.authorityEvidence;
+  if (
+    !evidence
+    || !ISSUED_LOST_DEVICE_EVIDENCE.has(evidence)
+    || evidence.sourceId !== parsed.sourceId
+    || !SHA256.test(evidence.proofHash)
+  ) return null;
   return frozenQuery(parsed.kind, `
     select 1
       from public.lost_device_proof source_proof
@@ -481,8 +552,9 @@ function lostDeviceAuthorityQuery(
        and recipient_user.email_verified = true
        and recipient_user.banned = false
        and lower(btrim(recipient_user.email)) = mail.to_email
+       and mail.variables ->> 'name' = recipient_user.name
      for share of recipient_user, source_proof, source_session
-  `, [input.outboxId, parsed.sourceId, input.expectedLostDeviceProofHash, input.now]);
+  `, [input.outboxId, parsed.sourceId, evidence.proofHash, input.now]);
 }
 
 function sessionRevocationAuthorityQuery(
@@ -511,8 +583,9 @@ function sessionRevocationAuthorityQuery(
        and lower(btrim(recipient_user.email)) = mail.to_email
        and mail.variables ->> 'name' = recipient_user.name
        and mail.variables ->> 'url' = $3 || '/admin/learners/' || source_request.user_id
+       and mail.variables ->> 'device' = $4
      for share of recipient_user, source_request, subject_user
-  `, [input.outboxId, parsed.sourceId, origin]);
+  `, [input.outboxId, parsed.sourceId, origin, SESSION_REVOCATION_EMAIL_DEVICE]);
 }
 
 function inactivityAuthorityQuery(
@@ -564,30 +637,31 @@ function inactivityAuthorityQuery(
            and lower(btrim(learner_user.email)) = mail.to_email
            and mail.variables ->> 'name' = learner_user.name
            and mail.variables ->> 'url' = $6 || '/learn'
-           and source_episode.learner_first_queued_at is not null
-           and source_episode.eligible_at <= $3)
+           and source_episode.learner_first_queued_at between source_episode.eligible_at and $3)
          or (mail.template = 'inactivity-reminder-followup'
            and mail.user_id = learner_user.id
            and lower(btrim(learner_user.email)) = mail.to_email
            and mail.variables ->> 'name' = learner_user.name
            and mail.variables ->> 'url' = $6 || '/learn'
-           and source_episode.learner_second_queued_at is not null
-           and source_episode.second_eligible_at <= $3
-           and source_episode.learner_first_queued_at <= $3 - interval '48 hours')
+           and source_episode.learner_first_queued_at between source_episode.eligible_at and $3 - interval '48 hours'
+           and source_episode.learner_second_queued_at between source_episode.second_eligible_at and $3
+           and source_episode.learner_first_queued_at <= source_episode.learner_second_queued_at)
          or (mail.template = 'inactivity-admin-notice'
            and recipient_user.role = 'admin'
            and lower(btrim(recipient_user.email)) = mail.to_email
            and mail.variables ->> 'name' = 'administrator'
            and mail.variables ->> 'url' = $6 || '/admin'
-           and source_episode.admin_notice_queued_at is not null
-           and source_episode.eligible_at <= $3)
+           and source_episode.admin_notice_queued_at <= $3
+           and source_episode.learner_first_queued_at is not null
+           and source_episode.learner_first_queued_at >= source_episode.eligible_at
+           and source_episode.learner_first_queued_at <= source_episode.admin_notice_queued_at)
        )
      for share of recipient_user, learner_user, source_episode
   `, [
     input.outboxId,
     parsed.sourceId,
     input.now,
-    "enrollment-disclosure-2026-07-12.v2",
+    ENROLLMENT_DISCLOSURE_VERSION,
     INACTIVITY_MAIL_POLICY_VERSION,
     origin,
     parsed.template,
@@ -607,10 +681,18 @@ function smartReminderAuthorityQuery(
       join public."user" recipient_user on recipient_user.id = mail.user_id
       join public.notification_preference recipient_preference
         on recipient_preference.user_id = recipient_user.id
+      join pg_catalog.pg_timezone_names source_timezone
+        on source_timezone.name = source_dispatch.timezone
      where source_dispatch.id = $2::uuid
        and source_dispatch.user_id = mail.user_id
        and source_dispatch.kind = $3
        and source_dispatch.local_period_key = $4
+       and source_dispatch.timezone = recipient_preference.timezone
+       and source_dispatch.local_period_key = to_char(
+         source_dispatch.scheduled_for at time zone source_timezone.name, $7
+       )
+       and source_dispatch.scheduled_for <= $8 and source_dispatch.dispatched_at <= $8
+       and source_dispatch.dispatched_at >= source_dispatch.scheduled_for
        and source_dispatch.evidence ->> 'policyVersion' = $5
        and mail.template = '${parsed.template}'
        and mail.template_version = '1'
@@ -634,12 +716,14 @@ function smartReminderAuthorityQuery(
     parsed.periodKey,
     SMART_REMINDER_POLICY_VERSION,
     expectedUrl,
+    policy.period === "week" ? 'IYYY-"W"IW' : "YYYY-MM-DD",
+    input.now,
   ]);
 }
 
 type BuildRevocableSourceAuthorityQueryInput = Readonly<{
   applicationUrl: string;
-  expectedLostDeviceProofHash?: string;
+  authorityEvidence?: LostDeviceAuthorityEvidence;
   now: Date;
   outboxId: string;
   template: unknown;
