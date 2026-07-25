@@ -7,6 +7,10 @@ import {
   scheduleInactivityReminders,
   SECOND_REMINDER_AFTER_MS,
 } from "@/lib/notifications/inactivity";
+import {
+  buildRevocableSourceAuthorityQuery,
+  INACTIVITY_MAIL_POLICY_VERSION,
+} from "@/lib/notifications/revocable-source-authority";
 import { setInactivityPause } from "@/lib/notifications/preferences";
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
 
@@ -174,13 +178,61 @@ describe("real PostgreSQL inactivity episodes", () => {
     ]);
     const adminNotice = outbox.rows.find((row) => row.template === "inactivity-admin-notice")!;
     expect(adminNotice.to_email).toBe(ADMIN_EMAIL);
-    expect(adminNotice.variables).toEqual({ name: "administrator", url: "http://localhost:3000/admin" });
+    expect(adminNotice.variables).toEqual({
+      inactivityEpisodeId: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/),
+      inactivityPolicyVersion: INACTIVITY_MAIL_POLICY_VERSION,
+      name: "administrator",
+      url: "http://localhost:3000/admin",
+    });
     for (const row of outbox.rows) {
       const serialized = JSON.stringify(row.variables).toLowerCase();
       for (const forbidden of [
         "score", "mistake", "code", "chat", "provider", "nvapi", "raw hours", LEARNER_EMAIL,
       ]) expect(serialized).not.toContain(forbidden.toLowerCase());
     }
+  });
+
+  it("rejects a corrupt follow-up marker queued only one hour after the first", async () => {
+    const firstQueuedAt = NOW;
+    const lastActivityAt = new Date(firstQueuedAt.getTime() - FIRST_REMINDER_AFTER_MS);
+    await seedLearner({ lastActivityAt });
+    expect(await scheduleInactivityReminders(firstQueuedAt)).toMatchObject({ learnerFirst: 1 });
+
+    const validSecondAt = new Date(firstQueuedAt.getTime() + 48 * 60 * 60_000);
+    expect(await scheduleInactivityReminders(validSecondAt)).toMatchObject({ learnerSecond: 1 });
+
+    const forgedSecondAt = new Date(firstQueuedAt.getTime() + 60 * 60_000);
+    await pool.query(
+      `update inactivity_episode
+          set second_eligible_at = $2, learner_second_queued_at = $2
+        where user_id = $1 and closed_at is null`,
+      [LEARNER, forgedSecondAt],
+    );
+    const followup = await pool.query<{
+      id: string;
+      template: string;
+      template_version: string;
+      variables: Record<string, string>;
+    }>(
+      `select id, template, template_version, variables
+         from email_outbox
+        where user_id = $1 and template = 'inactivity-reminder-followup'`,
+      [LEARNER],
+    );
+    expect(followup.rows).toHaveLength(1);
+    const mail = followup.rows[0]!;
+    const workerNow = new Date(firstQueuedAt.getTime() + 49 * 60 * 60_000);
+    const authority = buildRevocableSourceAuthorityQuery({
+      applicationUrl: "http://localhost:3000",
+      now: workerNow,
+      outboxId: mail.id,
+      template: mail.template,
+      templateVersion: mail.template_version,
+      variables: mail.variables,
+    });
+    expect(authority).not.toBeNull();
+    const result = await pool.query(authority!.text, [...authority!.values]);
+    expect(result.rows).toEqual([]);
   });
 
   it("closes on committed authoritative learning, then permits exactly one later episode", async () => {
