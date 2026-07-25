@@ -81,12 +81,57 @@ if [[ -n "$restore_db" ]]; then
     'psql --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname=postgres -tAc "$1"' _ \
     "SELECT 1 FROM pg_database WHERE datname = '$restore_db'")"
   [[ -z "$exists" ]] || die "restore database already exists: $restore_db"
-  compose_cmd exec -T postgres sh -ceu 'createdb --host=/run/learncoding-postgres --username="$POSTGRES_USER" "$1"' _ "$restore_db"
+  restore_owner_count="$(compose_cmd exec -T postgres sh -ceu \
+    'psql --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname=postgres -tAc "$1"' _ \
+    "select pg_catalog.count(*)::text
+       from (
+         select role.rolname,
+                role.rolcanlogin,
+                role.rolsuper,
+                role.rolcreatedb,
+                role.rolcreaterole,
+                role.rolinherit,
+                role.rolreplication,
+                role.rolbypassrls,
+                role.rolconnlimit,
+                role.rolvaliduntil = 'infinity'::pg_catalog.timestamptz
+                  as valid_until_infinity,
+                role.rolpassword is null as password_is_null,
+                not exists (
+                  select 1
+                    from pg_catalog.pg_db_role_setting setting
+                   where setting.setrole = role.oid
+                ) as role_settings_empty
+           from pg_catalog.pg_authid role
+       ) role
+      where role.rolname = 'learncoding_owner'
+        and not role.rolcanlogin and not role.rolsuper
+        and not role.rolcreatedb and not role.rolcreaterole
+        and not role.rolinherit and not role.rolreplication
+        and not role.rolbypassrls and role.rolconnlimit = -1
+        and role.valid_until_infinity and role.password_is_null
+        and role.role_settings_empty")"
+  [[ "$restore_owner_count" == 1 ]] \
+    || die "exact learncoding_owner restore role is unavailable"
+  compose_cmd exec -T postgres sh -ceu 'createdb --host=/run/learncoding-postgres --username="$POSTGRES_USER" --owner=learncoding_owner "$1"' _ "$restore_db"
   if ! compose_cmd exec -T postgres sh -ceu \
-    'exec pg_restore --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$1" --exit-on-error --no-owner --no-acl' _ "$restore_db" \
+    'exec pg_restore --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$1" --exit-on-error --no-owner --role=learncoding_owner' _ "$restore_db" \
     <"$destination/database.dump"; then
     compose_cmd exec -T postgres sh -ceu 'dropdb --host=/run/learncoding-postgres --username="$POSTGRES_USER" --if-exists "$1"' _ "$restore_db" || true
     die "database restore failed; temporary database was removed"
+  fi
+  pre_repair_verification="$(compose_cmd --profile operations run --rm \
+    --no-deps --no-build --pull never \
+    -e "RESTORE_DATABASE_NAME=$restore_db" \
+    database-role-bootstrap \
+    node /app/scripts/verify-pre-repair-restored-database.mjs)" \
+    || {
+      compose_cmd exec -T postgres sh -ceu 'dropdb --host=/run/learncoding-postgres --username="$POSTGRES_USER" --if-exists "$1"' _ "$restore_db" || true
+      die "raw restored catalog verification failed; temporary database was removed"
+    }
+  if [[ "$pre_repair_verification" != restore_pre_repair_catalog_valid=true ]]; then
+    compose_cmd exec -T postgres sh -ceu 'dropdb --host=/run/learncoding-postgres --username="$POSTGRES_USER" --if-exists "$1"' _ "$restore_db" || true
+    die "raw restored catalog verifier returned an invalid acknowledgement; temporary database was removed"
   fi
   log "database restored into isolated database: $restore_db"
 fi

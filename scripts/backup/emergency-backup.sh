@@ -254,7 +254,7 @@ chmod 0600 -- "$combined_recipients"
 
 log "emergency backup phase=dumping"
 compose_cmd exec -T postgres sh -ceu \
-  'exec pg_dump --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --format=custom --compress=9 --no-owner --no-acl' \
+  'exec pg_dump --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --format=custom --compress=9 --no-owner' \
   >"$stage/database.dump"
 [[ -s "$stage/database.dump" ]] || die "PostgreSQL dump is empty"
 

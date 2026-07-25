@@ -107,6 +107,24 @@ function snapshot(
   };
 }
 
+function archiveEvidence(source = snapshot()) {
+  return {
+    archiveSha256: digest("archive"),
+    tocSha256: digest("toc"),
+    sourceObjectContractSha256: source.objectContractSha256,
+    sourceBindingSha256: digest("source-binding"),
+    aclEntryCount: 2,
+    routineAclEntryCount: 1,
+  };
+}
+
+const aclSuppressionControl = {
+  proaclIsNull: true,
+  publicExecute: true,
+  routine:
+    "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+} as const;
+
 describe("full-schema restore migration contract", () => {
   it("derives the exact dynamic tail and SQL digest from a contiguous journal", () => {
     expect(deriveMigrationLedgerContract(journal, migrationSql)).toEqual(
@@ -213,6 +231,7 @@ describe("full-schema restore verification", () => {
       source: {
         reconcileRoles: sourceReconcile,
         verifyRoleBoundaries: async () => undefined,
+        verifyPreRepairMailAuthorityCatalog: async () => undefined,
         verifyMailAuthorityCatalog: async () => undefined,
         migrate: async () => undefined,
         seedRepresentativeMailRows: async () => undefined,
@@ -221,6 +240,10 @@ describe("full-schema restore verification", () => {
       target: {
         reconcileRoles: async () => undefined,
         verifyRoleBoundaries: async () => undefined,
+        requireRestoreOwnerRole: async () => undefined,
+        prepareAclSuppressionControl: async () => undefined,
+        verifyAclSuppressionControl: async () => aclSuppressionControl,
+        verifyPreRepairMailAuthorityCatalog: async () => undefined,
         verifyMailAuthorityCatalog: async () => undefined,
         snapshot: async () => snapshot(),
         runNonNetworkSmoke: async () => ({
@@ -230,6 +253,8 @@ describe("full-schema restore verification", () => {
         }),
       },
       dumpSource: async () => "archive",
+      inspectArchive: async (_archive, source) => archiveEvidence(source),
+      restoreTargetWithoutAcl: async () => undefined,
       restoreTarget: async () => undefined,
       disposeArchive: () => undefined,
     })).rejects.toThrow(
@@ -251,8 +276,11 @@ describe("full-schema restore verification", () => {
         verifyRoleBoundaries: async (requireApplicationObjects) => {
           trace.push(`source.boundary:${String(requireApplicationObjects)}`);
         },
+        verifyPreRepairMailAuthorityCatalog: async () => {
+          trace.push("source.catalog.raw");
+        },
         verifyMailAuthorityCatalog: async () => {
-          trace.push("source.catalog");
+          trace.push("source.catalog.reviewed");
         },
         migrate: async () => { trace.push("source.migrate"); },
         seedRepresentativeMailRows: async () => {
@@ -268,8 +296,21 @@ describe("full-schema restore verification", () => {
         verifyRoleBoundaries: async (requireApplicationObjects) => {
           trace.push(`target.boundary:${String(requireApplicationObjects)}`);
         },
+        requireRestoreOwnerRole: async () => {
+          trace.push("target.restore-role");
+        },
+        prepareAclSuppressionControl: async () => {
+          trace.push("target.acl-suppression.prepare");
+        },
+        verifyAclSuppressionControl: async () => {
+          trace.push("target.acl-suppression");
+          return aclSuppressionControl;
+        },
+        verifyPreRepairMailAuthorityCatalog: async () => {
+          trace.push("target.catalog.raw");
+        },
         verifyMailAuthorityCatalog: async () => {
-          trace.push("target.catalog");
+          trace.push("target.catalog.reviewed");
         },
         snapshot: async () => {
           trace.push("target.snapshot");
@@ -288,6 +329,14 @@ describe("full-schema restore verification", () => {
         trace.push("archive.dump");
         return { opaqueArchive: true };
       },
+      inspectArchive: async (archive, source) => {
+        expect(archive).toEqual({ opaqueArchive: true });
+        trace.push("archive.inspect");
+        return archiveEvidence(source);
+      },
+      restoreTargetWithoutAcl: async () => {
+        trace.push("archive.restore.no-acl");
+      },
       restoreTarget: async (archive) => {
         expect(archive).toEqual({ opaqueArchive: true });
         trace.push("archive.restore");
@@ -302,26 +351,40 @@ describe("full-schema restore verification", () => {
       "source.roles",
       "source.boundary:false",
       "source.migrate",
-      "source.catalog",
-      "source.roles",
-      "source.boundary:true",
-      "source.catalog",
+      "source.catalog.raw",
       "source.seed",
       "source.snapshot",
+      "source.roles",
+      "source.boundary:true",
+      "source.catalog.reviewed",
+      "source.snapshot",
       "archive.dump",
+      "archive.inspect",
       "target.roles",
       "target.boundary:false",
+      "target.restore-role",
+      "target.acl-suppression.prepare",
+      "archive.restore.no-acl",
+      "target.acl-suppression",
+      "target.roles",
+      "target.boundary:false",
+      "target.restore-role",
       "archive.restore",
       "archive.dispose",
-      "target.catalog",
+      "target.catalog.raw",
+      "target.snapshot",
       "target.roles",
       "target.boundary:true",
-      "target.catalog",
+      "target.catalog.reviewed",
       "target.snapshot",
       "target.smoke",
     ]);
     expect(result).toEqual({
+      aclSuppressionControl,
+      archive: archiveEvidence(sourceSnapshot),
       migration,
+      rawSource: sourceSnapshot,
+      rawRestored: restoredSnapshot,
       source: sourceSnapshot,
       restored: restoredSnapshot,
       smoke: {
@@ -358,6 +421,7 @@ describe("full-schema restore verification", () => {
         source: {
           reconcileRoles: async () => undefined,
           verifyRoleBoundaries: async () => undefined,
+          verifyPreRepairMailAuthorityCatalog: sourceCatalog,
           verifyMailAuthorityCatalog: sourceCatalog,
           migrate: async () => undefined,
           seedRepresentativeMailRows: async () => undefined,
@@ -366,6 +430,10 @@ describe("full-schema restore verification", () => {
         target: {
           reconcileRoles: async () => undefined,
           verifyRoleBoundaries: async () => undefined,
+          requireRestoreOwnerRole: async () => undefined,
+          prepareAclSuppressionControl: async () => undefined,
+          verifyAclSuppressionControl: async () => aclSuppressionControl,
+          verifyPreRepairMailAuthorityCatalog: targetCatalog,
           verifyMailAuthorityCatalog: targetCatalog,
           snapshot: targetSnapshot,
           runNonNetworkSmoke: async () => ({
@@ -375,6 +443,8 @@ describe("full-schema restore verification", () => {
           }),
         },
         dumpSource: dump,
+        inspectArchive: async (_archive, source) => archiveEvidence(source),
+        restoreTargetWithoutAcl: async () => undefined,
         restoreTarget: restore,
         disposeArchive: () => undefined,
       })).rejects.toThrow("reviewed mail-authority catalog failed");
@@ -419,6 +489,7 @@ describe("full-schema restore verification", () => {
       source: {
         reconcileRoles: async () => undefined,
         verifyRoleBoundaries: async () => undefined,
+        verifyPreRepairMailAuthorityCatalog: async () => undefined,
         verifyMailAuthorityCatalog: async () => undefined,
         migrate: async () => undefined,
         seedRepresentativeMailRows: async () => undefined,
@@ -427,11 +498,17 @@ describe("full-schema restore verification", () => {
       target: {
         reconcileRoles: async () => undefined,
         verifyRoleBoundaries: async () => undefined,
+        requireRestoreOwnerRole: async () => undefined,
+        prepareAclSuppressionControl: async () => undefined,
+        verifyAclSuppressionControl: async () => aclSuppressionControl,
+        verifyPreRepairMailAuthorityCatalog: async () => undefined,
         verifyMailAuthorityCatalog: async () => undefined,
         snapshot: async () => snapshot(restoredOverride),
         runNonNetworkSmoke: smoke,
       },
       dumpSource: async () => "archive",
+      inspectArchive: async (_archive, source) => archiveEvidence(source),
+      restoreTargetWithoutAcl: async () => undefined,
       restoreTarget: async () => undefined,
       disposeArchive: () => undefined,
     })).rejects.toThrow("full-schema restore verification failed");
@@ -451,6 +528,7 @@ describe("full-schema restore verification", () => {
       source: {
         reconcileRoles: async () => undefined,
         verifyRoleBoundaries: async () => undefined,
+        verifyPreRepairMailAuthorityCatalog: async () => undefined,
         verifyMailAuthorityCatalog: async () => undefined,
         migrate: async () => undefined,
         seedRepresentativeMailRows: async () => undefined,
@@ -459,11 +537,17 @@ describe("full-schema restore verification", () => {
       target: {
         reconcileRoles: async () => undefined,
         verifyRoleBoundaries: async () => undefined,
+        requireRestoreOwnerRole: async () => undefined,
+        prepareAclSuppressionControl: async () => undefined,
+        verifyAclSuppressionControl: async () => aclSuppressionControl,
+        verifyPreRepairMailAuthorityCatalog: async () => undefined,
         verifyMailAuthorityCatalog: async () => undefined,
         snapshot: async () => snapshot(),
         runNonNetworkSmoke: async () => smoke,
       },
       dumpSource: async () => "archive",
+      inspectArchive: async (_archive, source) => archiveEvidence(source),
+      restoreTargetWithoutAcl: async () => undefined,
       restoreTarget: async () => undefined,
       disposeArchive: () => undefined,
     })).rejects.toThrow("full-schema restore smoke verification failed");
@@ -480,6 +564,7 @@ describe("full-schema restore verification", () => {
       source: {
         reconcileRoles: async () => undefined,
         verifyRoleBoundaries: async () => undefined,
+        verifyPreRepairMailAuthorityCatalog: async () => undefined,
         verifyMailAuthorityCatalog: async () => undefined,
         migrate: async () => undefined,
         seedRepresentativeMailRows: async () => undefined,
@@ -492,6 +577,10 @@ describe("full-schema restore verification", () => {
             throw new Error("target setup failed");
           }
         },
+        requireRestoreOwnerRole: async () => undefined,
+        prepareAclSuppressionControl: async () => undefined,
+        verifyAclSuppressionControl: async () => aclSuppressionControl,
+        verifyPreRepairMailAuthorityCatalog: async () => undefined,
         verifyMailAuthorityCatalog: async () => undefined,
         snapshot: async () => snapshot(),
         runNonNetworkSmoke: async () => ({
@@ -501,6 +590,8 @@ describe("full-schema restore verification", () => {
         }),
       },
       dumpSource: async () => archive,
+      inspectArchive: async (_archive, source) => archiveEvidence(source),
+      restoreTargetWithoutAcl: async () => undefined,
       restoreTarget: restore,
       disposeArchive: dispose,
     })).rejects.toThrow("target setup failed");

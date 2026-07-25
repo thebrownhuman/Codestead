@@ -1663,7 +1663,7 @@ deadline_log "backup phase=dumping" || die
 run_deadline bash -c "$redirect_command" _ "$stage/database.dump" \
   docker compose --env-file "$COMPOSE_ENV_FILE" \
     -f "$REPO_ROOT/compose.yaml" exec -T postgres sh -ceu \
-    'exec pg_dump --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --format=custom --compress=9 --no-owner --no-acl'
+    'exec pg_dump --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --format=custom --compress=9 --no-owner'
 [[ -s "$stage/database.dump" ]] || die "PostgreSQL dump is empty"
 assert_postgres_continuity \
   || die "PostgreSQL identity or health changed after logical dump"
