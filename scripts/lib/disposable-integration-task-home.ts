@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import {
   chmodSync,
   existsSync,
@@ -8,16 +7,15 @@ import {
   rmSync,
   statSync,
 } from "node:fs";
-import { tmpdir, userInfo } from "node:os";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { minimalNodeTestEnvironment } from
-  "./disposable-integration-environment";
 import { disposableIntegrationFailure } from
   "./disposable-integration-error";
+import { secureWindowsPathForCurrentUser } from
+  "./windows-current-user-acl";
 
 const TASK_HOME_MODE = 0o700;
-const WINDOWS_ACL_TIMEOUT_MS = 5_000;
 
 export type DisposableTaskHomeOperations = Readonly<{
   makeTemporaryDirectory: (prefix: string) => string;
@@ -36,29 +34,11 @@ export type DisposableIntegrationTaskHome = Readonly<{
 }>;
 
 function secureWindowsDirectory(directoryPath: string): void {
-  const systemRoot = process.env.SYSTEMROOT ?? process.env.SystemRoot
-    ?? "C:\\Windows";
-  const command = path.join(systemRoot, "System32", "icacls.exe");
-  const username = userInfo().username;
-  for (const args of [
-    [
-      directoryPath,
-      "/inheritance:r",
-      "/grant:r",
-      `${username}:(OI)(CI)F`,
-    ],
-    [directoryPath, "/verify"],
-  ]) {
-    const result = spawnSync(command, args, {
-      env: minimalNodeTestEnvironment(process.env),
-      stdio: "ignore",
-      timeout: WINDOWS_ACL_TIMEOUT_MS,
-      windowsHide: true,
-    });
-    if (result.status !== 0) {
-      throw disposableIntegrationFailure("task_home_windows_acl_failed");
-    }
-  }
+  secureWindowsPathForCurrentUser({
+    targetPath: directoryPath,
+    permissions: "(OI)(CI)F",
+    failureCode: "task_home_windows_acl_failed",
+  });
 }
 
 const DEFAULT_OPERATIONS: DisposableTaskHomeOperations = {
