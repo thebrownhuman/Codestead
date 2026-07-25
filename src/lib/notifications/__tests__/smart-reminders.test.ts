@@ -7,13 +7,15 @@ import { dueKinds, insideQuietHours, localClock } from "../smart-reminders";
 import { scheduleSmartReminders } from "../smart-reminders";
 
 const mocks = vi.hoisted(() => ({
-  poolQuery: vi.fn(),
+  databaseExecute: vi.fn(),
   transaction: vi.fn(),
 }));
 
 vi.mock("@/lib/db/client", () => ({
-  db: { transaction: mocks.transaction },
-  pool: { query: mocks.poolQuery },
+  db: {
+    execute: mocks.databaseExecute,
+    transaction: mocks.transaction,
+  },
 }));
 
 const base = {
@@ -75,38 +77,38 @@ describe("smart reminder policy", () => {
     expect(normalized).not.toMatch(/for update of\s+u\s*,\s*p/u);
   });
 
-  it("binds live race waits to the exact writer and scheduler operation identity", () => {
+  it("binds the live race to restricted exact backends and an adversarial waiter", () => {
     const integrationPath = "../../../../integration/community-battles.integration.test.ts";
     const integrationSource = readFileSync(
       new URL(integrationPath, import.meta.url),
       "utf8",
     );
-    const helper = integrationSource.slice(
-      integrationSource.indexOf("type ReminderBackendIdentity"),
-      integrationSource.indexOf("beforeEach(async () =>"),
+    const schedulerPath = "../smart-reminders.ts";
+    const schedulerSource = readFileSync(
+      new URL(schedulerPath, import.meta.url),
+      "utf8",
     );
-    const normalized = helper.replace(/\s+/gu, " ").toLowerCase();
+    const normalized = integrationSource.replace(/\s+/gu, " ").toLowerCase();
 
-    expect(integrationSource).toContain("captureReminderBackendIdentity(preferenceWriter)");
-    expect(integrationSource).toContain('waitForReminderLockWait(writerIdentity, "user")');
-    expect(integrationSource).toContain('waitForReminderLockWait(writerIdentity, "preference")');
-    expect(integrationSource).toContain("process.env.DATABASE_MIGRATOR_URL");
-    expect(integrationSource).toContain("const reminderLockObserver = new Pool");
-    expect(helper).toContain("reminderLockObserver.query");
-    expect(normalized).toContain(
-      "$1::integer = any(pg_blocking_pids(activity.pid))",
-    );
-    expect(normalized).toContain("activity.datname=current_database()");
-    expect(normalized).toContain("activity.usename=$2");
-    expect(normalized).toContain("activity.application_name=$3");
-    expect(normalized).toContain("activity.state='active'");
-    expect(normalized).toContain("activity.wait_event_type='lock'");
-    expect(normalized).toContain("activity.query ilike $4");
+    expect(schedulerSource).toContain("export async function scheduleSmartRemindersWithDatabase");
+    expect(integrationSource).toContain("process.env.DATABASE_APP_URL");
+    expect(integrationSource).not.toContain("process.env.DATABASE_MIGRATOR_URL");
+    expect(integrationSource).toContain("(client as PoolClientWithProcessId).processID");
+    expect(integrationSource).toContain('current_database()::text "databaseName"');
+    expect(integrationSource).toContain('session_user::text "sessionUser"');
+    expect(integrationSource).toContain('current_user::text "currentUser"');
+    expect(integrationSource).toContain("drizzle(schedulerClient");
+    expect(integrationSource).toContain("competingWaiter");
+    expect(integrationSource).toContain("expect(schedulerPid).not.toBe(competingIdentity.pid)");
+    expect(normalized).toContain("activity.pid=$1");
+    expect(normalized).toContain("activity.datname=$2");
+    expect(normalized).toContain("activity.usename=$3");
+    expect(normalized).toContain("activity.application_name=$4");
     expect(normalized).toContain("activity.query ilike $5");
     expect(normalized).toContain("activity.query ilike $6");
-    expect(normalized).not.toContain(
-      "where waiting.pid <> pg_backend_pid() and not waiting.granted",
-    );
+    expect(normalized).toContain("activity.query ilike $7");
+    expect(normalized).toContain("$8::integer = any(pg_blocking_pids(activity.pid))");
+    expect(normalized).not.toContain("where waiting.pid <> pg_backend_pid() and not waiting.granted");
   });
 
   it.each([
@@ -193,7 +195,7 @@ describe("smart reminder policy", () => {
       code: `DATABASE:${token}`,
       cause,
     });
-    mocks.poolQuery.mockResolvedValueOnce({
+    mocks.databaseExecute.mockResolvedValueOnce({
       rows: [{ ...base, quiet_hours_enabled: false }],
     });
     mocks.transaction.mockRejectedValueOnce(failure);

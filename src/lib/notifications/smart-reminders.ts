@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 
-import { db, pool } from "@/lib/db/client";
+import { db, type Database } from "@/lib/db/client";
 import { notification, smartReminderDispatch } from "@/lib/db/schema";
 import { enqueueEmailInTransaction } from "@/lib/notifications/outbox";
 import {
@@ -11,6 +11,8 @@ import {
 import { boundedOperationalCode, operationalErrorCode } from "@/lib/security/operational-code";
 
 export type SmartReminderKind = "daily_study" | "revision" | "goal" | "challenge" | "weekly_summary";
+export type SmartReminderDatabase = Pick<Database, "execute" | "transaction">;
+
 type SmartReminderEmailTemplate =
   | "daily-study-reminder"
   | "revision-reminder"
@@ -162,9 +164,9 @@ export function dueKinds(candidate: Candidate, now: Date): Array<{ kind: SmartRe
   return due;
 }
 
-async function loadCandidates(now: Date, limit: number): Promise<Candidate[]> {
-  const result = await pool.query<Candidate>(
-    `select u.id,u.name,u.email,u.last_meaningful_activity_at,
+async function loadCandidates(database: SmartReminderDatabase, now: Date, limit: number): Promise<Candidate[]> {
+  const result = await database.execute(sql<Candidate>`
+      select u.id,u.name,u.email,u.last_meaningful_activity_at,
             p.timezone,p.daily_study_enabled,p.revision_enabled,p.goal_enabled,
             p.challenge_enabled,p.weekly_summary_enabled,p.learning_email_enabled,
             p.daily_study_minute,p.revision_minute,p.quiet_hours_enabled,
@@ -172,13 +174,16 @@ async function loadCandidates(now: Date, limit: number): Promise<Candidate[]> {
             exists(
               select 1 from review_schedule rs
               join enrollment e on e.id = rs.enrollment_id and e.user_id = u.id
-              where rs.due_at <= $1 and rs.status='scheduled' and e.status in ('active','completed')
+              where rs.due_at <= cast(${now} as timestamptz)
+                and rs.status='scheduled' and e.status in ('active','completed')
             ) as review_due,
             exists(select 1 from enrollment e where e.user_id=u.id and e.status='active') as active_plan,
             exists(
               select 1 from coding_battle_participant bp
               join coding_battle b on b.id=bp.battle_id
-              where bp.user_id=u.id and b.status='active' and b.starts_at > $1 and b.starts_at <= $1 + interval '48 hours'
+              where bp.user_id=u.id and b.status='active'
+                and b.starts_at > cast(${now} as timestamptz)
+                and b.starts_at <= cast(${now} as timestamptz) + interval '48 hours'
             ) as upcoming_battle
        from "user" u
        join notification_preference p on p.user_id=u.id
@@ -186,14 +191,13 @@ async function loadCandidates(now: Date, limit: number): Promise<Candidate[]> {
         and (p.daily_study_enabled or p.revision_enabled or p.goal_enabled
           or p.challenge_enabled or p.weekly_summary_enabled)
       order by u.id
-      limit $2`,
-    [now, limit],
-  );
-  return result.rows;
+      limit ${limit}
+  `);
+  return result.rows as Candidate[];
 }
 
-async function dispatch(candidate: Candidate, kind: SmartReminderKind, periodKey: string, now: Date) {
-  return db.transaction(async (tx) => {
+async function dispatch(database: SmartReminderDatabase, candidate: Candidate, kind: SmartReminderKind, periodKey: string, now: Date) {
+  return database.transaction(async (tx) => {
     // The scan is only a hint. Lock account and preference in canonical order,
     // then re-read the complete due decision. Account/preference writers using
     // the same order serialize here; source evidence is re-evaluated at this
@@ -300,10 +304,14 @@ async function dispatch(candidate: Candidate, kind: SmartReminderKind, periodKey
   });
 }
 
-export async function scheduleSmartReminders(now = new Date(), limit = 100) {
+export async function scheduleSmartRemindersWithDatabase(
+  database: SmartReminderDatabase,
+  now = new Date(),
+  limit = 100,
+) {
   if (!Number.isFinite(now.getTime())) throw new Error("Smart-reminder clock is invalid.");
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500) throw new Error("Smart-reminder batch limit is invalid.");
-  const candidates = await loadCandidates(now, limit);
+  const candidates = await loadCandidates(database, now, limit);
   let dispatched = 0;
   let failed = 0;
   for (const candidate of candidates) {
@@ -311,7 +319,7 @@ export async function scheduleSmartReminders(now = new Date(), limit = 100) {
     for (const reminder of dueKinds(candidate, now)) {
       if (dispatchedForCandidate >= 2) break;
       try {
-        if (await dispatch(candidate, reminder.kind, reminder.periodKey, now)) {
+        if (await dispatch(database, candidate, reminder.kind, reminder.periodKey, now)) {
           dispatched += 1;
           dispatchedForCandidate += 1;
         }
@@ -339,4 +347,8 @@ export async function scheduleSmartReminders(now = new Date(), limit = 100) {
     }
   }
   return { candidates: candidates.length, dispatched, failed };
+}
+
+export async function scheduleSmartReminders(now = new Date(), limit = 100) {
+  return scheduleSmartRemindersWithDatabase(db, now, limit);
 }

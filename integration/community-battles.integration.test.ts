@@ -1,3 +1,4 @@
+import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool, type PoolClient } from "pg";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
@@ -21,9 +22,13 @@ import {
 } from "@/lib/community/service";
 import { hashCurriculumValue } from "@/lib/curriculum-publication/hash";
 import { pool } from "@/lib/db/client";
+import * as schema from "@/lib/db/schema";
 import { deleteLearnerAccount } from "@/lib/data-lifecycle/deletion";
 import { createLearnerExport } from "@/lib/data-lifecycle/export";
-import { scheduleSmartReminders } from "@/lib/notifications/smart-reminders";
+import {
+  scheduleSmartReminders,
+  scheduleSmartRemindersWithDatabase,
+} from "@/lib/notifications/smart-reminders";
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
 
 const NOW = new Date("2026-07-14T12:00:00.000Z");
@@ -43,14 +48,20 @@ const ACTIVITY = "cb100000-0000-4000-8000-000000000006";
 const ARTIFACT = "cb100000-0000-4000-8000-000000000007";
 const ITEM = "python.variables.choice.1";
 let communityOperationSequence = 0;
+let reminderRaceSequence = 0;
 
-const reminderObserverDatabaseUrl = process.env.DATABASE_MIGRATOR_URL;
-if (!reminderObserverDatabaseUrl) {
-  throw new Error("Community integration tests require DATABASE_MIGRATOR_URL for lock observation.");
+const reminderAppDatabaseUrl = process.env.DATABASE_APP_URL;
+if (!reminderAppDatabaseUrl) {
+  throw new Error("Community integration tests require DATABASE_APP_URL for restricted-role races.");
 }
-const reminderLockObserver = new Pool({
-  connectionString: reminderObserverDatabaseUrl,
-  application_name: "codestead_smart_reminder_lock_observer",
+const parsedReminderAppUrl = new URL(reminderAppDatabaseUrl);
+const expectedReminderAppRole = decodeURIComponent(parsedReminderAppUrl.username);
+const expectedReminderDatabase = decodeURIComponent(parsedReminderAppUrl.pathname.slice(1));
+const reminderAppPool = new Pool({
+  connectionString: reminderAppDatabaseUrl,
+  max: 8,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 5_000,
 });
 
 function nextCommunityRequestId() {
@@ -270,72 +281,108 @@ async function createInviteBattle() {
   });
 }
 
+type PoolClientWithProcessId = PoolClient & {
+  readonly processID?: number;
+};
+
 type ReminderBackendIdentity = {
   pid: number;
-  userName: string;
+  databaseName: string;
+  sessionUser: string;
+  currentUser: string;
   applicationName: string;
 };
 
 type ReminderLockQuery = "user" | "preference";
 
 const REMINDER_LOCK_QUERY_FRAGMENTS = {
-  user: [
-    "%select u.id%",
-    '%from "user" u%',
-    "%for update of u%",
-  ],
-  preference: [
-    "%select p.user_id%",
-    "%from notification_preference p%",
-    "%for update of p%",
-  ],
+  user: ["%select u.id%", '%from "user" u%', "%for update of u%"],
+  preference: ["%select p.user_id%", "%from notification_preference p%", "%for update of p%"],
 } satisfies Record<ReminderLockQuery, readonly [string, string, string]>;
 
 async function captureReminderBackendIdentity(
   client: PoolClient,
 ): Promise<ReminderBackendIdentity> {
+  const processId = (client as PoolClientWithProcessId).processID;
+  if (!Number.isSafeInteger(processId)) {
+    throw new Error("The restricted PostgreSQL client has no processID.");
+  }
   const result = await client.query<ReminderBackendIdentity>(`
     select pg_backend_pid()::integer "pid",
-           session_user::text "userName",
+           current_database()::text "databaseName",
+           session_user::text "sessionUser",
+           current_user::text "currentUser",
            current_setting('application_name')::text "applicationName"
   `);
   const identity = result.rows[0];
-  if (!identity) throw new Error("The preference writer has no PostgreSQL backend identity.");
+  if (!identity || identity.pid !== processId) {
+    throw new Error("The restricted PostgreSQL backend PID does not match PoolClient.processID.");
+  }
+  if (
+    identity.databaseName !== expectedReminderDatabase
+    || identity.sessionUser !== expectedReminderAppRole
+    || identity.currentUser !== expectedReminderAppRole
+  ) {
+    throw new Error("The reminder race backend is not using the production application role.");
+  }
   return identity;
 }
 
+async function identifyReminderBackend(client: PoolClient, applicationName: string) {
+  await client.query("select set_config('application_name',$1,false)", [applicationName]);
+  return captureReminderBackendIdentity(client);
+}
+
+async function waitForBackendBlockers(
+  observer: PoolClient,
+  waitingPid: number,
+) {
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    const result = await observer.query<{ blockers: number[] }>(
+      "select pg_blocking_pids($1::integer) blockers",
+      [waitingPid],
+    );
+    const blockers = result.rows[0]?.blockers ?? [];
+    if (blockers.length > 0) return blockers;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`Backend ${waitingPid} did not enter a PostgreSQL lock wait.`);
+}
+
 async function waitForReminderLockWait(
+  observer: PoolClient,
+  scheduler: ReminderBackendIdentity,
   blocker: ReminderBackendIdentity,
   expectedQuery: ReminderLockQuery,
 ) {
   const queryFragments = REMINDER_LOCK_QUERY_FRAGMENTS[expectedQuery];
   for (let attempt = 0; attempt < 500; attempt += 1) {
-    const blocked = await reminderLockObserver.query<{ pid: number }>(`
+    const blocked = await observer.query<{ pid: number }>(`
       select activity.pid
         from pg_stat_activity activity
-       where activity.pid <> pg_backend_pid()
+       where activity.pid=$1
          and activity.backend_type='client backend'
-         and activity.datname=current_database()
-         and activity.usename=$2
-         and activity.application_name=$3
+         and activity.datname=$2
+         and activity.usename=$3
+         and activity.application_name=$4
          and activity.state='active'
          and activity.wait_event_type='Lock'
-         and activity.query ilike $4
          and activity.query ilike $5
          and activity.query ilike $6
-         and $1::integer = any(pg_blocking_pids(activity.pid))
-       order by activity.pid
-       limit 1
+         and activity.query ilike $7
+         and $8::integer = any(pg_blocking_pids(activity.pid))
     `, [
-      blocker.pid,
-      blocker.userName,
-      blocker.applicationName,
+      scheduler.pid,
+      scheduler.databaseName,
+      scheduler.sessionUser,
+      scheduler.applicationName,
       ...queryFragments,
+      blocker.pid,
     ]);
-    if (blocked.rows[0]) return blocked.rows[0].pid;
+    if (blocked.rows[0]?.pid === scheduler.pid) return scheduler.pid;
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
-  const diagnostics = await reminderLockObserver.query<{
+  const diagnostics = await observer.query<{
     pid: number;
     state: string | null;
     wait_event_type: string | null;
@@ -348,25 +395,69 @@ async function waitForReminderLockWait(
            pg_blocking_pids(activity.pid) blockers,
            activity.application_name,left(activity.query,300) query
       from pg_stat_activity activity
-     where activity.pid <> pg_backend_pid()
-       and activity.datname=current_database()
-       and activity.usename=$1
-       and activity.application_name=$2
-     order by activity.pid
-  `, [blocker.userName, blocker.applicationName]);
+     where activity.pid=$1
+  `, [scheduler.pid]);
   throw new Error(
-    `The smart-reminder dispatch did not reach its ${expectedQuery} lock behind backend ${blocker.pid}: ${JSON.stringify(diagnostics.rows)}`,
+    `Scheduler backend ${scheduler.pid} did not reach its ${expectedQuery} lock behind backend ${blocker.pid}: ${JSON.stringify(diagnostics.rows)}`,
   );
+}
+
+async function runRestrictedPreferenceRace(runAt: Date, mutationSql: string) {
+  const [writerClient, schedulerClient, observerClient] = await Promise.all([
+    reminderAppPool.connect(),
+    reminderAppPool.connect(),
+    reminderAppPool.connect(),
+  ]);
+  const sequence = ++reminderRaceSequence;
+  let scheduled: ReturnType<typeof scheduleSmartRemindersWithDatabase> | null = null;
+  try {
+    const writerIdentity = await identifyReminderBackend(
+      writerClient,
+      `codestead.reminder.preference-writer.${sequence}`,
+    );
+    const schedulerIdentity = await identifyReminderBackend(
+      schedulerClient,
+      `codestead.reminder.preference-scheduler.${sequence}`,
+    );
+    await identifyReminderBackend(
+      observerClient,
+      `codestead.reminder.preference-observer.${sequence}`,
+    );
+    const schedulerDatabase = drizzle(schedulerClient, { schema });
+
+    await writerClient.query("begin");
+    await writerClient.query(
+      "select 1 from notification_preference where user_id=$1 for update",
+      [LEARNER_A],
+    );
+    scheduled = scheduleSmartRemindersWithDatabase(schedulerDatabase, runAt);
+    await waitForReminderLockWait(
+      observerClient,
+      schedulerIdentity,
+      writerIdentity,
+      "preference",
+    );
+    await writerClient.query(mutationSql, [LEARNER_A]);
+    await writerClient.query("commit");
+    return await scheduled;
+  } finally {
+    await writerClient.query("rollback").catch(() => undefined);
+    if (scheduled) await scheduled.catch(() => undefined);
+    writerClient.release();
+    schedulerClient.release();
+    observerClient.release();
+  }
 }
 
 beforeEach(async () => {
   communityOperationSequence = 0;
+  reminderRaceSequence = 0;
   await truncateApplicationTables();
   await seedPeopleAndReviewedActivity();
 });
 
 afterAll(async () => {
-  await reminderLockObserver.end();
+  await reminderAppPool.end();
   await pool.end();
 });
 
@@ -899,7 +990,7 @@ describe("smart-reminder consent and concurrency", () => {
     expect(reminders.rows.map((row) => row.kind).sort()).toEqual(["challenge", "daily_study", "goal"]);
   });
 
-  it("locks the user first and revalidates a racing preference opt-out", async () => {
+  it("locks the user first despite an indistinguishable competing waiter and revalidates opt-out", async () => {
     const runAt = new Date("2026-07-14T14:00:00.000Z");
     await pool.query(
       `insert into notification_preference
@@ -909,20 +1000,69 @@ describe("smart-reminder consent and concurrency", () => {
       [LEARNER_A],
     );
 
-    const preferenceWriter = await pool.connect();
-    let scheduled: ReturnType<typeof scheduleSmartReminders> | null = null;
+    const [writerClient, schedulerClient, observerClient, competingClient] = await Promise.all([
+      reminderAppPool.connect(),
+      reminderAppPool.connect(),
+      reminderAppPool.connect(),
+      reminderAppPool.connect(),
+    ]);
+    const sequence = ++reminderRaceSequence;
+    const schedulerApplication = `codestead.reminder.user-scheduler.${sequence}`;
+    let scheduled: ReturnType<typeof scheduleSmartRemindersWithDatabase> | null = null;
+    let competingWaiter: Promise<unknown> | null = null;
     let blockedRelations: string[] = [];
-    let result: Awaited<ReturnType<typeof scheduleSmartReminders>> | null = null;
+    let result: Awaited<ReturnType<typeof scheduleSmartRemindersWithDatabase>> | null = null;
     try {
-      const writerIdentity = await captureReminderBackendIdentity(preferenceWriter);
-      await preferenceWriter.query("begin");
-      await preferenceWriter.query(
+      const writerIdentity = await identifyReminderBackend(
+        writerClient,
+        `codestead.reminder.user-writer.${sequence}`,
+      );
+      const schedulerIdentity = await identifyReminderBackend(
+        schedulerClient,
+        schedulerApplication,
+      );
+      await identifyReminderBackend(
+        observerClient,
+        `codestead.reminder.user-observer.${sequence}`,
+      );
+      const competingIdentity = await identifyReminderBackend(
+        competingClient,
+        schedulerApplication,
+      );
+      const schedulerDatabase = drizzle(schedulerClient, { schema });
+
+      await writerClient.query("begin");
+      await writerClient.query(
         `select 1 from "user" where id=$1 for update`,
         [LEARNER_A],
       );
-      scheduled = scheduleSmartReminders(runAt);
-      const schedulerPid = await waitForReminderLockWait(writerIdentity, "user");
-      const relationLocks = await pool.query<{ relation_name: string }>(
+      scheduled = scheduleSmartRemindersWithDatabase(schedulerDatabase, runAt);
+      const schedulerBlockers = await waitForBackendBlockers(
+        observerClient,
+        schedulerIdentity.pid,
+      );
+      expect(schedulerBlockers).toContain(writerIdentity.pid);
+
+      await competingClient.query("begin");
+      competingWaiter = competingClient.query(
+        `select u.id from "user" u where u.id=$1 for update of u`,
+        [LEARNER_A],
+      );
+      const competingBlockers = await waitForBackendBlockers(
+        observerClient,
+        competingIdentity.pid,
+      );
+      expect(competingBlockers).toContain(schedulerIdentity.pid);
+
+      const schedulerPid = await waitForReminderLockWait(
+        observerClient,
+        schedulerIdentity,
+        writerIdentity,
+        "user",
+      );
+      expect(schedulerPid).toBe(schedulerIdentity.pid);
+      expect(schedulerPid).not.toBe(competingIdentity.pid);
+      const relationLocks = await observerClient.query<{ relation_name: string }>(
         `select relation.relname as relation_name
            from pg_locks held
            join pg_class relation on relation.oid = held.relation
@@ -931,19 +1071,26 @@ describe("smart-reminder consent and concurrency", () => {
         [schedulerPid],
       );
       blockedRelations = relationLocks.rows.map((row) => row.relation_name);
-      await preferenceWriter.query(
+      await writerClient.query(
         `update notification_preference
             set daily_study_enabled=false,learning_email_enabled=false,
                 row_version=row_version+1
           where user_id=$1`,
         [LEARNER_A],
       );
-      await preferenceWriter.query("commit");
+      await writerClient.query("commit");
       result = await scheduled;
+      await competingWaiter;
+      await competingClient.query("rollback");
     } finally {
-      await preferenceWriter.query("rollback").catch(() => undefined);
-      preferenceWriter.release();
+      await writerClient.query("rollback").catch(() => undefined);
       if (scheduled) await scheduled.catch(() => undefined);
+      if (competingWaiter) await competingWaiter.catch(() => undefined);
+      await competingClient.query("rollback").catch(() => undefined);
+      writerClient.release();
+      schedulerClient.release();
+      observerClient.release();
+      competingClient.release();
     }
 
     expect(blockedRelations).toContain("user");
@@ -971,25 +1118,13 @@ describe("smart-reminder consent and concurrency", () => {
       [LEARNER_A],
     );
 
-    const optingOut = await pool.connect();
-    try {
-      const writerIdentity = await captureReminderBackendIdentity(optingOut);
-      await optingOut.query("begin");
-      await optingOut.query("select 1 from notification_preference where user_id=$1 for update", [LEARNER_A]);
-      const scheduled = scheduleSmartReminders(firstRunAt);
-      await waitForReminderLockWait(writerIdentity, "preference");
-      await optingOut.query(
-        `update notification_preference
-            set daily_study_enabled=false,learning_email_enabled=false,row_version=row_version+1
-          where user_id=$1`,
-        [LEARNER_A],
-      );
-      await optingOut.query("commit");
-      expect(await scheduled).toEqual({ candidates: 1, dispatched: 0, failed: 0 });
-    } finally {
-      await optingOut.query("rollback").catch(() => undefined);
-      optingOut.release();
-    }
+    expect(await runRestrictedPreferenceRace(
+      firstRunAt,
+      `update notification_preference
+          set daily_study_enabled=false,learning_email_enabled=false,
+              row_version=row_version+1
+        where user_id=$1`,
+    )).toEqual({ candidates: 1, dispatched: 0, failed: 0 });
     expect((await pool.query("select 1 from smart_reminder_dispatch")).rowCount).toBe(0);
     expect((await pool.query("select 1 from notification where type like 'smart_reminder.%'")).rowCount).toBe(0);
     expect((await pool.query("select 1 from email_outbox where template like '%reminder%' or template='weekly-summary'")).rowCount).toBe(0);
@@ -1000,25 +1135,12 @@ describe("smart-reminder consent and concurrency", () => {
         where user_id=$1`,
       [LEARNER_A],
     );
-    const emailOptOut = await pool.connect();
-    try {
-      const writerIdentity = await captureReminderBackendIdentity(emailOptOut);
-      await emailOptOut.query("begin");
-      await emailOptOut.query("select 1 from notification_preference where user_id=$1 for update", [LEARNER_A]);
-      const scheduled = scheduleSmartReminders(new Date("2026-07-15T14:00:00.000Z"));
-      await waitForReminderLockWait(writerIdentity, "preference");
-      await emailOptOut.query(
-        `update notification_preference
-            set learning_email_enabled=false,row_version=row_version+1
-          where user_id=$1`,
-        [LEARNER_A],
-      );
-      await emailOptOut.query("commit");
-      expect(await scheduled).toEqual({ candidates: 1, dispatched: 1, failed: 0 });
-    } finally {
-      await emailOptOut.query("rollback").catch(() => undefined);
-      emailOptOut.release();
-    }
+    expect(await runRestrictedPreferenceRace(
+      new Date("2026-07-15T14:00:00.000Z"),
+      `update notification_preference
+          set learning_email_enabled=false,row_version=row_version+1
+        where user_id=$1`,
+    )).toEqual({ candidates: 1, dispatched: 1, failed: 0 });
     expect((await pool.query("select 1 from smart_reminder_dispatch where user_id=$1", [LEARNER_A])).rowCount).toBe(1);
     expect((await pool.query("select 1 from notification where user_id=$1 and type='smart_reminder.daily_study'", [LEARNER_A])).rowCount).toBe(1);
     expect((await pool.query("select 1 from email_outbox where user_id=$1", [LEARNER_A])).rowCount).toBe(0);
