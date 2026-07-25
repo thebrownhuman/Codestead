@@ -673,4 +673,174 @@ REVOKE ALL ON FUNCTION "public"."backup_status_mail_authorized"(uuid)
   FROM PUBLIC, learncoding_app, learncoding_worker, learncoding_migrator,
        learncoding_ops, learncoding_backup_reporter;--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION "public"."backup_status_mail_authorized"(uuid)
-  TO learncoding_worker;
+  TO learncoding_worker;--> statement-breakpoint
+
+DO $codestead_backup_status_acl_scrub$
+DECLARE
+  target_relation regclass;
+  target_sequence regclass;
+  target_routine regprocedure;
+  acl_grantee oid;
+  target_column name;
+  grantee_sql text;
+BEGIN
+  FOREACH target_relation IN ARRAY ARRAY[
+    'public.backup_status_mail_authority'::regclass,
+    'public.backup_status_mail_admin_guard'::regclass
+  ]
+  LOOP
+    FOR target_column, acl_grantee IN
+      SELECT attribute.attname, column_acl.grantee
+        FROM pg_catalog.pg_attribute AS attribute
+        CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS column_acl
+       WHERE attribute.attrelid = target_relation
+         AND attribute.attnum > 0
+         AND NOT attribute.attisdropped
+       GROUP BY attribute.attname, column_acl.grantee
+    LOOP
+      grantee_sql := CASE acl_grantee
+        WHEN 0 THEN 'PUBLIC'
+        ELSE pg_catalog.quote_ident(
+          pg_catalog.pg_get_userbyid(acl_grantee)
+        )
+      END;
+      EXECUTE pg_catalog.format(
+        'REVOKE ALL PRIVILEGES (%I) ON TABLE %s FROM %s',
+        target_column,
+        target_relation,
+        grantee_sql
+      );
+    END LOOP;
+
+    FOR acl_grantee IN
+      SELECT relation_acl.grantee
+        FROM pg_catalog.pg_class AS relation
+        CROSS JOIN LATERAL pg_catalog.aclexplode(
+          coalesce(
+            relation.relacl,
+            pg_catalog.acldefault('r', relation.relowner)
+          )
+        ) AS relation_acl
+       WHERE relation.oid = target_relation
+       GROUP BY relation_acl.grantee
+    LOOP
+      grantee_sql := CASE acl_grantee
+        WHEN 0 THEN 'PUBLIC'
+        ELSE pg_catalog.quote_ident(
+          pg_catalog.pg_get_userbyid(acl_grantee)
+        )
+      END;
+      EXECUTE pg_catalog.format(
+        'REVOKE ALL PRIVILEGES ON TABLE %s FROM %s',
+        target_relation,
+        grantee_sql
+      );
+    END LOOP;
+    EXECUTE pg_catalog.format(
+      'GRANT ALL PRIVILEGES ON TABLE %s'
+      || ' TO learncoding_owner',
+      target_relation
+    );
+  END LOOP;
+
+  FOR target_sequence IN
+    SELECT DISTINCT sequence_relation.oid::regclass
+      FROM pg_catalog.pg_class AS sequence_relation
+      JOIN pg_catalog.pg_depend AS dependency
+        ON dependency.classid = 'pg_catalog.pg_class'::regclass
+       AND dependency.objid = sequence_relation.oid
+       AND dependency.refclassid = 'pg_catalog.pg_class'::regclass
+       AND dependency.refobjid = ANY(
+         ARRAY[
+           'public.backup_status_mail_authority'::regclass::oid,
+           'public.backup_status_mail_admin_guard'::regclass::oid
+         ]
+       )
+       AND dependency.deptype IN ('a', 'i')
+     WHERE sequence_relation.relkind = 'S'
+  LOOP
+    EXECUTE pg_catalog.format(
+      'ALTER SEQUENCE %s OWNER TO learncoding_owner',
+      target_sequence
+    );
+    FOR acl_grantee IN
+      SELECT sequence_acl.grantee
+        FROM pg_catalog.pg_class AS sequence_relation
+        CROSS JOIN LATERAL pg_catalog.aclexplode(
+          coalesce(
+            sequence_relation.relacl,
+            pg_catalog.acldefault('s', sequence_relation.relowner)
+          )
+        ) AS sequence_acl
+       WHERE sequence_relation.oid = target_sequence
+       GROUP BY sequence_acl.grantee
+    LOOP
+      grantee_sql := CASE acl_grantee
+        WHEN 0 THEN 'PUBLIC'
+        ELSE pg_catalog.quote_ident(
+          pg_catalog.pg_get_userbyid(acl_grantee)
+        )
+      END;
+      EXECUTE pg_catalog.format(
+        'REVOKE ALL PRIVILEGES ON SEQUENCE %s FROM %s',
+        target_sequence,
+        grantee_sql
+      );
+    END LOOP;
+    EXECUTE pg_catalog.format(
+      'GRANT ALL PRIVILEGES ON SEQUENCE %s'
+      || ' TO learncoding_owner',
+      target_sequence
+    );
+  END LOOP;
+
+  FOREACH target_routine IN ARRAY ARRAY[
+    'public.reject_backup_status_mail_authority_mutation()'::regprocedure,
+    'public.lock_backup_status_mail_admin_authority()'::regprocedure,
+    'public.enqueue_backup_status_mail_authority(text,text)'::regprocedure,
+    'public.backup_status_mail_authorized(uuid)'::regprocedure
+  ]
+  LOOP
+    EXECUTE pg_catalog.format(
+      'ALTER FUNCTION %s OWNER TO learncoding_owner',
+      target_routine
+    );
+    FOR acl_grantee IN
+      SELECT routine_acl.grantee
+        FROM pg_catalog.pg_proc AS routine
+        CROSS JOIN LATERAL pg_catalog.aclexplode(
+          coalesce(
+            routine.proacl,
+            pg_catalog.acldefault('f', routine.proowner)
+          )
+        ) AS routine_acl
+       WHERE routine.oid = target_routine
+       GROUP BY routine_acl.grantee
+    LOOP
+      grantee_sql := CASE acl_grantee
+        WHEN 0 THEN 'PUBLIC'
+        ELSE pg_catalog.quote_ident(
+          pg_catalog.pg_get_userbyid(acl_grantee)
+        )
+      END;
+      EXECUTE pg_catalog.format(
+        'REVOKE ALL PRIVILEGES ON FUNCTION %s FROM %s',
+        target_routine,
+        grantee_sql
+      );
+    END LOOP;
+    EXECUTE pg_catalog.format(
+      'GRANT EXECUTE ON FUNCTION %s'
+      || ' TO learncoding_owner',
+      target_routine
+    );
+  END LOOP;
+
+  GRANT EXECUTE ON FUNCTION
+    public.enqueue_backup_status_mail_authority(text, text)
+    TO learncoding_backup_reporter;
+  GRANT EXECUTE ON FUNCTION
+    public.backup_status_mail_authorized(uuid)
+    TO learncoding_worker;
+END
+$codestead_backup_status_acl_scrub$;

@@ -337,6 +337,7 @@ async function main() {
       CREATE ROLE learncoding_worker LOGIN NOINHERIT;
       CREATE ROLE learncoding_ops LOGIN NOINHERIT;
       CREATE ROLE learncoding_backup_reporter LOGIN NOINHERIT;
+      CREATE ROLE backup_status_acl_probe NOLOGIN;
       GRANT learncoding_owner TO postgres;
       ALTER SCHEMA public OWNER TO learncoding_owner;
       REVOKE ALL ON SCHEMA public FROM PUBLIC;
@@ -369,6 +370,17 @@ async function main() {
              learncoding_backup_reporter;
     `);
 
+    await asOwner(admin, `
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public
+        GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+        ON TABLES TO backup_status_acl_probe;
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public
+        GRANT USAGE, SELECT, UPDATE
+        ON SEQUENCES TO backup_status_acl_probe;
+      ALTER DEFAULT PRIVILEGES IN SCHEMA public
+        GRANT EXECUTE ON FUNCTIONS TO backup_status_acl_probe
+    `);
+
     const migration = readFileSync(
       path.join(
         repositoryRoot,
@@ -377,11 +389,23 @@ async function main() {
       ),
       "utf8",
     );
+    let ownedSequenceInjected = false;
     await admin.query("BEGIN");
     try {
       await admin.query("SET LOCAL ROLE learncoding_owner");
       for (const statement of migration.split("--> statement-breakpoint")) {
-        if (statement.trim()) await admin.query(statement);
+        if (!statement.trim()) continue;
+        if (statement.includes("codestead_backup_status_acl_scrub")) {
+          await admin.query(`
+            CREATE SEQUENCE
+              public.backup_status_mail_authority_acl_probe;
+            ALTER SEQUENCE
+              public.backup_status_mail_authority_acl_probe
+              OWNED BY public.backup_status_mail_authority.created_at
+          `);
+          ownedSequenceInjected = true;
+        }
+        await admin.query(statement);
       }
       await admin.query("COMMIT");
     } catch (error) {
@@ -393,6 +417,68 @@ async function main() {
       await verifyBackupStatusAuthorityBeforeRepair(admin),
       true,
       "a freshly migrated authority must pass the pre-repair boundary",
+    );
+    assert.equal(
+      ownedSequenceInjected,
+      true,
+      "the live proof must exercise an authority-owned sequence ACL",
+    );
+    const sequenceAuthority = await admin.query(`
+      WITH target AS (
+        SELECT sequence_relation.*
+          FROM pg_catalog.pg_class AS sequence_relation
+         WHERE sequence_relation.oid =
+               'public.backup_status_mail_authority_acl_probe'::regclass
+      ),
+      observed(grantor, grantee, privilege_type, is_grantable) AS (
+        SELECT acl.grantor,
+               acl.grantee,
+               acl.privilege_type,
+               acl.is_grantable
+          FROM target
+          CROSS JOIN LATERAL pg_catalog.aclexplode(
+            coalesce(
+              target.relacl,
+              pg_catalog.acldefault('s', target.relowner)
+            )
+          ) AS acl
+      ),
+      expected(grantor, grantee, privilege_type, is_grantable) AS (
+        SELECT acl.grantor,
+               acl.grantee,
+               acl.privilege_type,
+               acl.is_grantable
+          FROM target
+          CROSS JOIN LATERAL pg_catalog.aclexplode(
+            pg_catalog.acldefault('s', target.relowner)
+          ) AS acl
+      )
+      SELECT pg_catalog.pg_get_userbyid(target.relowner) =
+               'learncoding_owner' owner_exact,
+             NOT EXISTS (
+               (SELECT * FROM observed EXCEPT ALL SELECT * FROM expected)
+               UNION ALL
+               (SELECT * FROM expected EXCEPT ALL SELECT * FROM observed)
+             ) direct_acl_exact,
+             NOT pg_catalog.has_sequence_privilege(
+               'backup_status_acl_probe', target.oid, 'USAGE'
+             )
+             AND NOT pg_catalog.has_sequence_privilege(
+               'backup_status_acl_probe', target.oid, 'SELECT'
+             )
+             AND NOT pg_catalog.has_sequence_privilege(
+               'backup_status_acl_probe', target.oid, 'UPDATE'
+             ) probe_denied
+        FROM target
+    `);
+    assert.deepEqual(sequenceAuthority.rows, [{
+      owner_exact: true,
+      direct_acl_exact: true,
+      probe_denied: true,
+    }]);
+    await asOwner(
+      admin,
+      "DROP SEQUENCE public.backup_status_mail_authority_acl_probe",
     );
     await admin.query(`
       GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
