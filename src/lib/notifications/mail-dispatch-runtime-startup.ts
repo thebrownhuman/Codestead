@@ -13,6 +13,7 @@ export const MAIL_DISPATCH_OTHER_PROCESS_POOL_MAXIMUM_CONNECTIONS = 80;
 const MAIL_DISPATCH_POOL_MAXIMUM_CONNECTIONS = 3;
 const MAIL_DISPATCH_POOL_ACQUIRE_TIMEOUT_MS = 2_000;
 const MAIL_DISPATCH_POOL_IDLE_TIMEOUT_MS = 30_000;
+export const MAIL_DISPATCH_STARTUP_QUERY_TIMEOUT_MS = 6_000;
 
 type RuntimeVersionRow = {
   readonly server_version_num: unknown;
@@ -86,7 +87,10 @@ export type MailDispatchStartupPool = Readonly<{
     idleTimeoutMillis?: unknown;
   }>;
   query(
-    text: string,
+    query: string | Readonly<{
+      text: string;
+      query_timeout: number;
+    }>,
   ): Promise<Readonly<{ rows: readonly unknown[] }>>;
 }>;
 
@@ -170,6 +174,7 @@ export function isMailDispatchRuntimeStartupInspectionForPool(
   return (
     issuedInspectionPools.get(value) === pool
     && issuedPlanPools.get(value.plan) === pool
+    && hasExactPoolOptions(pool)
   );
 }
 
@@ -190,25 +195,41 @@ export async function inspectMailDispatchRuntime(
   }
 
   let result: Readonly<{ rows: readonly unknown[] }>;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   try {
-    result = await pool.query(`
-      select current_setting('max_connections') as max_connections,
-             (
-               current_setting('superuser_reserved_connections')::integer
-               + coalesce(
-                   nullif(
-                     current_setting('reserved_connections', true),
-                     ''
-                   )::integer,
-                   0
-                 )
-             )::text as admin_reserved_connections,
-             current_setting('server_version_num') as server_version_num
-    `);
+    result = await Promise.race([
+      pool.query({
+        text: `
+          select current_setting('max_connections') as max_connections,
+                 (
+                   current_setting('superuser_reserved_connections')::integer
+                   + coalesce(
+                       nullif(
+                         current_setting('reserved_connections', true),
+                         ''
+                       )::integer,
+                       0
+                     )
+                 )::text as admin_reserved_connections,
+                 current_setting('server_version_num') as server_version_num
+        `,
+        query_timeout: MAIL_DISPATCH_STARTUP_QUERY_TIMEOUT_MS,
+      }),
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error("Mail dispatch startup query timed out.")),
+          MAIL_DISPATCH_STARTUP_QUERY_TIMEOUT_MS,
+        );
+      }),
+    ]);
   } catch {
     throw new Error(
       "Mail dispatch startup database inspection failed.",
     );
+  } finally {
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+    }
   }
 
   if (!Array.isArray(result.rows) || result.rows.length !== 1) {

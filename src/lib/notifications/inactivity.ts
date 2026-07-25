@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 
 import type { Pool, PoolClient } from "pg";
 
-import { pool } from "@/lib/db/client";
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
 import type { EmailTemplate } from "./outbox";
 import {
@@ -228,10 +227,11 @@ async function openEpisode(client: PoolClient, userId: string, lastActivityAt: D
 
 export async function scheduleInactivityReminders(
   now = new Date(),
-  schedulerPool: SchedulerPool = pool,
+  schedulerPool?: SchedulerPool,
 ): Promise<InactivityScheduleResult> {
   validDate(now);
-  const client = await schedulerPool.connect();
+  const resolvedPool = schedulerPool ?? (await import("@/lib/db/client")).pool;
+  const client = await resolvedPool.connect();
   const result: InactivityScheduleResult = {
     opened: 0,
     closed: 0,
@@ -249,7 +249,11 @@ export async function scheduleInactivityReminders(
     // learner row lock across the whole batch. PostgreSQL releases it if this
     // pooled connection is lost; the explicit unlock keeps a healthy pooled
     // session from retaining it after this run.
-    await client.query("select pg_advisory_lock($1::bigint)", [SCHEDULER_ADVISORY_LOCK]);
+    const schedulerLock = await client.query<{ locked: boolean }>(
+      "select pg_try_advisory_lock($1::bigint) as locked",
+      [SCHEDULER_ADVISORY_LOCK],
+    );
+    if (schedulerLock.rows[0]?.locked !== true) return result;
     schedulerLockHeld = true;
     const administrator = (await client.query<Administrator>(
       `select id, email from "user"
@@ -260,6 +264,12 @@ export async function scheduleInactivityReminders(
     for (const { user_id: userId } of candidateIds) {
       await client.query("begin");
       try {
+        await client.query(
+          `select set_config('lock_timeout', $1, true),
+                  set_config('statement_timeout', $2, true),
+                  set_config('transaction_timeout', $3, true)`,
+          ["2000ms", "5000ms", "15000ms"],
+        );
         // READ COMMITTED gives this statement a fresh snapshot after the row
         // lock is acquired. Activity committed while we were waiting is
         // therefore observed before eligibility or outbox decisions.

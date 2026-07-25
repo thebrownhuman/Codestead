@@ -2,7 +2,7 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto
 
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db/client";
+import type { Database } from "@/lib/db/client";
 import {
   lostDeviceProof,
   notification,
@@ -71,6 +71,7 @@ export async function issueLostDeviceProof(
   now = new Date(),
 ): Promise<IssuedProof | null> {
   const normalizedEmail = email.trim().toLowerCase();
+  const { db } = await import("@/lib/db/client");
   const [candidate] = await db
     .select({
       userId: user.id,
@@ -214,6 +215,7 @@ export async function verifyLostDeviceProof(input: {
   now?: Date;
 }): Promise<VerifiedProof | null> {
   const now = input.now ?? new Date();
+  const { db } = await import("@/lib/db/client");
   const proofHash = hashLostDeviceProof(input.rawProof);
   return db.transaction(async (tx) => {
     const [claim] = await tx
@@ -348,13 +350,18 @@ export type MaterializedLostDeviceProofDelivery = Readonly<{
   variables: Readonly<Record<string, string>>;
 }>;
 
-export async function materializeLostDeviceProofDelivery(input: {
+type LostDeviceProofDeliveryInput = Readonly<{
   requestId: string;
   name: string;
   now?: Date;
-}): Promise<MaterializedLostDeviceProofDelivery | null> {
+}>;
+
+export async function materializeLostDeviceProofDeliveryWithDatabase(
+  database: Pick<Database, "select">,
+  input: LostDeviceProofDeliveryInput,
+): Promise<MaterializedLostDeviceProofDelivery | null> {
   const now = input.now ?? new Date();
-  const [record] = await db
+  const [record] = await database
     .select({ proofHash: lostDeviceProof.proofHash })
     .from(lostDeviceProof)
     .where(
@@ -382,6 +389,13 @@ export async function materializeLostDeviceProofDelivery(input: {
   applicationUrl.hash = `proof=${encodeURIComponent(rawProof)}`;
   const variables = Object.freeze({ name: input.name, url: applicationUrl.toString() });
   return Object.freeze({ authorityEvidence, variables });
+}
+
+export async function materializeLostDeviceProofDelivery(
+  input: LostDeviceProofDeliveryInput,
+): Promise<MaterializedLostDeviceProofDelivery | null> {
+  const { db } = await import("@/lib/db/client");
+  return materializeLostDeviceProofDeliveryWithDatabase(db, input);
 }
 
 /** Variables-only compatibility adapter used until central TX1/TX2 consumes authorityEvidence. */

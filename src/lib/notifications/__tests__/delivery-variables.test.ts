@@ -1,13 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ materialize: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  materialize: vi.fn(),
+  materializeWithDatabase: vi.fn(),
+}));
 
 vi.mock("@/lib/security/lost-device-recovery", () => ({
   materializeLostDeviceProofDelivery: mocks.materialize,
+  materializeLostDeviceProofDeliveryWithDatabase:
+    mocks.materializeWithDatabase,
 }));
 
 import {
   materializeDeliveryVariables,
+  materializeDeliveryVariablesWithDatabase,
   materializeDeliveryWithAuthorityEvidence,
 } from "../delivery-variables";
 
@@ -83,5 +89,44 @@ describe("delivery-only email variables", () => {
       name: "Learner",
       now,
     });
+  });
+});
+
+describe("dedicated delivery materialization database", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("routes a valid lost-device proof through the injected database", async () => {
+    const database = { kind: "dedicated-mail-database" };
+    const requestId = "10000000-0000-4000-8000-000000000001";
+    const delivery = Object.freeze({
+      authorityEvidence: Object.freeze({
+        kind: "lost-device-proof",
+        sourceId: requestId,
+        proofHash: "a".repeat(64),
+      }),
+      variables: Object.freeze({
+        name: "Learner",
+        url: "https://learn.test/lost-device#proof=ephemeral",
+      }),
+    });
+    mocks.materializeWithDatabase.mockResolvedValue(delivery);
+
+    await expect(materializeDeliveryVariablesWithDatabase(
+      database as never,
+      {
+        template: "lost-device-proof",
+        variables: { name: "Learner", recoveryRequestId: requestId },
+      },
+    )).resolves.toEqual(delivery.variables);
+
+    expect(mocks.materializeWithDatabase).toHaveBeenCalledWith(
+      database,
+      {
+        requestId,
+        name: "Learner",
+        now: undefined,
+      },
+    );
+    expect(mocks.materialize).not.toHaveBeenCalled();
   });
 });

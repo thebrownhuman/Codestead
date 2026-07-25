@@ -72,8 +72,13 @@ function fakeScheduler(input: {
   const query = vi.fn(async (statementInput: string, values: unknown[] = []) => {
     const statement = statementInput.replace(/\s+/g, " ").trim().toLowerCase();
     calls.push({ statement, values });
+    if (statement.includes("pg_try_advisory_lock")) {
+      return { rows: [{ locked: true }], rowCount: 1 };
+    }
+
     if (
       statement === "begin" || statement === "commit" || statement === "rollback" ||
+      statement.includes("set_config") ||
       statement.includes("pg_advisory_lock") || statement.includes("pg_advisory_unlock")
     ) {
       return { rows: [], rowCount: 0 };
@@ -205,10 +210,22 @@ describe("inactivity scheduler transaction branches", () => {
 
     await scheduleInactivityReminders(NOW, fake.pool as never);
 
-    expect(fake.calls.filter((call) => call.statement.includes("pg_advisory_lock"))).toHaveLength(1);
+    expect(fake.calls.filter(
+      (call) => call.statement.includes("pg_try_advisory_lock"),
+    )).toHaveLength(1);
+    expect(fake.calls.filter(
+      (call) => call.statement.includes("pg_advisory_lock("),
+    )).toHaveLength(0);
     expect(fake.calls.filter((call) => call.statement.includes("pg_advisory_unlock"))).toHaveLength(1);
     expect(fake.calls.filter((call) => call.statement === "begin")).toHaveLength(2);
     expect(fake.calls.filter((call) => call.statement === "commit")).toHaveLength(2);
+    const timeoutCalls = fake.calls.filter(
+      (call) => call.statement.includes("set_config"),
+    );
+    expect(timeoutCalls.map((call) => call.values)).toEqual([
+      ["2000ms", "5000ms", "15000ms"],
+      ["2000ms", "5000ms", "15000ms"],
+    ]);
     const lockedReads = fake.calls.filter((call) =>
       call.statement.includes("where u.id = $1") && call.statement.includes("for update of u"),
     );

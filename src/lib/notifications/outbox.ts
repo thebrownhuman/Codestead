@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import { db } from "@/lib/db/client";
+import type { Database } from "@/lib/db/client";
 import { emailOutbox } from "@/lib/db/schema";
 
 import {
@@ -62,7 +62,9 @@ export type EnqueueEmailInput = AccountEmailInput | SystemEmailInput;
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-type OutboxTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type OutboxTransaction = Parameters<
+  Parameters<Database["transaction"]>[0]
+>[0];
 
 function queuedEmail(input: EnqueueEmailInput) {
   const recipient = input.to.toLowerCase();
@@ -140,6 +142,7 @@ export async function enqueueEmailInTransaction(
 }
 
 export async function enqueueEmail(input: EnqueueEmailInput) {
+  const { db } = await import("@/lib/db/client");
   const row = queuedEmail(input);
   await db
     .insert(emailOutbox)

@@ -66,6 +66,9 @@ describe("smart reminder policy", () => {
       source.indexOf("export async function scheduleSmartReminders"),
     );
     const normalized = dispatch.replace(/\s+/gu, " ").toLowerCase();
+    const transactionBudgets = normalized.indexOf(
+      "set_config('lock_timeout'",
+    );
     const userLock = normalized.indexOf(
       'select u.id from "user" u where u.id=${candidate.id} for update of u',
     );
@@ -76,6 +79,11 @@ describe("smart reminder policy", () => {
       "select u.id,u.name,u.email,u.last_meaningful_activity_at, p.timezone",
     );
 
+    expect(transactionBudgets).toBeGreaterThan(-1);
+    expect(transactionBudgets).toBeLessThan(userLock);
+    expect(normalized).toContain('"2000ms"');
+    expect(normalized).toContain('"5000ms"');
+    expect(normalized).toContain('"15000ms"');
     expect(userLock).toBeGreaterThan(-1);
     expect(preferenceLock).toBeGreaterThan(userLock);
     expect(revalidation).toBeGreaterThan(preferenceLock);

@@ -12,18 +12,20 @@ const mocks = vi.hoisted(() => {
   const selectFrom = vi.fn(() => ({ where: selectWhere }));
   const select = vi.fn(() => ({ from: selectFrom }));
 
+  const database = { update, select };
   const poolEnd = vi.fn(async () => undefined);
   const poolQuery = vi.fn();
   const pool = {
     options: {
       max: 3,
-      connectionTimeoutMillis: 5_000,
+      connectionTimeoutMillis: 2_000,
       idleTimeoutMillis: 30_000,
     },
     connect: vi.fn(),
     end: poolEnd,
     query: poolQuery,
   };
+  const createMailDispatchDatabaseResources = vi.fn();
   const store = { kind: "postgres-outbox-store" };
   const PostgresOutboxStore = vi.fn(function PostgresOutboxStore() {
     return store;
@@ -48,7 +50,8 @@ const mocks = vi.hoisted(() => {
   const createWorkerHealthReporter = vi.fn(() => health);
 
   return {
-    db: { update, select },
+    db: database,
+    createMailDispatchDatabaseResources,
     pool,
     poolEnd,
     poolQuery,
@@ -72,7 +75,13 @@ vi.mock("drizzle-orm", () => ({
   lt: vi.fn(),
   lte: vi.fn(),
 }));
-vi.mock("../src/lib/db/client", () => ({ db: mocks.db, pool: mocks.pool }));
+vi.mock("../src/lib/db/client", () => {
+  throw new Error("Mail worker imported the application database client.");
+});
+vi.mock("../src/lib/notifications/mail-dispatch-pool", () => ({
+  createMailDispatchDatabaseResources:
+    mocks.createMailDispatchDatabaseResources,
+}));
 vi.mock("../src/lib/db/schema", () => ({
   emailOutbox: {
     id: "id",
@@ -93,13 +102,13 @@ vi.mock("../src/lib/notifications/mailer", () => ({
   classifyMailDeliveryError: mocks.classifyMailDeliveryError,
 }));
 vi.mock("../src/lib/notifications/delivery-variables", () => ({
-  materializeDeliveryVariables: mocks.materializeDeliveryVariables,
+  materializeDeliveryVariablesWithDatabase: mocks.materializeDeliveryVariables,
 }));
 vi.mock("../src/lib/notifications/inactivity", () => ({
   scheduleInactivityReminders: mocks.scheduleInactivityReminders,
 }));
 vi.mock("../src/lib/notifications/smart-reminders", () => ({
-  scheduleSmartReminders: mocks.scheduleSmartReminders,
+  scheduleSmartRemindersWithDatabase: mocks.scheduleSmartReminders,
 }));
 vi.mock("./lib/worker-health", () => ({
   createWorkerHealthReporter: mocks.createWorkerHealthReporter,
@@ -126,7 +135,11 @@ type BatchResult = {
 async function loadWorkerOnce() {
   process.argv = [originalArgv[0]!, originalArgv[1]!, "--once"];
   await import("./process-outbox");
-  await vi.waitFor(() => expect(mocks.poolEnd).toHaveBeenCalledTimes(1));
+  await vi.waitFor(() => {
+    expect(
+      process.exitCode === 1 || mocks.poolEnd.mock.calls.length === 1,
+    ).toBe(true);
+  });
 }
 
 async function flushWorkerMicrotasks() {
@@ -136,12 +149,28 @@ async function flushWorkerMicrotasks() {
 }
 
 describe("mail worker production composition", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
+    const startup = await vi.importActual(
+      "../src/lib/notifications/mail-dispatch-runtime-startup",
+    ) as {
+      inspectMailDispatchRuntime(candidatePool: unknown): Promise<unknown>;
+    };
+    mocks.createMailDispatchDatabaseResources.mockImplementation(async () => {
+      try {
+        const inspection = await startup.inspectMailDispatchRuntime(
+          mocks.pool,
+        );
+        return { pool: mocks.pool, database: mocks.db, inspection };
+      } catch (error) {
+        await mocks.poolEnd();
+        throw error;
+      }
+    });
     Object.assign(mocks.pool.options, {
       max: 3,
-      connectionTimeoutMillis: 5_000,
+      connectionTimeoutMillis: 2_000,
       idleTimeoutMillis: 30_000,
     });
     vi.stubEnv("MAIL_ADAPTER", "console");
@@ -190,7 +219,8 @@ describe("mail worker production composition", () => {
       expect(mocks.scheduleInactivityReminders).not.toHaveBeenCalled();
       expect(mocks.scheduleSmartReminders).not.toHaveBeenCalled();
       expect(mocks.createWorkerHealthReporter).not.toHaveBeenCalled();
-      expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
+      expect(mocks.createMailDispatchDatabaseResources).not.toHaveBeenCalled();
+      expect(mocks.poolEnd).not.toHaveBeenCalled();
       expect(console.error).toHaveBeenCalledWith(
         JSON.stringify({
           event: "email.worker_failed",
@@ -245,8 +275,13 @@ describe("mail worker production composition", () => {
   it("runs the fenced state machine with a PostgreSQL store and stable process authority", async () => {
     await loadWorkerOnce();
 
+    expect(mocks.createMailDispatchDatabaseResources).toHaveBeenCalledOnce();
+    expect(mocks.createMailDispatchDatabaseResources).toHaveBeenCalledWith();
+
     expect(mocks.poolQuery).toHaveBeenCalledOnce();
-    const startupSql = String(mocks.poolQuery.mock.calls[0]?.[0]);
+    const startupSql = String(
+      (mocks.poolQuery.mock.calls[0]?.[0] as { text?: unknown })?.text,
+    );
     expect(startupSql).toContain("current_setting('max_connections')");
     expect(startupSql).toContain(
       "current_setting('superuser_reserved_connections')",
@@ -278,11 +313,12 @@ describe("mail worker production composition", () => {
     expect(dependencies.policy).toEqual({
       batchSize: 10,
       materializeLeaseMs: 60_000,
-      providerLeaseMs: 95_000,
+      providerLeaseMs: 110_000,
       maxMaterializeAttempts: 8,
       maxRetryDelayMs: 6 * 60 * 60_000,
       terminalPersistenceAttempts: 3,
     });
+    expect(dependencies.policy.providerLeaseMs - 15_000).toBe(95_000);
     expect(mocks.db.select).not.toHaveBeenCalled();
     expect(mocks.db.update).not.toHaveBeenCalled();
   });
@@ -331,11 +367,14 @@ describe("mail worker production composition", () => {
 
     await loadWorkerOnce();
 
-    expect(mocks.materializeDeliveryVariables).toHaveBeenCalledWith({
-      template: "reset-password",
-      variables: { recoveryRequestId: "not-persisted-in-the-message" },
-      now: expect.any(Date),
-    });
+    expect(mocks.materializeDeliveryVariables).toHaveBeenCalledWith(
+      mocks.db,
+      {
+        template: "reset-password",
+        variables: { recoveryRequestId: "not-persisted-in-the-message" },
+        now: expect.any(Date),
+      },
+    );
     expect(materializeResult).toEqual({
       kind: "ready",
       message: {
@@ -538,6 +577,14 @@ describe("mail worker production composition", () => {
 
     expect(mocks.scheduleInactivityReminders).toHaveBeenCalledTimes(1);
     expect(mocks.scheduleSmartReminders).toHaveBeenCalledTimes(1);
+    expect(mocks.scheduleInactivityReminders).toHaveBeenCalledWith(
+      expect.any(Date),
+      mocks.pool,
+    );
+    expect(mocks.scheduleSmartReminders).toHaveBeenCalledWith(
+      mocks.db,
+      expect.any(Date),
+    );
     expect(mocks.health.success).toHaveBeenCalledTimes(1);
     expect(mocks.health.retry).not.toHaveBeenCalled();
     expect(mocks.health.terminalFailure).not.toHaveBeenCalled();

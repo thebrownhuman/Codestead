@@ -1,11 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 
-import { pool } from "../src/lib/db/client";
-import { materializeDeliveryVariables } from "../src/lib/notifications/delivery-variables";
+import { materializeDeliveryVariablesWithDatabase } from "../src/lib/notifications/delivery-variables";
 import { scheduleInactivityReminders } from "../src/lib/notifications/inactivity";
 import {
-  inspectMailDispatchRuntime,
+  createMailDispatchDatabaseResources,
+  type MailDispatchDatabase,
+  type MailDispatchDatabaseResources,
+} from "../src/lib/notifications/mail-dispatch-pool";
+import {
   type MailDispatchRuntimeStartupInspection,
 } from "../src/lib/notifications/mail-dispatch-runtime-startup";
 import {
@@ -20,7 +23,7 @@ import {
   PostgresOutboxStore,
   type EmailOutboxPayload,
 } from "../src/lib/notifications/postgres-outbox-store";
-import { scheduleSmartReminders } from "../src/lib/notifications/smart-reminders";
+import { scheduleSmartRemindersWithDatabase } from "../src/lib/notifications/smart-reminders";
 import {
   processOutboxBatch,
   type ItemOutcome,
@@ -68,6 +71,7 @@ const claimOwner =
   `mail-worker:${workerHost}:${process.pid}:${randomUUID()}`.slice(0, 128);
 
 let healthReporter: ReturnType<typeof createWorkerHealthReporter> | undefined;
+let databaseResources: MailDispatchDatabaseResources | undefined;
 let stopping = false;
 let finishPollWait: (() => void) | undefined;
 
@@ -114,6 +118,8 @@ function waitForNextPoll(milliseconds: number) {
 }
 
 async function endPoolWithinDeadline() {
+  const pool = databaseResources?.pool;
+  if (!pool) return;
   let timeout: ReturnType<typeof setTimeout> | undefined;
   const close = Promise.resolve().then(() => pool.end());
   const expired = new Promise<never>((_, reject) => {
@@ -183,6 +189,7 @@ async function processBatch(
   store: PostgresOutboxStore,
   adapter: "console" | "gmail",
   runtimeInspection: MailDispatchRuntimeStartupInspection,
+  database: MailDispatchDatabase,
 ) {
   return processOutboxBatch<EmailOutboxPayload, OutgoingEmail>({
     store,
@@ -195,11 +202,14 @@ async function processBatch(
         return { kind: "suppressed", code: "TEMPLATE_POLICY_INVALID" };
       }
       const template = resolvedPolicy.template;
-      const variables = await materializeDeliveryVariables({
-        template,
-        variables: { ...claim.payload.variables },
-        now: new Date(),
-      });
+      const variables = await materializeDeliveryVariablesWithDatabase(
+        database,
+        {
+          template,
+          variables: { ...claim.payload.variables },
+          now: new Date(),
+        },
+      );
       if (!variables) {
         return {
           kind: "suppressed",
@@ -252,7 +262,7 @@ async function processBatch(
       batchSize: BATCH_SIZE,
       materializeLeaseMs: MATERIALIZE_LEASE_MS,
       providerLeaseMs:
-        runtimeInspection.plan.providerLease.postCommitProviderLeaseMs,
+        runtimeInspection.plan.providerLease.providerLeaseStampMs,
       maxMaterializeAttempts: MAX_MATERIALIZE_ATTEMPTS,
       maxRetryDelayMs: MAX_RETRY_DELAY_MS,
       terminalPersistenceAttempts: TERMINAL_PERSISTENCE_ATTEMPTS,
@@ -347,7 +357,11 @@ async function main() {
     );
   }
   const adapter = configuredAdapter();
-  const runtimeInspection = await inspectMailDispatchRuntime(pool);
+  const resources = await createMailDispatchDatabaseResources();
+  databaseResources = resources;
+  const {
+    pool, database, inspection: runtimeInspection,
+  } = resources;
   const store = new PostgresOutboxStore(pool);
   const once = process.argv.includes("--once");
   healthReporter = createWorkerHealthReporter({ worker: "mail-worker" });
@@ -360,7 +374,10 @@ async function main() {
       scheduleAt - lastInactivityScheduleAt
       >= inactivityScheduleSeconds * 1_000
     ) {
-      const schedule = await scheduleInactivityReminders(new Date(scheduleAt));
+      const schedule = await scheduleInactivityReminders(
+        new Date(scheduleAt),
+        pool,
+      );
       lastInactivityScheduleAt = scheduleAt;
       console.info(JSON.stringify({ event: "inactivity.schedule", ...schedule }));
     }
@@ -369,7 +386,10 @@ async function main() {
       scheduleAt - lastSmartReminderScheduleAt
       >= inactivityScheduleSeconds * 1_000
     ) {
-      const schedule = await scheduleSmartReminders(new Date(scheduleAt));
+      const schedule = await scheduleSmartRemindersWithDatabase(
+        database,
+        new Date(scheduleAt),
+      );
       lastSmartReminderScheduleAt = scheduleAt;
       console.info(
         JSON.stringify({ event: "smart_reminder.schedule", ...schedule }),
@@ -380,6 +400,7 @@ async function main() {
       store,
       adapter,
       runtimeInspection,
+      database,
     );
     console.info(JSON.stringify(batchLog(result)));
     healthReporter.success();

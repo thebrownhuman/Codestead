@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 
-import { db, type Database } from "@/lib/db/client";
+import type { Database } from "@/lib/db/client";
 import { notification, smartReminderDispatch } from "@/lib/db/schema";
 import { enqueueEmailInTransaction } from "@/lib/notifications/outbox";
 import {
@@ -227,6 +227,12 @@ async function loadCandidates(database: SmartReminderDatabase, now: Date, limit:
 
 async function dispatch(database: SmartReminderDatabase, candidate: Candidate, kind: SmartReminderKind, periodKey: string, now: Date) {
   return database.transaction(async (tx) => {
+    await tx.execute(sql`
+      select set_config('lock_timeout', ${"2000ms"}, true),
+             set_config('statement_timeout', ${"5000ms"}, true),
+             set_config('transaction_timeout', ${"15000ms"}, true)
+    `);
+
     // The scan is only a hint. Lock account and preference in canonical order,
     // then re-read the complete due decision. Account/preference writers using
     // the same order serialize here; source evidence is re-evaluated at this
@@ -366,5 +372,6 @@ export async function scheduleSmartRemindersWithDatabase(
 }
 
 export async function scheduleSmartReminders(now = new Date(), limit = 100) {
+  const { db } = await import("@/lib/db/client");
   return scheduleSmartRemindersWithDatabase(db, now, limit);
 }
