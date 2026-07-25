@@ -14,11 +14,14 @@ import {
   outboxCorrelationToken,
   outboxMessageId,
 } from "./provider-correlation";
+import type { ProviderPayloadSha256 } from "./prepared-dispatch";
 
 const DEFAULT_GMAIL_REQUEST_TIMEOUT_MS = 10_000;
 const MIN_GMAIL_REQUEST_TIMEOUT_MS = 1_000;
 const MAX_GMAIL_REQUEST_TIMEOUT_MS = 25_000;
+const GMAIL_ABORT_SETTLEMENT_RESERVE_MS = 5_000;
 const GMAIL_RAW_BINDING_VERSION = "gmail-raw-v1" as const;
+const LOWERCASE_SHA256 = /^[0-9a-f]{64}$/;
 const LEGACY_OUTBOX_MESSAGE_ID =
   /^<codestead\.outbox\.[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}@mail\.codestead\.invalid>$/;
 const CANONICAL_EVIDENCE_VALUE =
@@ -51,18 +54,51 @@ async function withGmailReconciliationDeadline<T>(
   operation: (signal: AbortSignal) => Promise<T>,
 ) {
   const controller = new AbortController();
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
-      controller.abort();
-      reject(new Error("Gmail reconciliation request timed out."));
-    }, timeoutMs);
+  const timeoutError = new Error(
+    "Gmail reconciliation request timed out.",
+  );
+  let terminationError: Error | undefined;
+  let rejectTermination!: (error: Error) => void;
+  const termination = new Promise<never>((_resolve, reject) => {
+    rejectTermination = reject;
   });
+  const requestTimer = setTimeout(() => {
+    if (!terminationError) {
+      terminationError = timeoutError;
+      rejectTermination(timeoutError);
+      controller.abort();
+    }
+  }, timeoutMs);
+  const operationPromise = Promise.resolve().then(
+    () => operation(controller.signal),
+  );
+  let settlementTimer: ReturnType<typeof setTimeout> | undefined;
 
   try {
-    return await Promise.race([operation(controller.signal), timeout]);
+    return await Promise.race([operationPromise, termination]);
+  } catch (error) {
+    if (!terminationError) throw error;
+    const settled = await Promise.race([
+      operationPromise.then(
+        () => true as const,
+        () => true as const,
+      ),
+      new Promise<false>((resolve) => {
+        settlementTimer = setTimeout(
+          () => resolve(false),
+          GMAIL_ABORT_SETTLEMENT_RESERVE_MS,
+        );
+      }),
+    ]);
+    if (!settled) {
+      throw new Error(
+        "Gmail reconciliation request did not settle after abort.",
+      );
+    }
+    throw terminationError;
   } finally {
-    if (timer !== undefined) clearTimeout(timer);
+    clearTimeout(requestTimer);
+    if (settlementTimer !== undefined) clearTimeout(settlementTimer);
   }
 }
 
@@ -202,6 +238,9 @@ function verifiedProof(
       : null;
   }
 
+  if (!LOWERCASE_SHA256.test(authority.adapterPayloadSha256)) {
+    return null;
+  }
   const evidenceValues =
     headers.get("x-codestead-dispatch-evidence") ?? [];
   if (evidenceValues.length !== 1) return null;
@@ -216,7 +255,8 @@ function verifiedProof(
       providerCorrelationToken:
         outboxCorrelationToken(authority.operationId),
       dispatchBindingVersion: GMAIL_RAW_BINDING_VERSION,
-      adapterPayloadSha256: authority.adapterPayloadSha256,
+      adapterPayloadSha256:
+        authority.adapterPayloadSha256 as ProviderPayloadSha256,
       providerEvidenceVersion: PROVIDER_EVIDENCE_VERSION,
       evidenceToken,
     });

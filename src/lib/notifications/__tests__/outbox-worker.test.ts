@@ -22,6 +22,8 @@ const claim: OutboxClaim<Payload> = {
   claimToken: "claim-1",
   claimOwner: "worker-1",
   claimVersion: 3,
+  userId: "learner-1",
+  deliveryScopeKey: "a:learner-1",
   payload: { template: "invitation" },
   attempt: 1,
   leaseExpiresAt: new Date("2026-07-22T18:00:30.000Z"),
@@ -34,6 +36,8 @@ const started: ProviderStartedClaim = {
   claimToken: claim.claimToken,
   claimOwner: claim.claimOwner,
   claimVersion: claim.claimVersion,
+  userId: claim.userId,
+  deliveryScopeKey: claim.deliveryScopeKey,
   adapter: "gmail",
   providerCallStartedAt: "2026-07-22 18:00:05.123456+00",
   leaseExpiresAt: new Date("2026-07-22T18:01:05.000Z"),
@@ -65,6 +69,12 @@ function harness() {
       events.push(`finish-after:${exit.kind}`);
       return { kind: "applied" as const };
     }),
+    dispatchAfterProviderBoundary: vi.fn(async (_permit, input) => ({
+      kind: "applied" as const,
+      exit: await input.invoke(
+        new AbortController().signal,
+      ),
+    })),
   };
   const materialize = vi.fn(async (): Promise<
     MaterializeResult<{ readonly to: string }>
@@ -166,7 +176,7 @@ describe("fenced outbox worker", () => {
         operationId: OPERATION_ID,
         permit,
         messageId:
-          "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
+          "<codestead.outbox.v1.okd-aMXCHPuS1pgnjdYfjG17CU5nfw-6stQE23enb8Q@mail.codestead.invalid>",
       },
     );
   });
@@ -306,7 +316,7 @@ describe("fenced outbox worker", () => {
     const { result } = run(input);
 
     await expect(result).rejects.toThrow(
-      `Fatal provider transport failure (${fatalCode}).`,
+      "Fatal provider transport failure.",
     );
     expect(input.send).toHaveBeenCalledOnce();
     expect(input.store.finishAfterProvider).not.toHaveBeenCalled();
