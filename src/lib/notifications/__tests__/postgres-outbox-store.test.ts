@@ -20,6 +20,10 @@ const OPERATION = "22222222-2222-4222-8222-222222222222";
 const TOKEN = "33333333-3333-4333-8333-333333333333";
 const SOURCE = "44444444-4444-4444-8444-444444444444";
 const ACTIVATION_TOKEN = "A".repeat(43);
+const DISPATCH_BINDING = {
+  bindingVersion: "gmail-raw-v1",
+  bindingSha256: "a".repeat(64),
+} as const;
 
 type Step = Readonly<{
   contains: string;
@@ -34,6 +38,7 @@ function compact(sql: string) {
 class ScriptedClient implements OutboxPgClient {
   readonly calls: Array<{ sql: string; values: unknown[] }> = [];
   released = false;
+  readonly releaseCalls: boolean[] = [];
 
   constructor(private readonly steps: Step[]) {}
 
@@ -51,8 +56,9 @@ class ScriptedClient implements OutboxPgClient {
     return { rows: (step!.rows ?? []) as Row[] };
   }
 
-  release() {
+  release(destroy = false) {
     this.released = true;
+    this.releaseCalls.push(destroy);
   }
 }
 
@@ -255,6 +261,8 @@ describe("PostgresOutboxStore", () => {
         rows: [{
           provider_call_started: "2026-07-22 19:00:05.123456+00",
           lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
+          binding_version: DISPATCH_BINDING.bindingVersion,
+          binding_sha256: DISPATCH_BINDING.bindingSha256,
         }],
       },
       { contains: "commit" },
@@ -263,7 +271,16 @@ describe("PostgresOutboxStore", () => {
     await expect(input.store.beginProviderCall(claim, {
       adapter: "gmail",
       leaseMs: 60_000,
-    })).resolves.toEqual({ kind: "applied", permit });
+      binding: DISPATCH_BINDING,
+    })).resolves.toEqual({
+      kind: "applied",
+      permit: {
+        ...permit,
+        userId: "learner-1",
+        deliveryScopeKey: "a:learner-1",
+        ...DISPATCH_BINDING,
+      },
+    });
 
     const sql = input.client.calls[5]!.sql;
     expect(sql).toContain("claim_token = $3::uuid");
@@ -271,6 +288,10 @@ describe("PostgresOutboxStore", () => {
     expect(sql).toContain("claim_version = $5::integer");
     expect(sql).toContain("provider_call_started is null");
     expect(sql).toContain("lease_expires_at > pg_catalog.statement_timestamp()");
+    expect(sql).toContain("binding_version = $8::text");
+    expect(sql).toContain("binding_sha256 = $9::text");
+    expect(sql).toContain("returning outbox.binding_version");
+    expect(input.client.releaseCalls).toEqual([false]);
     const boundarySql = input.client.calls[3]!.sql;
     const lockedBoundarySql = input.client.calls[4]!.sql;
     expect(lockedBoundarySql).toContain("for share of account_user");
