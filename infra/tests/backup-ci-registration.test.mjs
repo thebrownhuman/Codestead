@@ -839,7 +839,7 @@ const reviewedJobContracts = new Map([
       ...setupNodeProjection,
       "      - run: npm ci",
       ...canonicalPostgresProjection.registrationLines,
-      "      - run: npm run test:integration",
+      canonicalPostgresProjection.livePg17IntegrationLine,
       canonicalPostgresProjection.dockerPg17PullLine,
       "      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
       canonicalPostgresProjection.dockerPg17IntegrationLine,
@@ -1701,6 +1701,15 @@ function runAdversarialSelfTests(document) {
       "docker pull postgres:16-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
     ),
     "canonical PostgreSQL CI cross-guard changed: the pinned Docker PostgreSQL 17 integration image must appear exactly once",
+  );
+  expectRejectedWithMessage(
+    "arbitrary PostgreSQL 16 Docker image reaches the canonical cross-guard",
+    replaceExactly(
+      document,
+      "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394\n",
+      "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394\n      - run: docker run --rm postgres:16-bookworm\n",
+    ),
+    "canonical PostgreSQL CI cross-guard changed: PostgreSQL 16 must not appear in the canonical CI matrix",
   );
   expectRejectedWithMessage(
     "extra curriculum runtime command",
