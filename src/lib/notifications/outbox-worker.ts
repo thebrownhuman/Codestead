@@ -1,4 +1,8 @@
 import { outboxMessageId } from "./provider-correlation";
+import type { DispatchBinding } from "./prepared-dispatch";
+import type {
+  LostDeviceAuthorityEvidence,
+} from "./revocable-source-authority";
 
 export type ClaimFence = Readonly<{
   id: string;
@@ -6,6 +10,8 @@ export type ClaimFence = Readonly<{
   claimToken: string;
   claimOwner: string;
   claimVersion: number;
+  userId: string | null;
+  deliveryScopeKey: string;
 }>;
 
 export type OutboxClaim<P = unknown> = ClaimFence & Readonly<{
@@ -15,7 +21,7 @@ export type OutboxClaim<P = unknown> = ClaimFence & Readonly<{
   leaseExpiresAt: Date;
 }>;
 
-export type ProviderStartedClaim = ClaimFence & Readonly<{
+export type ProviderStartedClaim = ClaimFence & DispatchBinding & Readonly<{
   phase: "post-provider";
   adapter: string;
   providerCallStartedAt: string;
@@ -52,6 +58,30 @@ export type PostProviderExit =
   | { readonly kind: "failed"; readonly code: string }
   | { readonly kind: "quarantined"; readonly code: string };
 
+export type GuardedDispatchResult =
+  | { readonly kind: "applied"; readonly exit: PostProviderExit }
+  | { readonly kind: "lost" };
+
+export type GuardedDispatchInput = Readonly<{
+  binding: DispatchBinding;
+  authorityEvidence?: LostDeviceAuthorityEvidence;
+  invoke(signal: AbortSignal): Promise<PostProviderExit>;
+}>;
+
+export class ProviderBoundaryCommitUnknownError extends Error {
+  constructor() {
+    super("Provider boundary commit result is unknown.");
+    this.name = "ProviderBoundaryCommitUnknownError";
+  }
+}
+
+export class GuardedDispatchCommitUnknownError extends Error {
+  constructor(readonly exit: PostProviderExit) {
+    super("Guarded dispatch commit result is unknown.");
+    this.name = "GuardedDispatchCommitUnknownError";
+  }
+}
+
 export type MaterializeResult<M> =
   | { readonly kind: "ready"; readonly message: M }
   | PreProviderExit;
@@ -86,7 +116,12 @@ export interface OutboxStore<P = unknown> {
 
   beginProviderCall(
     claim: OutboxClaim<P>,
-    input: Readonly<{ adapter: string; leaseMs: number }>,
+    input: Readonly<{
+      adapter: string;
+      leaseMs: number;
+      binding: DispatchBinding;
+      authorityEvidence?: LostDeviceAuthorityEvidence;
+    }>,
   ): Promise<BoundaryResult>;
 
   finishBeforeProvider(
@@ -98,6 +133,11 @@ export interface OutboxStore<P = unknown> {
     permit: ProviderCallPermit,
     exit: PostProviderExit,
   ): Promise<PostFinishResult>;
+
+  dispatchAfterProviderBoundary(
+    permit: ProviderCallPermit,
+    input: GuardedDispatchInput,
+  ): Promise<GuardedDispatchResult>;
 
   quarantineAbandoned(input: Readonly<{ limit: number }>): Promise<number>;
 }
