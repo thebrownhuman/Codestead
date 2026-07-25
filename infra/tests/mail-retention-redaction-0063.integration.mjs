@@ -37,33 +37,167 @@ function executable(name) {
     : name;
 }
 
-function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {
+const platformChildEnvironmentNames = Object.freeze([
+  "PATH",
+  "SystemRoot",
+  "WINDIR",
+  "ComSpec",
+  "PATHEXT",
+  "TEMP",
+  "TMP",
+  "HOME",
+  "USERPROFILE",
+  "HOMEDRIVE",
+  "HOMEPATH",
+  "LANG",
+  "LC_ALL",
+  "LC_CTYPE",
+]);
+const platformChildEnvironmentByLowercase = new Map(
+  platformChildEnvironmentNames.map((name) => [name.toLowerCase(), name]),
+);
+const postgresChildEnvironmentNames = Object.freeze([
+  "POSTGRES_17_BIN",
+  "POSTGRES_18_BIN",
+]);
+const postgresChildEnvironmentByLowercase = new Map(
+  postgresChildEnvironmentNames.map((name) => [name.toLowerCase(), name]),
+);
+const selectedPostgresChildEnvironment = Object.freeze({
+  ...(requestedPg17Bin ? { POSTGRES_17_BIN: requestedPg17Bin } : {}),
+  ...(requestedPg18Bin ? { POSTGRES_18_BIN: requestedPg18Bin } : {}),
+});
+const pgConnectTimeoutSeconds = 5;
+
+function invalidChildEnvironmentInput() {
+  return new Error("invalid_child_environment_input");
+}
+
+function platformChildEnvironment(sourceEnvironment) {
+  if (
+    sourceEnvironment === null
+    || typeof sourceEnvironment !== "object"
+    || Array.isArray(sourceEnvironment)
+  ) {
+    throw invalidChildEnvironmentInput();
+  }
+  const observed = new Map();
+  for (const [name, value] of Object.entries(sourceEnvironment)) {
+    const canonicalName = platformChildEnvironmentByLowercase.get(
+      name.toLowerCase(),
+    );
+    if (!canonicalName) continue;
+    if (
+      observed.has(canonicalName)
+      || typeof value !== "string"
+      || value.length === 0
+    ) {
+      throw invalidChildEnvironmentInput();
+    }
+    observed.set(canonicalName, value);
+  }
+  return Object.fromEntries(
+    platformChildEnvironmentNames
+      .filter((name) => observed.has(name))
+      .map((name) => [name, observed.get(name)]),
+  );
+}
+
+function explicitPostgresChildEnvironment(explicitEnvironment) {
+  if (
+    explicitEnvironment === null
+    || typeof explicitEnvironment !== "object"
+    || Array.isArray(explicitEnvironment)
+  ) {
+    throw invalidChildEnvironmentInput();
+  }
+  const observed = new Map();
+  for (const [name, value] of Object.entries(explicitEnvironment)) {
+    const canonicalName = postgresChildEnvironmentByLowercase.get(
+      name.toLowerCase(),
+    );
+    if (
+      !canonicalName
+      || observed.has(canonicalName)
+      || typeof value !== "string"
+      || value.trim().length === 0
+    ) {
+      throw invalidChildEnvironmentInput();
+    }
+    observed.set(canonicalName, value.trim());
+  }
+  if (
+    observed.has("POSTGRES_17_BIN")
+    && observed.has("POSTGRES_18_BIN")
+  ) {
+    throw invalidChildEnvironmentInput();
+  }
+  return Object.fromEntries(
+    postgresChildEnvironmentNames
+      .filter((name) => observed.has(name))
+      .map((name) => [name, observed.get(name)]),
+  );
+}
+
+export function buildNativeChildEnvironment(
+  sourceEnvironment = process.env,
+  explicitEnvironment = selectedPostgresChildEnvironment,
+) {
+  return Object.freeze({
+    ...platformChildEnvironment(sourceEnvironment),
+    ...explicitPostgresChildEnvironment(explicitEnvironment),
+    PGCONNECT_TIMEOUT: String(pgConnectTimeoutSeconds),
+    PSQL_HISTORY: os.devNull,
+  });
+}
+
+export function buildNativeChildSpawnOptions(
+  options = {},
+  sourceEnvironment = process.env,
+  explicitEnvironment = selectedPostgresChildEnvironment,
+) {
+  return {
     cwd: repositoryRoot,
     encoding: "utf8",
-    env: {
-      ...process.env,
-      ...(options.env ?? {}),
-      PGCONNECT_TIMEOUT: "5",
-      PSQL_HISTORY: os.devNull,
-    },
+    env: buildNativeChildEnvironment(
+      sourceEnvironment,
+      explicitEnvironment,
+    ),
     input: options.input,
     maxBuffer: 4 * 1024 * 1024,
     stdio: options.stdio,
     timeout: options.timeoutMs ?? commandTimeoutMs,
     windowsHide: true,
-  });
+  };
+}
 
+function childCommandLabel(label) {
+  return typeof label === "string" && /^[a-z0-9_]+$/u.test(label)
+    ? label
+    : "command";
+}
+
+export function childCommandFailure(result, label = "command") {
+  const safeLabel = childCommandLabel(label);
+  if (result?.error) return new Error(`${safeLabel}_spawn_failed`);
+  if (result?.status === 0) return undefined;
+  const safeStatus = Number.isSafeInteger(result?.status) && result.status >= 0
+    ? String(result.status)
+    : "none";
+  return new Error(`${safeLabel}_failed_status_${safeStatus}`);
+}
+
+function run(command, args, options = {}) {
+  const result = spawnSync(
+    command,
+    args,
+    buildNativeChildSpawnOptions(options),
+  );
   if (result.error) {
-    throw new Error(`${options.label ?? "command"}_spawn_failed`, {
-      cause: result.error,
-    });
+    throw childCommandFailure(result, options.label);
   }
   if (!options.allowFailure && result.status !== 0) {
-    throw new Error(
-      `${options.label ?? "command"}_failed_status_${result.status ?? "none"}`
-        + `\n${result.stderr.trim() || result.stdout.trim()}`,
-    );
+    throw childCommandFailure(result, options.label);
   }
   return result;
 }
@@ -1955,12 +2089,22 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  const safeCode = error instanceof assert.AssertionError
-    ? "assertion_failed"
-    : error instanceof Error
-      ? error.message.replace(/[^a-zA-Z0-9_:-]/gu, "_").slice(0, 160)
-      : "unknown_failure";
-  process.stderr.write(`mail_retention_0063=${safeCode}\n`);
-  process.exitCode = 1;
-});
+function normalizedInvocationPath(value) {
+  const resolved = path.resolve(value);
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+}
+
+const invokedDirectly = process.argv[1] !== undefined
+  && normalizedInvocationPath(process.argv[1])
+    === normalizedInvocationPath(fileURLToPath(import.meta.url));
+if (invokedDirectly) {
+  main().catch((error) => {
+    const safeCode = error instanceof assert.AssertionError
+      ? "assertion_failed"
+      : error instanceof Error
+        ? error.message.replace(/[^a-zA-Z0-9_:-]/gu, "_").slice(0, 160)
+        : "unknown_failure";
+    process.stderr.write(`mail_retention_0063=${safeCode}\n`);
+    process.exitCode = 1;
+  });
+}
