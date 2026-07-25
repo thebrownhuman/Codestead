@@ -12,6 +12,9 @@ describe("integration runner hardening wiring", () => {
 
     expect(source).toContain("runWithDisposableIntegrationHarness");
     expect(source).toContain("allocateDisposableLoopbackPort");
+    expect(source).toContain(
+      '"./lib/disposable-loopback-port.mjs"',
+    );
     expect(source).toContain("buildDisposableIntegrationRuntimeEnvironment");
     expect(source).toContain("buildDisposableIntegrationChildLaunch");
     expect(source).toContain("createIntegrationOutputSanitizer");
