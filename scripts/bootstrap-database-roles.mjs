@@ -4,6 +4,11 @@ import { pathToFileURL } from "node:url";
 
 import { Pool } from "pg";
 
+import {
+  BACKUP_STATUS_AUTHORITY_RELATIONS,
+  BACKUP_STATUS_AUTHORITY_ROUTINES,
+  verifyBackupStatusMailAuthorityObjects,
+} from "./verify-backup-status-mail-authority.mjs";
 import { verifyAppliedMigrationLedger as verifyAppliedMigrationLedgerContract } from "./lib/reviewed-migration-ledger.mjs";
 
 export const DATABASE_ADMIN_LOCK_NAME = "codestead:database-administration:v1";
@@ -12,7 +17,14 @@ const MIGRATOR_ROLE = "learncoding_migrator";
 const APP_ROLE = "learncoding_app";
 const WORKER_ROLE = "learncoding_worker";
 const OPS_ROLE = "learncoding_ops";
-const LOGIN_ROLES = [MIGRATOR_ROLE, APP_ROLE, WORKER_ROLE, OPS_ROLE];
+const BACKUP_REPORTER_ROLE = "learncoding_backup_reporter";
+const LOGIN_ROLES = [
+  MIGRATOR_ROLE,
+  APP_ROLE,
+  WORKER_ROLE,
+  OPS_ROLE,
+  BACKUP_REPORTER_ROLE,
+];
 
 function reviewedRoutine(contract) {
   if (
@@ -190,7 +202,7 @@ const REVIEWED_0063_APPLICATION_FUNCTIONS = Object.freeze([
   }),
 ]);
 
-export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
+export const REVIEWED_0064_APPLICATION_FUNCTIONS = Object.freeze([
   ...REVIEWED_0063_APPLICATION_FUNCTIONS,
   reviewedRoutine({
     signature: "public.enforce_email_outbox_dispatch_binding()",
@@ -219,7 +231,13 @@ export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
       "b3ba15cae78eaf8e3535b28c0764e9715683e15ab85b0814089e3e54715f4676",
   }),
 ]);
-export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
+export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY_ROUTINES =
+  BACKUP_STATUS_AUTHORITY_ROUTINES;
+export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
+  ...REVIEWED_0064_APPLICATION_FUNCTIONS,
+  ...REVIEWED_0065_BACKUP_STATUS_AUTHORITY_ROUTINES,
+]);
+export const REVIEWED_0064_APPLICATION_TRIGGERS = Object.freeze([
   Object.freeze({
     relation: "public.email_outbox",
     name: "email_outbox_payload_immutable",
@@ -250,6 +268,75 @@ export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
     watchedColumns: Object.freeze([]),
   }),
 ]);
+export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY_TRIGGERS = Object.freeze([
+  Object.freeze({
+    relation: "public.backup_status_mail_authority",
+    name: "backup_status_mail_authority_immutable",
+    functionSignature: "public.reject_backup_status_mail_authority_mutation()",
+    enabled: "O",
+    type: 27,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: "public.backup_status_mail_authority",
+    name: "backup_status_mail_authority_no_truncate",
+    functionSignature: "public.reject_backup_status_mail_authority_mutation()",
+    enabled: "O",
+    type: 34,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: 'public."user"',
+    name: "backup_status_mail_admin_insert_lock",
+    functionSignature: "public.lock_backup_status_mail_admin_authority()",
+    enabled: "O",
+    type: 7,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: 'public."user"',
+    name: "backup_status_mail_admin_update_lock",
+    functionSignature: "public.lock_backup_status_mail_admin_authority()",
+    enabled: "O",
+    type: 19,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze(["id", "email", "role", "banned", "status"]),
+  }),
+  Object.freeze({
+    relation: 'public."user"',
+    name: "backup_status_mail_admin_delete_lock",
+    functionSignature: "public.lock_backup_status_mail_admin_authority()",
+    enabled: "O",
+    type: 11,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+]);
+export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
+  ...REVIEWED_0064_APPLICATION_TRIGGERS,
+  ...REVIEWED_0065_BACKUP_STATUS_AUTHORITY_TRIGGERS,
+]);
+export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY = Object.freeze({
+  relations: BACKUP_STATUS_AUTHORITY_RELATIONS,
+  routines: REVIEWED_0065_BACKUP_STATUS_AUTHORITY_ROUTINES,
+  triggers: REVIEWED_0065_BACKUP_STATUS_AUTHORITY_TRIGGERS,
+  guardState: Object.freeze({
+    relation: "public.backup_status_mail_admin_guard",
+    singletonColumn: "singleton",
+    authorityEpochColumn: "authority_epoch",
+    expectedRows: 1,
+    singletonValue: true,
+    requiresNonZeroAuthorityEpoch: true,
+  }),
+});
 const EMAIL_OUTBOX_DISPATCH_BINDING_CONSTRAINT_NORMALIZED_EXPRESSION = [
   "provider_call_startedISNULLANDadapterISNULLANDprovider_message_idISNULL",
   "ANDdispatch_binding_versionISNULLANDdispatch_binding_sha256ISNULLOR",
@@ -293,6 +380,7 @@ function reviewedCatalogPhase({
   routines,
   triggers,
   requiresWorkerContract,
+  backupStatusAuthority = null,
 }) {
   return Object.freeze({
     index,
@@ -302,6 +390,7 @@ function reviewedCatalogPhase({
     routines,
     triggers,
     requiresWorkerContract,
+    backupStatusAuthority,
   });
 }
 
@@ -313,7 +402,7 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     migrationSha256:
       "98cd8b0fd5b57822bab9a3793094e738d926d5dab8a2dc700f89037bd0cbc13b",
     routines: REVIEWED_0062_APPLICATION_FUNCTIONS,
-    triggers: Object.freeze([REVIEWED_APPLICATION_TRIGGERS[0]]),
+    triggers: Object.freeze([REVIEWED_0064_APPLICATION_TRIGGERS[0]]),
     requiresWorkerContract: false,
   }),
   reviewedCatalogPhase({
@@ -323,7 +412,7 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     migrationSha256:
       "e945482f1311c88ee41bb13b12a566aab31a0e1aadd2a1d9ce98ac12acd5c63c",
     routines: REVIEWED_0063_APPLICATION_FUNCTIONS,
-    triggers: Object.freeze([REVIEWED_APPLICATION_TRIGGERS[0]]),
+    triggers: Object.freeze([REVIEWED_0064_APPLICATION_TRIGGERS[0]]),
     requiresWorkerContract: false,
   }),
   reviewedCatalogPhase({
@@ -332,11 +421,27 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     migrationFile: "0064_mail_outbox_dispatch_binding.sql",
     migrationSha256:
       "5667b105cb1511cf2851c315959086ca49453be52db09a4b0ffc9844c966d1aa",
+    routines: REVIEWED_0064_APPLICATION_FUNCTIONS,
+    triggers: REVIEWED_0064_APPLICATION_TRIGGERS,
+    requiresWorkerContract: true,
+  }),
+  reviewedCatalogPhase({
+    index: 65,
+    createdAt: "1784936400000",
+    migrationFile: "0065_backup_status_mail_authority.sql",
+    migrationSha256:
+      "1274dda8013fe80f09df63f7ddc73b24b0a9a482a40e5f5042eaef2373c14b3c",
     routines: REVIEWED_APPLICATION_FUNCTIONS,
     triggers: REVIEWED_APPLICATION_TRIGGERS,
     requiresWorkerContract: true,
+    backupStatusAuthority: REVIEWED_0065_BACKUP_STATUS_AUTHORITY,
   }),
 ]);
+const REVIEWED_SECURITY_DEFINER_FUNCTIONS = Object.freeze(
+  REVIEWED_APPLICATION_FUNCTIONS
+    .filter(({ securityDefiner }) => securityDefiner)
+    .map(({ signature }) => signature),
+);
 
 function sqlLiteral(value) {
   return `'${value.replaceAll("'", "''")}'`;
@@ -345,7 +450,13 @@ function sqlLiteral(value) {
 export function reviewedApplicationFunctionPrivilegesSql() {
   return REVIEWED_APPLICATION_FUNCTIONS.map((routine, routineIndex) => {
     const blockTag = `codestead_reviewed_function_${routineIndex}`;
-    const restrictedRoles = [MIGRATOR_ROLE, APP_ROLE, WORKER_ROLE, OPS_ROLE];
+    const restrictedRoles = [
+      MIGRATOR_ROLE,
+      APP_ROLE,
+      WORKER_ROLE,
+      OPS_ROLE,
+      BACKUP_REPORTER_ROLE,
+    ];
     const requiredRoles = [
       ...new Set([routine.owner, ...restrictedRoles, ...routine.allowedRoles]),
     ];
@@ -529,6 +640,50 @@ export function mailWorkerOutboxPrivilegesSql() {
   `;
 }
 
+export function backupStatusAuthorityPrivilegesSql() {
+  return `
+    revoke all on table
+      public.backup_status_mail_authority,
+      public.backup_status_mail_admin_guard
+      from public, current_user, learncoding_migrator, learncoding_app,
+           learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+    revoke all (
+      id, run_key, outcome, outbox_id, operation_id, authority_epoch,
+      created_at
+    ) on table public.backup_status_mail_authority
+      from public, current_user, learncoding_migrator, learncoding_app,
+           learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+    revoke all (
+      singleton, authority_epoch
+    ) on table public.backup_status_mail_admin_guard
+      from public, current_user, learncoding_migrator, learncoding_app,
+           learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+  `;
+}
+
+export async function reconcileBackupStatusAuthorityPrivileges(client) {
+  const presence = await client.query(
+    `select
+       to_regclass(
+         'public.backup_status_mail_authority'
+       ) is not null source_present,
+       to_regclass(
+         'public.backup_status_mail_admin_guard'
+       ) is not null guard_present`,
+  );
+  const sourcePresent = presence.rows[0]?.source_present === true;
+  const guardPresent = presence.rows[0]?.guard_present === true;
+  if (sourcePresent !== guardPresent) {
+    throw databaseRoleBootstrapInvariantError(
+      "backup-status-authority-partial",
+    );
+  }
+  if (!sourcePresent) return false;
+
+  await client.query(backupStatusAuthorityPrivilegesSql());
+  return true;
+}
+
 const MAX_LOCK_TIMEOUT_MS = 120_000;
 const LOCK_POLL_MS = 500;
 const DEFAULT_CLEANUP_TIMEOUT_MS = 5_000;
@@ -543,6 +698,7 @@ const ROLE_SPECS = [
   ["migrator", "databaseMigratorUrl", MIGRATOR_ROLE],
   ["worker", "databaseWorkerUrl", WORKER_ROLE],
   ["ops", "databaseOpsUrl", OPS_ROLE],
+  ["backupReporter", "databaseBackupReporterUrl", BACKUP_REPORTER_ROLE],
 ];
 
 function invalidCredentialConfiguration() {
@@ -671,6 +827,7 @@ export function validateOwnershipInventory(input) {
   const allowedDirectGrantees = new Set([
     ...allowedDefaultGrantees,
     MIGRATOR_ROLE,
+    BACKUP_REPORTER_ROLE,
     "pg_database_owner",
   ]);
   const unsafeDefaultAcl = (input.defaultAcls ?? []).some(
@@ -991,6 +1148,9 @@ async function createAndResetRoles(client) {
       if not exists (select 1 from pg_roles where rolname = 'learncoding_ops') then
         create role learncoding_ops login;
       end if;
+      if not exists (select 1 from pg_roles where rolname = 'learncoding_backup_reporter') then
+        create role learncoding_backup_reporter login;
+      end if;
     end
     $codestead$`);
 
@@ -1005,11 +1165,14 @@ async function createAndResetRoles(client) {
       noinherit noreplication nobypassrls connection limit -1 valid until 'infinity';
     alter role learncoding_ops login nosuperuser nocreatedb nocreaterole
       noinherit noreplication nobypassrls connection limit -1 valid until 'infinity';
+    alter role learncoding_backup_reporter login nosuperuser nocreatedb nocreaterole
+      noinherit noreplication nobypassrls connection limit -1 valid until 'infinity';
     alter role learncoding_owner reset all;
     alter role learncoding_migrator reset all;
     alter role learncoding_app reset all;
     alter role learncoding_worker reset all;
-    alter role learncoding_ops reset all`);
+    alter role learncoding_ops reset all;
+    alter role learncoding_backup_reporter reset all`);
 
   await client.query(`
     do $codestead$
@@ -1022,7 +1185,7 @@ async function createAndResetRoles(client) {
           join pg_database databases on databases.oid = configured.setdatabase
          where roles.rolname in (
            'learncoding_owner', 'learncoding_migrator', 'learncoding_app',
-           'learncoding_worker', 'learncoding_ops'
+           'learncoding_worker', 'learncoding_ops', 'learncoding_backup_reporter'
          )
       loop
         execute format(
@@ -1045,11 +1208,11 @@ async function createAndResetRoles(client) {
           join pg_roles member on member.oid = memberships.member
          where member.rolname in (
            'learncoding_owner', 'learncoding_migrator', 'learncoding_app',
-           'learncoding_worker', 'learncoding_ops'
+           'learncoding_worker', 'learncoding_ops', 'learncoding_backup_reporter'
          )
             or granted.rolname in (
               'learncoding_owner', 'learncoding_migrator', 'learncoding_app',
-              'learncoding_worker', 'learncoding_ops'
+              'learncoding_worker', 'learncoding_ops', 'learncoding_backup_reporter'
             )
       loop
         execute format('revoke %I from %I', membership.granted_role, membership.member_role);
@@ -1272,6 +1435,60 @@ async function reviewedMigrationJournalState(client) {
   return applied;
 }
 
+async function verifyBackupStatusAuthorityMigrationPhase(client, phase) {
+  const presence = await client.query(`
+    select (
+      pg_catalog.to_regclass(
+        'public.backup_status_mail_authority'
+      ) is not null
+      or pg_catalog.to_regclass(
+        'public.backup_status_mail_admin_guard'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.reject_backup_status_mail_authority_mutation()'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.lock_backup_status_mail_admin_authority()'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.enqueue_backup_status_mail_authority(text,text)'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.backup_status_mail_authorized(uuid)'
+      ) is not null
+    ) backup_status_authority_present`);
+  const present = presence.rows[0]?.backup_status_authority_present;
+  const required =
+    phase?.backupStatusAuthority !== null &&
+    phase?.backupStatusAuthority !== undefined;
+  if (
+    presence.rows.length !== 1 ||
+    typeof present !== "boolean" ||
+    present !== required
+  ) {
+    throw databaseRoleBootstrapInvariantError(
+      "backup-status-authority-migration-lineage",
+    );
+  }
+  if (!required) return 0;
+  try {
+    await verifyBackupStatusMailAuthorityObjects(client, [
+      MIGRATOR_ROLE,
+      APP_ROLE,
+      WORKER_ROLE,
+      OPS_ROLE,
+      BACKUP_REPORTER_ROLE,
+    ]);
+  } catch (error) {
+    const invariant = databaseRoleBootstrapInvariantError(
+      "backup-status-authority-migration-contract",
+    );
+    invariant.cause = error;
+    throw invariant;
+  }
+  return 1;
+}
+
 export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
   client,
 ) {
@@ -1317,6 +1534,7 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
   const latestPhase = appliedPhases.at(-1);
   const verifier = await import("./verify-database-role-boundaries.mjs");
   if (latestPhase === undefined) {
+    await verifyBackupStatusAuthorityMigrationPhase(client, null);
     await verifier.verifyReviewedMailAuthorityObjectFootprint(client, null);
     if (row.post_migration_binding_column_count !== 0) {
       throw databaseRoleBootstrapInvariantError(
@@ -1335,26 +1553,22 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
       "reviewed-pre-reconciliation-lineage",
     );
   }
-
-  if (latestPhase.requiresWorkerContract) {
-    await verifier.verifyReviewedMailAuthorityCatalogContracts(client);
-  } else {
-    await verifier.verifyReviewedMailAuthorityObjectFootprint(
-      client,
-      latestPhase,
-    );
-    await verifier.verifyReviewedApplicationRoutines(
-      client,
-      latestPhase.routines,
-    );
-    await verifier.verifyReviewedApplicationTriggers(
-      client,
-      latestPhase.triggers,
-    );
-    await verifier.verifyMailWorkerOutboxContract(client, {
-      requiresDispatchBinding: false,
-    });
-  }
+  await verifyBackupStatusAuthorityMigrationPhase(client, latestPhase);
+  await verifier.verifyReviewedMailAuthorityObjectFootprint(
+    client,
+    latestPhase,
+  );
+  await verifier.verifyReviewedApplicationRoutines(
+    client,
+    latestPhase.routines,
+  );
+  await verifier.verifyReviewedApplicationTriggers(
+    client,
+    latestPhase.triggers,
+  );
+  await verifier.verifyMailWorkerOutboxContract(client, {
+    requiresDispatchBinding: latestPhase.requiresWorkerContract,
+  });
   return 1;
 }
 
@@ -1368,23 +1582,24 @@ export async function reconcileDatabaseRolePrivileges(client) {
       execute format('revoke all on database %I from learncoding_worker', current_database());
       execute format('revoke all on database %I from learncoding_ops', current_database());
       execute format('revoke all on database %I from learncoding_migrator', current_database());
+      execute format('revoke all on database %I from learncoding_backup_reporter', current_database());
       execute format('revoke all on database %I from current_user', current_database());
       execute format(
-        'grant connect on database %I to learncoding_app, learncoding_worker, learncoding_ops, learncoding_migrator',
+        'grant connect on database %I to learncoding_app, learncoding_worker, learncoding_ops, learncoding_migrator, learncoding_backup_reporter',
         current_database()
       );
     end
     $codestead$;
 
-    revoke all on schema public from public, pg_database_owner, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
-    grant usage on schema public to learncoding_app, learncoding_worker, learncoding_ops;
-    revoke all on all tables in schema public from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
+    revoke all on schema public from public, pg_database_owner, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+    grant usage on schema public to learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+    revoke all on all tables in schema public from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
     grant select, insert, update, delete on all tables in schema public
       to learncoding_app, learncoding_worker, learncoding_ops;
-    revoke all on all sequences in schema public from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
+    revoke all on all sequences in schema public from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
     grant usage, select, update on all sequences in schema public
       to learncoding_app, learncoding_worker, learncoding_ops;
-    revoke execute on all routines in schema public from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
+    revoke execute on all routines in schema public from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
     do $codestead_types$
     declare object record;
     begin
@@ -1397,7 +1612,7 @@ export async function reconcileDatabaseRolePrivileges(client) {
          order by t.oid
       loop
         execute format(
-          'revoke usage on type %I.%I from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops',
+          'revoke usage on type %I.%I from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter',
           object.nspname,
           object.typname
         );
@@ -1411,17 +1626,17 @@ export async function reconcileDatabaseRolePrivileges(client) {
     $codestead_types$;
 
     alter default privileges for role learncoding_owner in schema public
-      revoke all on tables from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
+      revoke all on tables from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
     alter default privileges for role learncoding_owner in schema public
-      revoke all on sequences from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
+      revoke all on sequences from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
     alter default privileges for role learncoding_owner in schema public
-      revoke all on routines from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
-    alter default privileges for role current_user in schema public revoke all on tables from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
-    alter default privileges for role current_user in schema public revoke all on sequences from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
-    alter default privileges for role current_user in schema public revoke execute on routines from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
-    alter default privileges for role current_user in schema public revoke usage on types from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
+      revoke all on routines from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+    alter default privileges for role current_user in schema public revoke all on tables from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+    alter default privileges for role current_user in schema public revoke all on sequences from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+    alter default privileges for role current_user in schema public revoke execute on routines from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+    alter default privileges for role current_user in schema public revoke usage on types from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
     alter default privileges for role learncoding_owner in schema public
-      revoke all on types from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
+      revoke all on types from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
     alter default privileges for role learncoding_owner in schema public
       grant select, insert, update, delete on tables to learncoding_app, learncoding_worker, learncoding_ops;
     alter default privileges for role learncoding_owner in schema public
@@ -1438,15 +1653,17 @@ export async function reconcileDatabaseRolePrivileges(client) {
     await client.query(mailWorkerOutboxPrivilegesSql());
   }
 
+  await reconcileBackupStatusAuthorityPrivileges(client);
+
   const drizzleExists = await client.query(
     "select exists(select 1 from pg_namespace where nspname = 'drizzle') present",
   );
   if (drizzleExists.rows[0]?.present === true) {
     await client.query(`
-      revoke all on schema drizzle from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
-      revoke all on all tables in schema drizzle from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
-      revoke all on all sequences in schema drizzle from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
-      revoke execute on all routines in schema drizzle from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
+      revoke all on schema drizzle from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+      revoke all on all tables in schema drizzle from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+      revoke all on all sequences in schema drizzle from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+      revoke execute on all routines in schema drizzle from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
       do $codestead_types$
       declare object record;
       begin
@@ -1459,7 +1676,7 @@ export async function reconcileDatabaseRolePrivileges(client) {
            order by t.oid
         loop
           execute format(
-            'revoke usage on type %I.%I from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops',
+            'revoke usage on type %I.%I from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter',
             object.nspname,
             object.typname
           );
@@ -1467,17 +1684,17 @@ export async function reconcileDatabaseRolePrivileges(client) {
       end
       $codestead_types$;
       alter default privileges for role learncoding_owner in schema drizzle
-        revoke all on tables from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
+        revoke all on tables from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
       alter default privileges for role learncoding_owner in schema drizzle
-        revoke all on sequences from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
+        revoke all on sequences from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
       alter default privileges for role learncoding_owner in schema drizzle
-        revoke all on routines from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
+        revoke all on routines from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
       alter default privileges for role learncoding_owner in schema drizzle
-        revoke all on types from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
-      alter default privileges for role current_user in schema drizzle revoke all on tables from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
-      alter default privileges for role current_user in schema drizzle revoke all on sequences from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
-      alter default privileges for role current_user in schema drizzle revoke execute on routines from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops;
-      alter default privileges for role current_user in schema drizzle revoke usage on types from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops`);
+        revoke all on types from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+      alter default privileges for role current_user in schema drizzle revoke all on tables from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+      alter default privileges for role current_user in schema drizzle revoke all on sequences from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+      alter default privileges for role current_user in schema drizzle revoke execute on routines from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+      alter default privileges for role current_user in schema drizzle revoke usage on types from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter`);
   }
 }
 
@@ -1485,6 +1702,62 @@ function databaseRoleBootstrapInvariantError(section, details = []) {
   const detailSuffix = details.length > 0 ? `: ${details.join(",")}` : "";
   return new Error(
     `database role bootstrap invariant verification failed [${section}${detailSuffix}]`,
+  );
+}
+
+async function verifyBackupStatusAuthorityAtBoundary(
+  client,
+  section,
+) {
+  const presence = await client.query(`
+    select (
+      pg_catalog.to_regclass(
+        'public.backup_status_mail_authority'
+      ) is not null
+      or pg_catalog.to_regclass(
+        'public.backup_status_mail_admin_guard'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.reject_backup_status_mail_authority_mutation()'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.lock_backup_status_mail_admin_authority()'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.enqueue_backup_status_mail_authority(text,text)'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.backup_status_mail_authorized(uuid)'
+      ) is not null
+    ) present`);
+  if (presence.rows[0]?.present !== true) return false;
+
+  try {
+    await verifyBackupStatusMailAuthorityObjects(
+      client,
+      LOGIN_ROLES,
+    );
+  } catch (error) {
+    const invariant = databaseRoleBootstrapInvariantError(
+      section,
+    );
+    invariant.cause = error;
+    throw invariant;
+  }
+  return true;
+}
+
+export function verifyBackupStatusAuthorityBeforeRepair(client) {
+  return verifyBackupStatusAuthorityAtBoundary(
+    client,
+    "backup-status-authority-pre-repair",
+  );
+}
+
+export function verifyBackupStatusAuthorityAfterRepair(client) {
+  return verifyBackupStatusAuthorityAtBoundary(
+    client,
+    "backup-status-authority-post-repair",
   );
 }
 
@@ -1512,10 +1785,10 @@ export async function verifyDatabaseRoleBootstrapState(
       from pg_authid auth
      where rolname in (
        'learncoding_owner', 'learncoding_migrator', 'learncoding_app',
-       'learncoding_worker', 'learncoding_ops'
+       'learncoding_worker', 'learncoding_ops', 'learncoding_backup_reporter'
      )
      order by rolname`);
-  if (roles.rows.length !== 5) {
+  if (roles.rows.length !== 6) {
     throw databaseRoleBootstrapInvariantError("roles-count");
   }
   for (const role of roles.rows) {
@@ -1559,11 +1832,11 @@ export async function verifyDatabaseRoleBootstrapState(
       join pg_roles member on member.oid = membership.member
      where granted.rolname in (
        'learncoding_owner', 'learncoding_migrator', 'learncoding_app',
-       'learncoding_worker', 'learncoding_ops'
+       'learncoding_worker', 'learncoding_ops', 'learncoding_backup_reporter'
      )
         or member.rolname in (
           'learncoding_owner', 'learncoding_migrator', 'learncoding_app',
-          'learncoding_worker', 'learncoding_ops'
+          'learncoding_worker', 'learncoding_ops', 'learncoding_backup_reporter'
         )
      order by granted.rolname, member.rolname`);
   const membership = memberships.rows[0];
@@ -1587,7 +1860,7 @@ export async function verifyDatabaseRoleBootstrapState(
       join pg_roles roles on roles.oid = configured.setrole
      where roles.rolname in (
        'learncoding_owner', 'learncoding_migrator', 'learncoding_app',
-       'learncoding_worker', 'learncoding_ops'
+       'learncoding_worker', 'learncoding_ops', 'learncoding_backup_reporter'
      )`);
   if (databaseSettings.rows[0]?.count !== 0) {
     throw databaseRoleBootstrapInvariantError("role-settings");
@@ -1659,7 +1932,7 @@ export async function verifyDatabaseRoleBootstrapState(
        not has_schema_privilege(0, 'public', 'USAGE') public_schema_usage_revoked,
        not has_schema_privilege(0, 'public', 'CREATE') public_schema_create_revoked,
        not exists (
-         select 1 from unnest(array['learncoding_app','learncoding_worker','learncoding_ops']) role_name
+         select 1 from unnest(array['learncoding_app','learncoding_worker','learncoding_ops','learncoding_backup_reporter']) role_name
           where not has_database_privilege(role_name, $1, 'CONNECT')
              or has_database_privilege(role_name, $1, 'TEMP')
              or not has_schema_privilege(role_name, 'public', 'USAGE')
@@ -1668,7 +1941,7 @@ export async function verifyDatabaseRoleBootstrapState(
        ) runtime_database_schema_exact,
        case when exists(select 1 from pg_namespace where nspname = 'drizzle')
          then not exists (
-           select 1 from unnest(array['learncoding_migrator','learncoding_app','learncoding_worker','learncoding_ops']) role_name
+           select 1 from unnest(array['learncoding_migrator','learncoding_app','learncoding_worker','learncoding_ops','learncoding_backup_reporter']) role_name
             where has_schema_privilege(role_name, 'drizzle', 'USAGE')
                or has_schema_privilege(role_name, 'drizzle', 'CREATE')
          )
@@ -1680,6 +1953,10 @@ export async function verifyDatabaseRoleBootstrapState(
            join pg_namespace n on n.oid = c.relnamespace
            cross join unnest(array['learncoding_app','learncoding_ops']) role_name
           where n.nspname = 'public' and c.relkind in ('r','p','v','m','f')
+            and c.relname not in (
+              'backup_status_mail_authority',
+              'backup_status_mail_admin_guard'
+            )
             and (
               not has_table_privilege(role_name, c.oid, 'SELECT')
               or not has_table_privilege(role_name, c.oid, 'INSERT')
@@ -1696,7 +1973,11 @@ export async function verifyDatabaseRoleBootstrapState(
            from pg_class c
            join pg_namespace n on n.oid = c.relnamespace
           where n.nspname = 'public' and c.relkind in ('r','p','v','m','f')
-            and c.relname <> 'email_outbox'
+            and c.relname not in (
+              'email_outbox',
+              'backup_status_mail_authority',
+              'backup_status_mail_admin_guard'
+            )
             and (
               not has_table_privilege('learncoding_worker', c.oid, 'SELECT')
               or not has_table_privilege('learncoding_worker', c.oid, 'INSERT')
@@ -1738,6 +2019,76 @@ export async function verifyDatabaseRoleBootstrapState(
              'learncoding_worker', 'public.email_outbox', 'updated_at', 'UPDATE'
            )
        end worker_outbox_privileges_exact,
+       case
+         when to_regclass(
+           'public.backup_status_mail_authority'
+         ) is null
+         and to_regclass(
+           'public.backup_status_mail_admin_guard'
+         ) is null
+           then true
+         when to_regclass(
+           'public.backup_status_mail_authority'
+         ) is null
+         or to_regclass(
+           'public.backup_status_mail_admin_guard'
+         ) is null
+           then false
+         else not exists (
+           select 1
+             from unnest(
+               array[
+                 'learncoding_migrator',
+                 'learncoding_app',
+                 'learncoding_worker',
+                 'learncoding_ops',
+                 'learncoding_backup_reporter'
+               ]
+             ) role_name
+             cross join unnest(
+               array[
+                 'public.backup_status_mail_authority',
+                 'public.backup_status_mail_admin_guard'
+               ]
+             ) relation_name
+            where has_table_privilege(
+                    role_name, relation_name, 'SELECT'
+                  )
+               or has_table_privilege(
+                    role_name, relation_name, 'INSERT'
+                  )
+               or has_table_privilege(
+                    role_name, relation_name, 'UPDATE'
+                  )
+               or has_table_privilege(
+                    role_name, relation_name, 'DELETE'
+                  )
+               or has_table_privilege(
+                    role_name, relation_name, 'TRUNCATE'
+                  )
+               or has_table_privilege(
+                    role_name, relation_name, 'REFERENCES'
+                  )
+               or has_table_privilege(
+                    role_name, relation_name, 'TRIGGER'
+                  )
+               or has_table_privilege(
+                    role_name, relation_name, 'MAINTAIN'
+                  )
+               or has_any_column_privilege(
+                    role_name, relation_name, 'SELECT'
+                  )
+               or has_any_column_privilege(
+                    role_name, relation_name, 'INSERT'
+                  )
+               or has_any_column_privilege(
+                    role_name, relation_name, 'UPDATE'
+                  )
+               or has_any_column_privilege(
+                    role_name, relation_name, 'REFERENCES'
+                  )
+         )
+       end backup_status_authority_table_restricted,
        not exists (
          select 1
            from pg_class c
@@ -1754,28 +2105,30 @@ export async function verifyDatabaseRoleBootstrapState(
          select 1
            from pg_class c
            join pg_namespace n on n.oid = c.relnamespace
+          cross join unnest(array['learncoding_migrator','learncoding_backup_reporter']) role_name
           where n.nspname in ('public', 'drizzle')
             and c.relkind in ('r','p','v','m','f')
             and (
-              has_table_privilege('learncoding_migrator', c.oid, 'SELECT')
-              or has_table_privilege('learncoding_migrator', c.oid, 'INSERT')
-              or has_table_privilege('learncoding_migrator', c.oid, 'UPDATE')
-              or has_table_privilege('learncoding_migrator', c.oid, 'DELETE')
-              or has_table_privilege('learncoding_migrator', c.oid, 'TRUNCATE')
-              or has_table_privilege('learncoding_migrator', c.oid, 'REFERENCES')
-              or has_table_privilege('learncoding_migrator', c.oid, 'TRIGGER')
-              or has_table_privilege('learncoding_migrator', c.oid, 'MAINTAIN')
+              has_table_privilege(role_name, c.oid, 'SELECT')
+              or has_table_privilege(role_name, c.oid, 'INSERT')
+              or has_table_privilege(role_name, c.oid, 'UPDATE')
+              or has_table_privilege(role_name, c.oid, 'DELETE')
+              or has_table_privilege(role_name, c.oid, 'TRUNCATE')
+              or has_table_privilege(role_name, c.oid, 'REFERENCES')
+              or has_table_privilege(role_name, c.oid, 'TRIGGER')
+              or has_table_privilege(role_name, c.oid, 'MAINTAIN')
             )
        ) migrator_table_restricted,
        not exists (
          select 1
            from pg_class c
            join pg_namespace n on n.oid = c.relnamespace
+          cross join unnest(array['learncoding_migrator','learncoding_backup_reporter']) role_name
           where n.nspname in ('public', 'drizzle') and c.relkind = 'S'
             and (
-              has_sequence_privilege('learncoding_migrator', c.oid, 'USAGE')
-              or has_sequence_privilege('learncoding_migrator', c.oid, 'SELECT')
-              or has_sequence_privilege('learncoding_migrator', c.oid, 'UPDATE')
+              has_sequence_privilege(role_name, c.oid, 'USAGE')
+              or has_sequence_privilege(role_name, c.oid, 'SELECT')
+              or has_sequence_privilege(role_name, c.oid, 'UPDATE')
             )
        ) migrator_sequence_restricted,
        not exists (
@@ -1790,8 +2143,9 @@ export async function verifyDatabaseRoleBootstrapState(
          select 1
            from pg_type t
            join pg_namespace n on n.oid = t.typnamespace
+          cross join unnest(array['learncoding_migrator','learncoding_backup_reporter']) role_name
           where n.nspname in ('public', 'drizzle')
-            and has_type_privilege('learncoding_migrator', t.oid, 'USAGE')
+            and has_type_privilege(role_name, t.oid, 'USAGE')
        ) migrator_type_restricted,
        not exists (
          select 1
@@ -1802,7 +2156,7 @@ export async function verifyDatabaseRoleBootstrapState(
               has_function_privilege(0, p.oid, 'EXECUTE')
               or exists (
                 select 1
-                  from unnest(array['learncoding_migrator','learncoding_app','learncoding_worker','learncoding_ops']) role_name
+                  from unnest(array['learncoding_migrator','learncoding_app','learncoding_worker','learncoding_ops','learncoding_backup_reporter']) role_name
                  where has_function_privilege(role_name, p.oid, 'EXECUTE')
                        is distinct from exists (
                          select 1
@@ -1818,6 +2172,21 @@ export async function verifyDatabaseRoleBootstrapState(
               )
             )
        ) routine_execute_exact,
+       not exists (
+         select 1
+           from pg_catalog.jsonb_array_elements_text($3::jsonb) expected(signature)
+           left join pg_catalog.pg_proc p
+             on p.oid = pg_catalog.to_regprocedure(expected.signature)
+           left join pg_catalog.pg_roles owner_role
+             on owner_role.oid = p.proowner
+          where p.oid is not null and (
+                p.prokind <> 'f'
+             or owner_role.rolname is distinct from 'learncoding_owner'
+             or p.prosecdef is distinct from true
+             or p.proconfig is distinct from
+                array['search_path=pg_catalog']::text[]
+          )
+       ) routine_security_exact,
        (
          with observed(
            routine_oid, grantor, grantee, privilege_type, is_grantable
@@ -1945,6 +2314,7 @@ export async function verifyDatabaseRoleBootstrapState(
           })),
         ),
       ),
+      JSON.stringify(REVIEWED_SECURITY_DEFINER_FUNCTIONS),
     ],
   );
   if (Object.values(privileges.rows[0] ?? {}).some((value) => value !== true)) {
@@ -2007,7 +2377,7 @@ export async function verifyDatabaseRoleBootstrapState(
        ) direct_acl
       where grantee not in (
         'learncoding_owner', 'learncoding_migrator', 'learncoding_app',
-        'learncoding_worker', 'learncoding_ops'
+        'learncoding_worker', 'learncoding_ops', 'learncoding_backup_reporter'
       )
          or not grant_not_delegable`,
     [postgresDatabase],
@@ -2208,7 +2578,8 @@ export async function cleanupDatabaseBootstrapResources({
 export async function runDatabaseRoleBootstrap(options) {
   const parsed = validateDatabaseRoleUrls(options);
   const verifyAppliedMigrationLedger =
-    options.verifyAppliedMigrationLedger ?? verifyAppliedMigrationLedgerContract;
+    options.verifyAppliedMigrationLedger ??
+    verifyAppliedMigrationLedgerContract;
   const requireCompleteMigrationLedger =
     options.requireCompleteMigrationLedger ?? false;
   if (typeof requireCompleteMigrationLedger !== "boolean") {
@@ -2255,12 +2626,14 @@ export async function runDatabaseRoleBootstrap(options) {
     );
     validateOwnershipInventory(inventory);
     await verifyPostMigrationReviewedContractsBeforeReconciliation(client);
+    await verifyBackupStatusAuthorityBeforeRepair(client);
     await createAndResetRoles(client);
     const rolePasswords = {
       [MIGRATOR_ROLE]: parsed.migrator,
       [APP_ROLE]: parsed.app,
       [WORKER_ROLE]: parsed.worker,
       [OPS_ROLE]: parsed.ops,
+      [BACKUP_REPORTER_ROLE]: parsed.backupReporter,
     };
     await rotatePasswords(client, rolePasswords);
     await transferApplicationOwnership(client);
@@ -2271,9 +2644,11 @@ export async function runDatabaseRoleBootstrap(options) {
       options.postgresUser,
     );
     if (options.beforeCommit) await options.beforeCommit(client);
+    await verifyBackupStatusAuthorityAfterRepair(client);
     await client.query("commit");
     transactionOpen = false;
 
+    await verifyBackupStatusAuthorityAfterRepair(client);
     return await verifyDatabaseRoleBootstrapState(
       client,
       options.postgresDatabase,
@@ -2308,12 +2683,21 @@ async function main() {
     databaseMigratorUrl: process.env.DATABASE_MIGRATOR_URL ?? "",
     databaseWorkerUrl: process.env.DATABASE_WORKER_URL ?? "",
     databaseOpsUrl: process.env.DATABASE_OPS_URL ?? "",
+    databaseBackupReporterUrl:
+      process.env.DATABASE_BACKUP_REPORTER_URL ?? "",
     requireCompleteMigrationLedger: requireCompleteSetting === "true",
   });
   console.info(
     JSON.stringify({
       event: "database.roles_bootstrapped",
-      roles: [OWNER_ROLE, MIGRATOR_ROLE, APP_ROLE, WORKER_ROLE, OPS_ROLE],
+      roles: [
+        OWNER_ROLE,
+        MIGRATOR_ROLE,
+        APP_ROLE,
+        WORKER_ROLE,
+        OPS_ROLE,
+        BACKUP_REPORTER_ROLE,
+      ],
       checks,
     }),
   );

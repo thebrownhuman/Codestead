@@ -25,9 +25,9 @@ const JOURNAL_ENTRY_KEYS = Object.freeze([
   "when",
 ]);
 const JOURNAL_ROOT_KEYS = Object.freeze(["dialect", "entries", "version"]);
-const DEFAULT_DRIZZLE_DIRECTORY = fileURLToPath(
-  new URL("../../drizzle/", import.meta.url),
-);
+function defaultDrizzleDirectory() {
+  return fileURLToPath(new URL("../../drizzle/", import.meta.url));
+}
 
 export class ReviewedMigrationLedgerError extends Error {
   constructor(code, options) {
@@ -208,11 +208,11 @@ export const REVIEWED_MIGRATION_LEDGER = Object.freeze([
   Object.freeze({ idx: 62, version: "7", when: 1784925600000, tag: "0062_mail_outbox_retention_redaction", breakpoints: true, sqlSha256: "98cd8b0fd5b57822bab9a3793094e738d926d5dab8a2dc700f89037bd0cbc13b" }),
   Object.freeze({ idx: 63, version: "7", when: 1784929200000, tag: "0063_mail_outbox_redaction_fence_release", breakpoints: true, sqlSha256: "e945482f1311c88ee41bb13b12a566aab31a0e1aadd2a1d9ce98ac12acd5c63c" }),
   Object.freeze({ idx: 64, version: "7", when: 1784932800000, tag: "0064_mail_outbox_dispatch_binding", breakpoints: true, sqlSha256: "5667b105cb1511cf2851c315959086ca49453be52db09a4b0ffc9844c966d1aa" }),
+  Object.freeze({ idx: 65, version: "7", when: 1784936400000, tag: "0065_backup_status_mail_authority", breakpoints: true, sqlSha256: "1274dda8013fe80f09df63f7ddc73b24b0a9a482a40e5f5042eaef2373c14b3c" }),
 ]);
 
 export const REVIEWED_MIGRATION_LEDGER_SHA256 =
-  "a9f490fbfa6e6918068c94393b78dd5e2ac92057ddd6625ceb14ca33458b3d59";
-
+  "cfe0f4ae4ad8dd34a018fff730acbc09413e2d4f7e461f8ee033814412735fa9";
 validateReviewedMigrationLedger(REVIEWED_MIGRATION_LEDGER, "CONTRACT_INVALID");
 if (
   reviewedMigrationLedgerSha256(REVIEWED_MIGRATION_LEDGER) !==
@@ -246,7 +246,7 @@ function journalEntryMatches(entry, reviewed) {
 }
 
 export function verifyReviewedMigrationRepository({
-  drizzleDirectory = DEFAULT_DRIZZLE_DIRECTORY,
+  drizzleDirectory = defaultDrizzleDirectory(),
 } = {}) {
   const resolvedDirectory = path.resolve(fileURLToPathIfNeeded(drizzleDirectory));
   const journal = readJournal(

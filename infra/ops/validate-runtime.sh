@@ -395,6 +395,7 @@ readonly -a required_secrets=(
   database_migrator_url
   database_worker_url
   database_ops_url
+  database_backup_reporter_url
   better_auth_secret
   lost_device_proof_key
   deletion_tombstone_key
@@ -442,7 +443,8 @@ database_secret_result="$(
     "$secrets_dir/database_url" \
     "$secrets_dir/database_migrator_url" \
     "$secrets_dir/database_worker_url" \
-    "$secrets_dir/database_ops_url"
+    "$secrets_dir/database_ops_url" \
+    "$secrets_dir/database_backup_reporter_url"
 )" || fatal "database secret topology validation failed"
 [[ "$database_secret_result" == "database secret topology valid" ]] \
   || fatal "database secret validator returned a non-canonical result"
@@ -578,7 +580,7 @@ fi
 
 is_known_service() {
   case "$1" in
-    postgres|app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|practice-runner-recovery-worker|project-review-correction-worker|file-erasure-worker|scan-worker|cloudflared|runner-egress-gateway|database-role-bootstrap|database-negative-probes|database-boundary-verifier|migrate|lifecycle|platform-seed|admin-bootstrap|clamav) return 0 ;;
+    postgres|app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|practice-runner-recovery-worker|project-review-correction-worker|file-erasure-worker|scan-worker|cloudflared|runner-egress-gateway|database-role-bootstrap|database-negative-probes|database-boundary-verifier|backup-status-reporter|migrate|lifecycle|platform-seed|admin-bootstrap|clamav) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -592,7 +594,7 @@ is_long_running_service() {
 
 is_one_shot_service() {
   case "$1" in
-    database-role-bootstrap|database-negative-probes|database-boundary-verifier|migrate|lifecycle|platform-seed|admin-bootstrap) return 0 ;;
+    database-role-bootstrap|database-negative-probes|database-boundary-verifier|backup-status-reporter|migrate|lifecycle|platform-seed|admin-bootstrap) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -738,7 +740,7 @@ done
 
 if [[ "$validation_mode" == operations ]]; then
   for service in database-role-bootstrap database-negative-probes database-boundary-verifier \
-    migrate lifecycle platform-seed admin-bootstrap; do
+    backup-status-reporter migrate lifecycle platform-seed admin-bootstrap; do
     [[ -n "${rendered_services[$service]:-}" ]] || {
       fatal "rendered Compose operations service inventory is incomplete"
     }

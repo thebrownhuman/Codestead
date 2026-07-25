@@ -12,6 +12,9 @@ import {
   REVIEWED_APPLICATION_TRIGGERS,
   REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES,
 } from "./bootstrap-database-roles.mjs";
+import {
+  verifyBackupStatusMailAuthorityObjects,
+} from "./verify-backup-status-mail-authority.mjs";
 
 export const DATABASE_ADMIN_LOCK_NAME = "codestead:database-administration:v1";
 const MIN_PASSWORD_BYTES = 32;
@@ -24,6 +27,7 @@ const ROLE_SPECS = Object.freeze([
   ["migrator", "databaseMigratorUrl", "learncoding_migrator"],
   ["worker", "databaseWorkerUrl", "learncoding_worker"],
   ["ops", "databaseOpsUrl", "learncoding_ops"],
+  ["backupReporter", "databaseBackupReporterUrl", "learncoding_backup_reporter"],
 ]);
 const RESTRICTED_ROLE_NAMES = Object.freeze(
   ROLE_SPECS.map(([, , role]) => role),
@@ -875,16 +879,26 @@ export async function verifyReviewedMailAuthorityObjectFootprint(
   ];
   const expectedRoutineSignatures =
     phase?.routines?.map(({ signature }) => signature) ?? [];
-  const allTriggerNames = REVIEWED_APPLICATION_TRIGGERS.map(({ name }) => name);
-  const expectedTriggerNames = phase?.triggers?.map(({ name }) => name) ?? [];
+  const allTriggers = [
+    ...new Map(
+      REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.flatMap(
+        ({ triggers }) => triggers,
+      ).map((trigger) => [`${trigger.relation}\u0000${trigger.name}`, trigger]),
+    ).values(),
+  ];
+  const expectedTriggers = phase?.triggers ?? [];
   const requiresDispatchBinding = phase?.requiresWorkerContract === true;
 
   const result = await client.query(
     `
     with reviewed_routines(signature) as (
       select * from pg_catalog.unnest($1::text[])
-    ), reviewed_triggers(trigger_name) as (
-      select * from pg_catalog.unnest($3::text[])
+    ), reviewed_triggers(relation_name, trigger_name) as (
+      select ($3::text[])[position], ($4::text[])[position]
+        from pg_catalog.generate_subscripts($3::text[], 1) position
+    ), expected_triggers(relation_name, trigger_name) as (
+      select ($5::text[])[position], ($6::text[])[position]
+        from pg_catalog.generate_subscripts($5::text[], 1) position
     )
     select not exists (
              select 1
@@ -902,18 +916,23 @@ export async function verifyReviewedMailAuthorityObjectFootprint(
                       select 1
                         from pg_catalog.pg_trigger trigger_row
                        where trigger_row.tgrelid =
-                               pg_catalog.to_regclass(
-                                 'public.email_outbox'
-                               )
+                               pg_catalog.to_regclass(relation_name)
                          and trigger_row.tgname = trigger_name
                          and not trigger_row.tgisinternal
                     ) is distinct from (
-                      trigger_name = any($4::text[])
+                      exists (
+                        select 1
+                          from expected_triggers expected
+                         where expected.relation_name =
+                                 reviewed_triggers.relation_name
+                           and expected.trigger_name =
+                                 reviewed_triggers.trigger_name
+                      )
                     )
            ) reviewed_trigger_presence_exact,
            (
              select pg_catalog.count(*) = (
-                      case when $5::boolean then 1 else 0 end
+                      case when $7::boolean then 1 else 0 end
                     )
                from pg_catalog.pg_constraint constraint_row
               where constraint_row.conrelid =
@@ -924,8 +943,10 @@ export async function verifyReviewedMailAuthorityObjectFootprint(
     [
       allRoutineSignatures,
       expectedRoutineSignatures,
-      allTriggerNames,
-      expectedTriggerNames,
+      allTriggers.map(({ relation }) => relation),
+      allTriggers.map(({ name }) => name),
+      expectedTriggers.map(({ relation }) => relation),
+      expectedTriggers.map(({ name }) => name),
       requiresDispatchBinding,
     ],
   );
@@ -1056,7 +1077,7 @@ async function verifyRole({ client, role, database, objects }) {
     negativeChecks += 1;
     if (objects)
       positiveChecks += await verifyApplicationObjectAccess(client, objects);
-  } else {
+  } else if (role === "learncoding_migrator") {
     await client.query("begin read only");
     try {
       await client.query("set local role learncoding_owner");
@@ -1072,6 +1093,9 @@ async function verifyRole({ client, role, database, objects }) {
     } finally {
       await bounded(() => client.query("rollback"));
     }
+  } else {
+    await expectInsufficientPrivilege(client, "set role learncoding_owner");
+    negativeChecks += 1;
   }
 
   if (objects) {
@@ -1124,6 +1148,10 @@ export async function verifyDatabaseRoleBoundaries(options) {
       const catalog =
         await verifyReviewedMailAuthorityCatalogContracts(lockClient);
       positiveChecks += catalog.totalVerified;
+      positiveChecks += await verifyBackupStatusMailAuthorityObjects(
+        lockClient,
+        RESTRICTED_ROLE_NAMES,
+      );
     }
     for (const [name] of ROLE_SPECS) {
       const role = parsed[name];
@@ -1180,6 +1208,7 @@ async function main() {
     databaseMigratorUrl: process.env.DATABASE_MIGRATOR_URL ?? "",
     databaseWorkerUrl: process.env.DATABASE_WORKER_URL ?? "",
     databaseOpsUrl: process.env.DATABASE_OPS_URL ?? "",
+    databaseBackupReporterUrl: process.env.DATABASE_BACKUP_REPORTER_URL ?? "",
     requireApplicationObjects,
   });
   process.stdout.write(

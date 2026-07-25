@@ -10,6 +10,7 @@ const FIXED_USERS = Object.freeze({
   migrator: "learncoding_migrator",
   worker: "learncoding_worker",
   ops: "learncoding_ops",
+  backupReporter: "learncoding_backup_reporter",
 });
 
 function invalid() {
@@ -90,7 +91,7 @@ function readSecret(path) {
 }
 
 function main(argv) {
-  if (argv.length !== 8) throw invalid();
+  if (argv.length !== 9) throw invalid();
   const [
     postgresUser,
     postgresDatabase,
@@ -100,6 +101,7 @@ function main(argv) {
     databaseMigratorUrlPath,
     databaseWorkerUrlPath,
     databaseOpsUrlPath,
+    databaseBackupReporterUrlPath,
   ] = argv;
   validateDatabaseSecretValues({
     postgresUser,
@@ -110,6 +112,7 @@ function main(argv) {
     databaseMigratorUrl: readSecret(databaseMigratorUrlPath),
     databaseWorkerUrl: readSecret(databaseWorkerUrlPath),
     databaseOpsUrl: readSecret(databaseOpsUrlPath),
+    databaseBackupReporterUrl: readSecret(databaseBackupReporterUrlPath),
   });
   process.stdout.write("database secret topology valid\n");
 }

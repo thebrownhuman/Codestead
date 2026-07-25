@@ -267,7 +267,7 @@ Cohort profiles expose only learner-selected fields. Alias/display name is the d
 
 Notifications are written transactionally to an outbox and delivered asynchronously. An inactivity episode is based on the last meaningful learning event, not merely login. At 24 hours the learner and administrator each receive a separate generic notice; at 72 hours the learner receives one final generic reminder, after which the episode is silent until meaningful activity closes it. An advisory-locked scheduler commits episode markers and deterministic-idempotency outbox rows together. Learner-local IANA timezone/quiet hours, a fresh-MFA/reason/audit-protected temporary administrative pause, and the disclosure/policy version are stored explicitly. Emails contain no sensitive mistakes, scores, code, chat, provider details, keys, or raw study time.
 
-Security events, new-device revocation, credential changes, appeal updates, and backup failures use separate templates and priorities. Backups are never attached to email; email reports only backup identifier, status, size, checksum, and recovery-point count.
+Security events, new-device revocation, credential changes, appeal updates, and backup failures use separate templates and priorities. Backup email contains only a generic success/failure outcome. It never attaches or identifies an archive and includes no path, size, checksum, recovery-point count, provider detail, operational log, key, or learner data.
 
 ### 6.11 Storage and quota
 

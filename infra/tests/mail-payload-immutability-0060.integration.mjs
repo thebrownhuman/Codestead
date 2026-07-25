@@ -242,6 +242,8 @@ async function runLiveRoleBootstrap(port, database) {
     databaseMigratorUrl: roleUrl("learncoding_migrator", "m".repeat(48)),
     databaseWorkerUrl: roleUrl("learncoding_worker", "w".repeat(48)),
     databaseOpsUrl: roleUrl("learncoding_ops", "o".repeat(48)),
+    databaseBackupReporterUrl:
+      roleUrl("learncoding_backup_reporter", "b".repeat(48)),
     lockTimeoutMs: 5_000,
     cleanupTimeoutMs: 5_000,
     pool,

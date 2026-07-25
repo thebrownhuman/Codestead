@@ -314,35 +314,48 @@ if verify_ciphertext_checksum "$archive"; then
 fi
 
 compose_calls="$work/compose-calls"
-compose_sql="$work/compose-sql"
+compose_deadlines="$work/compose-deadlines"
 compose_result=queued
-compose_cmd() {
+run_compose_managed() {
+  local deadline="$1"
+  shift
+  printf '%s\n' "$deadline" >>"$compose_deadlines"
   printf '%s\n' "$@" >>"$compose_calls"
-  cat >"$compose_sql"
   printf '%s\n' "$compose_result"
 }
 
 enqueue_backup_status success 20260712T120000Z
-grep -Fq "template_version" "$compose_sql"
-grep -Fq "'backup-status'" "$compose_sql"
+grep -Fq -- "--profile" "$compose_calls"
+grep -Fq "operations" "$compose_calls"
+grep -Fq "run" "$compose_calls"
+grep -Fq -- "--rm" "$compose_calls"
+grep -Fq -- "--no-deps" "$compose_calls"
+grep -Fq -- "--pull" "$compose_calls"
+grep -Fq "never" "$compose_calls"
 grep -Fq "BACKUP_REPORT_OUTCOME=success" "$compose_calls"
-grep -Fq "No archive is attached" "$compose_sql"
-if grep -Eqi 'learncoding-full-|\.tar\.gz|AGE-SECRET-KEY|database\.dump' "$compose_calls" "$compose_sql"; then
+grep -Fq "BACKUP_REPORT_RUN_KEY=20260712T120000Z" "$compose_calls"
+grep -Fq "backup-status-reporter" "$compose_calls"
+if grep -Eqi 'learncoding-full-|\.tar\.gz|AGE-SECRET-KEY|database\.dump|POSTGRES_PASSWORD|POSTGRES_USER|email_outbox|INSERT INTO|psql' "$compose_calls"; then
   echo "backup status report exposed an archive, dump, or encryption identity" >&2
   exit 1
 fi
 
 compose_result=existing
-enqueue_backup_status failure 20260712T120000Z
+enqueue_backup_status failure 20260712T120001Z
 grep -Fq "BACKUP_REPORT_OUTCOME=failure" "$compose_calls"
-grep -Fq "no archive or log is attached" "$compose_sql"
-
-compose_result=no-admin
-if enqueue_backup_status success 20260712T120001Z >/dev/null 2>&1; then
-  echo "missing administrator was treated as a queued backup report" >&2
+grep -Fq "BACKUP_REPORT_RUN_KEY=20260712T120001Z" "$compose_calls"
+if grep -Evqx '45' "$compose_deadlines" \
+  || [[ "$(wc -l <"$compose_deadlines")" -ne 2 ]]; then
+  echo "backup status reporting did not use its fixed managed deadline" >&2
   exit 1
 fi
-if enqueue_backup_status invalid 20260712T120002Z >/dev/null 2>&1; then
+
+compose_result=forged
+if enqueue_backup_status success 20260712T120002Z >/dev/null 2>&1; then
+  echo "invalid reporter acknowledgement was treated as queued" >&2
+  exit 1
+fi
+if enqueue_backup_status invalid 20260712T120003Z >/dev/null 2>&1; then
   echo "invalid backup report outcome was accepted" >&2
   exit 1
 fi
@@ -351,6 +364,10 @@ if enqueue_backup_status success ../unsafe >/dev/null 2>&1; then
   exit 1
 fi
 
+grep -Fq 'run_compose_managed "$BACKUP_STATUS_REPORT_DEADLINE_SECONDS"' \
+  "$repo_root/scripts/backup/common.sh"
+grep -Fq 'run_managed_backup_command "$allotted_seconds" "${args[@]}" "$@"' \
+  "$repo_root/scripts/backup/common.sh"
 grep -Fq 'enqueue_backup_status failure "$timestamp"' "$repo_root/scripts/backup/backup.sh"
 grep -Fq 'enqueue_backup_status success "$timestamp"' "$repo_root/scripts/backup/backup.sh"
 
