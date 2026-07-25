@@ -600,6 +600,7 @@ const expectedApplicationRuns = [
   "node infra/tests/validate-static.mjs",
   "node --test infra/tests/database-secret-ceremony.test.mjs",
   "node --test infra/tests/database-least-privilege-static.test.mjs",
+  "npm run test:database-role-boundaries",
   "node --test infra/tests/runtime-validator-ingress-policy.test.mjs",
   "node --test infra/tests/production-load-peer-preflight.test.mjs infra/tests/production-load-postgres-socket.test.mjs infra/tests/production-load-systemd.test.mjs",
   "node --test infra/tests/runner-power-rehearsal-control.test.mjs",
