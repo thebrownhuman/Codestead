@@ -152,6 +152,207 @@ function apply0066(port, database) {
   );
 }
 
+function ownerSql(port, database, sql) {
+  return psql(
+    port,
+    database,
+    `SET ROLE learncoding_owner;\n${sql}`,
+    { username: "learncoding_migrator" },
+  );
+}
+
+function expectSqlState(
+  port,
+  database,
+  username,
+  sql,
+  expectedSqlState,
+  prefix = "",
+) {
+  psql(
+    port,
+    database,
+    `${prefix}
+DO $proof$
+BEGIN
+  BEGIN
+    ${sql};
+    RAISE EXCEPTION 'expected protected statement to fail';
+  EXCEPTION
+    WHEN SQLSTATE '${expectedSqlState}' THEN NULL;
+  END;
+END
+$proof$;`,
+    { username },
+  );
+}
+
+function fixture(number) {
+  const tail = String(number).padStart(12, "0");
+  return {
+    id: `66000000-0000-4000-8000-${tail}`,
+    operationId: `66100000-0000-4000-8000-${tail}`,
+    sourceId: `66200000-0000-4000-8000-${tail}`,
+    claimToken: `66300000-0000-4000-8000-${tail}`,
+    suffix: String(number),
+  };
+}
+
+function insertFixtureSql(row) {
+  return `
+INSERT INTO public.email_outbox (
+  id, operation_id, user_id, delivery_scope_key, to_email, template,
+  template_version, variables, idempotency_key, status, next_attempt_at,
+  created_at, updated_at
+) VALUES (
+  '${row.id}'::uuid,
+  '${row.operationId}'::uuid,
+  NULL,
+  's:${row.operationId}',
+  'provider-correlation-${row.suffix}@example.invalid',
+  'access-request-admin',
+  '1',
+  pg_catalog.jsonb_build_object(
+    '_mailOperationId', '${row.operationId}',
+    '_mailRecipient',
+      'provider-correlation-${row.suffix}@example.invalid',
+    '_mailProducer', 'access-request-admin',
+    '_mailSourceId', '${row.sourceId}'
+  ),
+  'provider-correlation-${row.suffix}',
+  'pending',
+  pg_catalog.statement_timestamp(),
+  pg_catalog.statement_timestamp(),
+  pg_catalog.statement_timestamp()
+)`;
+}
+
+function claimFixtureSql(row) {
+  return `
+UPDATE public.email_outbox
+   SET status = 'sending',
+       attempt_count = 1,
+       claim_token = '${row.claimToken}'::uuid,
+       claim_owner = 'mail-provider-correlation-0066',
+       claim_version = 1,
+       lease_expires_at =
+         pg_catalog.statement_timestamp() + interval '120 seconds',
+       last_error_code = NULL,
+       updated_at = pg_catalog.statement_timestamp()
+ WHERE id = '${row.id}'::uuid`;
+}
+
+function insertAndClaim(port, database, row) {
+  ownerSql(
+    port,
+    database,
+    `${insertFixtureSql(row)};\n${claimFixtureSql(row)};`,
+  );
+}
+
+function armSql(
+  row,
+  {
+    adapter,
+    bindingVersion,
+    bindingDigest,
+    correlationVersion = "opaque-sha256-v1",
+    evidenceVersion = null,
+    evidenceDigest = null,
+  },
+) {
+  const sqlValue = (value) => value === null ? "NULL" : `'${value}'`;
+  return `
+UPDATE public.email_outbox
+   SET provider_call_started = pg_catalog.statement_timestamp(),
+       adapter = '${adapter}',
+       dispatch_binding_version = ${sqlValue(bindingVersion)},
+       dispatch_binding_sha256 = ${sqlValue(bindingDigest)},
+       provider_correlation_version = ${sqlValue(correlationVersion)},
+       provider_evidence_version = ${sqlValue(evidenceVersion)},
+       provider_evidence_sha256 = ${sqlValue(evidenceDigest)},
+       lease_expires_at =
+         pg_catalog.statement_timestamp() + interval '60 seconds',
+       updated_at = pg_catalog.statement_timestamp()
+ WHERE id = '${row.id}'::uuid`;
+}
+
+function legacyArmSql(row, adapter, bindingVersion, bindingDigest) {
+  return `
+UPDATE public.email_outbox
+   SET provider_call_started = pg_catalog.statement_timestamp(),
+       adapter = '${adapter}',
+       dispatch_binding_version = '${bindingVersion}',
+       dispatch_binding_sha256 = '${bindingDigest}',
+       lease_expires_at =
+         pg_catalog.statement_timestamp() + interval '60 seconds',
+       updated_at = pg_catalog.statement_timestamp()
+ WHERE id = '${row.id}'::uuid`;
+}
+
+function seedPre0064Rows(port, database) {
+  ownerSql(
+    port,
+    database,
+    `
+INSERT INTO public.email_outbox (
+  id, operation_id, user_id, delivery_scope_key, to_email, template,
+  template_version, variables, idempotency_key, status,
+  provider_call_started, adapter, quarantined_at, last_error_code,
+  created_at, updated_at
+) VALUES
+(
+  '${fixture(1).id}'::uuid, '${fixture(1).operationId}'::uuid, NULL,
+  'o:${fixture(1).operationId}', 'legacy-ambiguous@example.invalid',
+  'weekly-summary', '1', '{}'::jsonb, 'provider-correlation-legacy-1',
+  'quarantined', NULL, NULL, pg_catalog.statement_timestamp(),
+  'LEGACY_SENDING_AMBIGUOUS', pg_catalog.statement_timestamp(),
+  pg_catalog.statement_timestamp()
+),
+(
+  '${fixture(2).id}'::uuid, '${fixture(2).operationId}'::uuid, NULL,
+  'o:${fixture(2).operationId}', 'legacy-gmail@example.invalid',
+  'weekly-summary', '1', '{}'::jsonb, 'provider-correlation-legacy-2',
+  'quarantined', pg_catalog.statement_timestamp(), 'gmail',
+  pg_catalog.statement_timestamp(), 'GMAIL_RESULT_UNKNOWN',
+  pg_catalog.statement_timestamp(), pg_catalog.statement_timestamp()
+),
+(
+  '${fixture(3).id}'::uuid, '${fixture(3).operationId}'::uuid, NULL,
+  'o:${fixture(3).operationId}', 'legacy-console@example.invalid',
+  'weekly-summary', '1', '{}'::jsonb, 'provider-correlation-legacy-3',
+  'quarantined', pg_catalog.statement_timestamp(), 'console',
+  pg_catalog.statement_timestamp(), 'CONSOLE_RESULT_UNKNOWN',
+  pg_catalog.statement_timestamp(), pg_catalog.statement_timestamp()
+);
+`,
+  );
+}
+
+function seedPost0064Rows(port, database) {
+  const legacyRawBound = fixture(5);
+  ownerSql(
+    port,
+    database,
+    `
+${insertFixtureSql(fixture(4))};
+${insertFixtureSql(legacyRawBound)};
+${claimFixtureSql(legacyRawBound)};
+`,
+  );
+  psql(
+    port,
+    database,
+    `${legacyArmSql(
+      legacyRawBound,
+      "gmail",
+      "gmail-raw-v1",
+      "a".repeat(64),
+    )};`,
+    { username: "learncoding_worker" },
+  );
+}
+
 function routineContract(port, database) {
   return scalar(
     port,
@@ -324,6 +525,605 @@ function proveCatalog(port, database) {
   return routine;
 }
 
+function proveBackfill(port, database) {
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+        SELECT pg_catalog.string_agg(
+                 id::text || '|' ||
+                 COALESCE(provider_correlation_version, 'NULL') || '|' ||
+                 COALESCE(provider_evidence_version, 'NULL') || '|' ||
+                 COALESCE(provider_evidence_sha256, 'NULL') || '|' ||
+                 COALESCE(dispatch_binding_version, 'NULL') || '|' ||
+                 COALESCE(dispatch_binding_sha256, 'NULL'),
+                 ',' ORDER BY id
+               )
+          FROM public.email_outbox
+         WHERE id >= '${fixture(1).id}'::uuid
+           AND id <= '${fixture(5).id}'::uuid;
+      `,
+    ),
+    [
+      `${fixture(1).id}|legacy-raw-v0|NULL|NULL|NULL|NULL`,
+      `${fixture(2).id}|legacy-raw-v0|NULL|NULL|NULL|NULL`,
+      `${fixture(3).id}|legacy-raw-v0|NULL|NULL|NULL|NULL`,
+      `${fixture(4).id}|NULL|NULL|NULL|NULL|NULL`,
+      `${fixture(5).id}|legacy-raw-v0|NULL|NULL|gmail-raw-v1|${
+        "a".repeat(64)
+      }`,
+    ].join(","),
+  );
+}
+
+function proveWorkerPrivileges(port, database) {
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+        SELECT rolsuper::text || '|' || rolinherit::text || '|' ||
+               rolcreaterole::text || '|' || rolcreatedb::text || '|' ||
+               rolreplication::text || '|' || rolbypassrls::text
+          FROM pg_catalog.pg_roles
+         WHERE rolname = 'learncoding_worker';
+      `,
+    ),
+    "false|false|false|false|false|false",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+        SELECT pg_catalog.pg_has_role(
+                 'learncoding_worker', 'learncoding_owner', 'MEMBER'
+               )::text || '|' ||
+               pg_catalog.pg_has_role(
+                 'learncoding_worker', 'learncoding_migrator', 'MEMBER'
+               )::text || '|' ||
+               pg_catalog.pg_has_role(
+                 'learncoding_worker', 'learncoding_app', 'MEMBER'
+               )::text || '|' ||
+               pg_catalog.pg_has_role(
+                 'learncoding_worker', 'learncoding_ops', 'MEMBER'
+               )::text;
+      `,
+    ),
+    "false|false|false|false",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+        SELECT pg_catalog.has_table_privilege(
+                 'learncoding_worker', 'public.email_outbox', 'SELECT'
+               )::text || '|' ||
+               pg_catalog.has_table_privilege(
+                 'learncoding_worker', 'public.email_outbox', 'INSERT'
+               )::text || '|' ||
+               pg_catalog.has_table_privilege(
+                 'learncoding_worker', 'public.email_outbox', 'UPDATE'
+               )::text || '|' ||
+               pg_catalog.has_table_privilege(
+                 'learncoding_worker', 'public.email_outbox', 'DELETE'
+               )::text || '|' ||
+               pg_catalog.has_table_privilege(
+                 'learncoding_worker', 'public.email_outbox', 'TRUNCATE'
+               )::text || '|' ||
+               pg_catalog.has_table_privilege(
+                 'learncoding_worker', 'public.email_outbox', 'REFERENCES'
+               )::text || '|' ||
+               pg_catalog.has_table_privilege(
+                 'learncoding_worker', 'public.email_outbox', 'TRIGGER'
+               )::text;
+      `,
+    ),
+    "true|false|false|false|false|false|false",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+        SELECT pg_catalog.string_agg(attribute.attname, ',' ORDER BY attribute.attnum)
+          FROM pg_catalog.pg_attribute attribute
+         WHERE attribute.attrelid =
+                 'public.email_outbox'::pg_catalog.regclass
+           AND attribute.attnum > 0
+           AND NOT attribute.attisdropped
+           AND pg_catalog.has_column_privilege(
+                 'learncoding_worker',
+                 'public.email_outbox',
+                 attribute.attname,
+                 'INSERT'
+               );
+      `,
+    ),
+    [
+      "user_id",
+      "to_email",
+      "template",
+      "template_version",
+      "variables",
+      "idempotency_key",
+      "status",
+      "next_attempt_at",
+      "operation_id",
+      "delivery_scope_key",
+    ].join(","),
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+        SELECT pg_catalog.string_agg(attribute.attname, ',' ORDER BY attribute.attnum)
+          FROM pg_catalog.pg_attribute attribute
+         WHERE attribute.attrelid =
+                 'public.email_outbox'::pg_catalog.regclass
+           AND attribute.attnum > 0
+           AND NOT attribute.attisdropped
+           AND pg_catalog.has_column_privilege(
+                 'learncoding_worker',
+                 'public.email_outbox',
+                 attribute.attname,
+                 'UPDATE'
+               );
+      `,
+    ),
+    [
+      "status",
+      "attempt_count",
+      "next_attempt_at",
+      "sent_at",
+      "last_error_code",
+      "updated_at",
+      "claim_token",
+      "claim_owner",
+      "claim_version",
+      "lease_expires_at",
+      "provider_call_started",
+      "adapter",
+      "provider_message_id",
+      "quarantined_at",
+      "dispatch_binding_version",
+      "dispatch_binding_sha256",
+      "provider_correlation_version",
+      "provider_evidence_version",
+      "provider_evidence_sha256",
+    ].join(","),
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+        WITH grants AS (
+          SELECT acl.is_grantable
+            FROM pg_catalog.pg_class relation
+            CROSS JOIN LATERAL pg_catalog.aclexplode(
+              COALESCE(
+                relation.relacl,
+                pg_catalog.acldefault('r', relation.relowner)
+              )
+            ) acl
+           WHERE relation.oid = 'public.email_outbox'::pg_catalog.regclass
+             AND acl.grantee = pg_catalog.to_regrole('learncoding_worker')
+          UNION ALL
+          SELECT acl.is_grantable
+            FROM pg_catalog.pg_attribute attribute
+            CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) acl
+           WHERE attribute.attrelid =
+                   'public.email_outbox'::pg_catalog.regclass
+             AND acl.grantee = pg_catalog.to_regrole('learncoding_worker')
+        )
+        SELECT COALESCE(pg_catalog.bool_or(is_grantable), false)::text
+          FROM grants;
+      `,
+    ),
+    "false",
+  );
+}
+
+function proveCatalogGrantProbe(port, database) {
+  const aclBefore = scalar(
+    port,
+    database,
+    `SELECT COALESCE(relacl::text, '')
+       FROM pg_catalog.pg_class
+      WHERE oid = 'public.email_outbox'::pg_catalog.regclass;`,
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.has_table_privilege(
+         'mail_grant_probe', 'public.email_outbox', 'SELECT'
+       )::text;`,
+    ),
+    "false",
+  );
+  psql(
+    port,
+    database,
+    "GRANT SELECT ON TABLE public.email_outbox TO mail_grant_probe;",
+    { username: "learncoding_worker" },
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.has_table_privilege(
+         'mail_grant_probe', 'public.email_outbox', 'SELECT'
+       )::text;`,
+    ),
+    "false",
+    "object GRANT without grant option must be proven by catalog state",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT COALESCE(relacl::text, '')
+         FROM pg_catalog.pg_class
+        WHERE oid = 'public.email_outbox'::pg_catalog.regclass;`,
+    ),
+    aclBefore,
+  );
+}
+
+function proveTransitionMatrix(port, database) {
+  const gmail = fixture(20);
+  const consoleRow = fixture(21);
+  const oldWorker = fixture(22);
+  const partial = fixture(23);
+  const wrongConsole = fixture(24);
+  const legacyNew = fixture(25);
+  const malformed = fixture(26);
+  const appAttempt = fixture(27);
+  const opsAttempt = fixture(28);
+  const ownerAttempt = fixture(29);
+  const impersonated = fixture(30);
+  for (const row of [
+    gmail,
+    consoleRow,
+    oldWorker,
+    partial,
+    wrongConsole,
+    legacyNew,
+    malformed,
+    appAttempt,
+    opsAttempt,
+    ownerAttempt,
+    impersonated,
+  ]) {
+    insertAndClaim(port, database, row);
+  }
+
+  psql(
+    port,
+    database,
+    `${armSql(gmail, {
+      adapter: "gmail",
+      bindingVersion: "gmail-raw-v1",
+      bindingDigest: "b".repeat(64),
+      evidenceVersion: "gmail-header-evidence-v1",
+      evidenceDigest: "c".repeat(64),
+    })};`,
+    { username: "learncoding_worker" },
+  );
+  psql(
+    port,
+    database,
+    `${armSql(consoleRow, {
+      adapter: "console",
+      bindingVersion: "console-json-v1",
+      bindingDigest: "d".repeat(64),
+    })};`,
+    { username: "learncoding_worker" },
+  );
+  expectSqlState(
+    port,
+    database,
+    "learncoding_worker",
+    legacyArmSql(oldWorker, "gmail", "gmail-raw-v1", "e".repeat(64)),
+    "23514",
+  );
+  expectSqlState(
+    port,
+    database,
+    "learncoding_worker",
+    armSql(partial, {
+      adapter: "gmail",
+      bindingVersion: "gmail-raw-v1",
+      bindingDigest: "f".repeat(64),
+    }),
+    "23514",
+  );
+  expectSqlState(
+    port,
+    database,
+    "learncoding_worker",
+    armSql(wrongConsole, {
+      adapter: "console",
+      bindingVersion: "console-json-v1",
+      bindingDigest: "1".repeat(64),
+      evidenceVersion: "gmail-header-evidence-v1",
+      evidenceDigest: "2".repeat(64),
+    }),
+    "23514",
+  );
+  expectSqlState(
+    port,
+    database,
+    "learncoding_worker",
+    armSql(legacyNew, {
+      adapter: "gmail",
+      bindingVersion: "gmail-raw-v1",
+      bindingDigest: "3".repeat(64),
+      correlationVersion: "legacy-raw-v0",
+    }),
+    "23514",
+  );
+  expectSqlState(
+    port,
+    database,
+    "learncoding_worker",
+    armSql(malformed, {
+      adapter: "gmail",
+      bindingVersion: "gmail-raw-v1",
+      bindingDigest: "4".repeat(64),
+      evidenceVersion: "gmail-header-evidence-v1",
+      evidenceDigest: "not-a-sha256",
+    }),
+    "23514",
+  );
+
+  ownerSql(
+    port,
+    database,
+    "GRANT UPDATE ON TABLE public.email_outbox "
+      + "TO learncoding_app, learncoding_ops;",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.has_table_privilege(
+         'learncoding_app', 'public.email_outbox', 'UPDATE'
+       )::text || '|' ||
+       pg_catalog.has_table_privilege(
+         'learncoding_ops', 'public.email_outbox', 'UPDATE'
+       )::text;`,
+    ),
+    "true|true",
+    "P3-2 broad app/ops DML remains explicitly deferred",
+  );
+  const privilegedArm = (row) => armSql(row, {
+    adapter: "gmail",
+    bindingVersion: "gmail-raw-v1",
+    bindingDigest: "5".repeat(64),
+    evidenceVersion: "gmail-header-evidence-v1",
+    evidenceDigest: "6".repeat(64),
+  });
+  expectSqlState(
+    port,
+    database,
+    "learncoding_app",
+    privilegedArm(appAttempt),
+    "42501",
+  );
+  expectSqlState(
+    port,
+    database,
+    "learncoding_ops",
+    privilegedArm(opsAttempt),
+    "42501",
+  );
+  ownerSql(
+    port,
+    database,
+    "REVOKE UPDATE ON TABLE public.email_outbox "
+      + "FROM learncoding_app, learncoding_ops;",
+  );
+  expectSqlState(
+    port,
+    database,
+    "learncoding_migrator",
+    privilegedArm(ownerAttempt),
+    "42501",
+    "SET ROLE learncoding_owner;",
+  );
+  expectSqlState(
+    port,
+    database,
+    "postgres",
+    privilegedArm(impersonated),
+    "42501",
+    "SET ROLE learncoding_worker;",
+  );
+
+  expectSqlState(
+    port,
+    database,
+    "learncoding_worker",
+    `UPDATE public.email_outbox
+        SET provider_evidence_sha256 = '${"7".repeat(64)}'
+      WHERE id = '${gmail.id}'::uuid`,
+    "23514",
+  );
+  psql(
+    port,
+    database,
+    `UPDATE public.email_outbox
+        SET status = 'sent',
+            provider_message_id = 'gmail-provider-correlation-0066',
+            sent_at = pg_catalog.statement_timestamp(),
+            claim_token = NULL,
+            claim_owner = NULL,
+            lease_expires_at = NULL,
+            updated_at = pg_catalog.statement_timestamp()
+      WHERE id = '${gmail.id}'::uuid;`,
+    { username: "learncoding_worker" },
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT status::text || '|' || adapter || '|' ||
+              dispatch_binding_version || '|' ||
+              dispatch_binding_sha256 || '|' ||
+              provider_correlation_version || '|' ||
+              provider_evidence_version || '|' ||
+              provider_evidence_sha256 || '|' ||
+              provider_message_id
+         FROM public.email_outbox
+        WHERE id = '${gmail.id}'::uuid;`,
+    ),
+    `sent|gmail|gmail-raw-v1|${"b".repeat(64)}|`
+      + `opaque-sha256-v1|gmail-header-evidence-v1|${"c".repeat(64)}|`
+      + "gmail-provider-correlation-0066",
+  );
+  expectSqlState(
+    port,
+    database,
+    "learncoding_migrator",
+    `INSERT INTO public.email_outbox (
+       operation_id, user_id, delivery_scope_key, to_email, template,
+       template_version, variables, idempotency_key, status,
+       next_attempt_at, provider_correlation_version
+     ) VALUES (
+       '${fixture(31).operationId}'::uuid, NULL,
+       'o:${fixture(31).operationId}', 'invalid-insert@example.invalid',
+       'weekly-summary', '1', '{}'::jsonb,
+       'provider-correlation-invalid-insert', 'pending',
+       pg_catalog.statement_timestamp(), 'opaque-sha256-v1'
+     )`,
+    "23514",
+    "SET ROLE learncoding_owner;",
+  );
+}
+
+function newArtifactState(port, database) {
+  return scalar(
+    port,
+    database,
+    `
+      SELECT (
+               SELECT pg_catalog.count(*)
+                 FROM pg_catalog.pg_attribute attribute
+                WHERE attribute.attrelid =
+                        'public.email_outbox'::pg_catalog.regclass
+                  AND attribute.attname = ANY (ARRAY[
+                    'provider_correlation_version',
+                    'provider_evidence_version',
+                    'provider_evidence_sha256'
+                  ]::pg_catalog.name[])
+                  AND NOT attribute.attisdropped
+             )::text || '|' ||
+             (
+               pg_catalog.to_regprocedure(
+                 'public.enforce_email_outbox_provider_correlation_evidence()'
+               ) IS NULL
+             )::text || '|' ||
+             (
+               SELECT pg_catalog.count(*)
+                 FROM pg_catalog.pg_trigger trigger
+                WHERE trigger.tgrelid =
+                        'public.email_outbox'::pg_catalog.regclass
+                  AND trigger.tgname =
+                        'email_outbox_provider_correlation_evidence_guard'
+                  AND NOT trigger.tgisinternal
+             )::text || '|' ||
+             (
+               SELECT pg_catalog.count(*)
+                 FROM pg_catalog.pg_constraint constraint_data
+                WHERE constraint_data.conrelid =
+                        'public.email_outbox'::pg_catalog.regclass
+                  AND constraint_data.conname =
+                        'email_outbox_provider_correlation_evidence_valid'
+             )::text;
+    `,
+  );
+}
+
+function provePreflightRejection(port, database, row) {
+  const rowBefore = scalar(
+    port,
+    database,
+    `SELECT pg_catalog.md5(pg_catalog.to_jsonb(outbox)::text)
+       FROM public.email_outbox outbox
+      WHERE id = '${row.id}'::uuid;`,
+  );
+  assert.throws(
+    () => apply0066(port, database),
+    /provider correlation predecessor state is invalid/u,
+  );
+  assert.equal(newArtifactState(port, database), "0|true|0|0");
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.md5(pg_catalog.to_jsonb(outbox)::text)
+         FROM public.email_outbox outbox
+        WHERE id = '${row.id}'::uuid;`,
+    ),
+    rowBefore,
+  );
+}
+
+function proveLateFailureRollback(port, database) {
+  const functionBefore = scalar(
+    port,
+    database,
+    `
+      SELECT pg_catalog.encode(
+               pg_catalog.sha256(
+                 pg_catalog.convert_to(
+                   pg_catalog.pg_get_functiondef(routine.oid),
+                   'UTF8'
+                 )
+               ),
+               'hex'
+             )
+        FROM pg_catalog.pg_proc routine
+       WHERE routine.oid =
+         'public.enforce_email_outbox_provider_correlation_evidence()'
+           ::pg_catalog.regprocedure;
+    `,
+  );
+  assert.throws(
+    () => apply0066(port, database),
+    /already exists/u,
+  );
+  assert.equal(newArtifactState(port, database), "0|false|0|0");
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+        SELECT pg_catalog.encode(
+                 pg_catalog.sha256(
+                   pg_catalog.convert_to(
+                     pg_catalog.pg_get_functiondef(routine.oid),
+                     'UTF8'
+                   )
+                 ),
+                 'hex'
+               )
+          FROM pg_catalog.pg_proc routine
+         WHERE routine.oid =
+           'public.enforce_email_outbox_provider_correlation_evidence()'
+             ::pg_catalog.regprocedure;
+      `,
+    ),
+    functionBefore,
+  );
+}
+
 async function main() {
   const version = run(executable("postgres"), ["--version"]).stdout.trim();
   assert.match(
@@ -335,7 +1135,11 @@ async function main() {
   );
   const dataDirectory = path.join(temporaryRoot, "data");
   const logFile = path.join(temporaryRoot, "postgres.log");
-  const baselineMigrations = stagedMigrationsThrough(temporaryRoot, 64);
+  const baselineMigrations = stagedMigrationsThrough(temporaryRoot, 63);
+  const predecessorMigrations = stagedMigrationsThrough(
+    temporaryRoot,
+    64,
+  );
   const port = await allocateDisposableLoopbackPort();
   let startAttempted = false;
   let operationError;
@@ -379,6 +1183,7 @@ async function main() {
         CREATE ROLE learncoding_app LOGIN NOINHERIT;
         CREATE ROLE learncoding_worker LOGIN NOINHERIT;
         CREATE ROLE learncoding_ops LOGIN NOINHERIT;
+        CREATE ROLE mail_grant_probe NOLOGIN NOINHERIT;
         GRANT learncoding_owner TO learncoding_migrator
           WITH ADMIN FALSE, INHERIT FALSE, SET TRUE;
       `,
@@ -397,7 +1202,14 @@ async function main() {
         `postgresql://learncoding_migrator@127.0.0.1:${port}/mail0066_template`,
       migrationsFolder: baselineMigrations,
     });
-    for (const database of ["mail0066_absent", "mail0066_present"]) {
+    const scenarioDatabases = [
+      "mail0066_absent",
+      "mail0066_present",
+      "mail0066_invalid",
+      "mail0066_tamper",
+      "mail0066_late_failure",
+    ];
+    for (const database of scenarioDatabases) {
       run(executable("createdb"), [
         "--host=127.0.0.1",
         `--port=${port}`,
@@ -407,6 +1219,64 @@ async function main() {
         database,
       ]);
     }
+    for (const database of ["mail0066_absent", "mail0066_present"]) {
+      seedPre0064Rows(port, database);
+    }
+    for (const database of scenarioDatabases) {
+      await runProductionMigration({
+        connectionString:
+          `postgresql://learncoding_migrator@127.0.0.1:${port}/${database}`,
+        migrationsFolder: predecessorMigrations,
+      });
+    }
+    for (const database of ["mail0066_absent", "mail0066_present"]) {
+      seedPost0064Rows(port, database);
+    }
+    ownerSql(
+      port,
+      "mail0066_invalid",
+      `${insertFixtureSql(fixture(90))};
+       UPDATE public.email_outbox
+          SET status = 'failed',
+              last_error_code = 'LEGACY_SENDING_AMBIGUOUS',
+              updated_at = pg_catalog.statement_timestamp()
+        WHERE id = '${fixture(90).id}'::uuid;`,
+    );
+    ownerSql(
+      port,
+      "mail0066_tamper",
+      `${insertFixtureSql(fixture(91))};
+       ALTER FUNCTION public.enforce_email_outbox_dispatch_binding()
+         SECURITY DEFINER;`,
+    );
+    ownerSql(
+      port,
+      "mail0066_late_failure",
+      `
+        CREATE FUNCTION
+          public.enforce_email_outbox_provider_correlation_evidence()
+        RETURNS trigger
+        LANGUAGE plpgsql
+        SECURITY INVOKER
+        SET search_path = pg_catalog
+        AS $dummy$
+        BEGIN
+          RETURN NEW;
+        END
+        $dummy$;
+      `,
+    );
+    provePreflightRejection(
+      port,
+      "mail0066_invalid",
+      fixture(90),
+    );
+    provePreflightRejection(
+      port,
+      "mail0066_tamper",
+      fixture(91),
+    );
+    proveLateFailureRollback(port, "mail0066_late_failure");
 
     assert.equal(
       scalar(
@@ -465,11 +1335,28 @@ async function main() {
     const absentContract = proveCatalog(port, "mail0066_absent");
     const presentContract = proveCatalog(port, "mail0066_present");
     assert.equal(absentContract, presentContract);
+    proveBackfill(port, "mail0066_absent");
+    proveBackfill(port, "mail0066_present");
+    proveWorkerPrivileges(port, "mail0066_absent");
+    proveCatalogGrantProbe(port, "mail0066_absent");
+    proveTransitionMatrix(port, "mail0066_absent");
     process.stdout.write(
       `mail_provider_correlation_0066=postgres:${postgresMajor}:catalog:pass\n`,
     );
     process.stdout.write(
       `mail_provider_correlation_0066=routine:${absentContract}\n`,
+    );
+    process.stdout.write(
+      "mail_provider_correlation_0066=backfill:pass\n",
+    );
+    process.stdout.write(
+      "mail_provider_correlation_0066=privileges:pass\n",
+    );
+    process.stdout.write(
+      "mail_provider_correlation_0066=transitions:pass\n",
+    );
+    process.stdout.write(
+      "mail_provider_correlation_0066=rollback_and_tamper:pass\n",
     );
   } catch (error) {
     operationError = error;
