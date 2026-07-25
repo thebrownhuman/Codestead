@@ -1,3 +1,7 @@
+import {
+  validateProviderDispatchTuple,
+  type ProviderDispatchTuple,
+} from "./dispatch-evidence";
 import { outboxMessageId } from "./provider-correlation";
 
 export type ClaimFence = Readonly<{
@@ -20,6 +24,7 @@ export type ProviderStartedClaim = ClaimFence & Readonly<{
   adapter: string;
   providerCallStartedAt: string;
   leaseExpiresAt: Date;
+  providerDispatch: ProviderDispatchTuple;
 }>;
 
 declare const providerCallPermitBrand: unique symbol;
@@ -70,7 +75,10 @@ export interface OutboxStore<P = unknown> {
 
   beginProviderCall(
     claim: OutboxClaim<P>,
-    input: Readonly<{ adapter: string; leaseMs: number }>,
+    input: Readonly<{
+      leaseMs: number;
+      providerDispatch: ProviderDispatchTuple;
+    }>,
   ): Promise<BoundaryResult>;
 
   finishBeforeProvider(
@@ -86,7 +94,9 @@ export interface OutboxStore<P = unknown> {
   quarantineAbandoned(input: Readonly<{ limit: number }>): Promise<number>;
 }
 
-export interface MailProvider<M> {
+export interface MailProvider<M extends Readonly<{
+  providerDispatch: ProviderDispatchTuple;
+}>> {
   readonly adapter: string;
   send(
     message: M,
@@ -112,7 +122,9 @@ export type ItemOutcome = Readonly<{
   code?: string;
 }>;
 
-export interface ProcessOutboxBatchDeps<P, M> {
+export interface ProcessOutboxBatchDeps<P, M extends Readonly<{
+  providerDispatch: ProviderDispatchTuple;
+}>> {
   readonly store: OutboxStore<P>;
   readonly materialize: (claim: OutboxClaim<P>) => Promise<MaterializeResult<M>>;
   readonly provider: MailProvider<M>;
@@ -144,7 +156,9 @@ export type ProcessOutboxBatchResult = Readonly<{
   outcomes: readonly ItemOutcome[];
 }>;
 
-function validateDependencies<P, M>(deps: ProcessOutboxBatchDeps<P, M>) {
+function validateDependencies<P, M extends Readonly<{
+  providerDispatch: ProviderDispatchTuple;
+}>>(deps: ProcessOutboxBatchDeps<P, M>) {
   if (!deps.claimOwner.trim()) throw new Error("Mail claim owner must be nonblank.");
   if (!deps.provider.adapter.trim()) throw new Error("Mail provider adapter must be nonblank.");
   for (const [name, value] of [
@@ -218,7 +232,9 @@ function emit(
   }
 }
 
-async function finishBefore<P, M>(
+async function finishBefore<P, M extends Readonly<{
+  providerDispatch: ProviderDispatchTuple;
+}>>(
   deps: ProcessOutboxBatchDeps<P, M>,
   claim: OutboxClaim<P>,
   exit: PreProviderExit,
@@ -232,7 +248,9 @@ async function finishBefore<P, M>(
   }
 }
 
-async function finishAfter<P, M>(
+async function finishAfter<P, M extends Readonly<{
+  providerDispatch: ProviderDispatchTuple;
+}>>(
   deps: ProcessOutboxBatchDeps<P, M>,
   permit: ProviderCallPermit,
   exit: PostProviderExit,
@@ -253,7 +271,9 @@ async function finishAfter<P, M>(
   return outcome(permit, "persistence-unknown", "POST_PROVIDER_PERSISTENCE_FAILED");
 }
 
-export async function processOutboxBatch<P, M>(
+export async function processOutboxBatch<P, M extends Readonly<{
+  providerDispatch: ProviderDispatchTuple;
+}>>(
   deps: ProcessOutboxBatchDeps<P, M>,
 ): Promise<ProcessOutboxBatchResult> {
   validateDependencies(deps);
@@ -304,11 +324,29 @@ export async function processOutboxBatch<P, M>(
       continue;
     }
 
+    let providerDispatch: ProviderDispatchTuple;
+    try {
+      providerDispatch = validateProviderDispatchTuple(
+        materialized.message.providerDispatch,
+      );
+      if (providerDispatch.adapter !== deps.provider.adapter) {
+        throw new Error("Prepared adapter does not match provider adapter.");
+      }
+    } catch {
+      const item = await finishBefore(deps, next, {
+        kind: "failed",
+        code: "MATERIALIZED_DISPATCH_INVALID",
+      });
+      outcomes.push(item);
+      emit(deps.onEvent, item);
+      continue;
+    }
+
     let boundary: BoundaryResult;
     try {
       boundary = await deps.store.beginProviderCall(next, {
-        adapter: deps.provider.adapter,
         leaseMs: deps.policy.providerLeaseMs,
+        providerDispatch,
       });
     } catch {
       const item = outcome(

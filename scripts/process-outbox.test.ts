@@ -21,7 +21,20 @@ const mocks = vi.hoisted(() => {
   });
   const processOutboxBatch = vi.fn();
   const materializeDeliveryVariables = vi.fn();
-  const sendEmail = vi.fn();
+  const providerDispatch = {
+    adapter: "console" as const,
+    dispatchBindingVersion: "console-json-v1" as const,
+    dispatchBindingSha256: "a".repeat(64),
+    providerCorrelationVersion: "opaque-sha256-v1" as const,
+    providerEvidenceVersion: null,
+    providerEvidenceSha256: null,
+  };
+  const prepareEmail = vi.fn((input: Record<string, unknown>, context: Record<string, unknown>) => ({
+    ...input,
+    ...context,
+    providerDispatch,
+  }));
+  const sendPreparedEmail = vi.fn();
   const classifyMailDeliveryError = vi.fn((): {
     kind: "definitely-rejected" | "ambiguous";
     code: string;
@@ -47,7 +60,9 @@ const mocks = vi.hoisted(() => {
     PostgresOutboxStore,
     processOutboxBatch,
     materializeDeliveryVariables,
-    sendEmail,
+    prepareEmail,
+    sendPreparedEmail,
+    providerDispatch,
     classifyMailDeliveryError,
     scheduleInactivityReminders,
     scheduleSmartReminders,
@@ -80,7 +95,8 @@ vi.mock("../src/lib/notifications/outbox-worker", () => ({
   processOutboxBatch: mocks.processOutboxBatch,
 }));
 vi.mock("../src/lib/notifications/mailer", () => ({
-  sendEmail: mocks.sendEmail,
+  prepareEmail: mocks.prepareEmail,
+  sendPreparedEmail: mocks.sendPreparedEmail,
   classifyMailDeliveryError: mocks.classifyMailDeliveryError,
 }));
 vi.mock("../src/lib/notifications/delivery-variables", () => ({
@@ -144,7 +160,7 @@ describe("mail worker production composition", () => {
       rows: [{ server_version_num: "170000" }],
     });
     mocks.materializeDeliveryVariables.mockResolvedValue({});
-    mocks.sendEmail.mockResolvedValue({ providerId: "console-provider-1" });
+    mocks.sendPreparedEmail.mockResolvedValue({ providerId: "console-provider-1" });
     mocks.scheduleInactivityReminders.mockResolvedValue({ scheduled: 0 });
     mocks.scheduleSmartReminders.mockResolvedValue({ scheduled: 0 });
     vi.spyOn(console, "info").mockImplementation(() => undefined);
@@ -249,7 +265,7 @@ describe("mail worker production composition", () => {
       url: "https://example.test/reset?token=delivery-only",
     };
     mocks.materializeDeliveryVariables.mockResolvedValue(materialized);
-    mocks.sendEmail.mockResolvedValue({ providerId: "gmail-message-1" });
+    mocks.sendPreparedEmail.mockResolvedValue({ providerId: "gmail-message-1" });
     let materializeResult: unknown;
     let providerResult: unknown;
     mocks.processOutboxBatch.mockImplementation(async (dependencies: {
@@ -279,7 +295,7 @@ describe("mail worker production composition", () => {
       const message = (materializeResult as { message: unknown }).message;
       providerResult = await dependencies.provider.send(message, {
         operationId: claim.operationId,
-        messageId: "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
+        messageId: "<codestead.outbox.v1.okd-aMXCHPuS1pgnjdYfjG17CU5nfw-6stQE23enb8Q@mail.codestead.invalid>",
         permit: { phase: "post-provider" },
       });
       return { claimed: 1, swept: 0, outcomes: [] };
@@ -292,21 +308,30 @@ describe("mail worker production composition", () => {
       variables: { recoveryRequestId: "not-persisted-in-the-message" },
       now: expect.any(Date),
     });
-    expect(materializeResult).toEqual({
-      kind: "ready",
-      message: {
-        to: "learner@example.test",
-        template: "reset-password",
-        variables: materialized,
-      },
-    });
-    expect(mocks.sendEmail).toHaveBeenCalledWith({
+    expect(mocks.prepareEmail).toHaveBeenCalledWith({
       to: "learner@example.test",
       template: "reset-password",
       variables: materialized,
     }, {
-      messageId: "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
+      adapter: "console",
+      operationId: "22222222-2222-4222-8222-222222222222",
+      messageId: "<codestead.outbox.v1.okd-aMXCHPuS1pgnjdYfjG17CU5nfw-6stQE23enb8Q@mail.codestead.invalid>",
     });
+    expect(materializeResult).toEqual({
+      kind: "ready",
+      message: {
+        adapter: "console",
+        operationId: "22222222-2222-4222-8222-222222222222",
+        messageId: "<codestead.outbox.v1.okd-aMXCHPuS1pgnjdYfjG17CU5nfw-6stQE23enb8Q@mail.codestead.invalid>",
+        to: "learner@example.test",
+        template: "reset-password",
+        variables: materialized,
+        providerDispatch: mocks.providerDispatch,
+      },
+    });
+    expect(mocks.sendPreparedEmail).toHaveBeenCalledWith(
+      (materializeResult as { message: unknown }).message,
+    );
     expect(providerResult).toEqual({
       kind: "accepted",
       providerMessageId: "gmail-message-1",
@@ -315,7 +340,7 @@ describe("mail worker production composition", () => {
 
   it("maps a typed pre-request mail failure to definite rejection", async () => {
     const failure = new Error("Gmail OAuth request timed out.");
-    mocks.sendEmail.mockRejectedValueOnce(failure);
+    mocks.sendPreparedEmail.mockRejectedValueOnce(failure);
     mocks.classifyMailDeliveryError.mockReturnValueOnce({
       kind: "definitely-rejected",
       code: "GMAIL_OAUTH_FAILED",
@@ -327,12 +352,12 @@ describe("mail worker production composition", () => {
       };
     }) => {
       providerResult = await dependencies.provider.send({
-        to: "learner@example.test",
-        template: "invitation",
-        variables: {},
+        operationId: "22222222-2222-4222-8222-222222222222",
+        messageId: "<codestead.outbox.v1.okd-aMXCHPuS1pgnjdYfjG17CU5nfw-6stQE23enb8Q@mail.codestead.invalid>",
+        providerDispatch: mocks.providerDispatch,
       }, {
         operationId: "22222222-2222-4222-8222-222222222222",
-        messageId: "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
+        messageId: "<codestead.outbox.v1.okd-aMXCHPuS1pgnjdYfjG17CU5nfw-6stQE23enb8Q@mail.codestead.invalid>",
         permit: { phase: "post-provider" },
       });
       return { claimed: 1, swept: 0, outcomes: [] };
@@ -377,7 +402,7 @@ describe("mail worker production composition", () => {
       code: "TEMPLATE_POLICY_INVALID",
     });
     expect(mocks.materializeDeliveryVariables).not.toHaveBeenCalled();
-    expect(mocks.sendEmail).not.toHaveBeenCalled();
+    expect(mocks.sendPreparedEmail).not.toHaveBeenCalled();
   });
   it("suppresses a row before provider delivery when delivery proof cannot be materialized", async () => {
     mocks.materializeDeliveryVariables.mockResolvedValue(null);
@@ -411,7 +436,7 @@ describe("mail worker production composition", () => {
       kind: "suppressed",
       code: "DELIVERY_PROOF_UNAVAILABLE",
     });
-    expect(mocks.sendEmail).not.toHaveBeenCalled();
+    expect(mocks.sendPreparedEmail).not.toHaveBeenCalled();
   });
 
   it("logs outcome counts without row, operation, recipient, or bearer data", async () => {

@@ -233,9 +233,39 @@ export const REVIEWED_0064_APPLICATION_FUNCTIONS = Object.freeze([
 ]);
 export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY_ROUTINES =
   BACKUP_STATUS_AUTHORITY_ROUTINES;
-export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
+export const REVIEWED_0065_APPLICATION_FUNCTIONS = Object.freeze([
   ...REVIEWED_0064_APPLICATION_FUNCTIONS,
   ...REVIEWED_0065_BACKUP_STATUS_AUTHORITY_ROUTINES,
+]);
+export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
+  ...REVIEWED_0065_APPLICATION_FUNCTIONS,
+  reviewedRoutine({
+    signature:
+      "public.enforce_email_outbox_provider_correlation_evidence()",
+    migrationFile: "0066_mail_outbox_provider_correlation_evidence.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: false,
+    configuration: ["search_path=pg_catalog"],
+    allowedRoles: [],
+    bodySha256:
+      "62ff4885055979fb7eaf0fda3ae8170a14a430cb69d8f310e6aba742cf700e1a",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [],
+    argumentModes: [],
+    argumentTypes: [],
+    inputArgumentCount: 0,
+    argumentDefaultCount: 0,
+    returnType: "trigger",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "afaab6796f97aa0294ff5a761679895f9ccfb78fea21e0be362979c5c4e5ab11",
+  }),
 ]);
 export const REVIEWED_0064_APPLICATION_TRIGGERS = Object.freeze([
   Object.freeze({
@@ -320,9 +350,23 @@ export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY_TRIGGERS = Object.freeze([
     watchedColumns: Object.freeze([]),
   }),
 ]);
-export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
+export const REVIEWED_0065_APPLICATION_TRIGGERS = Object.freeze([
   ...REVIEWED_0064_APPLICATION_TRIGGERS,
   ...REVIEWED_0065_BACKUP_STATUS_AUTHORITY_TRIGGERS,
+]);
+export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
+  ...REVIEWED_0065_APPLICATION_TRIGGERS,
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_provider_correlation_evidence_guard",
+    functionSignature:
+      "public.enforce_email_outbox_provider_correlation_evidence()",
+    enabled: "O",
+    type: 23,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
 ]);
 export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY = Object.freeze({
   relations: BACKUP_STATUS_AUTHORITY_RELATIONS,
@@ -370,6 +414,33 @@ export const REVIEWED_APPLICATION_CONSTRAINTS = Object.freeze([
       "status",
     ]),
   }),
+  Object.freeze({
+    relation: "public.email_outbox",
+    relationOwner: OWNER_ROLE,
+    name: "email_outbox_provider_correlation_evidence_valid",
+    type: "c",
+    validated: true,
+    normalizedExpressionSha256:
+      "02a5367ba5c5eed54bc69732c38f1517fa05d7321aaad3c11d30200ee6b06dc8",
+    columns: Object.freeze([
+      "adapter",
+      "claim_owner",
+      "claim_token",
+      "claim_version",
+      "dispatch_binding_sha256",
+      "dispatch_binding_version",
+      "last_error_code",
+      "lease_expires_at",
+      "provider_call_started",
+      "provider_correlation_version",
+      "provider_evidence_sha256",
+      "provider_evidence_version",
+      "provider_message_id",
+      "quarantined_at",
+      "sent_at",
+      "status",
+    ]),
+  }),
 ]);
 
 function reviewedCatalogPhase({
@@ -380,6 +451,7 @@ function reviewedCatalogPhase({
   routines,
   triggers,
   requiresWorkerContract,
+  requiresProviderEvidence = false,
   backupStatusAuthority = null,
 }) {
   return Object.freeze({
@@ -390,6 +462,7 @@ function reviewedCatalogPhase({
     routines,
     triggers,
     requiresWorkerContract,
+    requiresProviderEvidence,
     backupStatusAuthority,
   });
 }
@@ -404,6 +477,7 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     routines: REVIEWED_0062_APPLICATION_FUNCTIONS,
     triggers: Object.freeze([REVIEWED_0064_APPLICATION_TRIGGERS[0]]),
     requiresWorkerContract: false,
+    requiresProviderEvidence: false,
   }),
   reviewedCatalogPhase({
     index: 63,
@@ -414,6 +488,7 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     routines: REVIEWED_0063_APPLICATION_FUNCTIONS,
     triggers: Object.freeze([REVIEWED_0064_APPLICATION_TRIGGERS[0]]),
     requiresWorkerContract: false,
+    requiresProviderEvidence: false,
   }),
   reviewedCatalogPhase({
     index: 64,
@@ -424,6 +499,7 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     routines: REVIEWED_0064_APPLICATION_FUNCTIONS,
     triggers: REVIEWED_0064_APPLICATION_TRIGGERS,
     requiresWorkerContract: true,
+    requiresProviderEvidence: false,
   }),
   reviewedCatalogPhase({
     index: 65,
@@ -431,9 +507,22 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     migrationFile: "0065_backup_status_mail_authority.sql",
     migrationSha256:
       "1274dda8013fe80f09df63f7ddc73b24b0a9a482a40e5f5042eaef2373c14b3c",
+    routines: REVIEWED_0065_APPLICATION_FUNCTIONS,
+    triggers: REVIEWED_0065_APPLICATION_TRIGGERS,
+    requiresWorkerContract: true,
+    requiresProviderEvidence: false,
+    backupStatusAuthority: REVIEWED_0065_BACKUP_STATUS_AUTHORITY,
+  }),
+  reviewedCatalogPhase({
+    index: 66,
+    createdAt: "1784940000000",
+    migrationFile: "0066_mail_outbox_provider_correlation_evidence.sql",
+    migrationSha256:
+      "3d4962ed82c0209245ca7e0a0e9ea667001eab7ae864f89120894cc1fa915ec9",
     routines: REVIEWED_APPLICATION_FUNCTIONS,
     triggers: REVIEWED_APPLICATION_TRIGGERS,
     requiresWorkerContract: true,
+    requiresProviderEvidence: true,
     backupStatusAuthority: REVIEWED_0065_BACKUP_STATUS_AUTHORITY,
   }),
 ]);
@@ -516,6 +605,9 @@ export const MAIL_WORKER_OUTBOX_COLUMNS = Object.freeze([
   "updated_at",
   "dispatch_binding_version",
   "dispatch_binding_sha256",
+  "provider_correlation_version",
+  "provider_evidence_version",
+  "provider_evidence_sha256",
 ]);
 export const MAIL_WORKER_OUTBOX_INSERT_COLUMNS = Object.freeze([
   "operation_id",
@@ -546,20 +638,37 @@ export const MAIL_WORKER_OUTBOX_UPDATE_COLUMNS = Object.freeze([
   "updated_at",
   "dispatch_binding_version",
   "dispatch_binding_sha256",
+  "provider_correlation_version",
+  "provider_evidence_version",
+  "provider_evidence_sha256",
 ]);
 const MAIL_WORKER_DISPATCH_BINDING_COLUMNS = Object.freeze([
   "dispatch_binding_version",
   "dispatch_binding_sha256",
 ]);
+const MAIL_WORKER_PROVIDER_EVIDENCE_COLUMNS = Object.freeze([
+  "provider_correlation_version",
+  "provider_evidence_version",
+  "provider_evidence_sha256",
+]);
+export const MAIL_WORKER_OUTBOX_PRE_EVIDENCE_UPDATE_COLUMNS = Object.freeze(
+  MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.filter(
+    (column) => !MAIL_WORKER_PROVIDER_EVIDENCE_COLUMNS.includes(column),
+  ),
+);
 export const MAIL_WORKER_OUTBOX_PRE_BINDING_UPDATE_COLUMNS = Object.freeze(
   MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.filter(
-    (column) => !MAIL_WORKER_DISPATCH_BINDING_COLUMNS.includes(column),
+    (column) =>
+      !MAIL_WORKER_DISPATCH_BINDING_COLUMNS.includes(column)
+      && !MAIL_WORKER_PROVIDER_EVIDENCE_COLUMNS.includes(column),
   ),
 );
 
 export function mailWorkerOutboxPrivilegesSql() {
   const insertColumns = MAIL_WORKER_OUTBOX_INSERT_COLUMNS.join(", ");
   const updateColumns = MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.join(", ");
+  const preEvidenceUpdateColumns =
+    MAIL_WORKER_OUTBOX_PRE_EVIDENCE_UPDATE_COLUMNS.join(", ");
   const preBindingUpdateColumns =
     MAIL_WORKER_OUTBOX_PRE_BINDING_UPDATE_COLUMNS.join(", ");
   return `
@@ -567,6 +676,8 @@ export function mailWorkerOutboxPrivilegesSql() {
     declare
       binding_column_count integer;
       binding_column_exact_count integer;
+      provider_evidence_column_count integer;
+      provider_evidence_column_exact_count integer;
       existing_columns text;
     begin
       if pg_catalog.to_regrole('learncoding_worker') is not null
@@ -601,6 +712,41 @@ export function mailWorkerOutboxPrivilegesSql() {
             using errcode = '23514';
         end if;
 
+        select pg_catalog.count(*)::integer,
+               pg_catalog.count(*) filter (
+                 where attribute.atttypid = 'pg_catalog.text'::pg_catalog.regtype
+                   and attribute.atttypmod = -1
+                   and not attribute.attnotnull
+                   and not attribute.atthasdef
+                   and attribute.attgenerated = ''
+                   and attribute.attidentity = ''
+                   and not attribute.attisdropped
+               )::integer
+          into provider_evidence_column_count,
+               provider_evidence_column_exact_count
+          from pg_catalog.pg_attribute attribute
+         where attribute.attrelid =
+                 pg_catalog.to_regclass('public.email_outbox')
+           and attribute.attname in (
+             'provider_correlation_version',
+             'provider_evidence_version',
+             'provider_evidence_sha256'
+           )
+           and attribute.attnum > 0;
+
+        if provider_evidence_column_count not in (0, 3)
+           or (
+             provider_evidence_column_count = 3
+             and provider_evidence_column_exact_count <> 3
+           )
+           or (
+             binding_column_count <> 2
+             and provider_evidence_column_count = 3
+           ) then
+          raise exception 'email outbox provider evidence column contract is invalid'
+            using errcode = '23514';
+        end if;
+
         select pg_catalog.string_agg(
                  pg_catalog.format('%I', attribute.attname),
                  ', ' order by attribute.attnum
@@ -625,9 +771,13 @@ export function mailWorkerOutboxPrivilegesSql() {
         execute ${sqlLiteral(
           `grant insert (${insertColumns}) on table public.email_outbox to learncoding_worker`,
         )};
-        if binding_column_count = 2 then
+        if provider_evidence_column_count = 3 then
           execute ${sqlLiteral(
             `grant update (${updateColumns}) on table public.email_outbox to learncoding_worker`,
+          )};
+        elsif binding_column_count = 2 then
+          execute ${sqlLiteral(
+            `grant update (${preEvidenceUpdateColumns}) on table public.email_outbox to learncoding_worker`,
           )};
         else
           execute ${sqlLiteral(
@@ -1494,9 +1644,18 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
 ) {
   const appliedPhases = await reviewedMigrationJournalState(client);
   const marker = await client.query(`
-    select pg_catalog.count(*)::integer post_migration_binding_column_count,
+    select pg_catalog.count(*) filter (
+             where attribute.attname in (
+               'dispatch_binding_version',
+               'dispatch_binding_sha256'
+             )
+           )::integer post_migration_binding_column_count,
            pg_catalog.count(*) filter (
-             where attribute.atttypid =
+             where attribute.attname in (
+                     'dispatch_binding_version',
+                     'dispatch_binding_sha256'
+                   )
+               and attribute.atttypid =
                      'pg_catalog.text'::pg_catalog.regtype
                and attribute.atttypmod = -1
                and not attribute.attnotnull
@@ -1504,20 +1663,47 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
                and attribute.attgenerated = ''
                and attribute.attidentity = ''
                and not attribute.attisdropped
-           )::integer post_migration_binding_column_exact_count
+           )::integer post_migration_binding_column_exact_count,
+           pg_catalog.count(*) filter (
+             where attribute.attname in (
+               'provider_correlation_version',
+               'provider_evidence_version',
+               'provider_evidence_sha256'
+             )
+           )::integer post_migration_provider_column_count,
+           pg_catalog.count(*) filter (
+             where attribute.attname in (
+                     'provider_correlation_version',
+                     'provider_evidence_version',
+                     'provider_evidence_sha256'
+                   )
+               and attribute.atttypid =
+                     'pg_catalog.text'::pg_catalog.regtype
+               and attribute.atttypmod = -1
+               and not attribute.attnotnull
+               and not attribute.atthasdef
+               and attribute.attgenerated = ''
+               and attribute.attidentity = ''
+               and not attribute.attisdropped
+           )::integer post_migration_provider_column_exact_count
       from pg_catalog.pg_attribute attribute
      where attribute.attrelid =
              pg_catalog.to_regclass('public.email_outbox')
        and attribute.attnum > 0
        and attribute.attname in (
          'dispatch_binding_version',
-         'dispatch_binding_sha256'
+         'dispatch_binding_sha256',
+         'provider_correlation_version',
+         'provider_evidence_version',
+         'provider_evidence_sha256'
        )`);
   const row = marker.rows[0];
   if (
     marker.rows.length !== 1 ||
     !Number.isInteger(row?.post_migration_binding_column_count) ||
-    !Number.isInteger(row?.post_migration_binding_column_exact_count)
+    !Number.isInteger(row?.post_migration_binding_column_exact_count) ||
+    !Number.isInteger(row?.post_migration_provider_column_count) ||
+    !Number.isInteger(row?.post_migration_provider_column_exact_count)
   )
     throw databaseRoleBootstrapInvariantError(
       "reviewed-pre-reconciliation-marker",
@@ -1525,7 +1711,12 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
   if (
     ![0, 2].includes(row.post_migration_binding_column_count) ||
     row.post_migration_binding_column_exact_count !==
-      row.post_migration_binding_column_count
+      row.post_migration_binding_column_count ||
+    ![0, 3].includes(row.post_migration_provider_column_count) ||
+    row.post_migration_provider_column_exact_count !==
+      row.post_migration_provider_column_count ||
+    (row.post_migration_provider_column_count === 3 &&
+      row.post_migration_binding_column_count !== 2)
   )
     throw databaseRoleBootstrapInvariantError(
       "reviewed-pre-reconciliation-marker",
@@ -1536,7 +1727,10 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
   if (latestPhase === undefined) {
     await verifyBackupStatusAuthorityMigrationPhase(client, null);
     await verifier.verifyReviewedMailAuthorityObjectFootprint(client, null);
-    if (row.post_migration_binding_column_count !== 0) {
+    if (
+      row.post_migration_binding_column_count !== 0
+      || row.post_migration_provider_column_count !== 0
+    ) {
       throw databaseRoleBootstrapInvariantError(
         "reviewed-pre-reconciliation-lineage",
       );
@@ -1547,7 +1741,11 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
     (latestPhase.requiresWorkerContract &&
       row.post_migration_binding_column_count !== 2) ||
     (!latestPhase.requiresWorkerContract &&
-      row.post_migration_binding_column_count !== 0)
+      row.post_migration_binding_column_count !== 0) ||
+    (latestPhase.requiresProviderEvidence &&
+      row.post_migration_provider_column_count !== 3) ||
+    (!latestPhase.requiresProviderEvidence &&
+      row.post_migration_provider_column_count !== 0)
   ) {
     throw databaseRoleBootstrapInvariantError(
       "reviewed-pre-reconciliation-lineage",
@@ -1568,6 +1766,7 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
   );
   await verifier.verifyMailWorkerOutboxContract(client, {
     requiresDispatchBinding: latestPhase.requiresWorkerContract,
+    requiresProviderEvidence: latestPhase.requiresProviderEvidence,
   });
   return 1;
 }

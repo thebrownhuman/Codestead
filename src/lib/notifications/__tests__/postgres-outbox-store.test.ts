@@ -8,6 +8,7 @@ import {
   type OutboxPgClient,
   type OutboxPgPool,
 } from "../postgres-outbox-store";
+import { LEGACY_RAW_PROVIDER_CORRELATION_VERSION } from "../provider-correlation";
 import type { GmailReconciliationFence } from "../gmail-reconciliation";
 import type {
   OutboxClaim,
@@ -20,6 +21,15 @@ const OPERATION = "22222222-2222-4222-8222-222222222222";
 const TOKEN = "33333333-3333-4333-8333-333333333333";
 const SOURCE = "44444444-4444-4444-8444-444444444444";
 const ACTIVATION_TOKEN = "A".repeat(43);
+const providerDispatch = {
+  adapter: "gmail",
+  dispatchBindingVersion: "gmail-raw-v1",
+  dispatchBindingSha256: "b".repeat(64),
+  providerCorrelationVersion: "opaque-sha256-v1",
+  providerEvidenceVersion: "gmail-header-evidence-v1",
+  providerEvidenceSha256: "c".repeat(64),
+} as const;
+const boundaryInput = { leaseMs: 60_000, providerDispatch } as const;
 
 type Step = Readonly<{
   contains: string;
@@ -98,6 +108,19 @@ function systemScopeRow() {
   };
 }
 
+function boundaryRow() {
+  return {
+    provider_call_started: "2026-07-22 19:00:05.123456+00",
+    lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
+    dispatch_binding_version: providerDispatch.dispatchBindingVersion,
+    dispatch_binding_sha256: providerDispatch.dispatchBindingSha256,
+    provider_correlation_version:
+      providerDispatch.providerCorrelationVersion,
+    provider_evidence_version: providerDispatch.providerEvidenceVersion,
+    provider_evidence_sha256: providerDispatch.providerEvidenceSha256,
+  };
+}
+
 
 const claim: OutboxClaim<EmailOutboxPayload> = {
   phase: "pre-provider",
@@ -127,6 +150,7 @@ const started: ProviderStartedClaim = {
   adapter: "gmail",
   providerCallStartedAt: "2026-07-22 19:00:05.123456+00",
   leaseExpiresAt: new Date("2026-07-22T19:01:05.000Z"),
+  providerDispatch,
 };
 const permit = started as ProviderCallPermit;
 
@@ -176,7 +200,18 @@ const reconciliationFence: GmailReconciliationFence = {
   adapter: "gmail",
   providerCallStartedAt: "2026-07-22 19:00:05+00",
   quarantinedAt: "2026-07-22 19:01:05+00",
+  dispatchBindingVersion: null,
+  dispatchBindingSha256: null,
+  providerCorrelationVersion: LEGACY_RAW_PROVIDER_CORRELATION_VERSION,
+  providerEvidenceVersion: null,
+  providerEvidenceSha256: null,
   lastErrorCode: "PROVIDER_OUTCOME_AMBIGUOUS",
+};
+
+const boundReconciliationFence: GmailReconciliationFence = {
+  ...reconciliationFence,
+  dispatchBindingVersion: "gmail-raw-v1",
+  dispatchBindingSha256: "b".repeat(64),
 };
 
 describe("PostgresOutboxStore", () => {
@@ -252,18 +287,12 @@ describe("PostgresOutboxStore", () => {
       { contains: "select case", rows: [{ decision: "allowed" }] },
       {
         contains: "update public.email_outbox",
-        rows: [{
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
-        }],
+        rows: [boundaryRow()],
       },
       { contains: "commit" },
     ]);
 
-    await expect(input.store.beginProviderCall(claim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-    })).resolves.toEqual({ kind: "applied", permit });
+    await expect(input.store.beginProviderCall(claim, boundaryInput)).resolves.toEqual({ kind: "applied", permit });
 
     const sql = input.client.calls[5]!.sql;
     expect(sql).toContain("claim_token = $3::uuid");
@@ -271,6 +300,15 @@ describe("PostgresOutboxStore", () => {
     expect(sql).toContain("claim_version = $5::integer");
     expect(sql).toContain("provider_call_started is null");
     expect(sql).toContain("lease_expires_at > pg_catalog.statement_timestamp()");
+    expect(sql).toContain("dispatch_binding_version = $19::text");
+    expect(sql).toContain("provider_correlation_version = $21::text");
+    expect(input.client.calls[5]!.values.slice(-5)).toEqual([
+      providerDispatch.dispatchBindingVersion,
+      providerDispatch.dispatchBindingSha256,
+      providerDispatch.providerCorrelationVersion,
+      providerDispatch.providerEvidenceVersion,
+      providerDispatch.providerEvidenceSha256,
+    ]);
     const boundarySql = input.client.calls[3]!.sql;
     const lockedBoundarySql = input.client.calls[4]!.sql;
     expect(lockedBoundarySql).toContain("for share of account_user");
@@ -295,7 +333,7 @@ describe("PostgresOutboxStore", () => {
     expect(sql).toContain("variables = $13::jsonb");
     expect(sql).toContain("source_invitation.token_hash = $17::text");
     expect(sql).toContain("outbox.variables ->> 'url' = $18::text");
-    expect(input.client.calls[5]!.values.slice(13)).toEqual([null, null, false, null, null]);
+    expect(input.client.calls[5]!.values.slice(13, 18)).toEqual([null, null, false, null, null]);
   });
 
   it.each([
@@ -344,10 +382,7 @@ describe("PostgresOutboxStore", () => {
       { contains: "commit" },
     ]);
 
-    await expect(input.store.beginProviderCall(approvedClaim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-    })).resolves.toEqual({
+    await expect(input.store.beginProviderCall(approvedClaim, boundaryInput)).resolves.toEqual({
       kind: "suppressed",
       code: "SYSTEM_EMAIL_AUTHORITY_INVALID",
     });
@@ -407,18 +442,12 @@ describe("PostgresOutboxStore", () => {
       { contains: "select case", rows: [{ decision: "allowed" }] },
       {
         contains: "update public.email_outbox",
-        rows: [{
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
-        }],
+        rows: [boundaryRow()],
       },
       { contains: "commit" },
     ]);
 
-    await expect(input.store.beginProviderCall(adminClaim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-    })).resolves.toEqual({ kind: "applied", permit });
+    await expect(input.store.beginProviderCall(adminClaim, boundaryInput)).resolves.toEqual({ kind: "applied", permit });
 
     const decision = input.client.calls[3]!;
     const lockedDecision = input.client.calls[4]!;
@@ -444,7 +473,7 @@ describe("PostgresOutboxStore", () => {
       null,
       "https://learn.example.test/admin/access",
     ]);
-    expect(boundary.values.slice(13)).toEqual([
+    expect(boundary.values.slice(13, 18)).toEqual([
       null,
       null,
       false,
@@ -462,18 +491,12 @@ describe("PostgresOutboxStore", () => {
       { contains: "select case", rows: [{ decision: "allowed" }] },
       {
         contains: "update public.email_outbox",
-        rows: [{
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
-        }],
+        rows: [boundaryRow()],
       },
       { contains: "commit" },
     ]);
 
-    await expect(input.store.beginProviderCall(deletionClaim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-    })).resolves.toEqual({ kind: "applied", permit });
+    await expect(input.store.beginProviderCall(deletionClaim, boundaryInput)).resolves.toEqual({ kind: "applied", permit });
 
     const decision = input.client.calls[3]!;
     const lockedDecision = input.client.calls[4]!;
@@ -506,7 +529,7 @@ describe("PostgresOutboxStore", () => {
     expect(boundary.values[13]).toBe(decision.values[11]);
     expect(boundary.values[14]).toBe(decision.values[12]);
     expect(boundary.values[15]).toBe(true);
-    expect(boundary.values.slice(16)).toEqual([null, null]);
+    expect(boundary.values.slice(16, 18)).toEqual([null, null]);
   });
 
   it.each([
@@ -527,10 +550,7 @@ describe("PostgresOutboxStore", () => {
       { contains: "commit" },
     ]);
 
-    await expect(input.store.beginProviderCall(invalidClaim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-    })).resolves.toEqual({
+    await expect(input.store.beginProviderCall(invalidClaim, boundaryInput)).resolves.toEqual({
       kind: "suppressed",
       code: "DELETION_NOTICE_CAPABILITY_INVALID",
     });
@@ -563,10 +583,7 @@ describe("PostgresOutboxStore", () => {
       { contains: "commit" },
     ]);
 
-    await expect(input.store.beginProviderCall(claim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-    })).resolves.toEqual({
+    await expect(input.store.beginProviderCall(claim, boundaryInput)).resolves.toEqual({
       kind: "suppressed",
       code: "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY",
     });
@@ -604,10 +621,7 @@ describe("PostgresOutboxStore", () => {
       { contains: "commit" },
     ]);
 
-    await expect(input.store.beginProviderCall(examClaim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-    })).resolves.toEqual({
+    await expect(input.store.beginProviderCall(examClaim, boundaryInput)).resolves.toEqual({
       kind: "suppressed",
       code: "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY",
     });
@@ -632,19 +646,13 @@ describe("PostgresOutboxStore", () => {
       { contains: "select case", rows: [{ decision: "allowed" }] },
       {
         contains: "update public.email_outbox",
-        rows: [{
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
-        }],
+        rows: [boundaryRow()],
       },
       { contains: "commit", error: new Error("commit acknowledgement lost") },
       { contains: "rollback" },
     ]);
 
-    await expect(input.store.beginProviderCall(claim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-    })).rejects.toThrow("commit acknowledgement lost");
+    await expect(input.store.beginProviderCall(claim, boundaryInput)).rejects.toThrow("commit acknowledgement lost");
     expect(input.client.calls.filter(({ sql }) => sql.includes("update public.email_outbox")))
       .toHaveLength(1);
   });
@@ -963,6 +971,11 @@ describe("PostgresOutboxStore", () => {
           lease_expires_at: null,
           adapter: "gmail",
           provider_call_started: "2026-07-22 19:00:05+00",
+          dispatch_binding_version: null,
+          dispatch_binding_sha256: null,
+          provider_correlation_version: "legacy-raw-v0",
+          provider_evidence_version: null,
+          provider_evidence_sha256: null,
           status: "sent",
           provider_message_id: "gmail-1",
           sent_at: "2026-07-22 19:02:00+00",
@@ -997,6 +1010,11 @@ describe("PostgresOutboxStore", () => {
           lease_expires_at: null,
           adapter: "gmail",
           provider_call_started: "2026-07-22 19:00:05+00",
+          dispatch_binding_version: null,
+          dispatch_binding_sha256: null,
+          provider_correlation_version: "legacy-raw-v0",
+          provider_evidence_version: null,
+          provider_evidence_sha256: null,
           status: "quarantined",
           provider_message_id: null,
           sent_at: null,
@@ -1016,6 +1034,52 @@ describe("PostgresOutboxStore", () => {
     expect(sql).toContain("provider_call_started is not null");
     expect(sql).toContain("provider_message_id is null");
     expect(sql).toContain("sent_at is null");
+    expect(sql).toContain("dispatch_binding_version");
+    expect(sql).toContain("dispatch_binding_sha256");
+    expect(sql).toContain("provider_correlation_version");
+    expect(sql).toContain("provider_evidence_version");
+    expect(sql).toContain("provider_evidence_sha256");
+  });
+
+  it.each([
+    null,
+    "future-unreviewed-v2",
+  ])("rejects persisted correlation version %j before returning a Gmail fence", async (
+    providerCorrelationVersion,
+  ) => {
+    const input = harness([
+      { contains: "begin" },
+      {
+        contains: "status = 'quarantined'",
+        rows: [{
+          id: ID,
+          user_id: "learner-1",
+          operation_id: OPERATION,
+          delivery_scope_key: "a:learner-1",
+          claim_version: 4,
+          claim_token: null,
+          claim_owner: null,
+          lease_expires_at: null,
+          adapter: "gmail",
+          provider_call_started: "2026-07-22 19:00:05+00",
+          dispatch_binding_version: null,
+          dispatch_binding_sha256: null,
+          provider_correlation_version: providerCorrelationVersion,
+          provider_evidence_version: null,
+          provider_evidence_sha256: null,
+          status: "quarantined",
+          provider_message_id: null,
+          sent_at: null,
+          quarantined_at: "2026-07-22 19:01:05+00",
+          last_error_code: "PROVIDER_OUTCOME_AMBIGUOUS",
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.findGmailReconciliationFence({
+      operationId: OPERATION,
+    })).resolves.toEqual({ kind: "not-reconcilable" });
   });
 
   it("finalizes a Gmail match only under the exact fence and delivery-scope lock", async () => {
@@ -1031,6 +1095,11 @@ describe("PostgresOutboxStore", () => {
           adapter: "gmail",
           provider_message_id: "gmail-1",
           provider_call_started: "2026-07-22 19:00:05.123456+00",
+          dispatch_binding_version: "gmail-raw-v1",
+          dispatch_binding_sha256: "b".repeat(64),
+          provider_correlation_version: "legacy-raw-v0",
+          provider_evidence_version: null,
+          provider_evidence_sha256: null,
           sent_at: new Date("2026-07-22T19:02:00.000Z"),
           quarantined_at: null,
           last_error_code: null,
@@ -1040,8 +1109,12 @@ describe("PostgresOutboxStore", () => {
     ]);
 
     await expect(input.store.finalizeGmailReconciliation({
-      fence: reconciliationFence,
+      fence: boundReconciliationFence,
       providerMessageId: "gmail-1",
+      proof: {
+        kind: "raw-sha256-v1",
+        adapterPayloadSha256: "b".repeat(64),
+      },
     })).resolves.toEqual({ kind: "applied" });
 
     const update = input.client.calls[3]!;
@@ -1050,6 +1123,11 @@ describe("PostgresOutboxStore", () => {
     expect(update.sql).toContain("quarantined_at = $11::timestamptz");
     expect(update.sql).toContain("last_error_code = $12::text");
     expect(update.sql).toContain("status = 'quarantined'");
+    expect(update.sql).toContain("dispatch_binding_version is not distinct from");
+    expect(update.sql).toContain("dispatch_binding_sha256 is not distinct from");
+    expect(update.sql).toContain("provider_correlation_version =");
+    expect(update.sql).toContain("provider_evidence_version is not distinct from");
+    expect(update.sql).toContain("provider_evidence_sha256 is not distinct from");
     expect(update.values).toContain("a:learner-1");
     expect(update.values).toContain("gmail-1");
   });

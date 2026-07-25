@@ -1,15 +1,21 @@
+import { createHash } from "node:crypto";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   classifyMailDeliveryError,
+  prepareEmail,
   sendEmail as deliverEmail,
+  sendPreparedEmail,
   type MailProviderContext,
   type OutgoingEmail,
+  type PreparedEmail,
 } from "../mailer";
 
 const PROVIDER_CONTEXT: MailProviderContext = {
+  operationId: "22222222-2222-4222-8222-222222222222",
   messageId:
-    "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
+    "<codestead.outbox.v1.okd-aMXCHPuS1pgnjdYfjG17CU5nfw-6stQE23enb8Q@mail.codestead.invalid>",
 };
 
 function sendEmail(input: OutgoingEmail, context = PROVIDER_CONTEXT) {
@@ -30,7 +36,7 @@ describe("notification delivery privacy", () => {
   });
 
   it("console delivery logs allowlisted metadata only, never capability IDs, recipient, token, or body", async () => {
-    const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     const recipient = "privacy-canary@recipient.private.example";
     const tombstoneId = "tombstone-capability-log-canary";
     const deletionRunId = "deletion-run-capability-log-canary";
@@ -49,7 +55,7 @@ describe("notification delivery privacy", () => {
       },
     });
 
-    const entries = log.mock.calls.map(([entry]) => JSON.parse(String(entry)) as unknown);
+    const entries = write.mock.calls.map(([entry]) => JSON.parse(String(entry).trim()) as unknown);
     expect(entries).toEqual([{
       event: "email.console_delivery",
       template: "account-deleted",
@@ -237,9 +243,7 @@ describe("notification delivery privacy", () => {
       to: "learner@example.com",
       template: "invitation",
       variables: { name: "<Learner>", url: "https://example.test/activate?token=one-time" },
-    }, {
-      messageId: "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
-    })).resolves.toEqual({ providerId: "gmail-message-1" });
+    }, PROVIDER_CONTEXT)).resolves.toEqual({ providerId: "gmail-message-1" });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const [sendUrl, sendOptions] = fetchMock.mock.calls[1] as [string, RequestInit];
@@ -249,7 +253,7 @@ describe("notification delivery privacy", () => {
     const mime = Buffer.from(raw, "base64url").toString("utf8");
     expect(mime).toContain("Content-Type: multipart/alternative");
     expect(mime).toContain(
-      "Message-ID: <codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
+      "Message-ID: <codestead.outbox.v1.okd-aMXCHPuS1pgnjdYfjG17CU5nfw-6stQE23enb8Q@mail.codestead.invalid>",
     );
     expect(mime).toContain("&lt;Learner&gt;");
     expect(mime).toContain("one-time");
@@ -278,6 +282,77 @@ describe("notification delivery privacy", () => {
     });
   });
 
+  it("prepares immutable Gmail bytes and their exact TX1 evidence before transport", async () => {
+    vi.stubEnv("MAIL_ADAPTER", "gmail");
+    vi.stubEnv("GMAIL_CLIENT_ID", "client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh");
+    const prepared = prepareEmail({
+      to: "learner@example.com",
+      template: "invitation",
+      variables: { url: "https://example.test/activate?token=one-time" },
+    }, { ...PROVIDER_CONTEXT, adapter: "gmail" });
+
+    expect(Object.isFrozen(prepared)).toBe(true);
+    expect(Object.isFrozen(prepared.providerDispatch)).toBe(true);
+    expect(prepared.adapter).toBe("gmail");
+    if (prepared.adapter !== "gmail") throw new Error("Expected Gmail preparation.");
+    expect(prepared.providerDispatch).toMatchObject({
+      adapter: "gmail",
+      dispatchBindingVersion: "gmail-raw-v1",
+      providerCorrelationVersion: "opaque-sha256-v1",
+      providerEvidenceVersion: "gmail-header-evidence-v1",
+    });
+    expect(prepared.providerDispatch.dispatchBindingSha256).toBe(
+      createHash("sha256").update(prepared.rfc822, "utf8").digest("hex"),
+    );
+    expect(prepared.rfc822).toContain(
+      `X-Codestead-Dispatch-Evidence: v1.${prepared.evidenceToken}`,
+    );
+
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ access_token: "access" }),
+        { status: 200 },
+      ))
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ id: "gmail-exact" }),
+        { status: 200 },
+      ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(sendPreparedEmail(prepared)).resolves.toEqual({
+      providerId: "gmail-exact",
+    });
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+      body: prepared.requestBody,
+    });
+  });
+
+  it("rejects a forged prepared payload before OAuth or provider I/O", async () => {
+    vi.stubEnv("MAIL_ADAPTER", "gmail");
+    const prepared = prepareEmail({
+      to: "learner@example.com",
+      template: "invitation",
+      variables: {},
+    }, { ...PROVIDER_CONTEXT, adapter: "gmail" });
+    if (prepared.adapter !== "gmail") throw new Error("Expected Gmail preparation.");
+    const forged = Object.freeze({
+      ...prepared,
+      rfc822: `${prepared.rfc822}\r\nforged`,
+    }) as PreparedEmail;
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const error = await sendPreparedEmail(forged).catch(
+      (caught: unknown) => caught,
+    );
+    expect(classifyMailDeliveryError(error)).toEqual({
+      kind: "definitely-rejected",
+      code: "PAYLOAD_DIGEST_MISMATCH",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
   it.each([
     { body: {}, description: "missing" },
     { body: { id: "" }, description: "empty" },

@@ -1,5 +1,10 @@
 import { createHash } from "node:crypto";
 
+import {
+  validateProviderDispatchTuple,
+  type ProviderDispatchTuple,
+} from "./dispatch-evidence";
+
 import type {
   BoundaryResult,
   OutboxClaim,
@@ -12,7 +17,16 @@ import type {
   ProviderStartedClaim,
 } from "./outbox-worker";
 
-import type { GmailReconciliationFence } from "./gmail-reconciliation";
+import {
+  gmailProofAuthorizesFence,
+  gmailReconciliationAuthority as classifyGmailReconciliationAuthority,
+  type GmailReconciliationFence,
+  type GmailReconciliationProof,
+} from "./gmail-reconciliation";
+import {
+  LEGACY_RAW_PROVIDER_CORRELATION_VERSION,
+  OPAQUE_SHA256_PROVIDER_CORRELATION_VERSION,
+} from "./provider-correlation";
 import {
   USER_AUTHORITY_ADVISORY_LOCK_SQL,
   USER_AUTHORITY_TRY_ADVISORY_LOCK_SQL,
@@ -79,6 +93,11 @@ type ClaimRow = CandidateRow & {
 type BoundaryRow = {
   provider_call_started: string;
   lease_expires_at: Date | string;
+  dispatch_binding_version: string;
+  dispatch_binding_sha256: string;
+  provider_correlation_version: string;
+  provider_evidence_version: string | null;
+  provider_evidence_sha256: string | null;
 };
 
 type TerminalRow = {
@@ -99,6 +118,15 @@ type SweepCandidateRow = CandidateRow & {
 };
 
 
+type GmailReconciliationAuthority = Pick<
+  GmailReconciliationFence,
+  | "dispatchBindingVersion"
+  | "dispatchBindingSha256"
+  | "providerCorrelationVersion"
+  | "providerEvidenceVersion"
+  | "providerEvidenceSha256"
+>;
+
 type ReconciliationRow = CandidateRow & {
   claim_token: string | null;
   claim_owner: string | null;
@@ -106,12 +134,25 @@ type ReconciliationRow = CandidateRow & {
   adapter: string;
   status: string;
   provider_call_started: string;
+  dispatch_binding_version: string | null;
+  dispatch_binding_sha256: string | null;
+  provider_correlation_version: string | null;
+  provider_evidence_version: string | null;
+  provider_evidence_sha256: string | null;
   provider_message_id: string | null;
   sent_at: string | null;
   quarantined_at: string | null;
   last_error_code: string | null;
 };
+type ReconciliationTerminalRow = TerminalRow & {
+  dispatch_binding_version: string | null;
+  dispatch_binding_sha256: string | null;
+  provider_correlation_version: string | null;
+  provider_evidence_version: string | null;
+  provider_evidence_sha256: string | null;
+};
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const LOWERCASE_SHA256 = /^[0-9a-f]{64}$/;
 const ADAPTERS = new Set(["console", "gmail"]);
 
 function assertUuid(value: string, name: string) {
@@ -130,6 +171,58 @@ function assertLeaseMs(value: number) {
   if (!Number.isSafeInteger(value) || value < 15_000 || value > 300_000) {
     throw new Error("Outbox lease must be an integer from 15000 to 300000 milliseconds.");
   }
+}
+
+function gmailReconciliationAuthority(input: Readonly<{
+  dispatch_binding_version: string | null;
+  dispatch_binding_sha256: string | null;
+  provider_correlation_version: string | null;
+  provider_evidence_version: string | null;
+  provider_evidence_sha256: string | null;
+}>): GmailReconciliationAuthority | null {
+  const {
+    dispatch_binding_version: dispatchBindingVersion,
+    dispatch_binding_sha256: dispatchBindingSha256,
+    provider_correlation_version: providerCorrelationVersion,
+    provider_evidence_version: providerEvidenceVersion,
+    provider_evidence_sha256: providerEvidenceSha256,
+  } = input;
+  if (providerCorrelationVersion === LEGACY_RAW_PROVIDER_CORRELATION_VERSION) {
+    const bindingIsGrandfathered =
+      dispatchBindingVersion === null && dispatchBindingSha256 === null;
+    const bindingIsReviewedRaw =
+      dispatchBindingVersion === "gmail-raw-v1"
+      && typeof dispatchBindingSha256 === "string"
+      && LOWERCASE_SHA256.test(dispatchBindingSha256);
+    if (
+      (!bindingIsGrandfathered && !bindingIsReviewedRaw)
+      || providerEvidenceVersion !== null
+      || providerEvidenceSha256 !== null
+    ) return null;
+    return {
+      dispatchBindingVersion,
+      dispatchBindingSha256,
+      providerCorrelationVersion,
+      providerEvidenceVersion: null,
+      providerEvidenceSha256: null,
+    };
+  }
+  if (
+    providerCorrelationVersion !== OPAQUE_SHA256_PROVIDER_CORRELATION_VERSION
+    || dispatchBindingVersion !== "gmail-raw-v1"
+    || typeof dispatchBindingSha256 !== "string"
+    || !LOWERCASE_SHA256.test(dispatchBindingSha256)
+    || providerEvidenceVersion !== "gmail-header-evidence-v1"
+    || typeof providerEvidenceSha256 !== "string"
+    || !LOWERCASE_SHA256.test(providerEvidenceSha256)
+  ) return null;
+  return {
+    dispatchBindingVersion,
+    dispatchBindingSha256,
+    providerCorrelationVersion,
+    providerEvidenceVersion,
+    providerEvidenceSha256,
+  };
 }
 
 function asDate(value: Date | string, name: string) {
@@ -860,6 +953,12 @@ function validatePermit(permit: ProviderCallPermit) {
     throw new Error("Outbox claim version must be a positive integer.");
   }
   if (!ADAPTERS.has(permit.adapter)) throw new Error("Outbox adapter is not allowed.");
+  const providerDispatch = validateProviderDispatchTuple(
+    permit.providerDispatch,
+  );
+  if (providerDispatch.adapter !== permit.adapter) {
+    throw new Error("Outbox permit adapter does not match its dispatch tuple.");
+  }
   assertBoundedText(permit.providerCallStartedAt, "Provider boundary timestamp", 64);
 }
 
@@ -874,7 +973,10 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                claim_version, claim_token::text, claim_owner,
                lease_expires_at::text, adapter, status::text,
                provider_call_started::text, provider_message_id,
-               sent_at::text, quarantined_at::text, last_error_code
+               dispatch_binding_version, dispatch_binding_sha256,
+               provider_correlation_version, provider_evidence_version,
+               provider_evidence_sha256, sent_at::text,
+               quarantined_at::text, last_error_code
         from public.email_outbox
         where operation_id = $1::uuid
           and adapter = 'gmail'
@@ -913,8 +1015,13 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
       }
       if (
         row.adapter !== "gmail"
+        || row.provider_call_started === null
         || typeof row.provider_call_started !== "string"
       ) {
+        return { kind: "not-reconcilable" as const };
+      }
+      const reconciliationAuthority = gmailReconciliationAuthority(row);
+      if (reconciliationAuthority === null) {
         return { kind: "not-reconcilable" as const };
       }
       if (row.status === "sent") {
@@ -968,6 +1075,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           "Provider boundary",
           64,
         ),
+        ...reconciliationAuthority,
         quarantinedAt: assertBoundedText(row.quarantined_at, "Quarantine timestamp", 64),
         lastErrorCode: assertBoundedText(row.last_error_code, "Outbox error code", 80),
       };
@@ -978,6 +1086,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
   async finalizeGmailReconciliation(input: Readonly<{
     fence: GmailReconciliationFence;
     providerMessageId: string;
+    proof: GmailReconciliationProof;
   }>) {
     const { fence } = input;
     assertUuid(fence.id, "Outbox ID");
@@ -1017,6 +1126,24 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     const leaseExpiresAt = fence.leaseExpiresAt === null
       ? null
       : assertBoundedText(fence.leaseExpiresAt, "Outbox lease expiry", 64);
+    const reconciliationAuthority = gmailReconciliationAuthority({
+      dispatch_binding_version: fence.dispatchBindingVersion,
+      dispatch_binding_sha256: fence.dispatchBindingSha256,
+      provider_correlation_version: fence.providerCorrelationVersion,
+      provider_evidence_version: fence.providerEvidenceVersion,
+      provider_evidence_sha256: fence.providerEvidenceSha256,
+    });
+    if (reconciliationAuthority === null) {
+      return { kind: "lost" as const };
+    }
+    const authorityClass = classifyGmailReconciliationAuthority(fence);
+    if (
+      authorityClass === null
+      || authorityClass.kind === "legacy-unbound-v0"
+      || !gmailProofAuthorizesFence(authorityClass, input.proof)
+    ) {
+      return { kind: "lost" as const };
+    }
 
     return transaction(this.pool, async (client) => {
       const observed = await client.query<CandidateRow>(`
@@ -1034,6 +1161,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and provider_call_started = $10::timestamptz
           and quarantined_at = $11::timestamptz
           and last_error_code = $12::text
+          and dispatch_binding_version is not distinct from $13::text
+          and dispatch_binding_sha256 is not distinct from $14::text
+          and provider_correlation_version = $15::text
+          and provider_evidence_version is not distinct from $16::text
+          and provider_evidence_sha256 is not distinct from $17::text
           and provider_message_id is null
           and sent_at is null
           and status = 'quarantined'
@@ -1050,6 +1182,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         providerCallStartedAt,
         quarantinedAt,
         lastErrorCode,
+        reconciliationAuthority.dispatchBindingVersion,
+        reconciliationAuthority.dispatchBindingSha256,
+        reconciliationAuthority.providerCorrelationVersion,
+        reconciliationAuthority.providerEvidenceVersion,
+        reconciliationAuthority.providerEvidenceSha256,
       ]);
       const row = observed.rows[0];
       if (!row) return { kind: "lost" as const };
@@ -1057,10 +1194,10 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
       if (observedScope.key !== scope.key) return { kind: "lost" as const };
       await advisoryLock(client, scope.lockKey, true);
 
-      const result = await client.query<TerminalRow>(`
+      const result = await client.query<ReconciliationTerminalRow>(`
         update public.email_outbox
         set status = 'sent',
-            provider_message_id = $13::text,
+            provider_message_id = $18::text,
             sent_at = pg_catalog.statement_timestamp(),
             quarantined_at = null,
             last_error_code = null,
@@ -1080,11 +1217,19 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and provider_call_started = $10::timestamptz
           and quarantined_at = $11::timestamptz
           and last_error_code = $12::text
+          and dispatch_binding_version is not distinct from $13::text
+          and dispatch_binding_sha256 is not distinct from $14::text
+          and provider_correlation_version = $15::text
+          and provider_evidence_version is not distinct from $16::text
+          and provider_evidence_sha256 is not distinct from $17::text
           and provider_message_id is null
           and sent_at is null
           and status = 'quarantined'
         returning status::text, claim_version, adapter, provider_message_id,
-                  provider_call_started, sent_at, quarantined_at, last_error_code
+                  provider_call_started, dispatch_binding_version,
+                  dispatch_binding_sha256, provider_correlation_version,
+                  provider_evidence_version, provider_evidence_sha256,
+                  sent_at, quarantined_at, last_error_code
       `, [
         fence.id,
         fence.operationId,
@@ -1098,6 +1243,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         providerCallStartedAt,
         quarantinedAt,
         lastErrorCode,
+        reconciliationAuthority.dispatchBindingVersion,
+        reconciliationAuthority.dispatchBindingSha256,
+        reconciliationAuthority.providerCorrelationVersion,
+        reconciliationAuthority.providerEvidenceVersion,
+        reconciliationAuthority.providerEvidenceSha256,
         providerMessageId,
       ]);
       const updated = result.rows[0];
@@ -1107,6 +1257,16 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         && updated.adapter === fence.adapter
         && updated.provider_message_id === providerMessageId
         && updated.provider_call_started !== null
+        && updated.dispatch_binding_version ===
+          reconciliationAuthority.dispatchBindingVersion
+        && updated.dispatch_binding_sha256 ===
+          reconciliationAuthority.dispatchBindingSha256
+        && updated.provider_correlation_version ===
+          reconciliationAuthority.providerCorrelationVersion
+        && updated.provider_evidence_version ===
+          reconciliationAuthority.providerEvidenceVersion
+        && updated.provider_evidence_sha256 ===
+          reconciliationAuthority.providerEvidenceSha256
         && updated.sent_at !== null
         && updated.quarantined_at === null
         && updated.last_error_code === null
@@ -1269,11 +1429,16 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
 
   async beginProviderCall(
     claim: OutboxClaim<EmailOutboxPayload>,
-    input: Readonly<{ adapter: string; leaseMs: number }>,
+    input: Readonly<{
+      leaseMs: number;
+      providerDispatch: ProviderDispatchTuple;
+    }>,
   ): Promise<BoundaryResult> {
     validateClaim(claim);
-    const adapter = assertBoundedText(input.adapter, "Outbox adapter", 32);
-    if (!ADAPTERS.has(adapter)) throw new Error("Outbox adapter is not allowed.");
+    const providerDispatch = Object.freeze({
+      ...validateProviderDispatchTuple(input.providerDispatch),
+    }) as ProviderDispatchTuple;
+    const adapter = providerDispatch.adapter;
     assertLeaseMs(input.leaseMs);
     const evidence = deletionNoticeCapabilityEvidence(claim.payload);
     const approvedInvitationTokenHash = canonicalActivationTokenHash(claim);
@@ -1380,6 +1545,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         set provider_call_started = pg_catalog.statement_timestamp(),
             adapter = $6::text,
             lease_expires_at = pg_catalog.statement_timestamp() + ($7::integer * interval '1 millisecond'),
+            dispatch_binding_version = $19::text,
+            dispatch_binding_sha256 = $20::text,
+            provider_correlation_version = $21::text,
+            provider_evidence_version = $22::text,
+            provider_evidence_sha256 = $23::text,
             updated_at = pg_catalog.statement_timestamp()
         where outbox.id = $1::uuid
           and outbox.operation_id = $2::uuid
@@ -1387,6 +1557,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and outbox.claim_owner = $4::text
           and outbox.claim_version = $5::integer
           and outbox.adapter is null
+          and outbox.dispatch_binding_version is null
+          and outbox.dispatch_binding_sha256 is null
+          and outbox.provider_correlation_version is null
+          and outbox.provider_evidence_version is null
+          and outbox.provider_evidence_sha256 is null
           and outbox.provider_message_id is null
           and outbox.provider_call_started is null
           and outbox.quarantined_at is null
@@ -1406,7 +1581,13 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             )
             or ${BOUNDARY_DELETION_CAPABILITY_SQL}
           )
-        returning outbox.provider_call_started::text as provider_call_started, outbox.lease_expires_at
+        returning outbox.provider_call_started::text as provider_call_started,
+                  outbox.lease_expires_at,
+                  outbox.dispatch_binding_version,
+                  outbox.dispatch_binding_sha256,
+                  outbox.provider_correlation_version,
+                  outbox.provider_evidence_version,
+                  outbox.provider_evidence_sha256
       `, [
         claim.id,
         claim.operationId,
@@ -1426,9 +1607,26 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         evidence.valid,
         approvedInvitationTokenHash,
         adminAccessUrl,
+        providerDispatch.dispatchBindingVersion,
+        providerDispatch.dispatchBindingSha256,
+        providerDispatch.providerCorrelationVersion,
+        providerDispatch.providerEvidenceVersion,
+        providerDispatch.providerEvidenceSha256,
       ]);
       const row = result.rows[0];
-      if (!row) return { kind: "lost" };
+      if (
+        !row
+        || row.dispatch_binding_version
+          !== providerDispatch.dispatchBindingVersion
+        || row.dispatch_binding_sha256
+          !== providerDispatch.dispatchBindingSha256
+        || row.provider_correlation_version
+          !== providerDispatch.providerCorrelationVersion
+        || row.provider_evidence_version
+          !== providerDispatch.providerEvidenceVersion
+        || row.provider_evidence_sha256
+          !== providerDispatch.providerEvidenceSha256
+      ) return { kind: "lost" };
       const started: ProviderStartedClaim = {
         phase: "post-provider",
         id: claim.id,
@@ -1439,6 +1637,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         adapter,
         providerCallStartedAt: assertBoundedText(row.provider_call_started, "Provider boundary", 64),
         leaseExpiresAt: asDate(row.lease_expires_at, "Provider lease expiry"),
+        providerDispatch,
       };
       return { kind: "applied", permit: started as ProviderCallPermit };
     });
@@ -1545,6 +1744,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               and adapter = $6::text
               and provider_message_id is null
               and provider_call_started = $9::timestamptz
+              and dispatch_binding_version = $11::text
+              and dispatch_binding_sha256 = $12::text
+              and provider_correlation_version = $13::text
+              and provider_evidence_version is not distinct from $14::text
+              and provider_evidence_sha256 is not distinct from $15::text
               and status in ('sending', 'quarantined')
               and user_id is not distinct from $10::text
               and delivery_scope_key = $8::text
@@ -1561,6 +1765,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             scope.key,
             permit.providerCallStartedAt,
             scope.userId,
+            permit.providerDispatch.dispatchBindingVersion,
+            permit.providerDispatch.dispatchBindingSha256,
+            permit.providerDispatch.providerCorrelationVersion,
+            permit.providerDispatch.providerEvidenceVersion,
+            permit.providerDispatch.providerEvidenceSha256,
           ])
         : await client.query<TerminalRow>(`
             update public.email_outbox
@@ -1590,6 +1799,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               and adapter = $6::text
               and provider_message_id is null
               and provider_call_started = $10::timestamptz
+              and dispatch_binding_version = $12::text
+              and dispatch_binding_sha256 = $13::text
+              and provider_correlation_version = $14::text
+              and provider_evidence_version is not distinct from $15::text
+              and provider_evidence_sha256 is not distinct from $16::text
               and quarantined_at is null
               and status = 'sending'
               and user_id is not distinct from $11::text
@@ -1608,6 +1822,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             scope.key,
             permit.providerCallStartedAt,
             scope.userId,
+            permit.providerDispatch.dispatchBindingVersion,
+            permit.providerDispatch.dispatchBindingSha256,
+            permit.providerDispatch.providerCorrelationVersion,
+            permit.providerDispatch.providerEvidenceVersion,
+            permit.providerDispatch.providerEvidenceSha256,
           ]);
 
       let updated = result.rows[0];
@@ -1633,6 +1852,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             and claim_version = $3::integer + 1
             and adapter = $4::text
             and provider_call_started = $5::timestamptz
+            and dispatch_binding_version = $11::text
+            and dispatch_binding_sha256 = $12::text
+            and provider_correlation_version = $13::text
+            and provider_evidence_version is not distinct from $14::text
+            and provider_evidence_sha256 is not distinct from $15::text
             and user_id is not distinct from $6::text
             and delivery_scope_key = $7::text
             and claim_token is null
@@ -1656,6 +1880,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           exit.kind,
           providerMessageId,
           code,
+          permit.providerDispatch.dispatchBindingVersion,
+          permit.providerDispatch.dispatchBindingSha256,
+          permit.providerDispatch.providerCorrelationVersion,
+          permit.providerDispatch.providerEvidenceVersion,
+          permit.providerDispatch.providerEvidenceSha256,
         ]);
         updated = result.rows[0];
         successorFinalized = updated !== undefined;
@@ -1704,6 +1933,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and operation_id = $2::uuid
           and adapter = $3::text
           and provider_call_started = $4::timestamptz
+          and dispatch_binding_version = $8::text
+          and dispatch_binding_sha256 = $9::text
+          and provider_correlation_version = $10::text
+          and provider_evidence_version is not distinct from $11::text
+          and provider_evidence_sha256 is not distinct from $12::text
           and user_id is not distinct from $5::text
           and delivery_scope_key = $6::text
           and claim_token is null
@@ -1721,6 +1955,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         scope.userId,
         scope.key,
         permit.claimVersion,
+        permit.providerDispatch.dispatchBindingVersion,
+        permit.providerDispatch.dispatchBindingSha256,
+        permit.providerDispatch.providerCorrelationVersion,
+        permit.providerDispatch.providerEvidenceVersion,
+        permit.providerDispatch.providerEvidenceSha256,
       ]);
       const row = existing.rows[0];
       if (!row || row.adapter !== permit.adapter) return { kind: "lost" };

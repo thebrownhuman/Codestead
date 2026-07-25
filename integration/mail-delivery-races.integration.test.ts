@@ -31,6 +31,18 @@ const ADMIN_ID = "mail-race-admin";
 const LEARNER_ID = "mail-race-learner";
 const LEARNER_PUBLIC_ID = "90000000-0000-4000-8000-000000000001";
 const LEARNER_EMAIL = "mail-race-learner@integration.invalid";
+const CONSOLE_PROVIDER_DISPATCH = {
+  adapter: "console",
+  dispatchBindingVersion: "console-json-v1",
+  dispatchBindingSha256: "a".repeat(64),
+  providerCorrelationVersion: "opaque-sha256-v1",
+  providerEvidenceVersion: null,
+  providerEvidenceSha256: null,
+} as const;
+const PROVIDER_BOUNDARY_INPUT = {
+  leaseMs: 120_000,
+  providerDispatch: CONSOLE_PROVIDER_DISPATCH,
+} as const;
 
 const ROW_IDS = [
   "91000000-0000-4000-8000-000000000001",
@@ -365,10 +377,7 @@ async function requirePermit(
   claim: OutboxClaim<EmailOutboxPayload>,
   selectedStore = store(),
 ): Promise<ProviderCallPermit> {
-  const boundary = await selectedStore.beginProviderCall(claim, {
-    adapter: "console",
-    leaseMs: 120_000,
-  });
+  const boundary = await selectedStore.beginProviderCall(claim, PROVIDER_BOUNDARY_INPUT);
   expect(boundary.kind).toBe("applied");
   if (boundary.kind !== "applied") throw new Error("Expected provider boundary authority.");
   return boundary.permit;
@@ -715,10 +724,7 @@ describe("real PostgreSQL mail delivery races", () => {
     const claim = await requireClaim(CLAIM_TOKENS[0], "rollback-boundary-worker");
     const rollbackStore = store(new InstrumentedPool({}, "rollback-before-ack"));
 
-    await expect(rollbackStore.beginProviderCall(claim, {
-      adapter: "console",
-      leaseMs: 120_000,
-    })).rejects.toThrow("forced boundary rollback");
+    await expect(rollbackStore.beginProviderCall(claim, PROVIDER_BOUNDARY_INPUT)).rejects.toThrow("forced boundary rollback");
 
     expect((await outboxState())[0]).toMatchObject({
       status: "sending",
@@ -726,10 +732,7 @@ describe("real PostgreSQL mail delivery races", () => {
       provider_call_started: null,
       claim_version: claim.claimVersion,
     });
-    await expect(store().beginProviderCall(claim, {
-      adapter: "console",
-      leaseMs: 120_000,
-    })).resolves.toMatchObject({ kind: "applied" });
+    await expect(store().beginProviderCall(claim, PROVIDER_BOUNDARY_INPUT)).resolves.toMatchObject({ kind: "applied" });
   });
 
   it("persists an unknown provider-boundary commit without reconstructing a permit", async () => {
@@ -737,20 +740,14 @@ describe("real PostgreSQL mail delivery races", () => {
     const claim = await requireClaim(CLAIM_TOKENS[0], "unknown-commit-worker");
     const unknownCommitStore = store(new InstrumentedPool({}, "commit-ack-lost"));
 
-    await expect(unknownCommitStore.beginProviderCall(claim, {
-      adapter: "console",
-      leaseMs: 120_000,
-    })).rejects.toThrow("forced boundary commit acknowledgement loss");
+    await expect(unknownCommitStore.beginProviderCall(claim, PROVIDER_BOUNDARY_INPUT)).rejects.toThrow("forced boundary commit acknowledgement loss");
 
     expect((await outboxState())[0]).toMatchObject({
       status: "sending",
       adapter: "console",
     });
     expect((await outboxState())[0]!.provider_call_started).not.toBeNull();
-    await expect(store().beginProviderCall(claim, {
-      adapter: "console",
-      leaseMs: 120_000,
-    })).resolves.toEqual({ kind: "lost" });
+    await expect(store().beginProviderCall(claim, PROVIDER_BOUNDARY_INPUT)).resolves.toEqual({ kind: "lost" });
   });
 
   it("carries exact non-millisecond PostgreSQL boundary text through finalization", async () => {
@@ -888,10 +885,7 @@ describe("real PostgreSQL mail delivery races", () => {
         if (isBlockingAdvisoryLock(event.sql)) await boundaryPause.hold(event.pid);
       },
     }));
-    const boundary = boundaryStore.beginProviderCall(claim, {
-      adapter: "console",
-      leaseMs: 120_000,
-    });
+    const boundary = boundaryStore.beginProviderCall(claim, PROVIDER_BOUNDARY_INPUT);
     await within(boundaryPause.reached, "provider boundary account lock");
     const deletion = deleteLearnerAccount(
       deletionInput(objectStorageRoot, "95000000-0000-4000-8000-000000000001"),
@@ -934,10 +928,7 @@ describe("real PostgreSQL mail delivery races", () => {
     );
     await within(erasurePause.reached, "deletion file-erasure checkpoint");
 
-    const boundary = await store().beginProviderCall(claim, {
-      adapter: "console",
-      leaseMs: 120_000,
-    });
+    const boundary = await store().beginProviderCall(claim, PROVIDER_BOUNDARY_INPUT);
     expect(boundary).toEqual({ kind: "lost" });
 
     erasurePause.release();
@@ -953,9 +944,6 @@ describe("real PostgreSQL mail delivery races", () => {
 
     const noticeClaim = await requireClaim(CLAIM_TOKENS[1], "deletion-notice-worker");
     expect(noticeClaim.id).toBe(notices[0]!.id);
-    await expect(store().beginProviderCall(noticeClaim, {
-      adapter: "console",
-      leaseMs: 120_000,
-    })).resolves.toMatchObject({ kind: "applied" });
+    await expect(store().beginProviderCall(noticeClaim, PROVIDER_BOUNDARY_INPUT)).resolves.toMatchObject({ kind: "applied" });
   });
 });

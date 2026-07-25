@@ -1,5 +1,19 @@
 # Codestead continuation handoff
 
+## Current superseding checkpoint - 2026-07-25
+
+This section supersedes the older Git/worktree and pending-migration state below. The older material is retained only as historical context.
+
+- Active branch: `main`; the checkpoint base is `716567274ab1e50451404d9a035e524ee0deb64c` (Task 3).
+- Only the primary worktree is registered. No subagent or project background process is active.
+- Task 2 (`0064` ACL/CASCADE authority) is pushed at `f0ae9fc`.
+- Task 3 (`0065` reviewed migration metadata) is pushed at `7165672`.
+- Task 4 is the commit containing this section: migration `0066` and runtime integration bind the exact prepared provider bytes to an opaque correlation identifier and hashed dispatch evidence before provider authority is armed. Gmail reconciliation uses the durable tuple, worker/store finalization fences it, and production scripts use the prepared immutable payload.
+- `0066` is contiguous in the Drizzle journal, has a generated snapshot, is frozen in the reviewed migration ledger, and is registered in package scripts and the PostgreSQL CI projection.
+- Task 4 verification: 144/144 focused Vitest tests, 24/24 migration-ledger tests, 21/21 database-role tests, 5/5 `0066` role-contract tests, live PostgreSQL 17.10 and 18.1 catalog/backfill/ACL/transition/rollback/tamper harnesses, repository-wide typecheck and ESLint, architecture evidence (`822` files, `3366` imports, `0` violations), and a bounded 42-file changed-secret scan all passed under Node 22.23.1.
+- The next repository lane is Task 5: `0067` durable replay authority. Then proceed through `0068` retention/redaction, production TX2/runtime, CI/restore/rollback completion, live concurrency/deletion races, full release gates, and P3-2.
+- Real Gmail, NUC, Cloudflare, Google Drive, reboot, and supervised power-cut evidence remains external and unproven. Do not mark the product production-ready from repository tests alone.
+
 Snapshot prepared on 2026-07-22 for transfer to a fresh Codex session. This is a deployment-readiness handoff, not a declaration that Codestead is production-ready.
 
 ## Authoritative sources
@@ -172,7 +186,7 @@ Do not reset, clean, overwrite, commit as green, or remove these worktrees. Resu
 11. Push the reviewed exact commit directly to `main`, then deploy only that commit to the NUC using `infra/ops/release-production.sh` and the commands in `docs/deployment.md`.
 12. Collect external evidence on the actual NUC: KVM guest/autostart, dedicated tunnel and Access policy, Gmail/Google/Drive credentials, encrypted offsite restore, controlled reboot, and supervised physical AC-cut recovery. Keep learners and uploads disabled until these pass.
 
-## DB-ACL/P3-2 broad runtime-role risk — OPEN / DEFERRED
+## DB-ACL/P3-2 broad runtime-role risk - OPEN / DEFERRED
 
 **Accountable owner:** `@thebrownhuman / DB-ACL/P3-2 DRI`
 

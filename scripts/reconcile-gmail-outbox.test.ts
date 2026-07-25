@@ -32,7 +32,7 @@ vi.mock("../src/lib/db/client", () => ({ pool: mocks.pool }));
 vi.mock("../src/lib/notifications/postgres-outbox-store", () => ({
   PostgresOutboxStore: mocks.PostgresOutboxStore,
 }));
-vi.mock("../src/lib/notifications/mailer", () => ({
+vi.mock("../src/lib/notifications/gmail-correlation-lookup", () => ({
   findGmailMessageByMessageId: mocks.findGmailMessageByMessageId,
 }));
 vi.mock("../src/lib/notifications/gmail-reconciliation", () => ({

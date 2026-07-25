@@ -9,9 +9,12 @@ import {
 } from "../src/lib/notifications/mail-dispatch-runtime-startup";
 import {
   classifyMailDeliveryError,
-  sendEmail,
-  type OutgoingEmail,
+  prepareEmail,
+  sendPreparedEmail,
+  type PreparedEmail,
 } from "../src/lib/notifications/mailer";
+import { outboxMessageId } from
+  "../src/lib/notifications/provider-correlation";
 import {
   resolveEmailTemplateAuthorityPolicy,
 } from "../src/lib/notifications/template-authority-policy";
@@ -183,7 +186,7 @@ async function processBatch(
   store: PostgresOutboxStore,
   adapter: "console" | "gmail",
 ) {
-  return processOutboxBatch<EmailOutboxPayload, OutgoingEmail>({
+  return processOutboxBatch<EmailOutboxPayload, PreparedEmail>({
     store,
     materialize: async (claim) => {
       const resolvedPolicy = resolveEmailTemplateAuthorityPolicy(
@@ -207,20 +210,31 @@ async function processBatch(
       }
       return {
         kind: "ready",
-        message: {
+        message: prepareEmail({
           to: claim.payload.to,
           template,
           variables,
-        },
+        }, {
+          adapter,
+          operationId: claim.operationId,
+          messageId: outboxMessageId(claim.operationId),
+        }),
       };
     },
     provider: {
       adapter,
       send: async (message, context) => {
         try {
-          const receipt = await sendEmail(message, {
-            messageId: context.messageId,
-          });
+          if (
+            message.operationId !== context.operationId
+            || message.messageId !== context.messageId
+          ) {
+            return {
+              kind: "definitely-rejected" as const,
+              code: "PAYLOAD_DIGEST_MISMATCH",
+            };
+          }
+          const receipt = await sendPreparedEmail(message);
           return {
             kind: "accepted" as const,
             providerMessageId: receipt.providerId,

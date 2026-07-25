@@ -1,4 +1,27 @@
 ---
+current_superseding_update:
+  snapshot_time: "2026-07-25T22:20:00+05:30"
+  branch: "main"
+  checkpoint_base: "716567274ab1e50451404d9a035e524ee0deb64c"
+  task_2_commit: "f0ae9fc"
+  task_3_commit: "716567274ab1e50451404d9a035e524ee0deb64c"
+  task_4_checkpoint: "the commit containing this state update"
+  task_4_status: "verified; the checkpoint is the commit containing this state update"
+  task_4_verification:
+    focused_vitest: "144/144"
+    migration_ledger: "24/24"
+    database_role_contracts: "21/21 plus 5/5 0066-specific"
+    postgres_17_10: "pass"
+    postgres_18_1: "pass"
+    typecheck: "pass"
+    eslint: "pass"
+    architecture: "822 files; 3366 imports; 0 violations"
+    changed_secret_scan: "42 files; 0 findings"
+  next_task: "Task 5 - 0067 durable replay authority"
+  registered_worktrees: ["main"]
+  active_agents: []
+  external_evidence_status: "Gmail, NUC, Cloudflare, Drive, reboot and power-cut evidence remain unproven"
+  production_ready: false
 snapshot_time: "2026-07-22T16:44:03+05:30"
 repository_path: "C:\\Users\\Shivansh\\Desktop\\Projects\\LearnCoding"
 current_branch: "main"

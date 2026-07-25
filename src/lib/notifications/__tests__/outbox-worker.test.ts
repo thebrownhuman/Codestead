@@ -13,6 +13,14 @@ import {
 type Payload = { readonly template: "invitation" };
 
 const OPERATION_ID = "22222222-2222-4222-8222-222222222222";
+const providerDispatch = {
+  adapter: "gmail",
+  dispatchBindingVersion: "gmail-raw-v1",
+  dispatchBindingSha256: "a".repeat(64),
+  providerCorrelationVersion: "opaque-sha256-v1",
+  providerEvidenceVersion: "gmail-header-evidence-v1",
+  providerEvidenceSha256: "b".repeat(64),
+} as const;
 
 const claim: OutboxClaim<Payload> = {
   phase: "pre-provider",
@@ -36,6 +44,7 @@ const started: ProviderStartedClaim = {
   adapter: "gmail",
   providerCallStartedAt: "2026-07-22 18:00:05.123456+00",
   leaseExpiresAt: new Date("2026-07-22T18:01:05.000Z"),
+  providerDispatch,
 };
 const permit = started as ProviderCallPermit;
 
@@ -66,10 +75,16 @@ function harness() {
     }),
   };
   const materialize = vi.fn(async (): Promise<
-    MaterializeResult<{ readonly to: string }>
+    MaterializeResult<{
+      readonly to: string;
+      readonly providerDispatch: typeof providerDispatch;
+    }>
   > => {
     events.push("materialize");
-    return { kind: "ready" as const, message: { to: "learner@example.test" } };
+    return {
+      kind: "ready" as const,
+      message: { to: "learner@example.test", providerDispatch },
+    };
   });
   const send = vi.fn(async () => {
     events.push("send");
@@ -148,6 +163,10 @@ describe("fenced outbox worker", () => {
       permit,
       { kind: "sent", providerMessageId: "gmail-1" },
     );
+    expect(input.store.beginProviderCall).toHaveBeenCalledWith(claim, {
+      leaseMs: 60_000,
+      providerDispatch,
+    });
   });
 
   it("derives a deterministic RFC Message-ID only after the provider permit", async () => {
@@ -160,12 +179,12 @@ describe("fenced outbox worker", () => {
       input.events.indexOf("send"),
     );
     expect(input.send).toHaveBeenCalledWith(
-      { to: "learner@example.test" },
+      { to: "learner@example.test", providerDispatch },
       {
         operationId: OPERATION_ID,
         permit,
         messageId:
-          "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
+          "<codestead.outbox.v1.okd-aMXCHPuS1pgnjdYfjG17CU5nfw-6stQE23enb8Q@mail.codestead.invalid>",
       },
     );
   });
