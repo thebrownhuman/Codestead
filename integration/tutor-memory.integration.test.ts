@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { loadTutorStructuredMemory, TUTOR_MEMORY_LIMITS } from "@/lib/ai/tutor-memory";
 import { pool } from "@/lib/db/client";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const LEARNER = "tutor-memory-learner";
 const OTHER = "tutor-memory-other";
@@ -15,22 +16,7 @@ const ARCHIVED_THREAD = "65000000-0000-4000-8000-000000000002";
 const OTHER_THREAD = "65000000-0000-4000-8000-000000000003";
 const NOW = new Date("2026-07-12T10:00:00.000Z");
 const FAKE_OPENAI_KEY = ["sk", "-", "abcdefghijklmnopqrstuvwxyz123456"].join("");
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Tutor memory integration tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'`);
-  const names = tables.rows.map((row) => `"${row.table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 function envelope(itemVariantId: string, tags: string[]) {
   return JSON.stringify({

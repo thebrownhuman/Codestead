@@ -27,6 +27,7 @@ import {
   queueProjectReviewCorrection,
   requestProjectReviewCorrectionRetry,
 } from "@/lib/projects/review-correction-service";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const ADMIN_ID = "project-correction-admin";
 const LEARNER_ID = "project-correction-learner";
@@ -50,24 +51,7 @@ const CORRECTED_FINDINGS = [{
   message: "Review this marker.",
   evidence: "TODO marker",
 }] satisfies ReviewFinding[];
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Project-review correction tests require the disposable integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`truncate table ${names} restart identity cascade`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 function reviewResult(commitSha: string, findings: ReviewFinding[] = CORRECTED_FINDINGS) {
   return {

@@ -4,6 +4,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db, pool } from "@/lib/db/client";
 import { learningRequest, user } from "@/lib/db/schema";
 import { learningRequestRepository } from "@/lib/learning-requests/repository";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const LEARNER_ID = "learning-request-learner";
 const OTHER_LEARNER_ID = "learning-request-other";
@@ -16,24 +17,7 @@ const input = {
   subject: "Distributed systems",
   details: "Consensus, failure models, and evidence-driven projects.",
 };
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Learning-request integration tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 beforeEach(async () => {
   await truncateApplicationTables();

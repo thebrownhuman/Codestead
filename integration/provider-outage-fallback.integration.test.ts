@@ -52,6 +52,7 @@ import {
 import { consentInsert, ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
 import { sealCredential } from "@/lib/security/credential-vault";
 import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const ADMIN_ID = "provider-outage-admin";
 const LEARNER_ID = "provider-outage-learner";
@@ -70,24 +71,7 @@ const secrets = {
   secondary: "synthetic-secondary-provider-key-BBBB",
   fallback: "synthetic-admin-provider-key-CCCC",
 } as const;
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Provider outage tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 function sealedCredential(input: {
   id: string;

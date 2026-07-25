@@ -25,26 +25,11 @@ import {
 } from "@/lib/db/schema";
 import { issueExamReexamGrant } from "@/lib/exams/reexam-grant";
 import { and, eq } from "drizzle-orm";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const LEARNER_ID = "exam-reliability-learner";
 const ADMIN_ID = "exam-reliability-admin";
-
-function assertDisposableDatabase() {
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(process.env.DATABASE_URL ?? "")) {
-    throw new Error("Exam reliability tests require the disposable integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  if (result.rows.length) {
-    await pool.query(`truncate table ${result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(",")} restart identity cascade`);
-  }
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 async function waitForAdvisoryWaitHeldBy(blockerPid: number) {
   const deadline = Date.now() + 3_000;

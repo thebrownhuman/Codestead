@@ -13,34 +13,11 @@ import {
   twoFactor,
   user,
 } from "@/lib/db/schema";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const USER_ID = "auth-management-active-user";
 const PASSWORD = "integration-auth-management-password-123!";
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (
-    process.env.INTEGRATION_TEST !== "1" ||
-    !/\/learncoding_integration(?:\?|$)/.test(connectionString)
-  ) {
-    throw new Error(
-      "Auth-management integration tests require the disposable learncoding_integration database.",
-    );
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name
-      from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  const names = tables.rows
-    .map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`)
-    .join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 async function seedAuthenticatedActiveAccount() {
   await db.insert(user).values({

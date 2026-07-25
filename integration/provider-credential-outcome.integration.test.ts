@@ -2,27 +2,13 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { recordProviderCredentialOutcome } from "@/lib/ai/provider-credential-outcome";
 import { pool } from "@/lib/db/client";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const USER = "provider-outcome-learner";
 const CREDENTIAL = "71000000-0000-4000-8000-000000000001";
 const ORIGINAL = new Date("2026-07-12T08:00:00.000Z");
 const OUTCOME_AT = new Date("2026-07-12T09:00:00.000Z");
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Provider outcome integration tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'`);
-  const names = tables.rows.map((row) => `"${row.table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 async function row() {
   return (await pool.query<{

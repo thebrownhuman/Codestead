@@ -11,6 +11,7 @@ import {
   startModuleProject,
   transitionModuleProjectTemplate,
 } from "@/lib/projects/module-project-service";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const ADMIN = "module-project-admin";
 const LEARNER = "module-project-learner";
@@ -29,22 +30,7 @@ const HASH = "a".repeat(64);
 const NOW = new Date("2026-07-14T12:00:00.000Z");
 const loader = new FileSystemContentLoader({ contentRoot: path.join(process.cwd(), "content") });
 let brief: ModuleProjectBrief;
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Module-project integration tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema='public' and table_type='BASE TABLE'`);
-  const names = tables.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 function planFor(projectBrief: ModuleProjectBrief) {
   return projectBrief.prerequisiteSkillIds.map((skillId, position) => ({

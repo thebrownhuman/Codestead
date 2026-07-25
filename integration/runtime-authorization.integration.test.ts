@@ -53,6 +53,7 @@ import {
   user,
 } from "@/lib/db/schema";
 import { PostgresLearnerDraftRepository } from "@/lib/drafts/repository";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const LEARNER_A = "runtime-auth-learner-a";
 const LEARNER_B = "runtime-auth-learner-b";
@@ -70,24 +71,7 @@ const draftKey = {
   skillId: "free-playground",
   language: "python",
 };
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Runtime authorization integration requires the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`truncate table ${names} restart identity cascade`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 function asLearner(userId: typeof LEARNER_A | typeof LEARNER_B) {
   mocks.state.userId = userId;

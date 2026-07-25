@@ -30,6 +30,7 @@ import { createLearnerExport, EXPORT_SCHEMA_VERSION } from "@/lib/data-lifecycle
 import { admitRunnerJob, hashRunnerAdmissionRequest } from "@/lib/runner/admission";
 import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
 import { computeAndPersistLeaderboardScore } from "@/lib/social/leaderboard-service";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const ADMIN_ID = "correction-integration-admin";
 const LEARNER_ID = "correction-integration-learner";
@@ -54,24 +55,7 @@ const RUNNER_LIMITS = Object.freeze({
   outputBytes: 65_536,
   fileBytes: 16_777_216,
 });
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Assessment correction integration tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 async function waitForUserAuthorityWaiters(blockerPid: number, expectedCount: number) {
   const deadline = Date.now() + 3_000;

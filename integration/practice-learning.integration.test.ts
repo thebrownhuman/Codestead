@@ -25,6 +25,7 @@ import { DrizzleLearningStore } from "@/lib/learning-service/drizzle-store";
 import { decodeEvidenceEnvelope } from "@/lib/learning-service/evidence-engine";
 import { toLearnerAttemptCreationPayload } from "@/lib/learning-service/learner-activity";
 import { LearningService } from "@/lib/learning-service/service";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const LEARNER = "practice-integration-learner";
 const OTHER = "practice-integration-other";
@@ -96,24 +97,7 @@ const REVIEWED_BANK = {
     },
   }],
 } as const;
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Practice integration requires the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 beforeEach(async () => {
   await truncateApplicationTables();

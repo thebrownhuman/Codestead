@@ -19,6 +19,7 @@ import {
   EXAM_POLICY_VERSION,
   type ExamFormSnapshot,
 } from "@/lib/exams/contracts";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const OWNER_ID = "exam-autosave-owner";
 const OTHER_ID = "exam-autosave-other";
@@ -31,24 +32,7 @@ const FIXED_NOW = new Date("2026-07-15T10:00:00.000Z");
 const DEADLINE = new Date("2026-07-15T11:00:00.000Z");
 const RECEIPT_SCHEMA = "public";
 const RECEIPT_TABLE = "exam_autosave_mutation";
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Exam autosave integration requires the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 const form: ExamFormSnapshot = {
   schemaVersion: 1,

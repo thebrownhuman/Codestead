@@ -17,6 +17,7 @@ import {
   DEFAULT_STORAGE_QUOTA_BYTES,
   MAX_STORAGE_QUOTA_BYTES,
 } from "@/lib/storage/policy";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const LEARNER_ID = "quota-integration-learner";
 const LEARNER_PUBLIC_ID = "b1000000-0000-4000-8000-000000000001";
@@ -24,24 +25,7 @@ const ADMIN_ID = "quota-integration-admin";
 const ADMIN_PUBLIC_ID = "b1000000-0000-4000-8000-000000000003";
 const OTHER_ID = "quota-integration-other";
 const OTHER_PUBLIC_ID = "b1000000-0000-4000-8000-000000000002";
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Storage quota integration tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 beforeEach(async () => {
   await truncateApplicationTables();

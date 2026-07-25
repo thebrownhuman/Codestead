@@ -30,6 +30,7 @@ import { deleteLearnerAccount } from "@/lib/data-lifecycle/deletion";
 import { DrizzleLearningStore } from "@/lib/learning-service/drizzle-store";
 import { LearningService } from "@/lib/learning-service/service";
 import { scheduleSmartRemindersWithDatabase } from "@/lib/notifications/smart-reminders";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const LEARNER = "daily-review-learner";
 const OTHER = "daily-review-other";
@@ -158,23 +159,7 @@ type TransactionDatabase = Pick<typeof db, "transaction">;
 function storeForDatabase(database: TransactionDatabase): DrizzleLearningStore {
   return new DrizzleLearningStore(database);
 }
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Daily review integration requires the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 function reviewedBank(skillId: string, itemId: string): Record<string, unknown> {
   return {

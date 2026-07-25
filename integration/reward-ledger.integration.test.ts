@@ -20,6 +20,7 @@ import {
   reconcileMasteryEvidenceReward,
 } from "@/lib/rewards/service";
 import { processRewardReconciliationBatch } from "@/lib/rewards/worker";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const LEARNER = "reward-ledger-integration-learner";
 const OTHER = "reward-ledger-integration-other";
@@ -35,24 +36,7 @@ const ATTEMPT_ONE = "71000000-0000-4000-8000-000000000009";
 const ATTEMPT_TWO = "71000000-0000-4000-8000-000000000010";
 const OTHER_ATTEMPT = "71000000-0000-4000-8000-000000000011";
 const MASTERY = "71000000-0000-4000-8000-000000000012";
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Reward-ledger integration requires the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 beforeEach(async () => {
   await truncateApplicationTables();

@@ -16,6 +16,7 @@ import {
   listProjectRevisions,
   ProjectRevisionError,
 } from "@/lib/projects/revision-service";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const OWNER_ID = "project-revision-owner";
 const OTHER_ID = "project-revision-other";
@@ -26,24 +27,7 @@ const PENDING_FILE_ID = "15000000-0000-4000-8000-000000000004";
 const FOREIGN_FILE_ID = "15000000-0000-4000-8000-000000000005";
 const REQUEST_ID = "15000000-0000-4000-8000-000000000006";
 const NOW = new Date("2026-07-12T12:00:00.000Z");
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Project revision integration tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 async function seed() {
   await db.insert(user).values([

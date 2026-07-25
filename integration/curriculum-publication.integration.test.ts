@@ -13,6 +13,7 @@ import { evaluateCurriculumPublicationGate } from "@/lib/curriculum-publication/
 import { aggregateArtifactHash, hashCurriculumValue } from "@/lib/curriculum-publication/hash";
 import { stageFilesystemCurriculum } from "@/lib/curriculum-publication/staging";
 import { pool } from "@/lib/db/client";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const ADMIN_ID = "curriculum-integration-admin";
 const LEARNER_ID = "curriculum-integration-learner";
@@ -36,24 +37,7 @@ const checklist: CurriculumReviewChecklist = {
   answerOracle: { passed: true, evidenceRef: "evidence://oracle/1", note: "Answer-oracle behavior was independently checked." },
   exampleExecution: { passed: true, evidenceRef: "evidence://execution/1", note: "All relevant examples were independently executed." },
 };
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Curriculum integration tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 async function seedActors() {
   await pool.query(

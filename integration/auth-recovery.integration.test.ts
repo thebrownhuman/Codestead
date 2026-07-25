@@ -38,6 +38,7 @@ import {
   verifyLostDeviceProof,
 } from "@/lib/security/lost-device-recovery";
 import { and, eq } from "drizzle-orm";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const ADMIN_ID = "auth-recovery-admin";
 const ADMIN_SESSION_ID = "auth-recovery-admin-session";
@@ -47,31 +48,7 @@ const LEARNER_B = "auth-recovery-learner-b";
 const LEARNER_B_SESSION = "auth-recovery-session-b";
 const LEARNER_A_EMAIL = "auth-recovery-a@integration.invalid";
 const SESSION_TOKEN_CANARY = "AUTH_SESSION_TOKEN_CANARY_DO_NOT_COPY";
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (
-    process.env.INTEGRATION_TEST !== "1" ||
-    !/\/learncoding_integration(?:\?|$)/.test(connectionString)
-  ) {
-    throw new Error(
-      "Auth recovery integration tests require the disposable learncoding_integration database.",
-    );
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name
-      from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  const names = tables.rows
-    .map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`)
-    .join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 async function seedSecurityActors(now = new Date()) {
   await db.insert(user).values([

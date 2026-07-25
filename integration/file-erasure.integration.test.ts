@@ -15,6 +15,7 @@ import {
 } from "@/lib/data-lifecycle/file-erasure";
 import { resolveStoredObjectPath } from "@/lib/storage/upload-scanner";
 import { ownerStorageSegment } from "@/lib/storage/upload-service";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const USER_ID = "file-erasure-integration-user";
 const PUBLIC_ID = "e1000000-0000-4000-8000-000000000001";
@@ -26,24 +27,7 @@ const OBJECT_2 = "e3000000-0000-4000-8000-000000000002";
 const NOW = new Date("2026-07-14T00:00:00.000Z");
 
 let root = "";
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("File-erasure integration requires the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`truncate table ${names} restart identity cascade`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 async function seedRun(runId: string) {
   await db.insert(dataLifecycleRun).values({

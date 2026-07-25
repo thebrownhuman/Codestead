@@ -17,6 +17,7 @@ import {
 } from "@/lib/runner/power-rehearsal-admin";
 import { holdRunnerDispatchForPowerRehearsal } from "@/lib/runner/power-rehearsal-hold";
 import { buildPracticeRunnerRequest, PRACTICE_LIMITS } from "@/lib/runner/practice-dispatch";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const ADMIN = "rehearsal-admin";
 const LEARNER_ONE = "rehearsal-learner-one";
@@ -25,24 +26,7 @@ const EVENT = "a0000000-0000-4000-8000-000000000001";
 const COMMAND = "a0000000-0000-4000-8000-000000000002";
 const NOW = new Date("2026-07-20T10:00:00.000Z");
 const REASON = "Supervised physical power-loss recovery rehearsal for the pilot release.";
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Power-rehearsal tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(",");
-  await pool.query(`truncate table ${names} restart identity cascade`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 async function createHeldDispatch(input: {
   learnerId: string;

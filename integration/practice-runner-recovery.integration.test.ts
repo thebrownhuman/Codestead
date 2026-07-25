@@ -24,6 +24,7 @@ import {
   PracticeRecoveryAdminError,
   resolveQuarantinedPracticeRunnerJob,
 } from "@/lib/runner/practice-recovery-admin";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const ADMIN_ID = "practice-recovery-admin";
 const LEARNER_ID = "practice-recovery-learner";
@@ -105,24 +106,7 @@ function successfulRunner() {
     waitFrom: vi.fn(),
   };
 }
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Practice runner recovery tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(",");
-  await pool.query(`truncate table ${names} restart identity cascade`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 beforeEach(async () => {
   await truncateApplicationTables();

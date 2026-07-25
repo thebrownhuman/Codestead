@@ -14,6 +14,7 @@ import {
   STORAGE_RECONCILIATION_APPLY_CONFIRMATION,
 } from "@/lib/storage/reconciliation";
 import { DEFAULT_STORAGE_QUOTA_BYTES } from "@/lib/storage/policy";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const USER_ID = "storage-reconciliation-learner";
 const PUBLIC_ID = "a1000000-0000-4000-8000-000000000001";
@@ -29,24 +30,7 @@ const OBJECT_IDS = {
 } as const;
 
 let root: string;
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Storage reconciliation integration requires the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 function digest(value: string) {
   return createHash("sha256").update(value).digest("hex");

@@ -68,6 +68,7 @@ import type {
   SupportedAttemptKind,
 } from "@/lib/learning-service/types";
 import { LESSON_COMPLETION_AUTHORITY } from "@/lib/learning-service/types";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const ADMIN_ID = "journey-integration-admin";
 const LEARNER_ID = "journey-integration-learner";
@@ -115,24 +116,7 @@ interface PublicationArtifact {
 }
 
 let fixture: ReviewedFixture;
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Learner-journey integration requires the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 async function readJson(relativePath: string): Promise<Record<string, unknown>> {
   return JSON.parse(await readFile(path.resolve(process.cwd(), relativePath), "utf8")) as Record<string, unknown>;

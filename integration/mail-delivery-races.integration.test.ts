@@ -26,6 +26,7 @@ import type {
   OutboxClaim,
   ProviderCallPermit,
 } from "@/lib/notifications/outbox-worker";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const ADMIN_ID = "mail-race-admin";
 const LEARNER_ID = "mail-race-learner";
@@ -285,26 +286,7 @@ const liveOutboxPool: OutboxPgPool = {
 function store(outboxPool: OutboxPgPool = liveOutboxPool) {
   return new PostgresOutboxStore(outboxPool);
 }
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Mail delivery race tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows
-    .map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`)
-    .join(", ");
-  await pool.query(`truncate table ${names} restart identity cascade`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 async function waitForAdvisoryWaiters(blockerPid: number, expectedCount: number) {
   const deadline = Date.now() + 3_000;

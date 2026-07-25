@@ -35,6 +35,7 @@ import {
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
 import { createProjectRevision } from "@/lib/projects/revision-service";
 import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const NOW = new Date("2026-07-14T12:00:00.000Z");
 const ADMIN = "community-battle-admin";
@@ -83,22 +84,7 @@ function nextCommunityRequestId() {
   communityOperationSequence += 1;
   return `cc900000-0000-4000-8000-${String(communityOperationSequence).padStart(12, "0")}`;
 }
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Community integration tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'`);
-  const names = tables.rows.map((row) => `"${row.table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 function assessmentBank() {
   return {

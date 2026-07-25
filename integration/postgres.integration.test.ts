@@ -116,6 +116,7 @@ import {
   decideAppeal,
   getAdminAppealDetail,
 } from "@/lib/appeals/admin-service";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 
 const USER_A = "integration-user-a";
@@ -227,32 +228,7 @@ const startInput = {
   readinessAcknowledged: true,
   device: startDevice,
 } as const;
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (
-    process.env.INTEGRATION_TEST !== "1" ||
-    !/\/learncoding_integration(?:\?|$)/.test(connectionString)
-  ) {
-    throw new Error(
-      "Integration tests refuse to run outside the disposable learncoding_integration database.",
-    );
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name
-    FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const identifiers = result.rows
-    .map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`)
-    .join(", ");
-  await pool.query(`TRUNCATE TABLE ${identifiers} RESTART IDENTITY CASCADE`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 async function seedUsers(options: { quota?: number } = {}) {
   await db.insert(user).values([

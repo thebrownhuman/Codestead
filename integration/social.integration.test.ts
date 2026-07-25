@@ -12,6 +12,7 @@ import {
   updateCohortProfile,
   withdrawCohortProfileForConsent,
 } from "@/lib/social/profile-service";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const NOW = new Date("2026-07-12T12:00:00.000Z");
 const USER_A = "social-learner-a";
@@ -22,22 +23,7 @@ const PUBLIC_B = "a1000000-0000-4000-8000-000000000002";
 const ACHIEVEMENT_ID = "a2000000-0000-4000-8000-000000000001";
 const USER_ACHIEVEMENT_ID = "a2000000-0000-4000-8000-000000000002";
 const PROJECT_ID = "a2000000-0000-4000-8000-000000000003";
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Social integration tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'`);
-  const names = tables.rows.map((row) => `"${row.table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 async function seedPeopleAndSelections() {
   await pool.query(

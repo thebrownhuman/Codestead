@@ -5,6 +5,7 @@ import { issueCourseCertificate, loadPublicCertificate, revokeCourseCertificate 
 import { createLearnerExport } from "@/lib/data-lifecycle/export";
 import { pool } from "@/lib/db/client";
 import { loadPublicPortfolio, updatePublicPortfolio } from "@/lib/portfolio/service";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const LEARNER = "milestone-integration-learner";
 const OTHER = "milestone-integration-other";
@@ -21,22 +22,7 @@ const OTHER_PROJECT = "61000000-0000-4000-8000-000000000009";
 const ACHIEVEMENT = "61000000-0000-4000-8000-000000000010";
 const USER_ACHIEVEMENT = "61000000-0000-4000-8000-000000000011";
 const NOW = new Date("2026-07-14T12:00:00.000Z");
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Milestone integration tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema='public' and table_type='BASE TABLE'`);
-  const names = tables.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 async function seedEligibleLearningEvidence() {
   await pool.query(

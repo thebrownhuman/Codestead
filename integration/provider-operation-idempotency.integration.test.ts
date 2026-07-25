@@ -27,6 +27,7 @@ import {
 } from "@/lib/db/schema";
 import { consentInsert } from "@/lib/privacy/consent";
 import { sealCredential } from "@/lib/security/credential-vault";
+import { createIntegrationDatabaseCleaner } from "../scripts/lib/integration-database-cleanup";
 
 const ADMIN_ID = "provider-idempotency-admin";
 const LEARNER_ID = "provider-idempotency-learner";
@@ -37,24 +38,7 @@ const MODEL_CALL_ID = "74000000-0000-4000-8000-000000000001";
 const REQUEST_ID = "75000000-0000-4000-8000-000000000001";
 const masterKey = Buffer.alloc(32, 17);
 const storedSecret = "synthetic-provider-material-ABCD";
-
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
-    throw new Error("Provider-operation idempotency tests require the disposable learncoding_integration database.");
-  }
-}
-
-async function truncateApplicationTables() {
-  assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
-}
+const truncateApplicationTables = createIntegrationDatabaseCleaner(pool);
 
 beforeEach(async () => {
   await truncateApplicationTables();
