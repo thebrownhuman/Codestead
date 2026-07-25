@@ -47,8 +47,6 @@ const {
   harnessScript,
   registrationCommand,
   harnessCommand,
-  pg17Command,
-  pg18Command,
 } = mailRetentionRedaction0063CiContract;
 assert.doesNotMatch(
   nativeHarness,
