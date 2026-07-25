@@ -225,6 +225,18 @@ function trustedSqlLiteral(value: string) {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
+function nonEmptySqlDisjunction(
+  parts: readonly string[],
+  authority: string,
+) {
+  if (parts.length === 0 || parts.some((part) => !part.trim())) {
+    throw new Error(
+      `${authority} must contain at least one non-empty SQL predicate.`,
+    );
+  }
+  return parts.join(" or ");
+}
+
 const DELETION_NOTICE_TEMPLATE_SQL = trustedSqlLiteral(
   DELETION_NOTICE_TEMPLATE_AUTHORITY.template,
 );
@@ -238,37 +250,47 @@ function templateVersionAuthorityPredicate(
       `Template authority ${authority.template} must allow at least one version.`,
     );
   }
-  const versions = authority.versions
-    .map((version) => `${outbox}.template_version = ${trustedSqlLiteral(version)}`)
-    .join(" or ");
+  const versions = nonEmptySqlDisjunction(
+    authority.versions.map(
+      (version) => `${outbox}.template_version = ${trustedSqlLiteral(version)}`,
+    ),
+    `Template authority ${authority.template}`,
+  );
   return `(
     ${outbox}.template = ${trustedSqlLiteral(authority.template)}
     and (${versions})
   )`;
 }
 
-const ACCOUNT_TEMPLATE_AUTHORITY_SQL = PRODUCTION_EMAIL_TEMPLATES.flatMap(
-  (template) => {
-    const policy = TEMPLATE_AUTHORITY_POLICIES[template];
-    if (policy.scope !== "account") return [];
-    const banned = policy.account.banned
-      .map((value) => `account_user.banned = ${value}`)
-      .join(" or ");
-    const states = policy.account.states
-      .map((state) => `(
-        account_user.role = ${trustedSqlLiteral(state.role)}
-        and account_user.status = ${trustedSqlLiteral(state.status)}
-        and account_user.email_verified = ${state.emailVerified}
-      )`)
-      .join(" or ");
-    return policy.versions.map((version) => `(
-      outbox.template = ${trustedSqlLiteral(template)}
-      and outbox.template_version = ${trustedSqlLiteral(version)}
-      and (${banned})
-      and (${states})
-    )`);
-  },
-).join(" or ");
+const ACCOUNT_TEMPLATE_AUTHORITY_SQL = nonEmptySqlDisjunction(
+  PRODUCTION_EMAIL_TEMPLATES.flatMap(
+    (template) => {
+      const policy = TEMPLATE_AUTHORITY_POLICIES[template];
+      if (policy.scope !== "account") return [];
+      const banned = nonEmptySqlDisjunction(
+        policy.account.banned.map(
+          (value) => `account_user.banned = ${value}`,
+        ),
+        `Template authority ${template} banned states`,
+      );
+      const states = nonEmptySqlDisjunction(
+        policy.account.states.map((state) => `(
+          account_user.role = ${trustedSqlLiteral(state.role)}
+          and account_user.status = ${trustedSqlLiteral(state.status)}
+          and account_user.email_verified = ${state.emailVerified}
+        )`),
+        `Template authority ${template} account states`,
+      );
+      return policy.versions.map((version) => `(
+        outbox.template = ${trustedSqlLiteral(template)}
+        and outbox.template_version = ${trustedSqlLiteral(version)}
+        and (${banned})
+        and (${states})
+      )`);
+    },
+  ),
+  "Account template authority",
+);
 
 function accountMailAuthorityPredicate(outbox: string, lockClause = "") {
   const authority = ACCOUNT_TEMPLATE_AUTHORITY_SQL.replaceAll(
