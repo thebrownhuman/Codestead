@@ -230,9 +230,9 @@ describe("prepared mail dispatch", () => {
     vi.stubEnv("MAIL_FROM", "Attacker <attacker@example.test>");
 
     const stringify = vi.spyOn(JSON, "stringify");
-    const authorization = await authorizePreparedEmail(prepared);
+    const authorization = await authorizePreparedEmail(prepared, AUTHORITY);
     await expect(
-      sendPreparedEmail(prepared, AUTHORITY, authorization),
+      sendPreparedEmail(authorization),
     ).resolves.toEqual({ providerId: "gmail-message-1" });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -249,7 +249,62 @@ describe("prepared mail dispatch", () => {
     expect(JSON.stringify(prepared)).not.toContain("refresh-secret");
   });
 
-  it("uses only entry snapshots when callers mutate every object before fetch starts", async () => {
+  it("rejects mutated dispatch evidence before OAuth or delivery in the public sequence", async () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
+    const original = prepareEmail({
+      to: "learner@example.test",
+      template: "invitation",
+      templateVersion: "1",
+      variables: {},
+    }, gmailPreparation());
+    if (original.adapter !== "gmail") throw new Error("Expected Gmail preparation.");
+    const mutatedPrepared = {
+      ...original,
+      requestBody: '{"raw":"mutated-before-authorization"}',
+      rfc822: `${original.rfc822}\r\nmutated-before-authorization`,
+      bindingSha256: "0".repeat(64),
+      authorityBindingSha256: "f".repeat(64),
+    };
+    const mutatedAuthority: MailDispatchAuthority = {
+      ...AUTHORITY,
+      deliveryScopeKey: "a:other-learner",
+      recipient: "other@example.test",
+      template: "access-rejected",
+      templateVersion: "1",
+    };
+    vi.stubEnv("GMAIL_CLIENT_ID", "client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh-secret");
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('{"access_token":"must-not-be-requested"}', {
+        status: 200,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const error = await (async () => {
+      const authorization = await authorizePreparedEmail(
+        mutatedPrepared,
+        mutatedAuthority,
+      );
+      return sendPreparedEmail(authorization);
+    })().catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(classifyMailDeliveryError(error)).toEqual({
+      kind: "definitely-rejected",
+      code: "PAYLOAD_DIGEST_MISMATCH",
+    });
+    const requestedUrls = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(requestedUrls.filter((url) =>
+      url === "https://oauth2.googleapis.com/token"
+    )).toHaveLength(0);
+    expect(requestedUrls.filter((url) =>
+      url.endsWith("/gmail/v1/users/me/messages/send")
+    )).toHaveLength(0);
+  });
+  it("uses only entry snapshots when callers mutate inputs while OAuth is in flight", async () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
     const original = prepareEmail({
       to: "learner@example.test",
@@ -260,20 +315,23 @@ describe("prepared mail dispatch", () => {
     if (original.adapter !== "gmail") throw new Error("Expected Gmail preparation.");
     const mutablePrepared = { ...original };
     const mutableAuthority = { ...AUTHORITY };
-    const mutableAuthorization = {
-      adapter: "gmail" as const,
-      accessToken: "original-oauth-token",
-      requestTimeoutMs: 1_000,
-    };
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response('{"id":"gmail-snapshotted"}', { status: 200 }),
-    );
+    vi.stubEnv("GMAIL_CLIENT_ID", "client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh-secret");
+    let resolveToken!: (response: Response) => void;
+    const tokenResponse = new Promise<Response>((resolve) => {
+      resolveToken = resolve;
+    });
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockImplementationOnce(() => tokenResponse)
+      .mockResolvedValueOnce(
+        new Response('{"id":"gmail-snapshotted"}', { status: 200 }),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
-    const delivery = sendPreparedEmail(
+    const authorizationPromise = authorizePreparedEmail(
       mutablePrepared,
       mutableAuthority,
-      mutableAuthorization,
     );
     Object.assign(mutablePrepared, {
       adapter: "console",
@@ -297,17 +355,18 @@ describe("prepared mail dispatch", () => {
       template: "access-rejected",
       templateVersion: "99",
     });
-    Object.assign(mutableAuthorization, {
-      adapter: "console",
-      accessToken: "mutated-oauth-token",
-      requestTimeoutMs: 20_000,
-    });
+    resolveToken(new Response(
+      '{"access_token":"original-oauth-token"}',
+      { status: 200 },
+    ));
+    const authorization = await authorizationPromise;
+    const delivery = sendPreparedEmail(authorization);
 
     await expect(delivery).resolves.toEqual({
       providerId: "gmail-snapshotted",
     });
-    expect(fetchMock).toHaveBeenCalledOnce();
-    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [, options] = fetchMock.mock.calls[1] as [string, RequestInit];
     expect(options.body).toBe(original.requestBody);
     expect(options.headers).toEqual({
       authorization: "Bearer original-oauth-token",
@@ -315,7 +374,7 @@ describe("prepared mail dispatch", () => {
     });
   });
 
-  it("reads every prepared, authority, and authorization scalar exactly once at entry", async () => {
+  it("reads every caller-supplied prepared and authority scalar exactly once at authorization entry", async () => {
     vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
     const original = prepareEmail({
       to: "learner@example.test",
@@ -326,24 +385,27 @@ describe("prepared mail dispatch", () => {
     if (original.adapter !== "gmail") throw new Error("Expected Gmail preparation.");
     const prepared = oneReadObject(original);
     const authority = oneReadObject(AUTHORITY);
-    const authorization = oneReadObject({
-      adapter: "gmail" as const,
-      accessToken: "oauth-access-secret",
-      requestTimeoutMs: 1_000,
-    });
-    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(
-      new Response('{"id":"gmail-read-once"}', { status: 200 }),
-    ));
+    vi.stubEnv("GMAIL_CLIENT_ID", "client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh-secret");
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(
+        '{"access_token":"oauth-access-secret"}',
+        { status: 200 },
+      ))
+      .mockResolvedValueOnce(
+        new Response('{"id":"gmail-read-once"}', { status: 200 }),
+      ));
 
-    await expect(sendPreparedEmail(
+    const authorization = await authorizePreparedEmail(
       prepared.value,
       authority.value,
-      authorization.value,
-    )).resolves.toEqual({ providerId: "gmail-read-once" });
+    );
+    await expect(sendPreparedEmail(authorization))
+      .resolves.toEqual({ providerId: "gmail-read-once" });
 
     prepared.assertEachReadOnce();
     authority.assertEachReadOnce();
-    authorization.assertEachReadOnce();
   });
 
   it("rejects a runtime template outside the allowlist before creating any prepared artifact", () => {
@@ -401,12 +463,67 @@ describe("prepared mail dispatch", () => {
       ));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(authorizePreparedEmail(prepared)).resolves.toEqual({
+    await expect(authorizePreparedEmail(prepared, AUTHORITY))
+      .resolves.toMatchObject({
       adapter: "gmail",
       accessToken: "oauth-access-secret",
       requestTimeoutMs: 20_000,
+      prepared,
+      authority: AUTHORITY,
     });
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("fails fatally when OAuth ignores abort and never reaches Gmail delivery", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(BOUNDARY_UUID);
+    const prepared = prepareEmail({
+      to: "learner@example.test",
+      template: "invitation",
+      templateVersion: "1",
+      variables: {},
+    }, gmailPreparation());
+    vi.stubEnv("GMAIL_CLIENT_ID", "client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh-secret");
+    vi.stubEnv("GMAIL_REQUEST_TIMEOUT_MS", "1000");
+    const observed: { signal: AbortSignal | null } = { signal: null };
+    const fetchMock = vi.fn<typeof fetch>((_url, init) => {
+      observed.signal = init?.signal ?? null;
+      return new Promise<Response>(() => undefined);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    let outcome: unknown = "pending";
+    void authorizePreparedEmail(prepared, AUTHORITY).then(
+      (value) => { outcome = value; },
+      (error: unknown) => { outcome = error; },
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+      "https://oauth2.googleapis.com/token",
+    );
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(observed.signal?.aborted).toBe(true);
+    expect(outcome).toBe("pending");
+
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(outcome).toBe("pending");
+    await vi.advanceTimersByTimeAsync(1);
+    expect(outcome).toBeInstanceOf(Error);
+    expect((outcome as Error).message).toBe(
+      "Gmail OAuth request did not settle after abort.",
+    );
+    expect(classifyMailDeliveryError(outcome)).toEqual({
+      kind: "fatal",
+      code: "GMAIL_OAUTH_TRANSPORT_UNSETTLED",
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock.mock.calls.some(([url]) => (
+      String(url).endsWith("/gmail/v1/users/me/messages/send")
+    ))).toBe(false);
   });
 
   it.each([
@@ -441,14 +558,27 @@ describe("prepared mail dispatch", () => {
       templateVersion: "1",
       variables: {},
     }, gmailPreparation());
-    const fetchMock = vi.fn();
+    vi.stubEnv("GMAIL_CLIENT_ID", "client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh-secret");
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response('{"access_token":"oauth-access-secret"}', {
+        status: 200,
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
-
-    const error = await sendPreparedEmail(
+    const validAuthorization = await authorizePreparedEmail(
       prepared,
       AUTHORITY,
-      authorization,
-    ).catch((caught: unknown) => caught);
+    );
+    fetchMock.mockClear();
+    const malformedAuthorization = Object.freeze({
+      ...validAuthorization,
+      ...authorization,
+    }) as PreparedEmailAuthorization;
+
+    const error = await sendPreparedEmail(malformedAuthorization)
+      .catch((caught: unknown) => caught);
 
     expect(classifyMailDeliveryError(error)).toEqual({
       kind: "definitely-rejected",
@@ -470,18 +600,15 @@ describe("prepared mail dispatch", () => {
       ...prepared,
       requestBody: `${prepared.requestBody.slice(0, -1)}X`,
     };
-    const authorization: PreparedEmailAuthorization = Object.freeze({
-      adapter: "gmail",
-      accessToken: "oauth-access-secret",
-      requestTimeoutMs: 1_000,
-    });
+    vi.stubEnv("GMAIL_CLIENT_ID", "client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh-secret");
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const error = await sendPreparedEmail(
+    const error = await authorizePreparedEmail(
       tampered,
       AUTHORITY,
-      authorization,
     ).catch((caught: unknown) => caught);
 
     expect(error).toBeInstanceOf(Error);
@@ -523,10 +650,10 @@ describe("prepared mail dispatch", () => {
         },
       ));
     vi.stubGlobal("fetch", fetchMock);
-    const authorization = await authorizePreparedEmail(prepared);
+    const authorization = await authorizePreparedEmail(prepared, AUTHORITY);
 
     let outcome: unknown = "pending";
-    void sendPreparedEmail(prepared, AUTHORITY, authorization).then(
+    void sendPreparedEmail(authorization).then(
       (value) => { outcome = value; },
       (error: unknown) => { outcome = error; },
     );
@@ -556,20 +683,26 @@ describe("prepared mail dispatch", () => {
       templateVersion: "1",
       variables: {},
     }, gmailPreparation());
-    const authorization: PreparedEmailAuthorization = Object.freeze({
-      adapter: "gmail",
-      accessToken: "oauth-access-secret",
-      requestTimeoutMs: 1_000,
-    });
+    vi.stubEnv("GMAIL_CLIENT_ID", "client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh-secret");
+    vi.stubEnv("GMAIL_REQUEST_TIMEOUT_MS", "1000");
     const observed: { signal: AbortSignal | null } = { signal: null };
-    const fetchMock = vi.fn<typeof fetch>((_url, init) => {
-      observed.signal = init?.signal ?? null;
-      return new Promise<Response>(() => undefined);
-    });
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(
+        '{"access_token":"oauth-access-secret"}',
+        { status: 200 },
+      ))
+      .mockImplementationOnce((_url, init) => {
+        observed.signal = init?.signal ?? null;
+        return new Promise<Response>(() => undefined);
+      });
     vi.stubGlobal("fetch", fetchMock);
+    const authorization = await authorizePreparedEmail(prepared, AUTHORITY);
+    fetchMock.mockClear();
 
     let outcome: unknown = "pending";
-    void sendPreparedEmail(prepared, AUTHORITY, authorization).then(
+    void sendPreparedEmail(authorization).then(
       (value) => { outcome = value; },
       (error: unknown) => { outcome = error; },
     );
@@ -601,19 +734,22 @@ describe("prepared mail dispatch", () => {
       templateVersion: "1",
       variables: {},
     }, gmailPreparation());
-    const authorization: PreparedEmailAuthorization = Object.freeze({
-      adapter: "gmail",
-      accessToken: "oauth-access-secret",
-      requestTimeoutMs: 1_000,
-    });
+    vi.stubEnv("GMAIL_CLIENT_ID", "client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh-secret");
+    vi.stubEnv("GMAIL_REQUEST_TIMEOUT_MS", "1000");
     const externalAbort = new AbortController();
     externalAbort.abort();
-    const fetchMock = vi.fn<typeof fetch>();
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response('{"access_token":"oauth-access-secret"}', {
+        status: 200,
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
+    const authorization = await authorizePreparedEmail(prepared, AUTHORITY);
+    fetchMock.mockClear();
 
     const error = await sendPreparedEmail(
-      prepared,
-      AUTHORITY,
       authorization,
       { signal: externalAbort.signal },
     ).catch((caught: unknown) => caught);
@@ -638,27 +774,31 @@ describe("prepared mail dispatch", () => {
       templateVersion: "1",
       variables: {},
     }, gmailPreparation());
-    const authorization: PreparedEmailAuthorization = Object.freeze({
-      adapter: "gmail",
-      accessToken: "oauth-access-secret",
-      requestTimeoutMs: 20_000,
-    });
+    vi.stubEnv("GMAIL_CLIENT_ID", "client");
+    vi.stubEnv("GMAIL_CLIENT_SECRET", "client-secret");
+    vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh-secret");
+    vi.stubEnv("GMAIL_REQUEST_TIMEOUT_MS", "20000");
     const externalAbort = new AbortController();
     let resolveDelivery!: (response: Response) => void;
     const lateDelivery = new Promise<Response>((resolve) => {
       resolveDelivery = resolve;
     });
     const observed: { signal: AbortSignal | null } = { signal: null };
-    const fetchMock = vi.fn<typeof fetch>((_url, init) => {
-      observed.signal = init?.signal ?? null;
-      return lateDelivery;
-    });
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(
+        '{"access_token":"oauth-access-secret"}',
+        { status: 200 },
+      ))
+      .mockImplementationOnce((_url, init) => {
+        observed.signal = init?.signal ?? null;
+        return lateDelivery;
+      });
     vi.stubGlobal("fetch", fetchMock);
+    const authorization = await authorizePreparedEmail(prepared, AUTHORITY);
+    fetchMock.mockClear();
 
     let outcome: unknown = "pending";
     void sendPreparedEmail(
-      prepared,
-      AUTHORITY,
       authorization,
       { signal: externalAbort.signal },
     ).then(
@@ -718,8 +858,10 @@ describe("prepared mail dispatch", () => {
       bindingVersion: "console-json-v1",
       eventLine:
         '{"event":"email.console_delivery","template":"account-deleted"}',
+      eventBytes:
+        '{"event":"email.console_delivery","template":"account-deleted"}\n',
       requestBody:
-        '{"event":"email.console_delivery","template":"account-deleted"}',
+        '{"event":"email.console_delivery","template":"account-deleted"}\n',
     });
     if (prepared.adapter !== "console") {
       throw new Error("Expected console preparation.");
@@ -727,23 +869,38 @@ describe("prepared mail dispatch", () => {
     expect(Object.isFrozen(prepared)).toBe(true);
     expect(preparedEmailBindingMatches(prepared, deletionAuthority)).toBe(true);
     vi.stubEnv("MAIL_ADAPTER", "gmail");
-    const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const write = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
     expect(prepared.bindingSha256).toBe(
-      createHash("sha256").update(prepared.eventLine, "utf8").digest("hex"),
+      createHash("sha256").update(prepared.eventBytes, "utf8").digest("hex"),
     );
+    expect(prepared.eventLine).not.toMatch(/[\r\n]/);
+    expect(prepared.eventBytes).toBe(`${prepared.eventLine}\n`);
+    expect(prepared.eventBytes.endsWith("\n\n")).toBe(false);
     expect(prepared.authorityBindingVersion).toBe("prepared-authority-v1");
     expect(prepared.authorityBindingSha256).toMatch(/^[0-9a-f]{64}$/);
-    const authorization = await authorizePreparedEmail(prepared);
+    const authorization = await authorizePreparedEmail(
+      prepared,
+      deletionAuthority,
+    );
 
     await expect(
-      sendPreparedEmail(prepared, deletionAuthority, authorization),
+      sendPreparedEmail(authorization),
     ).resolves.toEqual({
       providerId: `console-${BOUNDARY_UUID}`,
     });
 
     expect(randomUuid).toHaveBeenCalledOnce();
-    expect(log).toHaveBeenCalledExactlyOnceWith(prepared.eventLine);
-    const serialized = log.mock.calls.flat().join("\n");
+    expect(write).toHaveBeenCalledExactlyOnceWith(prepared.eventBytes);
+    const emittedBytes = Buffer.concat(write.mock.calls.map(([chunk]) => (
+      typeof chunk === "string"
+        ? Buffer.from(chunk, "utf8")
+        : Buffer.from(chunk)
+    )));
+    expect(emittedBytes).toEqual(Buffer.from(prepared.eventBytes, "utf8"));
+    expect(emittedBytes.at(-1)).toBe(0x0a);
+    const serialized = emittedBytes.toString("utf8");
     for (const sensitive of [
       "privacy-canary",
       AUTHORITY.id,

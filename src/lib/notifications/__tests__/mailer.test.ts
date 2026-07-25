@@ -30,7 +30,9 @@ describe("notification delivery privacy", () => {
   });
 
   it("console delivery logs allowlisted metadata only, never capability IDs, recipient, token, or body", async () => {
-    const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const write = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
     const recipient = "privacy-canary@recipient.private.example";
     const tombstoneId = "tombstone-capability-log-canary";
     const deletionRunId = "deletion-run-capability-log-canary";
@@ -49,12 +51,23 @@ describe("notification delivery privacy", () => {
       },
     });
 
-    const entries = log.mock.calls.map(([entry]) => JSON.parse(String(entry)) as unknown);
-    expect(entries).toEqual([{
+    const expected =
+      '{"event":"email.console_delivery","template":"account-deleted"}\n';
+    expect(write).toHaveBeenCalledExactlyOnceWith(expected);
+    const emittedBytes = Buffer.concat(write.mock.calls.map(([chunk]) => (
+      typeof chunk === "string"
+        ? Buffer.from(chunk, "utf8")
+        : Buffer.from(chunk)
+    )));
+    expect(emittedBytes).toEqual(Buffer.from(expected, "utf8"));
+    expect(emittedBytes.at(-1)).toBe(0x0a);
+    expect(emittedBytes.at(-2)).not.toBe(0x0a);
+    const entry = JSON.parse(emittedBytes.subarray(0, -1).toString("utf8"));
+    expect(entry).toEqual({
       event: "email.console_delivery",
       template: "account-deleted",
-    }]);
-    const serialized = JSON.stringify(entries);
+    });
+    const serialized = emittedBytes.toString("utf8");
     expect(serialized).toContain("email.console_delivery");
     for (const sensitive of [recipient, "recipient.private.example", tombstoneId, deletionRunId, token, body]) {
       expect(serialized).not.toContain(sensitive);

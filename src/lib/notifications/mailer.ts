@@ -316,19 +316,50 @@ export async function findGmailMessageByMessageId(messageId: string) {
   return { kind: "matched" as const, providerMessageId };
 }
 
+const preparedEmailAuthorizationBrand = Symbol(
+  "codestead.prepared-email-authorization",
+);
+
+type AuthorityBoundAuthorization<P extends PreparedEmail> = Readonly<{
+  [preparedEmailAuthorizationBrand]: true;
+  prepared: P;
+  authority: MailDispatchAuthority;
+}>;
+
 export type PreparedEmailAuthorization =
-  | Readonly<{ adapter: "console" }>
-  | Readonly<{
-    adapter: "gmail";
-    accessToken: string;
-    requestTimeoutMs: number;
-  }>;
+  | (
+    & AuthorityBoundAuthorization<PreparedConsoleEmail>
+    & Readonly<{ adapter: "console" }>
+  )
+  | (
+    & AuthorityBoundAuthorization<PreparedGmailEmail>
+    & Readonly<{
+      adapter: "gmail";
+      accessToken: string;
+      requestTimeoutMs: number;
+    }>
+  );
 
 export async function authorizePreparedEmail(
   prepared: PreparedEmail,
+  authority: MailDispatchAuthority,
 ): Promise<PreparedEmailAuthorization> {
-  if (prepared.adapter === "console") {
-    return Object.freeze({ adapter: "console" as const });
+  const preparedSnapshot = snapshotPreparedEmail(prepared);
+  const authoritySnapshot = snapshotDispatchAuthority(authority);
+  if (!preparedEmailBindingMatches(
+    preparedSnapshot,
+    authoritySnapshot,
+  )) {
+    throw preparedBindingMismatch();
+  }
+
+  if (preparedSnapshot.adapter === "console") {
+    return Object.freeze({
+      [preparedEmailAuthorizationBrand]: true as const,
+      adapter: "console" as const,
+      prepared: preparedSnapshot,
+      authority: authoritySnapshot,
+    });
   }
 
   let requestTimeoutMs: number;
@@ -344,7 +375,10 @@ export async function authorizePreparedEmail(
   try {
     const accessToken = await gmailAccessToken(requestTimeoutMs);
     return Object.freeze({
+      [preparedEmailAuthorizationBrand]: true as const,
       adapter: "gmail" as const,
+      prepared: preparedSnapshot,
+      authority: authoritySnapshot,
       accessToken,
       requestTimeoutMs: Math.min(
         requestTimeoutMs,
@@ -352,6 +386,12 @@ export async function authorizePreparedEmail(
       ),
     });
   } catch (error) {
+    if (error instanceof GmailAbortSettlementError) {
+      throw deliveryError(error, {
+        kind: "fatal",
+        code: "GMAIL_OAUTH_TRANSPORT_UNSETTLED",
+      });
+    }
     throw deliveryError(error, {
       kind: "definitely-rejected",
       code: "GMAIL_OAUTH_FAILED",
@@ -422,6 +462,7 @@ function snapshotPreparedEmail(prepared: PreparedEmail): PreparedEmail {
       authorityBindingVersion: consoleEmail.authorityBindingVersion,
       authorityBindingSha256: consoleEmail.authorityBindingSha256,
       eventLine: consoleEmail.eventLine,
+      eventBytes: consoleEmail.eventBytes,
       requestBody: consoleEmail.requestBody,
       providerId: consoleEmail.providerId,
     });
@@ -448,13 +489,33 @@ function snapshotDispatchAuthority(
 function snapshotPreparedAuthorization(
   authorization: PreparedEmailAuthorization,
 ): PreparedEmailAuthorization {
+  const authorized = authorization[preparedEmailAuthorizationBrand];
   const adapter = authorization.adapter;
+  const prepared = authorization.prepared;
+  const authority = authorization.authority;
+  if (authorized !== true) {
+    throw preparedAuthorizationMismatch();
+  }
   if (adapter === "console") {
-    return Object.freeze({ adapter });
+    if (prepared.adapter !== "console") {
+      throw preparedAuthorizationMismatch();
+    }
+    return Object.freeze({
+      [preparedEmailAuthorizationBrand]: authorized,
+      adapter,
+      prepared,
+      authority,
+    });
   }
   if (adapter === "gmail") {
+    if (prepared.adapter !== "gmail") {
+      throw preparedAuthorizationMismatch();
+    }
     return Object.freeze({
+      [preparedEmailAuthorizationBrand]: authorized,
       adapter,
+      prepared,
+      authority,
       accessToken: authorization.accessToken,
       requestTimeoutMs: authorization.requestTimeoutMs,
     });
@@ -463,14 +524,12 @@ function snapshotPreparedAuthorization(
 }
 
 export async function sendPreparedEmail(
-  prepared: PreparedEmail,
-  authority: MailDispatchAuthority,
   authorization: PreparedEmailAuthorization,
   options: PreparedEmailSendOptions = {},
 ) {
-  const preparedSnapshot = snapshotPreparedEmail(prepared);
-  const authoritySnapshot = snapshotDispatchAuthority(authority);
   const authorizationSnapshot = snapshotPreparedAuthorization(authorization);
+  const preparedSnapshot = authorizationSnapshot.prepared;
+  const authoritySnapshot = authorizationSnapshot.authority;
   const externalSignal = options.signal;
 
   if (!preparedEmailBindingMatches(
@@ -480,15 +539,10 @@ export async function sendPreparedEmail(
     throw preparedBindingMismatch();
   }
 
-  if (preparedSnapshot.adapter === "console") {
-    if (authorizationSnapshot.adapter !== "console") {
-      throw preparedAuthorizationMismatch();
-    }
-    console.info(preparedSnapshot.eventLine);
-    return { providerId: preparedSnapshot.providerId };
-  }
-  if (authorizationSnapshot.adapter !== "gmail") {
-    throw preparedAuthorizationMismatch();
+  if (authorizationSnapshot.adapter === "console") {
+    const consolePrepared = authorizationSnapshot.prepared;
+    process.stdout.write(consolePrepared.eventBytes);
+    return { providerId: consolePrepared.providerId };
   }
   assertPreparedGmailAuthorization(authorizationSnapshot);
 
@@ -645,6 +699,6 @@ export async function sendEmail(
       code: "MAIL_PRE_SEND_REJECTED",
     });
   }
-  const authorization = await authorizePreparedEmail(prepared);
-  return sendPreparedEmail(prepared, authority, authorization);
+  const authorization = await authorizePreparedEmail(prepared, authority);
+  return sendPreparedEmail(authorization);
 }

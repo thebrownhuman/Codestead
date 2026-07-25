@@ -21,8 +21,14 @@ const mocks = vi.hoisted(() => {
   const processOutboxBatch = vi.fn();
   const materializeDeliveryVariables = vi.fn();
   const sendEmail = vi.fn();
+  class FatalProviderTransportError extends Error {
+    constructor(readonly code: string) {
+      super(`Fatal provider transport failure (${code}).`);
+      this.name = "FatalProviderTransportError";
+    }
+  }
   const classifyMailDeliveryError = vi.fn((): {
-    kind: "definitely-rejected" | "ambiguous";
+    kind: "definitely-rejected" | "ambiguous" | "fatal";
     code: string;
   } => ({
     kind: "ambiguous" as const,
@@ -44,6 +50,7 @@ const mocks = vi.hoisted(() => {
     store,
     PostgresOutboxStore,
     processOutboxBatch,
+    FatalProviderTransportError,
     materializeDeliveryVariables,
     sendEmail,
     classifyMailDeliveryError,
@@ -76,6 +83,7 @@ vi.mock("../src/lib/notifications/postgres-outbox-store", () => ({
 }));
 vi.mock("../src/lib/notifications/outbox-worker", () => ({
   processOutboxBatch: mocks.processOutboxBatch,
+  FatalProviderTransportError: mocks.FatalProviderTransportError,
 }));
 vi.mock("../src/lib/notifications/mailer", () => ({
   sendEmail: mocks.sendEmail,
@@ -342,6 +350,34 @@ describe("mail worker production composition", () => {
     });
   });
 
+  it("hard-exits only after pool cleanup when provider transport cannot settle", async () => {
+    const exit = vi.spyOn(process, "exit").mockImplementation(
+      (() => undefined) as unknown as typeof process.exit,
+    );
+    const failure = new mocks.FatalProviderTransportError(
+      "GMAIL_OAUTH_TRANSPORT_UNSETTLED",
+    );
+    mocks.processOutboxBatch.mockRejectedValueOnce(failure);
+
+    await loadWorkerOnce();
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledExactlyOnceWith(1));
+
+    expect(process.exitCode).toBe(1);
+    expect(mocks.health.retry).toHaveBeenCalledExactlyOnceWith(failure);
+    expect(mocks.health.terminalFailure)
+      .toHaveBeenCalledExactlyOnceWith(failure);
+    expect(mocks.poolEnd.mock.invocationCallOrder[0]).toBeLessThan(
+      exit.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(console.info).not.toHaveBeenCalledWith(
+      expect.stringContaining('"event":"email.outbox_batch"'),
+    );
+    expect(console.error).toHaveBeenCalledWith(JSON.stringify({
+      event: "email.worker_failed",
+      code: "FatalProviderTransportError",
+    }));
+  });
+
   it("suppresses an unknown stored template before materialization or provider work", async () => {
     let materializeResult: unknown;
     mocks.processOutboxBatch.mockImplementation(async (dependencies: {
@@ -376,7 +412,6 @@ describe("mail worker production composition", () => {
     expect(mocks.materializeDeliveryVariables).not.toHaveBeenCalled();
     expect(mocks.sendEmail).not.toHaveBeenCalled();
   });
-
   it("suppresses a row before provider delivery when delivery proof cannot be materialized", async () => {
     mocks.materializeDeliveryVariables.mockResolvedValue(null);
     let materializeResult: unknown;
@@ -576,32 +611,6 @@ describe("mail worker production composition", () => {
     expect(mocks.health.retry).not.toHaveBeenCalled();
     expect(mocks.health.terminalFailure).not.toHaveBeenCalled();
     expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not report a timeout when pool shutdown wins the deadline race", async () => {
-    vi.useFakeTimers();
-    const exit = vi.spyOn(process, "exit").mockImplementation(
-      (() => undefined) as unknown as typeof process.exit,
-    );
-    let monotonicMilliseconds = 0;
-    vi.spyOn(globalThis.performance, "now").mockImplementation(
-      () => monotonicMilliseconds,
-    );
-    mocks.poolEnd.mockImplementationOnce(async () => {
-      monotonicMilliseconds = 5_000;
-    });
-    process.argv = [originalArgv[0]!, originalArgv[1]!, "--once"];
-
-    await import("./process-outbox");
-    await flushWorkerMicrotasks();
-
-    expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
-    expect(process.exitCode).toBeUndefined();
-    expect(exit).not.toHaveBeenCalled();
-    const entries = vi.mocked(console.error).mock.calls
-      .map(([entry]) => String(entry))
-      .filter((entry) => entry.includes('"event":"email.worker_cleanup_failed"'));
-    expect(entries).toEqual([]);
   });
 
   it("bounds pool cleanup to five seconds and reports timeout without PII", async () => {

@@ -62,6 +62,14 @@ export type ProviderSendResult =
   | { readonly kind: "ambiguous"; readonly code: string }
   | { readonly kind: "fatal"; readonly code: string };
 
+/**
+ * Fatal means the bounded provider request did not settle after abort, so the
+ * caller cannot prove that its transport or database session is reusable.
+ * A guarded PostgreSQL dispatch owner must destroy its checked-out client with
+ * `client.release(true)` before allowing this error to escape. The process
+ * owner must then hard-exit after bounded pool cleanup; setting `exitCode`
+ * alone is not a fail-stop because the event loop can continue doing work.
+ */
 export class FatalProviderTransportError extends Error {
   constructor(readonly code: string) {
     super(`Fatal provider transport failure (${code}).`);

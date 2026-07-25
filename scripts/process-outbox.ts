@@ -18,6 +18,7 @@ import {
 } from "../src/lib/notifications/postgres-outbox-store";
 import { scheduleSmartReminders } from "../src/lib/notifications/smart-reminders";
 import {
+  FatalProviderTransportError,
   processOutboxBatch,
   type ItemOutcome,
   type ProcessOutboxBatchResult,
@@ -372,8 +373,10 @@ async function main() {
 }
 
 installTerminationHandlers();
+let hardFailStop = false;
 main()
   .catch((error) => {
+    hardFailStop = error instanceof FatalProviderTransportError;
     healthReporter?.retry(error);
     healthReporter?.terminalFailure(error);
     console.error(
@@ -384,4 +387,10 @@ main()
     );
     process.exitCode = 1;
   })
-  .finally(cleanup);
+  .finally(async () => {
+    await cleanup();
+    if (hardFailStop) {
+      // A transport that ignored abort cannot safely share this process again.
+      process.exit(1);
+    }
+  });
