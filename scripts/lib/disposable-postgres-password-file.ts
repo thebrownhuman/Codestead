@@ -1,28 +1,26 @@
-import { spawnSync } from "node:child_process";
 import {
   chmodSync,
   existsSync,
   lstatSync,
   mkdtempSync,
   rmSync,
+  rmdirSync,
   statSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir, userInfo } from "node:os";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { minimalNodeTestEnvironment } from
-  "./disposable-integration-environment";
 import {
   DisposableIntegrationLifecycleError,
   disposableIntegrationFailure,
 } from
   "./disposable-integration-error";
+import { secureDisposableWindowsPath } from "./disposable-windows-acl";
 
 const PASSWORD_FILE_NAME = "postgres-password";
 const PASSWORD_FILE_MODE = 0o600;
 const PASSWORD_CONTAINER_PATH = "/run/secrets/postgres-password";
-const WINDOWS_ACL_TIMEOUT_MS = 5_000;
 const SAFE_PASSWORD_FILE_CREATION_CODES = new Set([
   "password_file_windows_acl_failed",
   "password_directory_invalid",
@@ -55,36 +53,15 @@ export type DisposablePostgresPasswordFile = Readonly<{
   cleanup: () => void;
 }>;
 
-function runWindowsAclCommand(args: readonly string[]): void {
-  const systemRoot = process.env.SYSTEMROOT ?? process.env.SystemRoot
-    ?? "C:\\Windows";
-  const command = path.join(systemRoot, "System32", "icacls.exe");
-  const result = spawnSync(command, [...args], {
-    env: minimalNodeTestEnvironment(process.env),
-    stdio: "ignore",
-    timeout: WINDOWS_ACL_TIMEOUT_MS,
-    windowsHide: true,
-  });
-  if (result.status !== 0) {
-    throw disposableIntegrationFailure("password_file_windows_acl_failed");
-  }
-}
-
 function secureWindowsPath(
   targetPath: string,
   kind: "directory" | "file",
 ): void {
-  const username = userInfo().username;
-  const permissions = kind === "directory"
-    ? `${username}:(OI)(CI)F`
-    : `${username}:(R,W,D)`;
-  runWindowsAclCommand([
+  secureDisposableWindowsPath({
     targetPath,
-    "/inheritance:r",
-    "/grant:r",
-    permissions,
-  ]);
-  runWindowsAclCommand([targetPath, "/verify"]);
+    kind,
+    failureCode: "password_file_windows_acl_failed",
+  });
 }
 
 const DEFAULT_OPERATIONS: DisposablePasswordFileOperations = {
@@ -107,7 +84,7 @@ const DEFAULT_OPERATIONS: DisposablePasswordFileOperations = {
   },
   pathExists: (filePath) => existsSync(filePath),
   removeFile: (filePath) => rmSync(filePath, { force: true }),
-  removeDirectory: (directoryPath) => rmSync(directoryPath),
+  removeDirectory: (directoryPath) => rmdirSync(directoryPath),
   secureWindowsPath,
 };
 
