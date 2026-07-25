@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  INACTIVITY_POLICY_VERSION,
   FIRST_REMINDER_AFTER_MS,
   isWithinQuietHours,
   localMinuteOfDay,
@@ -11,6 +12,7 @@ import {
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
 
 const NOW = new Date("2026-07-12T12:00:00.000Z");
+const TEST_EPISODE_ID = "40000000-0000-4000-8000-000000000004";
 
 type SchedulerCandidate = {
   user_id: string;
@@ -104,13 +106,13 @@ function fakeScheduler(input: {
     if (statement.startsWith("insert into inactivity_episode")) {
       const userId = String(values[0]);
       if (input.episodeInsertConflicts?.includes(userId)) return { rows: [], rowCount: 0 };
-      return { rows: [{ id: `episode-${userId}` }], rowCount: 1 };
+      return { rows: [{ id: TEST_EPISODE_ID }], rowCount: 1 };
     }
     if (statement.startsWith("select id, eligible_at, second_eligible_at from inactivity_episode")) {
       const original = input.candidates.find((row) => row.user_id === values[0])!;
       return {
         rows: [{
-          id: `existing-${String(values[0])}`,
+          id: TEST_EPISODE_ID,
           eligible_at: original.eligible_at ?? new Date(original.last_activity_at.getTime() + FIRST_REMINDER_AFTER_MS),
           second_eligible_at: original.second_eligible_at ?? new Date(original.last_activity_at.getTime() + SECOND_REMINDER_AFTER_MS),
         }],
@@ -228,7 +230,20 @@ describe("inactivity scheduler transaction branches", () => {
     });
     const emailCalls = fake.calls.filter((call) => call.statement.startsWith("insert into email_outbox"));
     expect(emailCalls.map((call) => call.values[2])).toEqual(["inactivity-reminder", "inactivity-admin-notice"]);
-    expect(JSON.parse(String(emailCalls[1]?.values[3]))).toEqual({ name: "administrator", url: "http://localhost:3000/admin" });
+    expect(emailCalls.map((call) => JSON.parse(String(call.values[3])))).toEqual([
+      {
+        inactivityEpisodeId: TEST_EPISODE_ID,
+        inactivityPolicyVersion: INACTIVITY_POLICY_VERSION,
+        name: "Learner first",
+        url: "http://localhost:3000/learn",
+      },
+      {
+        inactivityEpisodeId: TEST_EPISODE_ID,
+        inactivityPolicyVersion: INACTIVITY_POLICY_VERSION,
+        name: "administrator",
+        url: "http://localhost:3000/admin",
+      },
+    ]);
     expect(fake.calls.at(-1)?.statement).toContain("pg_advisory_unlock");
     expect(fake.calls.filter((call) => call.statement === "begin")).toHaveLength(1);
     expect(fake.calls.filter((call) => call.statement === "commit")).toHaveLength(1);
@@ -240,7 +255,7 @@ describe("inactivity scheduler transaction branches", () => {
     const firstQueuedAt = new Date(NOW.getTime() - 48 * 60 * 60_000);
     const due = candidate("second", {
       last_activity_at: baseline,
-      episode_id: "episode-second",
+      episode_id: TEST_EPISODE_ID,
       episode_last_activity_at: baseline,
       eligible_at: new Date(baseline.getTime() + FIRST_REMINDER_AFTER_MS),
       second_eligible_at: NOW,
@@ -270,7 +285,7 @@ describe("inactivity scheduler transaction branches", () => {
         candidate("paused", { inactivity_paused_until: new Date(NOW.getTime() + 60_000) }),
         candidate("quiet", { quiet_hours_enabled: true, quiet_start_minute: 0, quiet_end_minute: 0 }),
         candidate("not-yet", {
-          episode_id: "episode-not-yet",
+          episode_id: TEST_EPISODE_ID,
           episode_last_activity_at: baseline,
           eligible_at: new Date(NOW.getTime() + 1),
           second_eligible_at: new Date(NOW.getTime() + SECOND_REMINDER_AFTER_MS),
