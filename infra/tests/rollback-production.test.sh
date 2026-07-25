@@ -38,6 +38,12 @@ git -C "$work/repo" add .gitignore compose.yaml infra/ops/package-release-tree.p
 git -C "$work/repo" commit -qm 'fixture rollback checkout'
 retention_boundary_commit=18b2366db1347d7328d1ae85d7ee285c0fae4e5d
 retention_boundary_tree=2fd3e0b2c4fe6bceb3a70755e2b4b951ada0fbed
+contract_required_commit=abe2a67ad20215bff64317182cc306b3329e5bed
+contract_required_tree=6cf35f3a88e373e9cba13647d7be01265d21e0da
+pre_contract_commit=c893132eb4f2778575d566957cbdb55626efc1fa
+pre_contract_tree=908c86c0e5413fe2957fef119ab7946d4da2087f
+older_pre_contract_commit=29cb5434ff816e2657c7c16c8359650b70f782b3
+older_pre_contract_tree=ca3b8e5f61c1db0a7b42f0fdea791bd7c282aa67
 pre_retention_commit=9ec43e87cc786ea73c0cd4eed3e7b9638e2cde89
 pre_retention_tree=354bf1afe68f0e35582a52e5d9eebaf65be104c5
 older_pre_retention_commit=6a0220b0c2ca9931461f59960282773daa0457a9
@@ -65,9 +71,9 @@ source_ref="$(
 )"
 [[ "$source_ref" == refs/* ]] || fail "0062 boundary is not reachable from a trusted source ref"
 source_distance="$(
-  "${source_git[@]}" rev-list --count "$retention_boundary_commit..$source_ref" | tr -d '\r'
+  "${source_git[@]}" rev-list --count "$contract_required_commit..$source_ref" | tr -d '\r'
 )"
-[[ "$source_distance" =~ ^[0-9]+$ ]] || fail "0062 boundary source distance is invalid"
+[[ "$source_distance" =~ ^[0-9]+$ ]] || fail "mail contract boundary source distance is invalid"
 source_depth="$((source_distance + 3))"
 git -C "$work/repo" remote add retention-boundary \
   "ext::git -c safe.directory=$source_git_dir -c uploadpack.allowFilter=true upload-pack $source_git_dir"
@@ -428,6 +434,40 @@ cmp -s "$work/records/latest-candidate.env" "$work/v1-contract-candidate-before.
 }
 echo "ok - rollback refuses a v1 fenced contract across 0062"
 
+set_rollback_git_evidence \
+  "$pre_retention_commit" "$pre_retention_tree" \
+  "$older_pre_retention_commit" "$older_pre_retention_tree"
+cp "$work/records/current-release.env" "$work/v1-pre-retention-current-before.env"
+cp "$work/records/latest-candidate.env" "$work/v1-pre-retention-candidate-before.env"
+cp "$work/records/20260719T000000Z-2/previous-runtime.override.yaml" \
+  "$work/v1-pre-retention-valid.override.yaml"
+printf '%s\n' 'not-services:' >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+run_rollback v1-contract-wholly-pre-0062 --schema-backward-compatible
+mv "$work/v1-pre-retention-valid.override.yaml" \
+  "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "pre-0062 v1 gate fixture unexpectedly completed rollback"
+assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "wholly pre-0062 v1 exception"
+[[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "wholly pre-0062 v1 exception reached smoke"
+[[ ! -s "$ROLLBACK_CASE/stdout" ]] || fail "wholly pre-0062 v1 exception wrote stdout"
+grep -Fq 'rollback override is malformed' "$ROLLBACK_CASE/stderr" || {
+  fail "exact wholly pre-0062 evidence did not pass the v1 contract gate"
+}
+if grep -Eq 'SCHEMA_VERSION=1 mail outbox contract evidence is insufficient|migration lineage' \
+  "$ROLLBACK_CASE/stderr"; then
+  fail "exact wholly pre-0062 evidence was rejected by the v1 contract gate"
+fi
+cmp -s "$work/records/current-release.env" "$work/v1-pre-retention-current-before.env" || {
+  fail "wholly pre-0062 v1 exception changed the current pointer"
+}
+cmp -s "$work/records/latest-candidate.env" "$work/v1-pre-retention-candidate-before.env" || {
+  fail "wholly pre-0062 v1 exception changed the candidate pointer"
+}
+echo "ok - rollback keeps the v1 contract gate strictly at 0062"
+
+set_rollback_git_evidence \
+  "$retention_boundary_commit" "$retention_boundary_tree" \
+  "$pre_retention_commit" "$pre_retention_tree"
 rm -f "$mail_contract_path"
 cp "$work/records/current-release.env" "$work/missing-contract-current-before.env"
 cp "$work/records/latest-candidate.env" "$work/missing-contract-candidate-before.env"
@@ -454,6 +494,107 @@ cmp -s "$work/records/latest-candidate.env" "$work/missing-contract-candidate-be
 }
 echo "ok - rollback refuses an absent contract across 0062"
 
+fixture_git_tree="$(git -C "$work/repo" rev-parse --verify 'HEAD^{tree}')"
+forged_target_commit="$(
+  printf '%s\n' 'forged graft target' | git -C "$work/repo" commit-tree "$fixture_git_tree"
+)"
+forged_source_commit="$(
+  printf '%s\n' 'forged graft source' | \
+    git -C "$work/repo" commit-tree "$fixture_git_tree" -p "$forged_target_commit"
+)"
+forged_graft_file="$work/forged-grafts"
+printf '%s %s\n' "$contract_required_commit" "$forged_source_commit" >"$forged_graft_file"
+set_rollback_git_evidence \
+  "$forged_source_commit" "$fixture_git_tree" \
+  "$forged_target_commit" "$fixture_git_tree"
+cp "$work/records/current-release.env" "$work/forged-graft-current-before.env"
+cp "$work/records/latest-candidate.env" "$work/forged-graft-candidate-before.env"
+cp "$work/records/20260719T000000Z-2/previous-runtime.override.yaml" \
+  "$work/forged-graft-valid.override.yaml"
+printf '%s\n' 'not-services:' >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+for graft_mode in repository ambient; do
+  case "$graft_mode" in
+    ambient)
+      GIT_GRAFT_FILE="$forged_graft_file" \
+        run_rollback forged-ambient-graft --schema-backward-compatible
+      ;;
+    repository)
+      cp "$forged_graft_file" "$work/repo/.git/info/grafts"
+      run_rollback forged-repository-graft --schema-backward-compatible
+      cmp -s "$forged_graft_file" "$work/repo/.git/info/grafts" || {
+        fail "rollback modified repository graft evidence instead of safely ignoring it"
+      }
+      rm -f "$work/repo/.git/info/grafts"
+      ;;
+  esac
+  [[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback accepted $graft_mode forged Git ancestry"
+  assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "$graft_mode graft refusal"
+  [[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "$graft_mode graft refusal reached smoke"
+  [[ ! -s "$ROLLBACK_CASE/stdout" ]] || fail "$graft_mode graft refusal wrote stdout"
+  grep -Fq 'mail outbox contract evidence is absent' "$ROLLBACK_CASE/stderr" || {
+    fail "$graft_mode forged ancestry was not rejected by the legacy contract gate"
+  }
+  grep -Fq 'SCHEMA_VERSION=1' "$ROLLBACK_CASE/stderr" || {
+    fail "$graft_mode graft refusal did not name the required contract schema"
+  }
+  if grep -Fq 'rollback override is malformed' "$ROLLBACK_CASE/stderr"; then
+    fail "$graft_mode forged ancestry passed the legacy contract gate"
+  fi
+  if grep -Fq 'previous verified application image record bytes' \
+    "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/stderr" \
+    || grep -Fq "$forged_source_commit" "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/stderr" \
+    || grep -Fq "$forged_target_commit" "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/stderr"; then
+    fail "$graft_mode graft refusal disclosed release evidence"
+  fi
+  cmp -s "$work/records/current-release.env" "$work/forged-graft-current-before.env" || {
+    fail "$graft_mode graft refusal changed the current pointer"
+  }
+  cmp -s "$work/records/latest-candidate.env" "$work/forged-graft-candidate-before.env" || {
+    fail "$graft_mode graft refusal changed the candidate pointer"
+  }
+done
+mv "$work/forged-graft-valid.override.yaml" \
+  "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+echo "ok - rollback rejects ambient and repository forged Git graft ancestry"
+
+set_rollback_git_evidence \
+  "$contract_required_commit" "$contract_required_tree" \
+  "$pre_contract_commit" "$pre_contract_tree"
+cp "$work/records/current-release.env" "$work/post-contract-current-before.env"
+cp "$work/records/latest-candidate.env" "$work/post-contract-candidate-before.env"
+cp "$work/records/20260719T000000Z-2/previous-runtime.override.yaml" \
+  "$work/post-contract-valid.override.yaml"
+printf '%s\n' 'not-services:' >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+run_rollback missing-contract-after-contract-requirement --schema-backward-compatible
+mv "$work/post-contract-valid.override.yaml" \
+  "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback accepted an absent contract after contracts became mandatory"
+assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "post-contract-requirement absent refusal"
+[[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "post-contract-requirement absent refusal reached smoke"
+[[ ! -s "$ROLLBACK_CASE/stdout" ]] || fail "post-contract-requirement absent refusal wrote stdout"
+grep -Fq 'mail outbox contract evidence is absent' "$ROLLBACK_CASE/stderr" || {
+  fail "post-contract-requirement absent refusal did not identify the missing contract"
+}
+grep -Fq 'SCHEMA_VERSION=1' "$ROLLBACK_CASE/stderr" || {
+  fail "post-contract-requirement absent refusal did not name the required contract schema"
+}
+if grep -Fq 'rollback override is malformed' "$ROLLBACK_CASE/stderr"; then
+  fail "post-contract-requirement absent evidence passed the legacy contract gate"
+fi
+if grep -Fq 'previous verified application image record bytes' \
+  "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/stderr"; then
+  fail "post-contract-requirement absent refusal disclosed retained release evidence"
+fi
+cmp -s "$work/records/current-release.env" "$work/post-contract-current-before.env" || {
+  fail "post-contract-requirement absent refusal changed the current pointer"
+}
+cmp -s "$work/records/latest-candidate.env" "$work/post-contract-candidate-before.env" || {
+  fail "post-contract-requirement absent refusal changed the candidate pointer"
+}
+echo "ok - rollback refuses an absent contract after contracts became mandatory"
+
 set_rollback_git_evidence \
   "$pre_retention_commit" "$pre_retention_tree" \
   "$older_pre_retention_commit" "$candidate_tree"
@@ -473,26 +614,26 @@ fi
 echo "ok - rollback rejects mismatched pre-0062 Git tree evidence"
 
 set_rollback_git_evidence \
-  "$pre_retention_commit" "$pre_retention_tree" \
-  "$older_pre_retention_commit" "$older_pre_retention_tree"
+  "$pre_contract_commit" "$pre_contract_tree" \
+  "$older_pre_contract_commit" "$older_pre_contract_tree"
 cp "$work/records/20260719T000000Z-2/previous-runtime.override.yaml" \
-  "$work/pre-retention-valid.override.yaml"
+  "$work/pre-contract-valid.override.yaml"
 printf '%s\n' 'not-services:' >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
-run_rollback missing-contract-wholly-pre-0062 --schema-backward-compatible
-[[ "$ROLLBACK_STATUS" != 0 ]] || fail "pre-0062 gate fixture unexpectedly completed rollback"
-assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "wholly pre-0062 contract exception"
-[[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "wholly pre-0062 contract exception reached smoke"
+run_rollback missing-contract-wholly-pre-contract --schema-backward-compatible
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "pre-contract gate fixture unexpectedly completed rollback"
+assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "wholly pre-contract exception"
+[[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "wholly pre-contract exception reached smoke"
 grep -Fq 'rollback override is malformed' "$ROLLBACK_CASE/stderr" || {
-  fail "exact wholly pre-0062 evidence did not pass the legacy contract gate"
+  fail "exact wholly pre-contract evidence did not pass the legacy contract gate"
 }
 if grep -Eq 'contract evidence is absent|SCHEMA_VERSION=1|migration lineage' \
   "$ROLLBACK_CASE/stderr"; then
-  fail "exact wholly pre-0062 evidence was rejected by the legacy contract gate"
+  fail "exact wholly pre-contract evidence was rejected by the legacy contract gate"
 fi
-mv "$work/pre-retention-valid.override.yaml" \
+mv "$work/pre-contract-valid.override.yaml" \
   "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
 chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
-echo "ok - rollback permits the absent-contract gate only wholly before 0062"
+echo "ok - rollback permits the absent-contract gate only wholly before contracts became mandatory"
 
 set_rollback_git_evidence \
   "$candidate_commit" "$candidate_tree" "$previous_commit" "$previous_tree"
