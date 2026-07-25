@@ -9,6 +9,16 @@ type DatabaseRoleModule = {
     configuration: readonly string[];
     allowedRoles: readonly string[];
   }>;
+  REVIEWED_APPLICATION_TRIGGERS: ReadonlyArray<{
+    relation: string;
+    name: string;
+    functionSignature: string;
+    enabled: string;
+    type: number;
+    qualifier: string | null;
+    arguments: number;
+    columns: readonly string[];
+  }>;
   reviewedApplicationFunctionPrivilegesSql: () => string;
   validateDatabaseRoleUrls: (input: {
     postgresUser: string;
@@ -74,11 +84,26 @@ describe("database least-privilege bootstrap", () => {
     );
   });
 
-  it("reconciles one exact reviewed ops routine after the blanket revoke", async () => {
+  it("registers the exact reviewed 0063 routine and trigger contracts", async () => {
     const databaseRoleBootstrap = await loadDatabaseRoleModule();
 
     expect(databaseRoleBootstrap).not.toBeNull();
     expect(databaseRoleBootstrap!.REVIEWED_APPLICATION_FUNCTIONS).toEqual([
+      {
+        signature:
+          "public.classify_email_outbox_retention_redaction(public.email_outbox,timestamp with time zone)",
+        owner: "learncoding_owner",
+        securityDefiner: true,
+        configuration: ["search_path=pg_catalog"],
+        allowedRoles: [],
+      },
+      {
+        signature: "public.enforce_email_outbox_payload_immutable()",
+        owner: "learncoding_owner",
+        securityDefiner: false,
+        configuration: ["search_path=pg_catalog"],
+        allowedRoles: [],
+      },
       {
         signature:
           "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
@@ -88,6 +113,27 @@ describe("database least-privilege bootstrap", () => {
         allowedRoles: ["learncoding_ops"],
       },
     ]);
+    expect(databaseRoleBootstrap!.REVIEWED_APPLICATION_TRIGGERS).toEqual([
+      {
+        relation: "public.email_outbox",
+        name: "email_outbox_payload_immutable",
+        functionSignature: "public.enforce_email_outbox_payload_immutable()",
+        enabled: "O",
+        type: 19,
+        qualifier: null,
+        arguments: 0,
+        columns: [
+          "delivery_scope_key",
+          "idempotency_key",
+          "operation_id",
+          "template",
+          "template_version",
+          "to_email",
+          "user_id",
+          "variables",
+        ],
+      },
+    ]);
     const reviewedGrant = databaseRoleBootstrap!
       .reviewedApplicationFunctionPrivilegesSql()
       .toLowerCase();
@@ -95,6 +141,7 @@ describe("database least-privilege bootstrap", () => {
       "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer) to learncoding_ops",
     );
     expect(reviewedGrant).not.toMatch(/to\s+(public|learncoding_app|learncoding_worker|learncoding_migrator)\b/iu);
+    expect(reviewedGrant).not.toMatch(/alter\s+function/iu);
 
     const source = await import("node:fs/promises").then(({ readFile }) =>
       readFile("scripts/bootstrap-database-roles.mjs", "utf8"));

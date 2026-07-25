@@ -233,14 +233,36 @@ function makeClient(role, database, options) {
         }] };
       }
       if (normalized.includes("routine_direct_acl_exact")) {
-        if (options.requiredRoutineMissing === true) return { rows: [] };
-        const tamper = options.routineContractTamper;
+        const signature = parameters?.[0];
+        if (
+          options.requiredRoutineMissing === true ||
+          options.requiredRoutineMissing === signature
+        ) return { rows: [] };
+        const tamper = options.routineContractTarget === undefined ||
+          options.routineContractTarget === signature
+          ? options.routineContractTamper
+          : undefined;
         return { rows: [{
           owner_exact: tamper !== "owner",
           security_definer_exact: tamper !== "security-definer",
           configuration_exact: tamper !== "configuration",
           effective_execute_exact: tamper !== "effective-acl",
           routine_direct_acl_exact: tamper !== "direct-acl",
+        }] };
+      }
+      if (normalized.includes("trigger_columns_exact")) {
+        if (
+          options.requiredTriggerMissing === true ||
+          options.triggerBindingMissing === true
+        ) return { rows: [] };
+        const tamper = options.triggerContractTamper;
+        return { rows: [{
+          trigger_enabled_exact: tamper !== "enabled",
+          trigger_function_exact: tamper !== "function",
+          trigger_type_exact: tamper !== "type",
+          trigger_qualifier_exact: tamper !== "qualifier",
+          trigger_arguments_exact: tamper !== "arguments",
+          trigger_columns_exact: tamper !== "columns",
         }] };
       }
       if (
@@ -369,7 +391,7 @@ test("proves application-object access without mutating application rows", async
 
   assert.deepEqual(result, {
     rolesAuthenticated: 4,
-    positiveChecks: 32,
+    positiveChecks: 35,
     negativeChecks: 23,
   });
   for (const role of ["learncoding_app", "learncoding_worker", "learncoding_ops"]) {
@@ -380,7 +402,7 @@ test("proves application-object access without mutating application rows", async
   }
 });
 
-test("requires the exact reviewed 0062 routine contract in application-object mode", async () => {
+test("requires the exact reviewed 0063 routine contracts in application-object mode", async () => {
   const verified = makePoolHarness();
   const result = await verifyDatabaseRoleBoundaries({
     ...validInput(),
@@ -391,45 +413,143 @@ test("requires the exact reviewed 0062 routine contract in application-object mo
 
   assert.deepEqual(result, {
     rolesAuthenticated: 4,
-    positiveChecks: 32,
+    positiveChecks: 35,
     negativeChecks: 23,
   });
-  const routineQueries = verified.clients.get("learncoding_ops").queries.filter((sql) =>
-    sql.includes("routine_direct_acl_exact")
+  const opsClient = verified.clients.get("learncoding_ops");
+  const routineQueryIndexes = opsClient.queries.flatMap((sql, index) =>
+    sql.includes("routine_direct_acl_exact") ? [index] : []
   );
-  assert.equal(routineQueries.length, 1);
-  assert.match(routineQueries[0], /pg_catalog\.to_regprocedure/iu);
-  assert.match(routineQueries[0], /p\.prosecdef/iu);
-  assert.match(routineQueries[0], /p\.proconfig/iu);
-  assert.match(routineQueries[0], /pg_catalog\.aclexplode/iu);
-  assert.match(routineQueries[0], /has_function_privilege/iu);
-  const routineQueryIndex = verified.clients.get("learncoding_ops").queries.indexOf(
-    routineQueries[0],
-  );
+  assert.equal(routineQueryIndexes.length, 3);
+  for (const queryIndex of routineQueryIndexes) {
+    const sql = opsClient.queries[queryIndex];
+    assert.match(sql, /pg_catalog\.to_regprocedure/iu);
+    assert.match(sql, /p\.prosecdef/iu);
+    assert.match(sql, /p\.proconfig/iu);
+    assert.match(sql, /pg_catalog\.aclexplode/iu);
+    assert.match(sql, /has_function_privilege/iu);
+    assert.match(sql, /p\.proowner,\s*p\.proowner/iu);
+  }
+  const restrictedRoles = [
+    "learncoding_app",
+    "learncoding_migrator",
+    "learncoding_worker",
+    "learncoding_ops",
+  ];
+  const routines = [
+    {
+      signature:
+        "public.classify_email_outbox_retention_redaction(public.email_outbox,timestamp with time zone)",
+      securityDefiner: true,
+      allowedRoles: [],
+    },
+    {
+      signature: "public.enforce_email_outbox_payload_immutable()",
+      securityDefiner: false,
+      allowedRoles: [],
+    },
+    {
+      signature:
+        "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+      securityDefiner: true,
+      allowedRoles: ["learncoding_ops"],
+    },
+  ];
   assert.deepEqual(
-    verified.clients.get("learncoding_ops").queryParameters[routineQueryIndex],
-    [
-      "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+    routineQueryIndexes.map((index) => opsClient.queryParameters[index]),
+    routines.map((routine) => [
+      routine.signature,
       "learncoding_owner",
-      true,
+      routine.securityDefiner,
       ["search_path=pg_catalog"],
-      [
-        "learncoding_app",
-        "learncoding_migrator",
-        "learncoding_worker",
-        "learncoding_ops",
-      ],
-      ["learncoding_ops"],
-    ],
+      restrictedRoles,
+      routine.allowedRoles,
+    ]),
   );
 
+  for (const routine of routines) {
+    for (const tamper of [
+      "missing",
+      "owner",
+      "security-definer",
+      "configuration",
+      "effective-acl",
+      "direct-acl",
+    ]) {
+      const options = tamper === "missing"
+        ? { requiredRoutineMissing: routine.signature }
+        : {
+            routineContractTarget: routine.signature,
+            routineContractTamper: tamper,
+          };
+      const tampered = makePoolHarness(options);
+      await assert.rejects(
+        verifyDatabaseRoleBoundaries({
+          ...validInput(),
+          poolFactory: tampered.factory,
+          lockTimeoutMs: 50,
+          requireApplicationObjects: true,
+        }),
+        DatabaseRoleBoundaryError,
+      );
+      assert.equal(tampered.pools.every((pool) => pool.ended), true);
+    }
+  }
+});
+
+test("requires the exact enabled 0063 payload trigger binding", async () => {
+  const verified = makePoolHarness();
+  await verifyDatabaseRoleBoundaries({
+    ...validInput(),
+    poolFactory: verified.factory,
+    lockTimeoutMs: 50,
+    requireApplicationObjects: true,
+  });
+
+  const opsClient = verified.clients.get("learncoding_ops");
+  const triggerQueryIndexes = opsClient.queries.flatMap((sql, index) =>
+    sql.includes("trigger_columns_exact") ? [index] : []
+  );
+  assert.equal(triggerQueryIndexes.length, 1);
+  const triggerQueryIndex = triggerQueryIndexes[0];
+  const triggerSql = opsClient.queries[triggerQueryIndex];
+  assert.match(triggerSql, /from pg_catalog\.pg_trigger/iu);
+  assert.match(triggerSql, /pg_catalog\.to_regclass/iu);
+  assert.match(triggerSql, /catalog_trigger\.tgenabled/iu);
+  assert.match(triggerSql, /catalog_trigger\.tgfoid/iu);
+  assert.match(triggerSql, /catalog_trigger\.tgtype/iu);
+  assert.match(triggerSql, /catalog_trigger\.tgqual/iu);
+  assert.match(triggerSql, /catalog_trigger\.tgnargs/iu);
+  assert.match(triggerSql, /catalog_trigger\.tgattr/iu);
+  assert.deepEqual(opsClient.queryParameters[triggerQueryIndex], [
+    "public.email_outbox",
+    "email_outbox_payload_immutable",
+    "public.enforce_email_outbox_payload_immutable()",
+    "O",
+    19,
+    null,
+    0,
+    [
+      "delivery_scope_key",
+      "idempotency_key",
+      "operation_id",
+      "template",
+      "template_version",
+      "to_email",
+      "user_id",
+      "variables",
+    ],
+  ]);
+
   for (const options of [
-    { requiredRoutineMissing: true },
-    { routineContractTamper: "owner" },
-    { routineContractTamper: "security-definer" },
-    { routineContractTamper: "configuration" },
-    { routineContractTamper: "effective-acl" },
-    { routineContractTamper: "direct-acl" },
+    { requiredTriggerMissing: true },
+    { triggerBindingMissing: true },
+    { triggerContractTamper: "enabled" },
+    { triggerContractTamper: "function" },
+    { triggerContractTamper: "type" },
+    { triggerContractTamper: "qualifier" },
+    { triggerContractTamper: "arguments" },
+    { triggerContractTamper: "columns" },
   ]) {
     const tampered = makePoolHarness(options);
     await assert.rejects(
@@ -489,7 +609,7 @@ test("grounds PostgreSQL's successful no-op GRANT in unchanged effective and cat
 
   assert.deepEqual(result, {
     rolesAuthenticated: 4,
-    positiveChecks: 32,
+    positiveChecks: 35,
     negativeChecks: 23,
   });
   for (const role of [
