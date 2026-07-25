@@ -26,6 +26,9 @@ const migrationNames = readdirSync(
 const migration0063 = read(
   "drizzle/0063_mail_outbox_redaction_fence_release.sql",
 );
+const integrationHarness = read(
+  "infra/tests/mail-retention-redaction-0063.integration.mjs",
+);
 const scripts = packageManifest.scripts;
 const staticOnly = process.argv.includes("--static-only");
 
@@ -257,6 +260,50 @@ assert.match(
   migration0063,
   /GRANT EXECUTE ON FUNCTION[\s\S]*TO learncoding_ops/u,
 );
+for (const requiredLiveProof of [
+  "createFrameworkMigrationSlice(temporaryRoot, 62)",
+  "createFrameworkMigrationSlice(temporaryRoot, 63)",
+  "createFrameworkMigrationSlice(temporaryRoot, 64)",
+  "mail_retention_hostile_default",
+  "mail_retention_hostile_grantor",
+  "mail_retention_hostile_leaf",
+  "to mail_retention_hostile_default with grant option",
+  "set role mail_retention_hostile_default",
+  "to mail_retention_hostile_grantor with grant option",
+  "set role mail_retention_hostile_grantor",
+  "assertHostilePre0063CatalogState(port, database)",
+  "assertCatalogContract(port, database)",
+  "assertHostileFunctionAclsRemoved(port, database)",
+  "removeHostileCatalogRoles(port, database)",
+  "observed_body_sha256",
+  "observed_definition_sha256",
+  "expanded.grantor",
+  "mail_retention_0063=hostile_acl_convergence:pass",
+]) {
+  assert.ok(
+    integrationHarness.includes(requiredLiveProof),
+    `0063 live harness is missing hostile-catalog proof: ${requiredLiveProof}`,
+  );
+}
+const rawCatalogAssertion = integrationHarness.indexOf(
+  "assertHostileFunctionAclsRemoved(port, database)",
+);
+const postMigrationBootstrap = integrationHarness.indexOf(
+  "await runLiveRoleBootstrap(port, database)",
+  rawCatalogAssertion,
+);
+const latestPhaseMigration = integrationHarness.indexOf(
+  "frameworkMigrationDirectoryThrough0064",
+  postMigrationBootstrap,
+);
+const broadBoundaryVerifier = integrationHarness.indexOf(
+  "await runProductionApplicationBoundaryVerifier(port, database)",
+  latestPhaseMigration,
+);
+assert.ok(rawCatalogAssertion >= 0);
+assert.ok(postMigrationBootstrap > rawCatalogAssertion);
+assert.ok(latestPhaseMigration > postMigrationBootstrap);
+assert.ok(broadBoundaryVerifier > latestPhaseMigration);
 
 const boundaryVerifierCommand =
   'command: ["node", "/app/scripts/verify-database-role-boundaries.mjs", "--require-application-objects"]';

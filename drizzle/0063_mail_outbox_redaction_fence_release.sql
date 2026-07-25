@@ -344,4 +344,96 @@ REVOKE ALL ON FUNCTION "public"."redact_unresolved_email_outbox_authority"(
 GRANT EXECUTE ON FUNCTION "public"."redact_unresolved_email_outbox_authority"(
   timestamp with time zone,
   integer
-) TO learncoding_ops;
+) TO learncoding_ops;--> statement-breakpoint
+DO $acl_contract$
+DECLARE
+  target record;
+  expanded record;
+  grantee_name text;
+BEGIN
+  FOR target IN
+    SELECT routine.oid,
+           routine.proowner,
+           routine.proacl,
+           routine.proname =
+             'redact_unresolved_email_outbox_authority' AS grant_ops,
+           pg_catalog.format(
+             '%I.%I(%s)',
+             namespace.nspname,
+             routine.proname,
+             pg_catalog.pg_get_function_identity_arguments(routine.oid)
+           ) AS function_identity
+      FROM pg_catalog.pg_proc AS routine
+      JOIN pg_catalog.pg_namespace AS namespace
+        ON namespace.oid = routine.pronamespace
+     WHERE routine.oid IN (
+       'public.classify_email_outbox_retention_redaction(public.email_outbox,timestamp with time zone)'::pg_catalog.regprocedure,
+       'public.enforce_email_outbox_payload_immutable()'::pg_catalog.regprocedure,
+       'public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)'::pg_catalog.regprocedure
+     )
+     ORDER BY routine.oid
+  LOOP
+    FOR expanded IN
+      SELECT access.grantor,
+             access.grantee,
+             access.is_grantable
+        FROM pg_catalog.aclexplode(
+          COALESCE(
+            target.proacl,
+            pg_catalog.acldefault('f', target.proowner)
+          )
+        ) AS access
+       WHERE access.privilege_type = 'EXECUTE'
+       ORDER BY access.grantor, access.grantee, access.is_grantable
+    LOOP
+      IF expanded.grantee = 0 THEN
+        EXECUTE pg_catalog.format(
+          'REVOKE ALL ON FUNCTION %s FROM PUBLIC CASCADE',
+          target.function_identity
+        );
+      ELSE
+        grantee_name :=
+          pg_catalog.pg_get_userbyid(expanded.grantee);
+
+        IF grantee_name IS NOT NULL THEN
+          EXECUTE pg_catalog.format(
+            'REVOKE ALL ON FUNCTION %s FROM %I CASCADE',
+            target.function_identity,
+            grantee_name
+          );
+        END IF;
+      END IF;
+    END LOOP;
+
+    EXECUTE pg_catalog.format(
+      'REVOKE ALL ON FUNCTION %s FROM PUBLIC CASCADE',
+      target.function_identity
+    );
+    EXECUTE pg_catalog.format(
+      'GRANT EXECUTE ON FUNCTION %s TO learncoding_owner',
+      target.function_identity
+    );
+    IF target.grant_ops THEN
+      EXECUTE pg_catalog.format(
+        'GRANT EXECUTE ON FUNCTION %s TO learncoding_ops',
+        target.function_identity
+      );
+    END IF;
+  END LOOP;
+END
+$acl_contract$;--> statement-breakpoint
+DROP TRIGGER IF EXISTS "email_outbox_payload_immutable"
+  ON "public"."email_outbox";--> statement-breakpoint
+CREATE TRIGGER "email_outbox_payload_immutable"
+BEFORE UPDATE OF
+  "user_id",
+  "to_email",
+  "template",
+  "template_version",
+  "variables",
+  "idempotency_key",
+  "operation_id",
+  "delivery_scope_key"
+ON "public"."email_outbox"
+FOR EACH ROW
+EXECUTE FUNCTION "public"."enforce_email_outbox_payload_immutable"();
