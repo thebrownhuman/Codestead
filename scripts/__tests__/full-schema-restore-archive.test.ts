@@ -1,7 +1,12 @@
+import type { ChildProcessWithoutNullStreams } from "node:child_process";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
+
 import { describe, expect, it } from "vitest";
 
 import {
   requireSuccessfulFullSchemaArchiveDump,
+  runFullSchemaArchiveChild,
   type FullSchemaArchiveChildResult,
 } from "../lib/full-schema-restore-archive";
 
@@ -48,4 +53,71 @@ describe("full-schema restore archive result authority", () => {
     expect(() => requireSuccessfulFullSchemaArchiveDump(result(empty)))
       .toThrow("full-schema restore dump failed");
   });
+
+  it.each(["timeout", "overflow"] as const)(
+    "fails boundedly and zeros partial output on %s when reap rejects without close",
+    async (failureMode) => {
+    const partial = Buffer.from("sensitive-partial-archive");
+    const stdout = new PassThrough();
+    const stderr = new PassThrough();
+    const stdin = new PassThrough();
+    const child = Object.assign(new EventEmitter(), {
+      exitCode: null,
+      kill: () => false,
+      pid: 4242,
+      signalCode: null,
+      stderr,
+      stdin,
+      stdout,
+      unref: () => child,
+    }) as unknown as ChildProcessWithoutNullStreams;
+    let completeCalls = 0;
+    const controller = {
+      hasActiveChild: () => true,
+      spawnAndTrack: (
+        spawnChild: () => ChildProcessWithoutNullStreams,
+      ) => {
+        expect(spawnChild()).toBe(child);
+        queueMicrotask(() => {
+          stdout.emit("data", partial);
+        });
+        return {
+          child,
+          completeAndWait: async () => {
+            completeCalls += 1;
+            throw new Error("synthetic reap failure");
+          },
+        };
+      },
+      terminateAndWait: async () => undefined,
+      waitForTermination: async () => undefined,
+    };
+
+    const maxStdoutBytes = failureMode === "overflow" ? 4 : 1024;
+    await expect(runFullSchemaArchiveChild({
+      command: "docker",
+      args: ["exec", "source", "pg_dump"],
+      environment: { NODE_ENV: "test" },
+      maxStdoutBytes,
+      timeoutMs: 5,
+      controller,
+      buildChildLaunch: ({ command, args, environment }) => ({
+        command,
+        args,
+        environment,
+        treeSupervised: false,
+      }),
+      spawnProcess: () => child,
+    })).rejects.toThrow("full-schema restore archive child failed");
+
+    expect(completeCalls).toBe(1);
+    expect(partial.every((value) => value === 0)).toBe(true);
+    expect(stdout.destroyed).toBe(true);
+    expect(stderr.destroyed).toBe(true);
+    expect(stdin.destroyed).toBe(true);
+    stdout.destroy();
+    stderr.destroy();
+    stdin.destroy();
+    },
+  );
 });

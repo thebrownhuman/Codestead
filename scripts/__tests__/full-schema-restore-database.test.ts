@@ -189,8 +189,10 @@ describe("full-schema restore catalog and row snapshot", () => {
     expect(queries[2]).toContain("type_row.typbasetype");
     expect(queries[2]).toContain("pg_catalog.pg_range");
     expect(queries[2]).toContain("pg_catalog.pg_sequence");
-    expect(queries[2]).toContain("pg_catalog.pg_sequence_last_value");
     expect(queries[2]).toContain("'learncoding_backup_reporter'");
+    expect(queries[2]).toContain(
+      "relation.relkind in ('r', 'p', 'v', 'm', 'f', 'c')",
+    );
     expect(queries[2]).toContain(
       "namespace.nspname in ('public', 'drizzle')",
     );
@@ -285,7 +287,16 @@ describe("full-schema restore catalog and row snapshot", () => {
         increment: "1",
         cache: "1",
         cycle: false,
+        is_called: false,
         last_value: "42",
+      },
+    }],
+    ["composite field definition", {
+      composite_field: {
+        default: null,
+        identity: "",
+        not_null: true,
+        type: "timestamp with time zone",
       },
     }],
   ])("changes the versioned object digest for mutated %s with equal metadata", (
@@ -308,6 +319,67 @@ describe("full-schema restore catalog and row snapshot", () => {
       { ...baseObject, object_name: "z" },
       { ...baseObject, object_name: "a" },
     ])).toThrow("full-schema restore object contract is invalid");
+  });
+
+  it("queries and fingerprints exact sequence last_value and is_called state", async () => {
+    const collect = async (isCalled: boolean) => {
+      const queries: string[] = [];
+      const responses = [
+        { rows: [{ server_version_num: "170006" }] },
+        {
+          rows: [{
+            migration_index: "0",
+            migration_sha256: hex("a"),
+            migration_when: "1785000000000",
+          }],
+        },
+        {
+          rows: [{
+            kind: "relation",
+            schema_name: "public",
+            object_name: "authority_sequence",
+            identity: "S",
+            owner_name: "learncoding_owner",
+            attributes: {
+              acl: [],
+              definition: null,
+              force_row_security: false,
+              policies: [],
+              row_security: false,
+              sequence: {
+                cache: "1",
+                cycle: false,
+                data_type: "bigint",
+                increment: "1",
+                maximum: "9223372036854775807",
+                minimum: "1",
+                start: "1",
+              },
+            },
+          }],
+        },
+        { rows: [{ payload: { idempotency_key: "fixture" } }] },
+        { rows: [{ last_value: "42", is_called: isCalled }] },
+        { rows: [{ authority_table_present: false }] },
+      ];
+      const client: FullSchemaRestoreQueryClient = {
+        query: vi.fn(async (sql: string) => {
+          queries.push(sql.replace(/\s+/gu, " ").trim());
+          return responses.shift()!;
+        }),
+      };
+      const result = await collectFullSchemaRestoreSnapshot(client);
+      return { queries, result };
+    };
+
+    const uncalled = await collect(false);
+    const called = await collect(true);
+
+    expect(uncalled.queries[4]).toContain(
+      'from "public"."authority_sequence" sequence_state',
+    );
+    expect(uncalled.result.objectContractSha256)
+      .not.toBe(called.result.objectContractSha256);
   });
 });
 

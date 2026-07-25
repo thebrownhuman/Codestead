@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   seedRepresentativeMailAuthorityRows,
+  verifyRestoredBackupAuthorityRows,
 } from "../lib/full-schema-restore-fixtures";
 import type {
   FullSchemaRestoreQueryClient,
@@ -333,5 +334,148 @@ describe("full-schema restore representative mail fixtures", () => {
     })).rejects.toThrow(
       "full-schema restore backup authority verification failed",
     );
+  });
+
+  const restoredIds = {
+    authorityId: "50000000-0000-4000-8000-000000000001",
+    outboxId: "50000000-0000-4000-8000-000000000002",
+    operationId: "50000000-0000-4000-8000-000000000003",
+  } as const;
+  const exactRestoredAuthorityRow = {
+    id: restoredIds.authorityId,
+    run_key: "20260725T000000Z",
+    outcome: "success",
+    recipient_user_id: "full-schema-restore-admin",
+    recipient_email: "admin.restore@invalid.local",
+    outbox_id: restoredIds.outboxId,
+    operation_id: restoredIds.operationId,
+    user_id: "full-schema-restore-admin",
+    delivery_scope_key: "a:full-schema-restore-admin",
+    to_email: "admin.restore@invalid.local",
+    template: "backup-status",
+    template_version: "1",
+    variables: {
+      name: "Administrator",
+      summary:
+        "The nightly encrypted backup completed and passed local verification. No archive is attached to this email.",
+    },
+    idempotency_key: "backup-status:v1:20260725T000000Z",
+  } as const;
+
+  function restoredOwner(): FullSchemaRestoreQueryClient {
+    return {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("authority_table_present")) {
+          return {
+            rows: [{
+              authority_table_present: true,
+              enqueue_routine_present: true,
+              authorize_routine_present: true,
+            }],
+          };
+        }
+        if (sql.includes("as authority_id")) {
+          return {
+            rows: [{
+              authority_id: restoredIds.authorityId,
+              outbox_id: restoredIds.outboxId,
+              operation_id: restoredIds.operationId,
+            }],
+          };
+        }
+        if (sql.includes("from public.backup_status_mail_authority")) {
+          return { rows: [exactRestoredAuthorityRow] };
+        }
+        return { rows: [] };
+      }),
+    };
+  }
+
+  it("replays restored 0065 authority as existing with exact durable IDs", async () => {
+    const owner = restoredOwner();
+    const worker: FullSchemaRestoreQueryClient = {
+      query: vi.fn(async () => ({ rows: [{ authorized: true }] })),
+    };
+    const backupReporter: FullSchemaRestoreQueryClient = {
+      query: vi.fn(async () => ({
+        rows: [{
+          acknowledgement: "existing",
+          authority_id: restoredIds.authorityId,
+          outbox_id: restoredIds.outboxId,
+          operation_id: restoredIds.operationId,
+        }],
+      })),
+    };
+
+    await verifyRestoredBackupAuthorityRows({
+      owner,
+      worker,
+      backupReporter,
+    });
+
+    expect(backupReporter.query).toHaveBeenCalledWith(
+      expect.stringContaining("enqueue_backup_status_mail_authority"),
+      ["20260725T000000Z", "success"],
+    );
+    expect(worker.query).toHaveBeenCalledWith(
+      expect.stringContaining("backup_status_mail_authorized"),
+      [restoredIds.outboxId],
+    );
+  });
+
+  it.each([
+    ["acknowledgement", { acknowledgement: "queued" }],
+    ["authority ID", {
+      authority_id: "50000000-0000-4000-8000-000000000099",
+    }],
+    ["outbox ID", {
+      outbox_id: "50000000-0000-4000-8000-000000000099",
+    }],
+    ["operation ID", {
+      operation_id: "50000000-0000-4000-8000-000000000099",
+    }],
+  ])("rejects restored 0065 replay with a mismatched %s", async (
+    _field,
+    override,
+  ) => {
+    const worker = { query: vi.fn() };
+    await expect(verifyRestoredBackupAuthorityRows({
+      owner: restoredOwner(),
+      worker,
+      backupReporter: {
+        query: vi.fn(async () => ({
+          rows: [{
+            acknowledgement: "existing",
+            authority_id: restoredIds.authorityId,
+            outbox_id: restoredIds.outboxId,
+            operation_id: restoredIds.operationId,
+            ...override,
+          }],
+        })),
+      },
+    })).rejects.toThrow(
+      "full-schema restore backup authority replay failed",
+    );
+    expect(worker.query).not.toHaveBeenCalled();
+  });
+
+  it("skips replay only when all 0065 authority objects are absent", async () => {
+    const owner: FullSchemaRestoreQueryClient = {
+      query: vi.fn(async () => ({
+        rows: [absentBackupAuthorityCatalog],
+      })),
+    };
+    const worker = { query: vi.fn() };
+    const backupReporter = { query: vi.fn() };
+
+    await verifyRestoredBackupAuthorityRows({
+      owner,
+      worker,
+      backupReporter,
+    });
+
+    expect(owner.query).toHaveBeenCalledOnce();
+    expect(worker.query).not.toHaveBeenCalled();
+    expect(backupReporter.query).not.toHaveBeenCalled();
   });
 });
