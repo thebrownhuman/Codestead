@@ -29,20 +29,19 @@ const mocks = vi.hoisted(() => {
     failRollbackTo: false,
     failReleaseSavepoint: false,
     deletedObjectCount: 2,
+    redactionEligibleCount: 2,
     redactionEligibleTransitioned: 2,
+    redactionReportOnlyTransitioned: 0,
     redactionBlockedCount: 0,
     redactionBlockedTransitioned: 0,
     redactionMalformedCount: 0,
     redactionMalformedTransitioned: 0,
-    unclassifiedBlockedCount: 0,
-    unclassifiedRepairCount: 0,
   };
   const objects = [
     { id: "d2000000-0000-4000-8000-000000000001", storage_key: "owner/object-1" },
     { id: "d2000000-0000-4000-8000-000000000002", storage_key: "owner/object-2" },
   ];
   const query = vi.fn(async (statement: string, parameters?: unknown[]) => {
-    void parameters;
     const sql = statement.replace(/\s+/g, " ").trim().toLowerCase();
     if (sql.startsWith("insert into data_lifecycle_run")) {
       return state.claim === "new" ? { rows: [{ id: "retention-run-1" }], rowCount: 1 } : { rows: [], rowCount: 0 };
@@ -181,12 +180,18 @@ const mocks = vi.hoisted(() => {
       if (state.failRedaction) {
         throw new Error("synthetic postgres detail learner@example.test");
       }
+      const batchLimit = Number(parameters?.[1]);
+      const reportOnly = batchLimit === 0;
       return {
         rows: [
           {
             disposition: "eligible",
-            eligible: "2",
-            transitioned: String(state.redactionEligibleTransitioned),
+            eligible: String(state.redactionEligibleCount),
+            transitioned: String(
+              reportOnly
+                ? state.redactionReportOnlyTransitioned
+                : state.redactionEligibleTransitioned,
+            ),
           },
           {
             disposition: "blocked",
@@ -196,20 +201,12 @@ const mocks = vi.hoisted(() => {
           {
             disposition: "malformed",
             eligible: String(state.redactionMalformedCount),
-            transitioned: String(state.redactionMalformedTransitioned),
+            transitioned: String(
+              reportOnly ? 0 : state.redactionMalformedTransitioned,
+            ),
           },
         ],
         rowCount: 3,
-      };
-    }
-    if (sql.includes("unclassified_email_authority_blocked")) {
-      return {
-        rows: [{ count: String(state.unclassifiedBlockedCount) }], rowCount: 1,
-      };
-    }
-    if (sql.includes("unclassified_email_authority_repair_required")) {
-      return {
-        rows: [{ count: String(state.unclassifiedRepairCount) }], rowCount: 1,
       };
     }
     if (sql.startsWith("select count(*)")) {
@@ -269,13 +266,13 @@ describe("retention runtime orchestration", () => {
     mocks.state.failRollbackTo = false;
     mocks.state.failReleaseSavepoint = false;
     mocks.state.deletedObjectCount = 2;
+    mocks.state.redactionEligibleCount = 2;
     mocks.state.redactionEligibleTransitioned = 2;
+    mocks.state.redactionReportOnlyTransitioned = 0;
     mocks.state.redactionBlockedCount = 0;
     mocks.state.redactionBlockedTransitioned = 0;
     mocks.state.redactionMalformedCount = 0;
     mocks.state.redactionMalformedTransitioned = 0;
-    mocks.state.unclassifiedRepairCount = 0;
-    mocks.state.unclassifiedBlockedCount = 0;
     mocks.unlink.mockResolvedValue(undefined);
     mocks.enqueueFileErasures.mockResolvedValue(2);
     mocks.processFileErasures.mockResolvedValue({ total: 2, removed: 1, alreadyAbsent: 1, failed: 0, pending: 0, complete: true });
@@ -366,6 +363,27 @@ describe("retention runtime orchestration", () => {
     expect(mocks.client.release).toHaveBeenCalledTimes(1);
   });
 
+  it("fails closed when report-only authority claims a transition", async () => {
+    mocks.state.redactionReportOnlyTransitioned = 1;
+
+    const report = await runRetention({
+      idempotencyKey: "retention:test:mail-authority-report-only-transition",
+      dryRun: true,
+      batchSize: 2,
+      now,
+    });
+
+    expect(report).toMatchObject({
+      outcome: "completed_with_errors",
+      requiresRetry: true,
+      categories: {
+        unresolvedEmailDeliveryAuthority: {
+          outcome: "failed",
+          failureCode: "EMAIL_OUTBOX_REDACTION_RETRYABLE",
+        },
+      },
+    });
+  });
   it("applies bounded deletes, severs model references, expires requests, and safely removes object files", async () => {
     mocks.unlink
       .mockResolvedValueOnce(undefined)
@@ -530,13 +548,14 @@ describe("retention runtime orchestration", () => {
       },
     });
   });
-  it("makes malformed or unclassified recipient PII monitorably repair-required", async () => {
+  it("subsumes legacy unclassified repair rows under the v2 summary", async () => {
+    mocks.state.redactionEligibleCount = 0;
+    mocks.state.redactionEligibleTransitioned = 0;
     mocks.state.redactionMalformedCount = 1;
     mocks.state.redactionMalformedTransitioned = 1;
-    mocks.state.unclassifiedRepairCount = 2;
 
     const report = await runRetention({
-      idempotencyKey: "retention:test:mail-authority-repair-required",
+      idempotencyKey: "retention:test:mail-authority-v2-subsumes-repair",
       dryRun: false,
       batchSize: 2,
       now,
@@ -544,8 +563,8 @@ describe("retention runtime orchestration", () => {
     });
 
     expect(report).toMatchObject({
-      outcome: "completed_with_errors",
-      requiresRetry: true,
+      outcome: "succeeded",
+      requiresRetry: false,
       categories: {
         unresolvedEmailDeliveryAuthorityMalformed: {
           eligible: 1,
@@ -553,17 +572,24 @@ describe("retention runtime orchestration", () => {
           retained: 1,
           hasMore: false,
         },
-        unclassifiedEmailDeliveryAuthorityRepairRequired: { eligible: 2, retained: 2 },
+        unclassifiedEmailDeliveryAuthorityRepairRequired: {
+          eligible: 0,
+          hasMore: false,
+        },
       },
     });
+    const statements = mocks.query.mock.calls.map(([sql]) => String(sql));
+    expect(statements.some((sql) => sql.includes("unclassified_email_authority"))).toBe(false);
   });
 
-  it("accepts fully redacted malformed authority without inventing repair backlog", async () => {
+  it("accepts eligible plus malformed transitions up to the shared batch limit", async () => {
+    mocks.state.redactionEligibleCount = 1;
+    mocks.state.redactionEligibleTransitioned = 1;
     mocks.state.redactionMalformedCount = 1;
     mocks.state.redactionMalformedTransitioned = 1;
 
     const report = await runRetention({
-      idempotencyKey: "retention:test:mail-authority-malformed-redacted",
+      idempotencyKey: "retention:test:mail-authority-shared-batch-limit",
       dryRun: false,
       batchSize: 2,
       now,
@@ -585,6 +611,8 @@ describe("retention runtime orchestration", () => {
   });
 
   it("fails closed when the authority reports impossible transition counts", async () => {
+    mocks.state.redactionEligibleCount = 0;
+    mocks.state.redactionEligibleTransitioned = 0;
     mocks.state.redactionMalformedCount = 1;
     mocks.state.redactionMalformedTransitioned = 2;
 
@@ -607,9 +635,32 @@ describe("retention runtime orchestration", () => {
       },
     });
   });
-  it("keeps every over-cutoff blocked recipient-PII category retry-required", async () => {
+
+  it("fails closed when dispositions exceed the shared redaction batch limit", async () => {
+    mocks.state.redactionMalformedCount = 1;
+    mocks.state.redactionMalformedTransitioned = 1;
+
+    const report = await runRetention({
+      idempotencyKey: "retention:test:mail-authority-shared-limit-exceeded",
+      dryRun: false,
+      batchSize: 2,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    });
+
+    expect(report).toMatchObject({
+      outcome: "completed_with_errors",
+      requiresRetry: true,
+      categories: {
+        unresolvedEmailDeliveryAuthority: {
+          outcome: "failed",
+          failureCode: "EMAIL_OUTBOX_REDACTION_RETRYABLE",
+        },
+      },
+    });
+  });
+  it("keeps v2 blocked recipient PII retry-required", async () => {
     mocks.state.redactionBlockedCount = 1;
-    mocks.state.unclassifiedBlockedCount = 2;
 
     const report = await runRetention({
       idempotencyKey: "retention:test:mail-authority-blocked",
@@ -624,7 +675,7 @@ describe("retention runtime orchestration", () => {
       requiresRetry: true,
       categories: {
         unresolvedEmailDeliveryAuthorityBlocked: { eligible: 1, retained: 1 },
-        unclassifiedEmailDeliveryAuthorityBlocked: { eligible: 2, retained: 2 },
+        unclassifiedEmailDeliveryAuthorityBlocked: { eligible: 0, hasMore: false },
       },
     });
   });

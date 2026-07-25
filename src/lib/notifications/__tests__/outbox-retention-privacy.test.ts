@@ -10,7 +10,7 @@ function retentionSource() {
 function terminalEmailFragments() {
   const source = retentionSource();
   const countStart = source.indexOf("const emailEligible = await count(");
-  const countEnd = source.indexOf("const oldAudit = await count(", countStart);
+  const countEnd = source.indexOf("const nonExternalConsoleEmailEligible = await count(", countStart);
   const deleteStart = source.indexOf("const deletedEmail = await client.query<IdRow>(");
   const deleteEnd = source.indexOf("categories.terminalEmailDeliveryRecords =", deleteStart);
 
@@ -28,7 +28,7 @@ function terminalEmailFragments() {
 function nonExternalConsoleFragments() {
   const source = retentionSource();
   const countStart = source.indexOf("const nonExternalConsoleEmailEligible = await count(");
-  const countEnd = source.indexOf("const unclassifiedEmailAuthorityBlocked = await count(", countStart);
+  const countEnd = source.indexOf("const oldAudit = await count(", countStart);
   const deleteStart = source.indexOf("const deletedNonExternalConsoleEmail = await client.query<IdRow>(");
   const deleteEnd = source.indexOf(
     "categories.nonExternalConsoleDeliveryQuarantines =",
@@ -55,7 +55,9 @@ describe("mail outbox retention privacy", () => {
     ["bounded delete", fragments.delete],
   ] as const)("keeps only pre-provider and exact full-receipt quarantines terminal in the %s", (_label, fragment) => {
     expect(fragment).toMatch(/status\s+in\s*\([^)]*'sent'[^)]*'suppressed'[^)]*'failed'[^)]*\)/u);
-    expect(fragment).toContain("coalesce(sent_at, updated_at) < $1");
+    expect(fragment).toContain(
+      "case when status = 'quarantined' and sent_at is null then quarantined_at else coalesce(sent_at, updated_at) end < $1",
+    );
     expect(fragment).toContain("status = 'quarantined'");
     expect(fragment).toContain("provider_call_started is null");
     expect(fragment).toContain("provider_message_id is not null");
@@ -77,6 +79,10 @@ describe("mail outbox retention privacy", () => {
       "from public.redact_quarantined_email_outbox_authority_v2(",
     );
     expect(redaction).toContain("$1::timestamptz, $2::integer");
+    expect(redaction).toContain("eligibleTransitioned > batchLimit");
+    expect(redaction).toContain(
+      "malformedTransitioned > batchLimit - eligibleTransitioned",
+    );
     expect(redaction).not.toContain("update email_outbox");
   });
 
@@ -92,21 +98,17 @@ describe("mail outbox retention privacy", () => {
     expect(source).toContain("requiresRetry: true");
   });
 
-  it("declares separate report surfaces for console deletion and unclassified repair", () => {
+  it("uses v2 as the sole unresolved-PII classifier while preserving report keys", () => {
     const source = retentionSource();
 
     expect(source).toContain("const nonExternalConsoleEmailEligible = await count(");
-    expect(source).toContain("const unclassifiedEmailAuthorityRepairRequired = await count(");
+    expect(source).not.toContain("const unclassifiedEmailAuthorityRepairRequired = await count(");
+    expect(source).not.toContain("const unclassifiedEmailAuthorityBlocked = await count(");
     expect(source).toContain("categories.nonExternalConsoleDeliveryQuarantines =");
     expect(source).toContain("categories.unclassifiedEmailDeliveryAuthorityRepairRequired =");
     expect(source).toContain("categories.unclassifiedEmailDeliveryAuthorityBlocked =");
-    expect(source).not.toContain(
-      "public.classify_email_outbox_retention_redaction",
-    );
-    expect(source).toContain("/* unresolved_email_redaction_domain */");
-    expect(source).toContain("lease_expires_at > pg_catalog.statement_timestamp()");
-    expect(source).toContain("status = 'quarantined'");
-    expect(source).toContain("provider_call_started is not null");
+    expect(source).not.toContain("/* unresolved_email_redaction_domain */");
+    expect(source).not.toContain("public.classify_email_outbox_retention_redaction");
   });
 
   it.each([

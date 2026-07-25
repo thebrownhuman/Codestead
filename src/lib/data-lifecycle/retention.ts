@@ -210,6 +210,8 @@ async function queryRedactionCapability(
     blockedTransitioned !== 0
     || eligibleTransitioned > eligibleCount
     || malformedTransitioned > malformedCount
+    || eligibleTransitioned > batchLimit
+    || malformedTransitioned > batchLimit - eligibleTransitioned
   ) {
     throw new Error("Email outbox redaction summary is invalid.");
   }
@@ -432,8 +434,8 @@ async function selectTerminalEmailDeletionCandidates(
           )
         )
       )
-      and coalesce(sent_at, updated_at) < $1
-      order by coalesce(sent_at, updated_at) asc, id asc
+      and case when status = 'quarantined' and sent_at is null then quarantined_at else coalesce(sent_at, updated_at) end < $1
+      order by case when status = 'quarantined' and sent_at is null then quarantined_at else coalesce(sent_at, updated_at) end asc, id asc
       limit $2`,
     [cutoff, limit],
   );
@@ -469,8 +471,8 @@ async function selectConsoleEmailDeletionCandidates(
             and delivery_scope_key = 's:' || operation_id::text
           )
         )
-        and coalesce(sent_at, updated_at) < $1
-      order by coalesce(sent_at, updated_at) asc, id asc
+        and case when status = 'quarantined' and sent_at is null then quarantined_at else coalesce(sent_at, updated_at) end < $1
+      order by case when status = 'quarantined' and sent_at is null then quarantined_at else coalesce(sent_at, updated_at) end asc, id asc
       limit $2`,
     [cutoff, limit],
   );
@@ -979,7 +981,7 @@ export async function runRetention(input: {
             )
           )
         )
-        and coalesce(sent_at, updated_at) < $1`,
+        and case when status = 'quarantined' and sent_at is null then quarantined_at else coalesce(sent_at, updated_at) end < $1`,
       [cutoffs.terminalEmailDeliveryRecords],
     );
     const nonExternalConsoleEmailEligible = await count(
@@ -1006,122 +1008,8 @@ export async function runRetention(input: {
               and delivery_scope_key = 's:' || operation_id::text
             )
           )
-          and coalesce(sent_at, updated_at) < $1`,
+          and case when status = 'quarantined' and sent_at is null then quarantined_at else coalesce(sent_at, updated_at) end < $1`,
       [cutoffs.nonExternalConsoleDeliveryQuarantines],
-    );
-    const unclassifiedEmailAuthorityBlocked = await count(
-      client,
-      `select /* unclassified_email_authority_blocked */
-              count(*)::text as count from email_outbox as candidate
-        where candidate.status = 'quarantined'
-          and candidate.provider_call_started is not null
-          and coalesce(candidate.sent_at, candidate.updated_at) < $1
-          and candidate.claim_token is not null
-          and candidate.claim_owner is not null
-          and btrim(candidate.claim_owner) <> ''
-          and candidate.lease_expires_at > pg_catalog.statement_timestamp()
-          and not (
-            /* unresolved_email_redaction_domain */
-            candidate.adapter = 'gmail'
-            and candidate.provider_message_id is null
-            and candidate.sent_at is null
-            and (
-              (
-                candidate.user_id is not null
-                and candidate.delivery_scope_key = 'a:' || candidate.user_id
-              )
-              or (
-                candidate.user_id is null
-                and candidate.delivery_scope_key
-                  = 's:' || candidate.operation_id::text
-              )
-            )
-          )`,
-      [cutoffs.unresolvedEmailDeliveryAuthority],
-    );
-    const unclassifiedEmailAuthorityRepairRequired = await count(
-      client,
-      `select /* unclassified_email_authority_repair_required */
-              count(*)::text as count
-         from email_outbox as candidate
-        where candidate.status = 'quarantined'
-          and candidate.provider_call_started is not null
-          and coalesce(candidate.sent_at, candidate.updated_at) < $1
-          and not (
-            /* unresolved_email_redaction_domain */
-            candidate.adapter = 'gmail'
-            and candidate.provider_message_id is null
-            and candidate.sent_at is null
-            and (
-              (
-                candidate.user_id is not null
-                and candidate.delivery_scope_key = 'a:' || candidate.user_id
-              )
-              or (
-                candidate.user_id is null
-                and candidate.delivery_scope_key
-                  = 's:' || candidate.operation_id::text
-              )
-            )
-          )
-          and not (
-            candidate.claim_token is not null
-            and candidate.claim_owner is not null
-            and btrim(candidate.claim_owner) <> ''
-            and candidate.lease_expires_at > pg_catalog.statement_timestamp()
-          )
-          and not (
-            candidate.adapter = 'console'
-            and candidate.provider_message_id is null
-            and candidate.sent_at is null
-            and candidate.quarantined_at is not null
-            and candidate.quarantined_at < $1::timestamptz
-            and candidate.claim_version >= 2
-            and candidate.claim_token is null
-            and candidate.claim_owner is null
-            and candidate.lease_expires_at is null
-            and candidate.last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'
-            and candidate.dispatch_binding_version = 'console-json-v1'
-            and candidate.dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'
-            and (
-              (
-                candidate.user_id is not null
-                and candidate.delivery_scope_key = 'a:' || candidate.user_id
-              )
-              or (
-                candidate.user_id is null
-                and candidate.delivery_scope_key
-                  = 's:' || candidate.operation_id::text
-              )
-            )
-          )
-          and not (
-            candidate.adapter = 'gmail'
-            and candidate.provider_message_id is not null
-            and btrim(candidate.provider_message_id) <> ''
-            and candidate.sent_at is not null
-            and candidate.quarantined_at is not null
-            and candidate.quarantined_at < $1::timestamptz
-            and candidate.claim_version >= 2
-            and candidate.claim_token is null
-            and candidate.claim_owner is null
-            and candidate.lease_expires_at is null
-            and candidate.last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'
-            and candidate.dispatch_binding_version = 'gmail-raw-v1'
-            and candidate.dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'
-            and (
-              (
-                candidate.user_id is not null
-                and candidate.delivery_scope_key = 'a:' || candidate.user_id
-              )
-              or (
-                candidate.user_id is null
-                and candidate.delivery_scope_key
-                  = 's:' || candidate.operation_id::text
-              )
-            )
-          )`,
-      [cutoffs.unresolvedEmailDeliveryAuthority],
     );
     const oldAudit = await count(
       client,
@@ -1247,15 +1135,15 @@ export async function runRetention(input: {
             0,
             "dry-run; durable hashed no-replay coverage confirmed for bounded deletion candidates",
           );
-      categories.unclassifiedEmailDeliveryAuthorityBlocked = transitionedCategory(
-        unclassifiedEmailAuthorityBlocked,
+      categories.unclassifiedEmailDeliveryAuthorityBlocked = category(
         0,
-        "Over-cutoff unclassified authority has a live complete claim; it is retained and retry-required until release.",
+        0,
+        "Compatibility report key; v2 blocked disposition is the sole unresolved-PII authority.",
       );
-      categories.unclassifiedEmailDeliveryAuthorityRepairRequired = transitionedCategory(
-        unclassifiedEmailAuthorityRepairRequired,
+      categories.unclassifiedEmailDeliveryAuthorityRepairRequired = category(
         0,
-        "Recipient PII is retained under explicit repair-required health until 0067 can redact it safely.",
+        0,
+        "Compatibility report key; v2 eligible and malformed dispositions own remediation.",
       );
       const redaction = await runRedactionCapability(
         client,
@@ -1427,8 +1315,8 @@ export async function runRetention(input: {
                   )
                 )
                 and id = any($3::uuid[])
-                and coalesce(sent_at, updated_at) < $1
-                order by coalesce(sent_at, updated_at) asc, id asc limit $2
+                and case when status = 'quarantined' and sent_at is null then quarantined_at else coalesce(sent_at, updated_at) end < $1
+                order by case when status = 'quarantined' and sent_at is null then quarantined_at else coalesce(sent_at, updated_at) end asc, id asc limit $2
              ) returning id`,
             [cutoffs.terminalEmailDeliveryRecords, limit, terminalEmailCandidates],
           );
@@ -1483,8 +1371,8 @@ export async function runRetention(input: {
                     )
                   )
                   and id = any($3::uuid[])
-                  and coalesce(sent_at, updated_at) < $1
-                order by coalesce(sent_at, updated_at) asc, id asc limit $2
+                  and case when status = 'quarantined' and sent_at is null then quarantined_at else coalesce(sent_at, updated_at) end < $1
+                order by case when status = 'quarantined' and sent_at is null then quarantined_at else coalesce(sent_at, updated_at) end asc, id asc limit $2
              ) returning id`,
             [
               cutoffs.nonExternalConsoleDeliveryQuarantines,
@@ -1498,15 +1386,15 @@ export async function runRetention(input: {
             "Deleted only after durable hashed no-replay coverage was confirmed.",
           );
         }
-        categories.unclassifiedEmailDeliveryAuthorityBlocked = transitionedCategory(
-          unclassifiedEmailAuthorityBlocked,
+        categories.unclassifiedEmailDeliveryAuthorityBlocked = category(
           0,
-          "Over-cutoff unclassified authority has a live complete claim; it is retained and retry-required until release.",
+          0,
+          "Compatibility report key; v2 blocked disposition is the sole unresolved-PII authority.",
         );
-        categories.unclassifiedEmailDeliveryAuthorityRepairRequired = transitionedCategory(
-          unclassifiedEmailAuthorityRepairRequired,
+        categories.unclassifiedEmailDeliveryAuthorityRepairRequired = category(
           0,
-          "Recipient PII remains repair-required until the 0067 redaction authority is composed.",
+          0,
+          "Compatibility report key; v2 eligible and malformed dispositions own remediation.",
         );
         const markedBackupEligible = await client.query<IdRow>(
           `update account_deletion_tombstone
