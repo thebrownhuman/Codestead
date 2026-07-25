@@ -48,6 +48,10 @@ assert.match(
   postgresJob,
   /^  postgres-integration:\n    runs-on: ubuntu-24\.04\n/mu,
 );
+assert.match(
+  postgresJob,
+  /^    timeout-minutes: 35$/mu,
+);
 assert.doesNotMatch(postgresJob, /continue-on-error:/u);
 
 for (const command of [
@@ -127,6 +131,17 @@ assert.equal(
 );
 assert.doesNotMatch(runner, /function runArchiveDump/u);
 assert.doesNotMatch(runner, /function runArchiveRestore/u);
+assert.equal(
+  runner.match(/address\.port === 5432/gu)?.length,
+  1,
+  "the sole host-port allocator must reject PostgreSQL's default port",
+);
+assert.match(runner, /const sourcePort = await availablePort\(\)/u);
+assert.match(runner, /let targetPort = await availablePort\(\)/u);
+assert.match(
+  runner,
+  /while \(targetPort === sourcePort\) targetPort = await availablePort\(\)/u,
+);
 assert.doesNotMatch(
   runner,
   /Buffer\.from\(result\.stdout\)/u,

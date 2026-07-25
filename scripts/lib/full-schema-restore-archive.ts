@@ -136,7 +136,13 @@ export async function runFullSchemaArchiveChild(input: Readonly<{
     chunks.push(chunk);
     capturedBytes += chunk.length;
   };
+  let stdinErrorActive = true;
+  const handleStdinError = () => {
+    if (stdinErrorActive) requestTermination();
+  };
+
   child.stdout.on("data", captureStdout);
+  child.stdin.on("error", handleStdinError);
   child.stderr.resume();
   child.once("error", () => {
     failed = true;
@@ -182,6 +188,7 @@ export async function runFullSchemaArchiveChild(input: Readonly<{
     }
     throw new Error("full-schema restore archive child failed");
   } finally {
+    stdinErrorActive = false;
     clearTimeout(timer);
   }
 }
