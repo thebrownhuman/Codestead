@@ -1,8 +1,6 @@
 import { outboxMessageId } from "./provider-correlation";
 import type { DispatchBinding } from "./prepared-dispatch";
-import type {
-  LostDeviceAuthorityEvidence,
-} from "./revocable-source-authority";
+import type { DispatchAuthorizationEnvelope } from "./dispatch-authorization";
 
 export type ClaimFence = Readonly<{
   id: string;
@@ -14,29 +12,32 @@ export type ClaimFence = Readonly<{
   deliveryScopeKey: string;
 }>;
 
-export type OutboxClaim<P = unknown> = ClaimFence & Readonly<{
-  phase: "pre-provider";
-  payload: P;
-  attempt: number;
-  leaseExpiresAt: Date;
-}>;
+export type OutboxClaim<P = unknown> = ClaimFence &
+  Readonly<{
+    phase: "pre-provider";
+    payload: P;
+    attempt: number;
+    leaseExpiresAt: Date;
+  }>;
 
-export type ProviderStartedClaim = ClaimFence & DispatchBinding & Readonly<{
-  phase: "post-provider";
-  adapter: string;
-  providerCallStartedAt: string;
-  leaseExpiresAt: Date;
-}>;
+export type ProviderStartedClaim = ClaimFence &
+  DispatchBinding &
+  Readonly<{
+    phase: "post-provider";
+    adapter: string;
+    providerCallStartedAt: string;
+    leaseExpiresAt: Date;
+  }>;
 
 declare const providerCallPermitBrand: unique symbol;
 
-export type ProviderCallPermit = ProviderStartedClaim & Readonly<{
-  [providerCallPermitBrand]: true;
-}>;
+export type ProviderCallPermit = ProviderStartedClaim &
+  Readonly<{
+    [providerCallPermitBrand]: true;
+  }>;
 
 export type PreFinishResult =
-  | { readonly kind: "applied" }
-  | { readonly kind: "lost" };
+  { readonly kind: "applied" } | { readonly kind: "lost" };
 
 export type PostFinishResult =
   | { readonly kind: "applied" }
@@ -58,17 +59,12 @@ export type PostProviderExit =
   | { readonly kind: "failed"; readonly code: string }
   | { readonly kind: "quarantined"; readonly code: string };
 
-export type GuardedDispatchAuthorization = Readonly<{
-  binding: DispatchBinding;
-  authorityEvidence?: LostDeviceAuthorityEvidence;
-}>;
-
 export type GuardedDispatchResult =
   | { readonly kind: "applied"; readonly exit: PostProviderExit }
   | { readonly kind: "lost" };
 
 export type GuardedDispatchInput = Readonly<{
-  authorization: GuardedDispatchAuthorization;
+  authorization: DispatchAuthorizationEnvelope;
   invoke(signal: AbortSignal): Promise<PostProviderExit>;
 }>;
 
@@ -87,8 +83,7 @@ export class GuardedDispatchCommitUnknownError extends Error {
 }
 
 export type MaterializeResult<M> =
-  | { readonly kind: "ready"; readonly message: M }
-  | PreProviderExit;
+  { readonly kind: "ready"; readonly message: M } | PreProviderExit;
 
 export type ProviderSendResult =
   | { readonly kind: "accepted"; readonly providerMessageId: string }
@@ -112,18 +107,20 @@ export class FatalProviderTransportError extends Error {
 }
 
 export interface OutboxStore<P = unknown> {
-  claimNext(input: Readonly<{
-    owner: string;
-    token: string;
-    leaseMs: number;
-  }>): Promise<OutboxClaim<P> | null>;
+  claimNext(
+    input: Readonly<{
+      owner: string;
+      token: string;
+      leaseMs: number;
+    }>,
+  ): Promise<OutboxClaim<P> | null>;
 
   beginProviderCall(
     claim: OutboxClaim<P>,
     input: Readonly<{
       adapter: string;
       leaseMs: number;
-      authorization: GuardedDispatchAuthorization;
+      authorization: DispatchAuthorizationEnvelope;
     }>,
   ): Promise<BoundaryResult>;
 
@@ -173,18 +170,22 @@ export type ItemOutcome = Readonly<{
 
 export interface ProcessOutboxBatchDeps<P, M> {
   readonly store: OutboxStore<P>;
-  readonly materialize: (claim: OutboxClaim<P>) => Promise<MaterializeResult<M>>;
+  readonly materialize: (
+    claim: OutboxClaim<P>,
+  ) => Promise<MaterializeResult<M>>;
   readonly provider: MailProvider<M>;
   readonly claimOwner: string;
   readonly newClaimToken: () => string;
   readonly shouldStop: () => boolean;
   readonly clock: { now(): Date };
   readonly retryPolicy: {
-    unexpectedMaterializeError(input: Readonly<{
-      attempt: number;
-      now: Date;
-      error: unknown;
-    }>): Extract<PreProviderExit, { kind: "retry" | "failed" }>;
+    unexpectedMaterializeError(
+      input: Readonly<{
+        attempt: number;
+        now: Date;
+        error: unknown;
+      }>,
+    ): Extract<PreProviderExit, { kind: "retry" | "failed" }>;
   };
   readonly policy: Readonly<{
     batchSize: number;
@@ -204,8 +205,10 @@ export type ProcessOutboxBatchResult = Readonly<{
 }>;
 
 function validateDependencies<P, M>(deps: ProcessOutboxBatchDeps<P, M>) {
-  if (!deps.claimOwner.trim()) throw new Error("Mail claim owner must be nonblank.");
-  if (!deps.provider.adapter.trim()) throw new Error("Mail provider adapter must be nonblank.");
+  if (!deps.claimOwner.trim())
+    throw new Error("Mail claim owner must be nonblank.");
+  if (!deps.provider.adapter.trim())
+    throw new Error("Mail provider adapter must be nonblank.");
   for (const [name, value] of [
     ["batchSize", deps.policy.batchSize],
     ["materializeLeaseMs", deps.policy.materializeLeaseMs],
@@ -242,11 +245,11 @@ function validatePreProviderDecision(
   const nowMs = input.now.getTime();
   const retryMs = decision.retryAt.getTime();
   if (
-    !Number.isFinite(nowMs)
-    || !Number.isFinite(retryMs)
-    || input.attempt >= input.maxAttempts
-    || retryMs <= nowMs
-    || retryMs > nowMs + input.maxRetryDelayMs
+    !Number.isFinite(nowMs) ||
+    !Number.isFinite(retryMs) ||
+    input.attempt >= input.maxAttempts ||
+    retryMs <= nowMs ||
+    retryMs > nowMs + input.maxRetryDelayMs
   ) {
     return { kind: "failed", code: "RETRY_POLICY_INVALID" };
   }
@@ -287,7 +290,11 @@ async function finishBefore<P, M>(
     if (result.kind === "lost") return outcome(claim, "claim-lost");
     return outcome(claim, exit.kind, exit.code);
   } catch {
-    return outcome(claim, "persistence-unknown", "PRE_PROVIDER_PERSISTENCE_FAILED");
+    return outcome(
+      claim,
+      "persistence-unknown",
+      "PRE_PROVIDER_PERSISTENCE_FAILED",
+    );
   }
 }
 
@@ -296,20 +303,36 @@ async function finishAfter<P, M>(
   permit: ProviderCallPermit,
   exit: PostProviderExit,
 ): Promise<ItemOutcome> {
-  for (let attempt = 1; attempt <= deps.policy.terminalPersistenceAttempts; attempt += 1) {
+  for (
+    let attempt = 1;
+    attempt <= deps.policy.terminalPersistenceAttempts;
+    attempt += 1
+  ) {
     try {
       const result = await deps.store.finishAfterProvider(permit, exit);
       if (result.kind === "lost") {
-        return outcome(permit, "persistence-unknown", "POST_PROVIDER_FENCE_LOST");
+        return outcome(
+          permit,
+          "persistence-unknown",
+          "POST_PROVIDER_FENCE_LOST",
+        );
       }
       return outcome(permit, exit.kind, "code" in exit ? exit.code : undefined);
     } catch {
       if (attempt === deps.policy.terminalPersistenceAttempts) {
-        return outcome(permit, "persistence-unknown", "POST_PROVIDER_PERSISTENCE_FAILED");
+        return outcome(
+          permit,
+          "persistence-unknown",
+          "POST_PROVIDER_PERSISTENCE_FAILED",
+        );
       }
     }
   }
-  return outcome(permit, "persistence-unknown", "POST_PROVIDER_PERSISTENCE_FAILED");
+  return outcome(
+    permit,
+    "persistence-unknown",
+    "POST_PROVIDER_PERSISTENCE_FAILED",
+  );
 }
 
 export async function processOutboxBatch<P, M>(
