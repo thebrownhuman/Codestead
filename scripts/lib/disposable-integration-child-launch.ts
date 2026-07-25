@@ -26,6 +26,7 @@ const WINDOWS_TREE_SUPERVISOR_SCRIPT = [
 export type DisposableIntegrationChildLaunch = Readonly<{
   args: readonly string[];
   command: string;
+  detached: boolean;
   environment: NodeJS.ProcessEnv;
   treeSupervised: boolean;
 }>;
@@ -81,6 +82,7 @@ export function buildDisposableIntegrationChildLaunch(
     return {
       command,
       args: [...input.args],
+      detached: true,
       environment: input.environment,
       treeSupervised: false,
     };
@@ -113,6 +115,7 @@ export function buildDisposableIntegrationChildLaunch(
       "-Command",
       WINDOWS_TREE_SUPERVISOR_SCRIPT,
     ],
+    detached: false,
     environment: {
       ...input.environment,
       [CHILD_COMMAND_ENVIRONMENT_KEY]: encode(command),
