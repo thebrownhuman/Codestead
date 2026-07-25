@@ -2,7 +2,7 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto
 
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 
-import { db } from "@/lib/db/client";
+import { db, type Database } from "@/lib/db/client";
 import {
   lostDeviceProof,
   notification,
@@ -19,6 +19,7 @@ import {
   type LostDeviceAuthorityEvidence,
 } from "@/lib/notifications/revocable-source-authority";
 import { writeAuditEventInTransaction } from "@/lib/security/audit-writer";
+import { lockUserAuthority } from "@/lib/security/user-authority-lock";
 
 export const LOST_DEVICE_PROOF_TTL_MS = 15 * 60_000;
 
@@ -60,6 +61,8 @@ type IssuedProof = Readonly<{
   expiresAt: Date;
 }>;
 
+type LostDeviceDatabase = Pick<Database, "select" | "transaction">;
+
 /**
  * Returns null for unknown, unverified, inactive, non-learner, or sessionless
  * accounts. Public callers intentionally discard the distinction and return a
@@ -69,13 +72,12 @@ type IssuedProof = Readonly<{
 export async function issueLostDeviceProof(
   email: string,
   now = new Date(),
+  database: LostDeviceDatabase = db,
 ): Promise<IssuedProof | null> {
   const normalizedEmail = email.trim().toLowerCase();
-  const [candidate] = await db
+  const [candidate] = await database
     .select({
       userId: user.id,
-      name: user.name,
-      email: user.email,
       sessionId: session.id,
     })
     .from(user)
@@ -99,9 +101,32 @@ export async function issueLostDeviceProof(
     .limit(1);
   if (!candidate) return null;
 
-  return db.transaction(async (tx) => {
+  return database.transaction(async (tx) => {
+    await lockUserAuthority(tx, candidate.userId);
+
+    const [activeUser] = await tx
+      .select({ id: user.id, name: user.name, email: user.email })
+      .from(user)
+      .where(
+        and(
+          eq(user.id, candidate.userId),
+          sql`lower(${user.email}) = ${normalizedEmail}`,
+          eq(user.role, "learner"),
+          eq(user.status, "active"),
+          eq(user.emailVerified, true),
+          eq(user.banned, false),
+        ),
+      )
+      .limit(1)
+      .for("update");
+    if (!activeUser) return null;
+
     await tx.execute(
-      sql`select pg_advisory_xact_lock(hashtext(${`lost-device:${candidate.userId}`}))`,
+      sql`select pg_catalog.pg_advisory_xact_lock(
+        pg_catalog.hashtext(
+          ${`lost-device:${candidate.userId}`}
+        )::pg_catalog.int8
+      )`,
     );
     const [stillActive] = await tx
       .select({ id: session.id })
@@ -114,7 +139,8 @@ export async function issueLostDeviceProof(
           gt(session.expiresAt, now),
         ),
       )
-      .limit(1);
+      .limit(1)
+      .for("update");
     if (!stillActive) return null;
 
     const [open] = await tx
@@ -140,12 +166,12 @@ export async function issueLostDeviceProof(
       // cannot match the persisted verifier.
       if (!sameHash(open.proofHash, expected)) return null;
       await enqueueEmailInTransaction(tx, {
-        to: candidate.email,
+        to: activeUser.email,
         userId: candidate.userId,
         template: "lost-device-proof",
         variables: requireRevocableSourceVariables(
           createLostDeviceProofSourceVariables({
-            name: candidate.name,
+            name: activeUser.name,
             recoveryRequestId: open.id,
           }),
         ),
@@ -174,12 +200,12 @@ export async function issueLostDeviceProof(
       updatedAt: now,
     });
     await enqueueEmailInTransaction(tx, {
-      to: candidate.email,
+      to: activeUser.email,
       userId: candidate.userId,
       template: "lost-device-proof",
       variables: requireRevocableSourceVariables(
         createLostDeviceProofSourceVariables({
-          name: candidate.name,
+          name: activeUser.name,
           recoveryRequestId: requestId,
         }),
       ),
