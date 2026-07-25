@@ -13,7 +13,22 @@ const mocks = vi.hoisted(() => {
   const select = vi.fn(() => ({ from: selectFrom }));
 
   const poolEnd = vi.fn(async () => undefined);
-  const pool = { connect: vi.fn(), end: poolEnd };
+  const pool = {
+    options: {
+      max: 3,
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 30_000,
+    },
+    query: vi.fn(async () => ({
+      rows: [{
+        max_connections: "87",
+        admin_reserved_connections: "3",
+        server_version_num: "170005",
+      }],
+    })),
+    connect: vi.fn(),
+    end: poolEnd,
+  };
   const store = { kind: "postgres-outbox-store" };
   const PostgresOutboxStore = vi.fn(function PostgresOutboxStore() {
     return store;
@@ -128,6 +143,18 @@ describe("mail worker production composition", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    Object.assign(mocks.pool.options, {
+      max: 3,
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 30_000,
+    });
+    mocks.pool.query.mockResolvedValue({
+      rows: [{
+        max_connections: "87",
+        admin_reserved_connections: "3",
+        server_version_num: "170005",
+      }],
+    });
     vi.stubEnv("MAIL_ADAPTER", "console");
     vi.stubEnv("OUTBOX_WORKER_MODE", "fenced-postgres-v1");
     vi.stubEnv("OUTBOX_POLL_SECONDS", "10");
@@ -177,11 +204,61 @@ describe("mail worker production composition", () => {
     },
   );
 
+  it("refuses pool drift before the startup query, scheduling, or claims", async () => {
+    mocks.pool.options.max = 10;
+
+    await loadWorkerOnce();
+
+    expect(process.exitCode).toBe(1);
+    expect(mocks.pool.query).not.toHaveBeenCalled();
+    expect(mocks.PostgresOutboxStore).not.toHaveBeenCalled();
+    expect(mocks.processOutboxBatch).not.toHaveBeenCalled();
+    expect(mocks.scheduleInactivityReminders).not.toHaveBeenCalled();
+    expect(mocks.scheduleSmartReminders).not.toHaveBeenCalled();
+    expect(mocks.createWorkerHealthReporter).not.toHaveBeenCalled();
+    expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses PostgreSQL 16 before scheduling, claims, or OAuth", async () => {
+    mocks.pool.query.mockResolvedValueOnce({
+      rows: [{
+        max_connections: "87",
+        admin_reserved_connections: "3",
+        server_version_num: "160009",
+      }],
+    });
+
+    await loadWorkerOnce();
+
+    expect(process.exitCode).toBe(1);
+    expect(mocks.pool.query).toHaveBeenCalledOnce();
+    expect(mocks.PostgresOutboxStore).not.toHaveBeenCalled();
+    expect(mocks.processOutboxBatch).not.toHaveBeenCalled();
+    expect(mocks.scheduleInactivityReminders).not.toHaveBeenCalled();
+    expect(mocks.scheduleSmartReminders).not.toHaveBeenCalled();
+    expect(mocks.createWorkerHealthReporter).not.toHaveBeenCalled();
+    expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
+  });
+
   it("runs the fenced state machine with a PostgreSQL store and stable process authority", async () => {
     await loadWorkerOnce();
 
     expect(mocks.PostgresOutboxStore).toHaveBeenCalledWith(mocks.pool);
     expect(mocks.processOutboxBatch).toHaveBeenCalledTimes(1);
+    expect(mocks.pool.query).toHaveBeenCalledOnce();
+    const inspectionOrder = mocks.pool.query.mock.invocationCallOrder[0]!;
+    expect(inspectionOrder).toBeLessThan(
+      mocks.PostgresOutboxStore.mock.invocationCallOrder[0]!,
+    );
+    expect(inspectionOrder).toBeLessThan(
+      mocks.scheduleInactivityReminders.mock.invocationCallOrder[0]!,
+    );
+    expect(inspectionOrder).toBeLessThan(
+      mocks.scheduleSmartReminders.mock.invocationCallOrder[0]!,
+    );
+    expect(inspectionOrder).toBeLessThan(
+      mocks.processOutboxBatch.mock.invocationCallOrder[0]!,
+    );
     const dependencies = mocks.processOutboxBatch.mock.calls[0]![0] as {
       store: unknown;
       claimOwner: string;
@@ -200,7 +277,7 @@ describe("mail worker production composition", () => {
     expect(dependencies.policy).toEqual({
       batchSize: 10,
       materializeLeaseMs: 60_000,
-      providerLeaseMs: 300_000,
+      providerLeaseMs: 95_000,
       maxMaterializeAttempts: 8,
       maxRetryDelayMs: 6 * 60 * 60_000,
       terminalPersistenceAttempts: 3,

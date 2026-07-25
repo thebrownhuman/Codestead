@@ -8,6 +8,7 @@ const read = (file) => readFileSync(path.join(root, file), "utf8");
 const MAIL_WORKER_ENVIRONMENT_ALLOWLIST = [
   "APP_URL",
   "DATABASE_URL_FILE",
+  "DATABASE_POOL_SIZE",
   "DELETION_TOMBSTONE_KEY_FILE",
   "GMAIL_CLIENT_ID_FILE",
   "GMAIL_CLIENT_SECRET_FILE",
@@ -40,6 +41,7 @@ function sources(overrides = {}) {
     mailer: read("src/lib/notifications/mailer.ts"),
     worker: read("scripts/process-outbox.ts"),
     store: read("src/lib/notifications/postgres-outbox-store.ts"),
+    runtimePolicy: read("src/lib/notifications/mail-dispatch-runtime-policy.ts"),
     ...overrides,
   };
 }
@@ -82,11 +84,21 @@ function integerConstant(document, name) {
   return Number(match[1].replaceAll("_", ""));
 }
 
+function objectInteger(document, name) {
+  const pattern = new RegExp(`^\\s*${name}: ([0-9][0-9_]*),$`, "mu");
+  const match = pattern.exec(document);
+  assert.ok(match, `missing integer object field ${name}`);
+  return Number(match[1].replaceAll("_", ""));
+}
+
 function assertContract(input) {
   const defaultMs = integerConstant(input.mailer, "DEFAULT_GMAIL_REQUEST_TIMEOUT_MS");
   const minimumMs = integerConstant(input.mailer, "MIN_GMAIL_REQUEST_TIMEOUT_MS");
   const maximumMs = integerConstant(input.mailer, "MAX_GMAIL_REQUEST_TIMEOUT_MS");
-  const providerLeaseMs = integerConstant(input.worker, "PROVIDER_LEASE_MS");
+  const providerLeaseMs = objectInteger(
+    input.runtimePolicy,
+    "postCommitProviderLeaseMs",
+  );
   const rootDefault = Number(environmentValue(input.rootEnvironment, "GMAIL_REQUEST_TIMEOUT_MS"));
   const infrastructureDefault = Number(
     environmentValue(input.infrastructureEnvironment, "GMAIL_REQUEST_TIMEOUT_MS"),
@@ -152,6 +164,16 @@ function assertContract(input) {
     input.mailer,
     /process\.env\.GMAIL_REQUEST_TIMEOUT_MS\?\.trim\(\)/u,
     "the Gmail adapter must consume the configured deadline",
+  );
+  assert.match(
+    input.worker,
+    /runtimeInspection\.plan\.providerLease\.postCommitProviderLeaseMs/u,
+    "the worker must consume the issued startup plan provider lease",
+  );
+  assert.doesNotMatch(
+    input.worker,
+    /^const PROVIDER_LEASE_MS\s*=/mu,
+    "the worker must not duplicate the issued provider lease",
   );
   assert.ok(minimumMs > 0 && minimumMs <= defaultMs && defaultMs <= maximumMs);
 
@@ -243,10 +265,10 @@ test("Gmail request timeout contract rejects cross-layer and safety drift", () =
     ],
     [
       "provider lease",
-      { worker: replaceExactly(
-        baseline.worker,
-        "const PROVIDER_LEASE_MS = 300_000;",
-        "const PROVIDER_LEASE_MS = 40_000;",
+      { runtimePolicy: replaceExactly(
+        baseline.runtimePolicy,
+        "  postCommitProviderLeaseMs: 95_000,",
+        "  postCommitProviderLeaseMs: 40_000,",
         "provider lease",
       ) },
     ],

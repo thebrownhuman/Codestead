@@ -82,6 +82,39 @@ describe("mail dispatch runtime startup inspection", () => {
     expect(isMailDispatchRuntimeStartupInspection(inspection)).toBe(true);
   });
 
+  it("does not reread ambient pool capacity after the startup gate", async () => {
+    let configuredMaximum = 3;
+    let maximumReads = 0;
+    const database = {
+      options: {
+        get max() {
+          maximumReads += 1;
+          return configuredMaximum;
+        },
+        connectionTimeoutMillis: 5_000,
+        idleTimeoutMillis: 30_000,
+      },
+      query: vi.fn(async () => {
+        configuredMaximum = 99;
+        return {
+          rows: [{
+            max_connections: "87",
+            admin_reserved_connections: "3",
+            server_version_num: "170005",
+          }],
+        };
+      }),
+    };
+
+    const inspection = await inspectMailDispatchRuntime(database);
+
+    expect(maximumReads).toBe(1);
+    expect(inspection.plan.pool.maximumConnections).toBe(3);
+    expect(
+      inspection.plan.pool.serverCapacity.sumProcessPoolMaximumConnections,
+    ).toBe(83);
+  });
+
   it("accepts 87 connections and rejects 86 after all exact reserves", async () => {
     await expect(inspectMailDispatchRuntime(pool())).resolves.toMatchObject({
       plan: {
