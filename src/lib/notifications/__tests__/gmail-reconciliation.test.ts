@@ -6,8 +6,15 @@ import {
 } from "../gmail-reconciliation";
 
 const OPERATION_ID = "22222222-2222-4222-8222-222222222222";
+const LEGACY_BINDING = {
+  kind: "legacy-unbound",
+  bindingVersion: null,
+  bindingSha256: null,
+} as const;
+
 
 const fence: GmailReconciliationFence = {
+  ...LEGACY_BINDING,
   id: "11111111-1111-4111-8111-111111111111",
   operationId: OPERATION_ID,
   claimVersion: 4,
@@ -33,6 +40,7 @@ function harness() {
   const findByMessageId = vi.fn(async () => ({
     kind: "matched" as const,
     providerMessageId: "gmail-message-1",
+    bindingEvidence: LEGACY_BINDING,
   }));
   return {
     store: {
@@ -61,10 +69,12 @@ describe("Gmail outbox reconciliation", () => {
     });
     expect(input.findByMessageId).toHaveBeenCalledWith(
       "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
+      fence,
     );
     expect(input.finalizeGmailReconciliation).toHaveBeenCalledWith({
       fence,
       providerMessageId: "gmail-message-1",
+      bindingEvidence: LEGACY_BINDING,
     });
   });
 
@@ -123,5 +133,26 @@ describe("Gmail outbox reconciliation", () => {
 
       expect(input.finalizeGmailReconciliation).not.toHaveBeenCalled();
     }
+  });
+
+  it("fails closed when provider binding evidence does not match the durable fence", async () => {
+    const input = harness();
+    input.findByMessageId.mockResolvedValueOnce({
+      kind: "matched",
+      providerMessageId: "gmail-message-1",
+      bindingEvidence: {
+        kind: "exact-bound",
+        bindingVersion: "gmail-raw-v1",
+        bindingSha256: "a".repeat(64),
+      },
+    } as never);
+
+    await expect(reconcileGmailDelivery({
+      operationId: OPERATION_ID,
+      apply: true,
+      confirmOperationId: OPERATION_ID,
+    }, input)).resolves.toEqual({ kind: "ambiguous" });
+
+    expect(input.finalizeGmailReconciliation).not.toHaveBeenCalled();
   });
 });

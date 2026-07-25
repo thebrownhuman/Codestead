@@ -17,7 +17,10 @@ import type {
   ProviderCallPermit,
 } from "./outbox-worker";
 
-import type { GmailReconciliationFence } from "./gmail-reconciliation";
+import type {
+  GmailReconciliationDispatchBinding,
+  GmailReconciliationFence,
+} from "./gmail-reconciliation";
 import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
 
 import {
@@ -65,6 +68,8 @@ export interface OutboxPgClient {
   ): Promise<QueryResult<Row>>;
   release(destroy?: boolean): void;
 }
+
+
 
 export interface OutboxPgPool {
   connect(): Promise<OutboxPgClient>;
@@ -125,8 +130,9 @@ type SweepCandidateRow = CandidateRow & {
   dispatch_binding_sha256: string | null;
 };
 
-type ReconciliationRow = CandidateRow &
-  Partial<BindingRow> & {
+type ReconciliationRow = CandidateRow & {
+    dispatch_binding_version: string | null;
+    dispatch_binding_sha256: string | null;
     claim_token: string | null;
     claim_owner: string | null;
     lease_expires_at: string | null;
@@ -560,6 +566,19 @@ function unsupportedGuardedDispatchDecision(
   }
   return null;
 }
+async function backupStatusMailAuthorized(
+  client: OutboxPgClient,
+  outboxId: string,
+) {
+  const result = await client.query<{ authorized: boolean }>(
+    `
+    select public.backup_status_mail_authorized($1::uuid) as authorized
+  `,
+    [outboxId],
+  );
+  return result.rows.length === 1
+    && result.rows[0]!.authorized === true;
+}
 async function exactAuthorityRow(
   client: OutboxPgClient,
   text: string,
@@ -870,6 +889,30 @@ function exactBindingFromRow(
     adapter,
   );
 }
+function gmailReconciliationBinding(
+  bindingVersion: string | null,
+  bindingSha256: string | null,
+): GmailReconciliationDispatchBinding | null {
+  if (bindingVersion === null && bindingSha256 === null) {
+    return Object.freeze({
+      kind: "legacy-unbound" as const,
+      bindingVersion: null,
+      bindingSha256: null,
+    });
+  }
+  if (
+    bindingVersion === "gmail-raw-v1" &&
+    bindingSha256 !== null &&
+    SHA256_HEX.test(bindingSha256)
+  ) {
+    return Object.freeze({
+      kind: "exact-bound" as const,
+      bindingVersion,
+      bindingSha256: bindingSha256 as ProviderPayloadSha256,
+    });
+  }
+  return null;
+}
 
 function exactTerminalFence(
   row: TerminalRow,
@@ -1068,13 +1111,21 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                claim_version, claim_token::text, claim_owner,
                lease_expires_at::text, adapter, status::text,
                provider_call_started::text, provider_message_id,
-               sent_at::text, quarantined_at::text, last_error_code
+               sent_at::text, quarantined_at::text, last_error_code,
+               dispatch_binding_version, dispatch_binding_sha256
         from public.email_outbox
         where operation_id = $1::uuid
           and adapter = 'gmail'
           and provider_call_started is not null
-          and dispatch_binding_version is null
-          and dispatch_binding_sha256 is null
+          and (
+            (
+              dispatch_binding_version is null
+              and dispatch_binding_sha256 is null
+            ) or (
+              dispatch_binding_version = 'gmail-raw-v1'
+              and dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'
+            )
+          )
           and (
             (
               status = 'quarantined'
@@ -1115,6 +1166,14 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
       ) {
         return { kind: "not-reconcilable" as const };
       }
+      const binding = gmailReconciliationBinding(
+        row.dispatch_binding_version,
+        row.dispatch_binding_sha256,
+      );
+      if (!binding) {
+        return { kind: "not-reconcilable" as const };
+      }
+
       if (row.status === "sent") {
         if (
           row.claim_token === null &&
@@ -1158,6 +1217,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           ? null
           : assertBoundedText(row.claim_owner, "Outbox claim owner", 128);
       const fence: GmailReconciliationFence = {
+        ...binding,
         id: row.id,
         operationId: row.operation_id,
         claimVersion: row.claim_version,
@@ -1198,6 +1258,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     input: Readonly<{
       fence: GmailReconciliationFence;
       providerMessageId: string;
+      bindingEvidence: GmailReconciliationDispatchBinding;
     }>,
   ) {
     const { fence } = input;
@@ -1208,6 +1269,24 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     }
     if (fence.adapter !== "gmail") {
       throw new Error("Outbox adapter is not Gmail.");
+    }
+    const fenceBinding = gmailReconciliationBinding(
+      fence.bindingVersion,
+      fence.bindingSha256,
+    );
+    const providerBindingEvidence = gmailReconciliationBinding(
+      input.bindingEvidence.bindingVersion,
+      input.bindingEvidence.bindingSha256,
+    );
+    if (
+      !fenceBinding ||
+      !providerBindingEvidence ||
+      fenceBinding.kind !== input.bindingEvidence.kind ||
+      providerBindingEvidence.kind !== fence.kind ||
+      providerBindingEvidence.bindingVersion !== fenceBinding.bindingVersion ||
+      providerBindingEvidence.bindingSha256 !== fenceBinding.bindingSha256
+    ) {
+      throw new Error("Gmail reconciliation binding evidence is invalid.");
     }
     if ((fence.claimToken === null) !== (fence.claimOwner === null)) {
       throw new Error("Outbox reconciliation claim authority is inconsistent.");
@@ -1267,8 +1346,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and provider_call_started = $10::timestamptz
           and quarantined_at = $11::timestamptz
           and last_error_code = $12::text
-          and dispatch_binding_version is null
-          and dispatch_binding_sha256 is null
+          and dispatch_binding_version is not distinct from $13::text
+          and dispatch_binding_sha256 is not distinct from $14::text
           and provider_message_id is null
           and sent_at is null
           and status = 'quarantined'
@@ -1287,6 +1366,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           providerCallStartedAt,
           quarantinedAt,
           lastErrorCode,
+          providerBindingEvidence.bindingVersion,
+          providerBindingEvidence.bindingSha256,
         ],
       );
       const observedRow = observed.rows[0];
@@ -1322,8 +1403,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             and delivery_scope_key = $5::text
             and adapter = $6::text
             and provider_call_started = $7::timestamptz
-            and dispatch_binding_version is null
-            and dispatch_binding_sha256 is null
+            and dispatch_binding_version is not distinct from $8::text
+            and dispatch_binding_sha256 is not distinct from $9::text
             and status = 'sent'
             and claim_token is null
             and claim_owner is null
@@ -1342,6 +1423,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             scope.key,
             fence.adapter,
             providerCallStartedAt,
+            providerBindingEvidence.bindingVersion,
+            providerBindingEvidence.bindingSha256,
           ],
         );
         const terminal = existing.rows[0];
@@ -1361,8 +1444,10 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           terminal.claim_token === null &&
           terminal.claim_owner === null &&
           terminal.lease_expires_at === null &&
-          terminal.dispatch_binding_version === null &&
-          terminal.dispatch_binding_sha256 === null;
+          terminal.dispatch_binding_version ===
+            providerBindingEvidence.bindingVersion &&
+          terminal.dispatch_binding_sha256 ===
+            providerBindingEvidence.bindingSha256;
         return exactFence && terminal.provider_message_id === providerMessageId
           ? { kind: "already-applied" as const }
           : { kind: "lost" as const };
@@ -1390,7 +1475,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         `
         update public.email_outbox
         set status = 'sent',
-            provider_message_id = $13::text,
+            provider_message_id = $15::text,
             sent_at = pg_catalog.statement_timestamp(),
             quarantined_at = null,
             last_error_code = null,
@@ -1410,8 +1495,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and provider_call_started = $10::timestamptz
           and quarantined_at = $11::timestamptz
           and last_error_code = $12::text
-          and dispatch_binding_version is null
-          and dispatch_binding_sha256 is null
+          and dispatch_binding_version is not distinct from $13::text
+          and dispatch_binding_sha256 is not distinct from $14::text
           and provider_message_id is null
           and sent_at is null
           and status = 'quarantined'
@@ -1434,6 +1519,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           providerCallStartedAt,
           quarantinedAt,
           lastErrorCode,
+          providerBindingEvidence.bindingVersion,
+          providerBindingEvidence.bindingSha256,
           providerMessageId,
         ],
       );
@@ -1454,8 +1541,10 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         updated.claim_token === null &&
         updated.claim_owner === null &&
         updated.lease_expires_at === null &&
-        updated.dispatch_binding_version === null &&
-        updated.dispatch_binding_sha256 === null;
+        updated.dispatch_binding_version ===
+          providerBindingEvidence.bindingVersion &&
+        updated.dispatch_binding_sha256 ===
+          providerBindingEvidence.bindingSha256;
       return exact ? { kind: "applied" as const } : { kind: "lost" as const };
     });
   }
@@ -1523,7 +1612,6 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                   or (
                     active.status = 'quarantined'
                     and active.provider_call_started is not null
-                    and active.provider_message_id is null
                   )
                 )
             )
@@ -1592,7 +1680,6 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                   or (
                     active.status = 'quarantined'
                     and active.provider_call_started is not null
-                    and active.provider_message_id is null
                   )
                 )
             )
@@ -1643,8 +1730,15 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         const scope = await lockFenceScope(client, claim, true);
         if (!scope) return { kind: "lost" as const };
 
-        let decision = unsupportedGuardedDispatchDecision(claim);
-        if (decision === null) {
+        let decision = claim.payload.template === "backup-status"
+          ? (await backupStatusMailAuthorized(client, claim.id)
+              ? "allowed" as const
+              : "BACKUP_AUTHORITY_UNAVAILABLE" as const)
+          : unsupportedGuardedDispatchDecision(claim);
+        if (
+          decision === null
+          && claim.payload.template !== "backup-status"
+        ) {
           decision = await providerBoundaryDecision(
             client,
             claim,
@@ -1991,22 +2085,24 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         if (
           claim.userId === null ||
           claim.payload.template === "account-deleted" ||
-          claim.payload.template === "backup-status" ||
           claim.payload.template === "session-revocation-requested" ||
           claim.payload.template === "inactivity-admin-notice" ||
           SMART_REMINDER_TEMPLATES.has(claim.payload.template)
         )
           return { kind: "lost" as const };
-        const decision = await providerBoundaryDecisionAfterBoundary(
-          client,
-          claim,
-          permit,
-        );
+        const decision = claim.payload.template === "backup-status"
+          ? (await backupStatusMailAuthorized(client, claim.id)
+              ? "allowed" as const
+              : "BACKUP_AUTHORITY_UNAVAILABLE" as const)
+          : await providerBoundaryDecisionAfterBoundary(
+              client,
+              claim,
+              permit,
+            );
         if (
           decision !== "allowed" ||
           claim.userId === null ||
           claim.payload.template === "account-deleted" ||
-          claim.payload.template === "backup-status" ||
           claim.payload.template === "session-revocation-requested" ||
           claim.payload.template === "inactivity-admin-notice" ||
           (REVOCABLE_SOURCE_TEMPLATES.has(claim.payload.template) &&
@@ -2288,11 +2384,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             update public.email_outbox
             set provider_message_id = $7::text,
                 sent_at = pg_catalog.statement_timestamp(),
-                status = case when status = 'quarantined'
-                  then 'quarantined'::public.notification_status
-                  else 'sent'::public.notification_status
-                end,
-                last_error_code = case when status = 'quarantined' then last_error_code else null end,
+                status = 'sent'::public.notification_status,
+                last_error_code = null,
                 claim_token = null,
                 claim_owner = null,
                 lease_expires_at = null,
@@ -2305,7 +2398,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               and adapter = $6::text
               and provider_message_id is null
               and provider_call_started = $9::timestamptz
-              and status in ('sending', 'quarantined')
+              and status = 'sending'
               and user_id is not distinct from $10::text
               and delivery_scope_key = $8::text
               and dispatch_binding_version = $11::text
@@ -2400,7 +2493,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           `
           update public.email_outbox
           set status = case when $8::text = 'sent'
-                then status
+                then 'sent'::public.notification_status
                 else 'failed'::public.notification_status
               end,
               provider_message_id = case when $8::text = 'sent' then $9::text else null end,
@@ -2408,8 +2501,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                 then pg_catalog.statement_timestamp()
                 else null
               end,
-              quarantined_at = case when $8::text = 'sent' then quarantined_at else null end,
-              last_error_code = case when $8::text = 'sent' then last_error_code else $10::text end,
+              quarantined_at = null,
+              last_error_code = case when $8::text = 'sent' then null else $10::text end,
               updated_at = pg_catalog.statement_timestamp()
           where id = $1::uuid
             and operation_id = $2::uuid
@@ -2458,16 +2551,12 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         const exactOutcome =
           exit.kind === "sent"
             ? successorFinalized
-              ? updated.status === "quarantined" &&
+              ? updated.status === "sent" &&
                 updated.claim_version === permit.claimVersion + 1 &&
                 updated.provider_message_id === providerMessageId &&
                 exactTerminalTimestamp(updated.sent_at, "Sent timestamp") &&
-                exactTerminalTimestamp(
-                  updated.quarantined_at,
-                  "Quarantine timestamp",
-                ) &&
-                updated.last_error_code ===
-                  "ABANDONED_POST_PROVIDER_BOUNDARY"
+                updated.quarantined_at === null &&
+                updated.last_error_code === null
               : updated.status === "sent" &&
                 updated.claim_version === permit.claimVersion &&
                 updated.provider_message_id === providerMessageId &&
@@ -2542,14 +2631,22 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
       const exactOutcome =
         exit.kind === "sent"
           ? successorVersion
-            ? row.status === "quarantined" &&
-              row.provider_message_id === providerMessageId &&
-              exactTerminalTimestamp(row.sent_at, "Sent timestamp") &&
-              exactTerminalTimestamp(
-                row.quarantined_at,
-                "Quarantine timestamp",
-              ) &&
-              row.last_error_code === "ABANDONED_POST_PROVIDER_BOUNDARY"
+            ? (
+                row.status === "quarantined" &&
+                row.provider_message_id === providerMessageId &&
+                exactTerminalTimestamp(row.sent_at, "Sent timestamp") &&
+                exactTerminalTimestamp(
+                  row.quarantined_at,
+                  "Quarantine timestamp",
+                ) &&
+                row.last_error_code === "ABANDONED_POST_PROVIDER_BOUNDARY"
+              ) || (
+                row.status === "sent" &&
+                row.provider_message_id === providerMessageId &&
+                exactTerminalTimestamp(row.sent_at, "Sent timestamp") &&
+                row.quarantined_at === null &&
+                row.last_error_code === null
+              )
             : row.claim_version === permit.claimVersion &&
               row.status === "sent" &&
               row.provider_message_id === providerMessageId &&

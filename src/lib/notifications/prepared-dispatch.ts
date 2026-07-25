@@ -32,6 +32,7 @@ export type MailDispatchAuthority = Readonly<{
   claimOwner: string;
   claimVersion: number;
   deliveryScopeKey: string;
+  sourceAuthoritySha256: SourceAuthoritySha256;
   recipient: string;
   template: EmailTemplate;
   templateVersion: string;
@@ -46,6 +47,7 @@ export type MailPreparationContext = Readonly<{
 
 declare const providerPayloadSha256Brand: unique symbol;
 declare const authoritySealSha256Brand: unique symbol;
+declare const sourceAuthoritySha256Brand: unique symbol;
 
 export type ProviderPayloadSha256 = string & Readonly<{
   [providerPayloadSha256Brand]: "ProviderPayloadSha256";
@@ -53,6 +55,10 @@ export type ProviderPayloadSha256 = string & Readonly<{
 
 export type AuthoritySealSha256 = string & Readonly<{
   [authoritySealSha256Brand]: "AuthoritySealSha256";
+}>;
+
+export type SourceAuthoritySha256 = string & Readonly<{
+  [sourceAuthoritySha256Brand]: "SourceAuthoritySha256";
 }>;
 
 export type DispatchBinding = Readonly<{
@@ -144,6 +150,9 @@ function assertAuthority(authority: MailDispatchAuthority) {
   assertBindingText(authority.claimToken, "claim token", 200);
   assertBindingText(authority.claimOwner, "claim owner", 128);
   assertBindingText(authority.deliveryScopeKey, "delivery scope", 512);
+  if (!SHA256_HEX.test(authority.sourceAuthoritySha256)) {
+    throw new Error("Invalid mail dispatch source authority SHA-256.");
+  }
   const recipient = assertBindingText(
     authority.recipient,
     "recipient",
@@ -210,6 +219,7 @@ function authorityBindingSha256(
   updateLengthFramed(hash, authority.claimOwner);
   updateLengthFramed(hash, String(authority.claimVersion));
   updateLengthFramed(hash, authority.deliveryScopeKey);
+  updateLengthFramed(hash, authority.sourceAuthoritySha256);
   updateLengthFramed(hash, authority.recipient);
   updateLengthFramed(hash, authority.template);
   updateLengthFramed(hash, authority.templateVersion);

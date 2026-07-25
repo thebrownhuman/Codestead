@@ -1,6 +1,9 @@
 import { outboxMessageId } from "./provider-correlation";
 import type { DispatchBinding } from "./prepared-dispatch";
-import type { DispatchAuthorizationEnvelope } from "./dispatch-authorization";
+import type {
+  GuardedPreparedDispatch,
+  PreparedDispatchEnvelope,
+} from "./guarded-prepared-dispatch";
 
 export type ClaimFence = Readonly<{
   id: string;
@@ -63,10 +66,6 @@ export type GuardedDispatchResult =
   | { readonly kind: "applied"; readonly exit: PostProviderExit }
   | { readonly kind: "lost" };
 
-export type GuardedDispatchInput = Readonly<{
-  authorization: DispatchAuthorizationEnvelope;
-  invoke(signal: AbortSignal): Promise<PostProviderExit>;
-}>;
 
 export class FatalProviderTransportError extends Error {
   constructor(readonly code: string) {
@@ -74,6 +73,10 @@ export class FatalProviderTransportError extends Error {
     this.name = "FatalProviderTransportError";
   }
 }
+
+export type FatalProviderExit = (
+  error: FatalProviderTransportError,
+) => never;
 
 export class ProviderBoundaryCommitUnknownError extends Error {
   constructor() {
@@ -117,7 +120,7 @@ export interface OutboxStore<P = unknown> {
     input: Readonly<{
       adapter: string;
       leaseMs: number;
-      authorization: DispatchAuthorizationEnvelope;
+      envelope: PreparedDispatchEnvelope;
     }>,
   ): Promise<BoundaryResult>;
 
@@ -133,7 +136,8 @@ export interface OutboxStore<P = unknown> {
 
   dispatchAfterProviderBoundary(
     permit: ProviderCallPermit,
-    input: GuardedDispatchInput,
+    guarded: GuardedPreparedDispatch,
+    fatalExit: FatalProviderExit,
   ): Promise<GuardedDispatchResult>;
 
   quarantineAbandoned(input: Readonly<{ limit: number }>): Promise<number>;

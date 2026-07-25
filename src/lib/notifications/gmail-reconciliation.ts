@@ -1,6 +1,19 @@
 import { outboxMessageId } from "./provider-correlation";
+import type { ProviderPayloadSha256 } from "./prepared-dispatch";
 
-export type GmailReconciliationFence = Readonly<{
+export type GmailReconciliationDispatchBinding =
+  | Readonly<{
+      kind: "legacy-unbound";
+      bindingVersion: null;
+      bindingSha256: null;
+    }>
+  | Readonly<{
+      kind: "exact-bound";
+      bindingVersion: "gmail-raw-v1";
+      bindingSha256: ProviderPayloadSha256;
+    }>;
+
+type GmailReconciliationFenceBase = Readonly<{
   id: string;
   operationId: string;
   claimVersion: number;
@@ -15,6 +28,10 @@ export type GmailReconciliationFence = Readonly<{
   lastErrorCode: string;
 }>;
 
+export type GmailReconciliationFence = Readonly<
+  GmailReconciliationFenceBase & GmailReconciliationDispatchBinding
+>;
+
 export interface GmailReconciliationStore {
   findGmailReconciliationFence(input: Readonly<{
     operationId: string;
@@ -27,6 +44,7 @@ export interface GmailReconciliationStore {
   finalizeGmailReconciliation(input: Readonly<{
     fence: GmailReconciliationFence;
     providerMessageId: string;
+    bindingEvidence: GmailReconciliationDispatchBinding;
   }>): Promise<
     | { readonly kind: "applied" }
     | { readonly kind: "already-applied" }
@@ -35,10 +53,17 @@ export interface GmailReconciliationStore {
 }
 
 export interface GmailCorrelationLookup {
-  findByMessageId(messageId: string): Promise<
+  findByMessageId(
+    messageId: string,
+    expectedBinding: GmailReconciliationDispatchBinding,
+  ): Promise<
     | { readonly kind: "not-found" }
     | { readonly kind: "ambiguous" }
-    | { readonly kind: "matched"; readonly providerMessageId: string }
+    | Readonly<{
+        kind: "matched";
+        providerMessageId: string;
+        bindingEvidence: GmailReconciliationDispatchBinding;
+      }>
   >;
 }
 
@@ -73,13 +98,20 @@ export async function reconcileGmailDelivery(
 
   const lookup = await deps.gmail.findByMessageId(
     outboxMessageId(candidate.fence.operationId),
+    candidate.fence,
   );
   if (lookup.kind !== "matched") return lookup;
+  const exactBindingEvidence =
+    lookup.bindingEvidence.kind === candidate.fence.kind &&
+    lookup.bindingEvidence.bindingVersion === candidate.fence.bindingVersion &&
+    lookup.bindingEvidence.bindingSha256 === candidate.fence.bindingSha256;
+  if (!exactBindingEvidence) return { kind: "ambiguous" };
   if (!input.apply) return { kind: "matched" };
 
   const finalized = await deps.store.finalizeGmailReconciliation({
     fence: candidate.fence,
     providerMessageId: lookup.providerMessageId,
+    bindingEvidence: lookup.bindingEvidence,
   });
   return finalized.kind === "lost" ? { kind: "fence-lost" } : finalized;
 }
