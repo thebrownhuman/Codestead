@@ -561,6 +561,51 @@ describe("PostgresOutboxStore", () => {
     expect(input.client.calls[4]!.values[11]).toBe(JSON.stringify(claim.payload.variables));
   });
 
+  it("removes exam-result from every account boundary allowlist and suppresses it", async () => {
+    const examClaim: OutboxClaim<EmailOutboxPayload> = {
+      ...claim,
+      payload: {
+        userId: "learner-1",
+        to: "learner@example.test",
+        template: "exam-result",
+        templateVersion: "1",
+        variables: {},
+      },
+    };
+    const input = harness([
+      { contains: "begin" },
+      {
+        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
+        rows: [scopeRow()],
+      },
+      { contains: "pg_advisory_xact_lock" },
+      {
+        contains: "select case",
+        rows: [{ decision: "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY" }],
+      },
+      { contains: "update public.email_outbox", rows: [{ id: ID }] },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.beginProviderCall(examClaim, {
+      adapter: "gmail",
+      leaseMs: 60_000,
+    })).resolves.toEqual({
+      kind: "suppressed",
+      code: "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY",
+    });
+
+    for (const call of [input.client.calls[3]!, input.client.calls[4]!]) {
+      expect(call.sql).not.toContain("'exam-result'");
+      expect(call.sql).toContain("'inactivity-reminder'");
+      expect(call.sql).toContain("outbox.template_version = '2'");
+      expect(call.sql).toContain("account_user.role = 'learner'");
+      expect(call.sql).toContain("account_user.status = 'active'");
+      expect(call.sql).toContain("account_user.banned = false");
+      expect(call.sql).toContain("account_user.email_verified = true");
+    }
+  });
+
   it("does not reconstruct a permit after an unknown boundary commit", async () => {
     const input = harness([
       { contains: "begin" },

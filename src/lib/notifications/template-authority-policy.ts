@@ -32,6 +32,15 @@ export const PRODUCTION_EMAIL_TEMPLATES = Object.freeze([
 
 export type EmailTemplate = (typeof PRODUCTION_EMAIL_TEMPLATES)[number];
 
+export const SPECIALIZED_ACCOUNT_EMAIL_TEMPLATES = Object.freeze([
+  "inactivity-reminder",
+  "inactivity-reminder-followup",
+  "inactivity-admin-notice",
+] as const);
+
+export type SpecializedAccountEmailTemplate =
+  (typeof SPECIALIZED_ACCOUNT_EMAIL_TEMPLATES)[number];
+
 export type AccountMailAuthoritySnapshot = Readonly<{
   role: string | null;
   status: string;
@@ -40,12 +49,12 @@ export type AccountMailAuthoritySnapshot = Readonly<{
 }>;
 
 type AccountState = Readonly<{
+  role: "admin" | "learner";
   status: "pending" | "active" | "suspended" | "deletion_pending" | "deleted";
   emailVerified: boolean;
 }>;
 
 export type AccountMailAuthorityPolicy = Readonly<{
-  roles: readonly ("admin" | "learner")[];
   banned: readonly boolean[];
   states: readonly AccountState[];
 }>;
@@ -79,52 +88,56 @@ export type EmailTemplateAuthorityPolicy =
   | DeletionTemplateAuthorityPolicy;
 
 function accountPolicy(
-  roles: AccountMailAuthorityPolicy["roles"],
   banned: AccountMailAuthorityPolicy["banned"],
   states: AccountMailAuthorityPolicy["states"],
 ): AccountMailAuthorityPolicy {
   return Object.freeze({
-    roles: Object.freeze([...roles]),
     banned: Object.freeze([...banned]),
     states: Object.freeze(states.map((state) => Object.freeze({ ...state }))),
   });
 }
 
 const ACTIVE_LEARNER = accountPolicy(
-  ["learner"],
   [false],
-  [{ status: "active", emailVerified: true }],
+  [{ role: "learner", status: "active", emailVerified: true }],
 );
 const ACTIVE_ADMIN = accountPolicy(
-  ["admin"],
   [false],
-  [{ status: "active", emailVerified: true }],
+  [{ role: "admin", status: "active", emailVerified: true }],
 );
-const ACTIVE_ACCOUNT = accountPolicy(
-  ["admin", "learner"],
-  [false],
-  [{ status: "active", emailVerified: true }],
-);
-const PENDING_UNVERIFIED_LEARNER = accountPolicy(
-  ["learner"],
-  [false],
-  [{ status: "pending", emailVerified: false }],
-);
-const PASSWORD_RESET_ACCOUNT = accountPolicy(
-  ["admin", "learner"],
+const NEW_DEVICE_ACCOUNT = accountPolicy(
   [false],
   [
-    { status: "pending", emailVerified: false },
-    { status: "pending", emailVerified: true },
-    { status: "active", emailVerified: true },
+    { role: "admin", status: "active", emailVerified: true },
+    { role: "learner", status: "pending", emailVerified: true },
+    { role: "learner", status: "active", emailVerified: true },
+  ],
+);
+const PENDING_OR_ACTIVE_VERIFIED_LEARNER = accountPolicy(
+  [false],
+  [
+    { role: "learner", status: "pending", emailVerified: true },
+    { role: "learner", status: "active", emailVerified: true },
+  ],
+);
+const PENDING_UNVERIFIED_LEARNER = accountPolicy(
+  [false],
+  [{ role: "learner", status: "pending", emailVerified: false }],
+);
+const PASSWORD_RESET_ACCOUNT = accountPolicy(
+  [false],
+  [
+    { role: "learner", status: "pending", emailVerified: false },
+    { role: "learner", status: "pending", emailVerified: true },
+    { role: "learner", status: "active", emailVerified: true },
+    { role: "admin", status: "active", emailVerified: true },
   ],
 );
 const DELETED_LEARNER = accountPolicy(
-  ["learner"],
   [false, true],
   [
-    { status: "deleted", emailVerified: false },
-    { status: "deleted", emailVerified: true },
+    { role: "learner", status: "deleted", emailVerified: false },
+    { role: "learner", status: "deleted", emailVerified: true },
   ],
 );
 
@@ -173,7 +186,7 @@ export const TEMPLATE_AUTHORITY_POLICIES = Object.freeze({
   "new-device": {
     scope: "account",
     versions: VERSION_1,
-    account: ACTIVE_ACCOUNT,
+    account: NEW_DEVICE_ACCOUNT,
   },
   "session-revocation-requested": {
     scope: "account",
@@ -183,12 +196,12 @@ export const TEMPLATE_AUTHORITY_POLICIES = Object.freeze({
   "session-revocation-updated": {
     scope: "account",
     versions: VERSION_1,
-    account: ACTIVE_ACCOUNT,
+    account: ACTIVE_LEARNER,
   },
   "session-revoked": {
     scope: "account",
     versions: VERSION_1,
-    account: ACTIVE_ACCOUNT,
+    account: ACTIVE_LEARNER,
   },
   "account-deleted": {
     scope: "deletion-capability",
@@ -199,7 +212,7 @@ export const TEMPLATE_AUTHORITY_POLICIES = Object.freeze({
   "credential-changed": {
     scope: "account",
     versions: VERSION_1,
-    account: ACTIVE_LEARNER,
+    account: PENDING_OR_ACTIVE_VERIFIED_LEARNER,
   },
   "credential-revealed": {
     scope: "account",
@@ -209,7 +222,7 @@ export const TEMPLATE_AUTHORITY_POLICIES = Object.freeze({
   "fallback-grant-changed": {
     scope: "account",
     versions: VERSION_1,
-    account: ACTIVE_LEARNER,
+    account: PENDING_OR_ACTIVE_VERIFIED_LEARNER,
   },
   "learning-plan-changed": {
     scope: "account",
@@ -291,68 +304,101 @@ export type ResolvedEmailTemplateAuthorityPolicy = Readonly<{
   policy: EmailTemplateAuthorityPolicy;
 }>;
 
-export type AccountMailAuthorityDecision =
-  | Readonly<{ kind: "allowed" }>
+export type TemplateAccountSnapshotDecision =
   | Readonly<{
-      kind: "denied";
+      kind: "account-snapshot-satisfied";
+      deliveryAuthorityEstablished: false;
+      remainingAuthority:
+        | "account-template-source"
+        | "system-source"
+        | "account-deletion-capability";
+    }>
+  | Readonly<{
+      kind: "account-snapshot-denied";
+      deliveryAuthorityEstablished: false;
       code:
         | "UNKNOWN_TEMPLATE"
         | "TEMPLATE_VERSION_NOT_ALLOWED"
-        | "ACCOUNT_AUTHORITY_NOT_APPLICABLE"
+        | "ACCOUNT_SNAPSHOT_NOT_APPLICABLE"
         | "ACCOUNT_ROLE_NOT_ALLOWED"
         | "ACCOUNT_STATUS_NOT_ALLOWED"
         | "ACCOUNT_BANNED"
         | "ACCOUNT_EMAIL_VERIFICATION_NOT_ALLOWED";
     }>;
 
-function isEmailTemplate(value: string): value is EmailTemplate {
+export function isProductionEmailTemplate(value: string): value is EmailTemplate {
   return Object.hasOwn(TEMPLATE_AUTHORITY_POLICIES, value);
+}
+
+export function isSpecializedAccountEmailTemplate(
+  value: string,
+): value is SpecializedAccountEmailTemplate {
+  return SPECIALIZED_ACCOUNT_EMAIL_TEMPLATES.some((template) => template === value);
 }
 
 export function resolveEmailTemplateAuthorityPolicy(
   template: string,
   templateVersion: string,
 ): ResolvedEmailTemplateAuthorityPolicy | null {
-  if (!isEmailTemplate(template)) return null;
+  if (!isProductionEmailTemplate(template)) return null;
   const policy = TEMPLATE_AUTHORITY_POLICIES[template];
   if (!policy.versions.some((version) => version === templateVersion)) return null;
   return { template, templateVersion, policy };
 }
 
-export function evaluateAccountMailAuthority(input: Readonly<{
+function denied(
+  code: Extract<TemplateAccountSnapshotDecision, { kind: "account-snapshot-denied" }>["code"],
+): TemplateAccountSnapshotDecision {
+  return {
+    kind: "account-snapshot-denied",
+    deliveryAuthorityEstablished: false,
+    code,
+  };
+}
+
+export function evaluateTemplateAccountSnapshot(input: Readonly<{
   template: string;
   templateVersion: string;
   account: AccountMailAuthoritySnapshot;
-}>): AccountMailAuthorityDecision {
-  if (!isEmailTemplate(input.template)) {
-    return { kind: "denied", code: "UNKNOWN_TEMPLATE" };
+}>): TemplateAccountSnapshotDecision {
+  if (!isProductionEmailTemplate(input.template)) {
+    return denied("UNKNOWN_TEMPLATE");
   }
   const policy = TEMPLATE_AUTHORITY_POLICIES[input.template];
   if (!policy.versions.some((version) => version === input.templateVersion)) {
-    return { kind: "denied", code: "TEMPLATE_VERSION_NOT_ALLOWED" };
+    return denied("TEMPLATE_VERSION_NOT_ALLOWED");
   }
   if (policy.account === null) {
-    return { kind: "denied", code: "ACCOUNT_AUTHORITY_NOT_APPLICABLE" };
+    return denied("ACCOUNT_SNAPSHOT_NOT_APPLICABLE");
   }
-  if (!policy.account.roles.some((role) => role === input.account.role)) {
-    return { kind: "denied", code: "ACCOUNT_ROLE_NOT_ALLOWED" };
+  const roleStates = policy.account.states.filter(
+    (state) => state.role === input.account.role,
+  );
+  if (roleStates.length === 0) {
+    return denied("ACCOUNT_ROLE_NOT_ALLOWED");
   }
   if (!policy.account.banned.some((banned) => banned === input.account.banned)) {
-    return { kind: "denied", code: "ACCOUNT_BANNED" };
+    return denied("ACCOUNT_BANNED");
   }
-  const statusStates = policy.account.states.filter(
+  const statusStates = roleStates.filter(
     (state) => state.status === input.account.status,
   );
   if (statusStates.length === 0) {
-    return { kind: "denied", code: "ACCOUNT_STATUS_NOT_ALLOWED" };
+    return denied("ACCOUNT_STATUS_NOT_ALLOWED");
   }
   if (!statusStates.some(
     (state) => state.emailVerified === input.account.emailVerified,
   )) {
-    return {
-      kind: "denied",
-      code: "ACCOUNT_EMAIL_VERIFICATION_NOT_ALLOWED",
-    };
+    return denied("ACCOUNT_EMAIL_VERIFICATION_NOT_ALLOWED");
   }
-  return { kind: "allowed" };
+  const remainingAuthority = policy.scope === "account"
+    ? "account-template-source"
+    : policy.scope === "system"
+      ? "system-source"
+      : "account-deletion-capability";
+  return {
+    kind: "account-snapshot-satisfied",
+    deliveryAuthorityEstablished: false,
+    remainingAuthority,
+  };
 }
