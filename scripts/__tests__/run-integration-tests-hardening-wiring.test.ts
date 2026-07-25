@@ -11,12 +11,14 @@ describe("integration runner hardening wiring", () => {
     );
 
     expect(source).toContain("runWithDisposableIntegrationHarness");
+    expect(source).toContain("allocateDisposableLoopbackPort");
     expect(source).toContain("buildDisposableIntegrationRuntimeEnvironment");
     expect(source).toContain("buildDisposableIntegrationChildLaunch");
     expect(source).toContain("createIntegrationOutputSanitizer");
     expect(source).toContain("taskHomeDirectory");
     expect(source).toContain("postgresMajor");
     expect(source).not.toContain("sanitizedIntegrationEnvironment");
+    expect(source).not.toContain("server.listen(0");
     expect(source).not.toContain("options.env ?? process.env");
     expect(source).toContain(
       "detached: true",

@@ -1,7 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
-import net from "node:net";
 import path from "node:path";
 
 import pg, { type PoolClient } from "pg";
@@ -18,6 +17,8 @@ import {
   buildDisposableIntegrationRuntimeEnvironment,
   createIntegrationOutputSanitizer,
 } from "./lib/disposable-integration-runtime";
+import { allocateDisposableLoopbackPort } from
+  "./lib/disposable-loopback-port";
 import { buildDisposableToolEnvironment } from
   "./lib/disposable-tool-environment";
 import {
@@ -374,24 +375,6 @@ async function runDisposableIntegrationMigration(connectionString: string) {
   });
 }
 
-async function availablePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.unref();
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
-        server.close();
-        reject(new Error("Could not allocate a loopback port."));
-        return;
-      }
-      const { port } = address;
-      server.close((error) => (error ? reject(error) : resolve(port)));
-    });
-  });
-}
-
 async function waitForPostgres(
   connectionString: string,
   expectedMajor: number,
@@ -469,7 +452,7 @@ async function main() {
     worker: generatedPassword(),
     ops: generatedPassword(),
   });
-  const port = await availablePort();
+  const port = await allocateDisposableLoopbackPort();
   const databaseUrl = databaseRoleUrl({
     username: integrationUser,
     password,
