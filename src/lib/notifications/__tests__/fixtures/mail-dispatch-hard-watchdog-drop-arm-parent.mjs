@@ -1,8 +1,10 @@
 import { writeSync } from "node:fs";
 
-import {
-  startMailDispatchHardWatchdog,
-} from "../../mail-dispatch-hard-watchdog.ts";
+// Make the parent's fatal path park after its shorter ACK bound. The process
+// can then terminate only if the child armed its independent kill timer before
+// deliberately dropping the ARMED acknowledgement.
+process.reallyExit = () => undefined;
+process._kill = () => 0;
 
 process.exitCode = 0;
 process.on("beforeExit", () => {
@@ -17,6 +19,10 @@ process.on("uncaughtException", () => {
 process.on("unhandledRejection", () => {
   writeSync(1, "UNHANDLED_CLEANUP\n");
 });
+
+const {
+  startMailDispatchHardWatchdog,
+} = await import("../../mail-dispatch-hard-watchdog.ts");
 
 const watchdog = await startMailDispatchHardWatchdog();
 await watchdog.arm();

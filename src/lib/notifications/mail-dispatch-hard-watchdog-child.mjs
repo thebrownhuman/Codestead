@@ -18,6 +18,8 @@ const TEST_FAULTS = new Set([
   "MALFORMED_ARMED",
   "MALFORMED_DISARMED",
   "MALFORMED_READY",
+  "RAW_KILL_THROW_BEFORE_READY",
+  "RAW_KILL_UNAVAILABLE_BEFORE_READY",
   "SEND_CALLBACK_ERROR",
   "SEND_SYNC_THROW",
   "UNCAUGHT_AFTER_ARMED",
@@ -43,12 +45,20 @@ const FORBIDDEN_ENVIRONMENT = Object.freeze([
   "LOST_DEVICE_PROOF_KEY_FILE",
 ]);
 
+const testFault = activeTestFault();
 const capturedReallyExit = typeof process.reallyExit === "function"
   ? process.reallyExit.bind(process)
   : undefined;
-const capturedRawKill = typeof process._kill === "function"
+const boundRawKill = typeof process._kill === "function"
   ? process._kill.bind(process)
   : undefined;
+const capturedRawKill = testFault === "RAW_KILL_UNAVAILABLE_BEFORE_READY"
+  ? undefined
+  : testFault === "RAW_KILL_THROW_BEFORE_READY"
+    ? () => {
+      throw new Error("Injected captured raw-kill failure.");
+    }
+    : boundRawKill;
 const capturedAtomicsWait = typeof Atomics.wait === "function"
   ? Atomics.wait.bind(Atomics)
   : undefined;
@@ -112,6 +122,23 @@ function activeTestFault() {
   return fault && TEST_FAULTS.has(fault) ? fault : undefined;
 }
 
+function capturedRawKillIsUsable() {
+  if (
+    !capturedRawKill
+    || !Number.isSafeInteger(capturedSelfPid)
+    || capturedSelfPid <= 1
+    || !Number.isSafeInteger(capturedSigkill)
+    || capturedSigkill <= 0
+  ) {
+    return false;
+  }
+  try {
+    return capturedRawKill(capturedSelfPid, 0) === 0;
+  } catch {
+    return false;
+  }
+}
+
 function exactMessage(message, keys) {
   if (
     !message
@@ -141,10 +168,12 @@ if (
 ) {
   startupFail(65);
 }
+if (!capturedRawKillIsUsable()) {
+  startupFail(65);
+}
 
 const parentPid = process.ppid;
 const timeoutMs = watchdogTimeoutMs();
-const testFault = activeTestFault();
 let generation = 0;
 let phase = "idle";
 let readySent = false;
@@ -289,12 +318,12 @@ process.on("message", (message) => {
     readySent = true;
     generation = message.generation;
     phase = "armed";
+    killTimer = setTimeout(killParentOnTimeout, timeoutMs);
     if (testFault === "MALFORMED_ARMED") {
       send({ type: "ARMED", generation, unexpected: true });
       return;
     }
     if (testFault === "DROP_ARM_ACK") return;
-    killTimer = setTimeout(killParentOnTimeout, timeoutMs);
     if (testFault === "DISCONNECT_ON_ARM") {
       disconnect();
       return;

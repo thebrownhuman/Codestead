@@ -45,6 +45,8 @@ const TEST_FAULTS = new Set([
   "MALFORMED_ARMED",
   "MALFORMED_DISARMED",
   "MALFORMED_READY",
+  "RAW_KILL_THROW_BEFORE_READY",
+  "RAW_KILL_UNAVAILABLE_BEFORE_READY",
   "SEND_CALLBACK_ERROR",
   "SEND_SYNC_THROW",
   "UNCAUGHT_AFTER_ARMED",
@@ -338,6 +340,9 @@ function installChildHandlers(state: ControllerState) {
     ) {
       failController(state, watchdogError("WATCHDOG_PROTOCOL_INVALID"));
       return;
+    }
+    if (pending.expectedType === "CLOSED") {
+      state.expectedClose = true;
     }
     clearPending(state);
   });

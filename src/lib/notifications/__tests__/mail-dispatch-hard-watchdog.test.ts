@@ -60,7 +60,7 @@ async function runFatalFixture(input: Readonly<{
   );
   const environment: NodeJS.ProcessEnv = {
     NODE_ENV: "test",
-    MAIL_DISPATCH_WATCHDOG_TEST_TIMEOUT_MS: "250",
+    MAIL_DISPATCH_WATCHDOG_TEST_TIMEOUT_MS: "1500",
     MAIL_DISPATCH_WATCHDOG_TEST_HANDSHAKE_TIMEOUT_MS: "1000",
     MAIL_DISPATCH_WATCHDOG_TEST_FAULT: input.fault,
     MAIL_DISPATCH_WATCHDOG_TEST_EXIT_MODE: input.exitMode,
@@ -221,6 +221,8 @@ describe("mail dispatch external hard watchdog", () => {
   it.each([
     "EXIT_BEFORE_READY",
     "MALFORMED_READY",
+    "RAW_KILL_THROW_BEFORE_READY",
+    "RAW_KILL_UNAVAILABLE_BEFORE_READY",
   ])("refuses startup for child fault %s without invoking the post-ready fatal hook", async (fault) => {
     stubWatchdogFault(fault);
     const outcome = await startMailDispatchHardWatchdog().then(
