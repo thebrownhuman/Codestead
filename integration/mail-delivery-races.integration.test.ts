@@ -378,10 +378,11 @@ async function expiredPermit() {
   await seedOutboxRows("pending", 1);
   const claim = await requireClaim(CLAIM_TOKENS[0], "provider-worker");
   const permit = await requirePermit(claim);
-  const expiredAt = new Date(Date.now() - 120_000);
   await pool.query(
-    "update email_outbox set lease_expires_at = $2::timestamptz where id = $1",
-    [claim.id, expiredAt],
+    `update email_outbox
+        set lease_expires_at = lease_expires_at - interval '4 minutes'
+      where id = $1::uuid`,
+    [claim.id],
   );
   return { claim, permit };
 }
@@ -414,6 +415,7 @@ async function outboxState() {
     claim_token: string | null;
     claim_owner: string | null;
     claim_version: number;
+    lease_expires_at: Date | null;
     lease_is_active: boolean;
     provider_call_started: Date | null;
     adapter: string | null;
@@ -425,6 +427,7 @@ async function outboxState() {
     template: string;
   }>(`
     select id::text,status::text,attempt_count,claim_token::text,claim_owner,claim_version,
+           lease_expires_at,
            lease_expires_at is not null
              and lease_expires_at >= statement_timestamp() as lease_is_active,
            provider_call_started,adapter,provider_message_id,sent_at,quarantined_at,
@@ -750,6 +753,36 @@ describe("real PostgreSQL mail delivery races", () => {
     })).resolves.toEqual({ kind: "lost" });
   });
 
+  it("carries exact non-millisecond PostgreSQL boundary text through finalization", async () => {
+    await seedOutboxRows("pending", 1);
+    const claim = await requireClaim(CLAIM_TOKENS[0], "precision-worker");
+    const permit = await requirePermit(claim);
+    const captured = await pool.query<{ provider_call_started: string }>(`
+      select provider_call_started::text as provider_call_started
+        from email_outbox
+       where id = $1::uuid
+    `, [claim.id]);
+    expect(captured.rows[0]?.provider_call_started).toBe(permit.providerCallStartedAt);
+
+    const exactBoundary = "2026-07-22 19:00:05.123456+00";
+    const rewritten = await pool.query<{ provider_call_started: string }>(`
+      update email_outbox
+         set provider_call_started = $2::timestamptz
+       where id = $1::uuid
+         and provider_call_started = $3::timestamptz
+      returning provider_call_started::text as provider_call_started
+    `, [claim.id, exactBoundary, permit.providerCallStartedAt]);
+    expect(rewritten.rows[0]?.provider_call_started).toBe(exactBoundary);
+    const exactPermit = {
+      ...permit,
+      providerCallStartedAt: exactBoundary,
+    } as ProviderCallPermit;
+
+    await expect(store().finishAfterProvider(exactPermit, {
+      kind: "sent",
+      providerMessageId: "console-microsecond-boundary",
+    })).resolves.toEqual({ kind: "applied" });
+  });
   it("lets a finalizer that owns the scope lock beat the abandoned-send sweeper", async () => {
     const { permit } = await expiredPermit();
     const finalizerPause = new QueryPause();
@@ -814,6 +847,10 @@ describe("real PostgreSQL mail delivery races", () => {
     expect(finalized).toEqual({ kind: "applied" });
     expect((await outboxState())[0]).toMatchObject({
       status: "quarantined",
+      claim_version: permit.claimVersion + 1,
+      claim_token: null,
+      claim_owner: null,
+      lease_expires_at: null,
       provider_message_id: "console-sweeper-first",
       last_error_code: "ABANDONED_POST_PROVIDER_BOUNDARY",
     });
@@ -821,6 +858,27 @@ describe("real PostgreSQL mail delivery races", () => {
     expect((await outboxState())[0]!.quarantined_at).not.toBeNull();
   });
 
+  it("finalizes a definite rejection from the released sweeper successor without another provider call", async () => {
+    const { permit } = await expiredPermit();
+
+    await expect(store().quarantineAbandoned({ limit: 10 })).resolves.toBe(1);
+    await expect(store().finishAfterProvider(permit, {
+      kind: "failed",
+      code: "PROVIDER_DEFINITELY_REJECTED",
+    })).resolves.toEqual({ kind: "applied" });
+
+    expect((await outboxState())[0]).toMatchObject({
+      status: "failed",
+      claim_version: permit.claimVersion + 1,
+      claim_token: null,
+      claim_owner: null,
+      lease_expires_at: null,
+      provider_message_id: null,
+      sent_at: null,
+      quarantined_at: null,
+      last_error_code: "PROVIDER_DEFINITELY_REJECTED",
+    });
+  });
   it("makes a committed provider boundary win when deletion queues behind its account lock", async () => {
     await seedOutboxRows("pending", 1);
     const claim = await requireClaim(CLAIM_TOKENS[0], "boundary-before-deletion-worker");

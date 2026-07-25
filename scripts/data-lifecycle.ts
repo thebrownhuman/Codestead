@@ -45,6 +45,7 @@ async function main() {
     now,
   });
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  if (report.requiresRetry) process.exitCode = 1;
 }
 
 main().catch((error) => {

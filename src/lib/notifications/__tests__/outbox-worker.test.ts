@@ -33,7 +33,7 @@ const started: ProviderStartedClaim = {
   claimOwner: claim.claimOwner,
   claimVersion: claim.claimVersion,
   adapter: "gmail",
-  providerCallStartedAt: new Date("2026-07-22T18:00:05.000Z"),
+  providerCallStartedAt: "2026-07-22 18:00:05.123456+00",
   leaseExpiresAt: new Date("2026-07-22T18:01:05.000Z"),
 };
 const permit = started as ProviderCallPermit;

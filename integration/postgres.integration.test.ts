@@ -2512,8 +2512,12 @@ describe("bounded export and administrator-only account deletion", () => {
       expect(notices.some((row) => row.template === "account-deleted")).toBe(true);
       const deletionNotice = notices.find((row) => row.template === "account-deleted");
       expect(deletionNotice?.variables).toEqual({
-        backupRetentionUntil: "2027-07-12T00:00:00.000Z",
+        backupRetentionUntil: report.backupRetentionUntil,
+        tombstoneId: report.tombstoneId,
+        deletionRunId: report.runId,
       });
+      expect(deletionNotice?.id).toBe(report.deletionNotice?.outboxId);
+      expect(deletionNotice?.operationId).toBe(report.deletionNotice?.operationId);
 
       const replay = await deleteLearnerAccount(deletionInput);
       expect(replay.replayed).toBe(true);

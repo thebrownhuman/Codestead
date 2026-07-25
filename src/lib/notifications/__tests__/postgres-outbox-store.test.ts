@@ -125,7 +125,7 @@ const started: ProviderStartedClaim = {
   claimOwner: "worker-1",
   claimVersion: 4,
   adapter: "gmail",
-  providerCallStartedAt: new Date("2026-07-22T19:00:05.000Z"),
+  providerCallStartedAt: "2026-07-22 19:00:05.123456+00",
   leaseExpiresAt: new Date("2026-07-22T19:01:05.000Z"),
 };
 const permit = started as ProviderCallPermit;
@@ -214,8 +214,10 @@ describe("PostgresOutboxStore", () => {
     expect(candidateSql).toContain("not exists");
     expect(candidateSql).toContain("active.delivery_scope_key = candidate.delivery_scope_key");
     expect(candidateSql).toContain("active.provider_call_started is not null");
+    expect(candidateSql).toContain("candidate.claim_version < 2147483647");
     const claimSql = input.client.calls[3]!.sql;
     expect(claimSql).toContain("claim_version = claim_version + 1");
+    expect(claimSql).toContain("claim_version < 2147483647");
     expect(claimSql).toContain("claim_token = $4::uuid");
     expect(claimSql).toContain("user_id is not distinct from $7::text");
     expect(claimSql).toContain("active.delivery_scope_key = $8::text");
@@ -251,7 +253,7 @@ describe("PostgresOutboxStore", () => {
       {
         contains: "update public.email_outbox",
         rows: [{
-          provider_call_started: new Date("2026-07-22T19:00:05.000Z"),
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
           lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
         }],
       },
@@ -393,7 +395,7 @@ describe("PostgresOutboxStore", () => {
       {
         contains: "update public.email_outbox",
         rows: [{
-          provider_call_started: new Date("2026-07-22T19:00:05.000Z"),
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
           lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
         }],
       },
@@ -420,6 +422,7 @@ describe("PostgresOutboxStore", () => {
     }
     expect(lockedDecision.sql).toContain("for share of source_request, admin_recipient");
     expect(decision.sql).toContain("outbox.variables ->> 'url' = $16::text");
+    expect(boundary.sql).toContain("returning outbox.provider_call_started::text as provider_call_started");
     expect(boundary.sql).toContain("outbox.variables ->> 'url' = $18::text");
     expect(decision.values.slice(11)).toEqual([
       null,
@@ -447,7 +450,7 @@ describe("PostgresOutboxStore", () => {
       {
         contains: "update public.email_outbox",
         rows: [{
-          provider_call_started: new Date("2026-07-22T19:00:05.000Z"),
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
           lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
         }],
       },
@@ -568,7 +571,7 @@ describe("PostgresOutboxStore", () => {
       {
         contains: "update public.email_outbox",
         rows: [{
-          provider_call_started: new Date("2026-07-22T19:00:05.000Z"),
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
           lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
         }],
       },
@@ -596,7 +599,7 @@ describe("PostgresOutboxStore", () => {
           claim_version: 4,
           adapter: "gmail",
           provider_message_id: "gmail-other",
-          provider_call_started: new Date("2026-07-22T19:00:05.000Z"),
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
           sent_at: new Date("2026-07-22T19:00:06.000Z"),
           quarantined_at: null,
           last_error_code: null,
@@ -617,6 +620,7 @@ describe("PostgresOutboxStore", () => {
       { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
       { contains: "update public.email_outbox", rows: [] },
+      { contains: "last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'", rows: [] },
       {
         contains: "select status::text",
         rows: [{
@@ -624,7 +628,7 @@ describe("PostgresOutboxStore", () => {
           claim_version: 4,
           adapter: "gmail",
           provider_message_id: "gmail-1",
-          provider_call_started: new Date("2026-07-22T19:00:05.000Z"),
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
           sent_at: new Date("2026-07-22T19:00:06.000Z"),
           quarantined_at: null,
           last_error_code: null,
@@ -639,12 +643,226 @@ describe("PostgresOutboxStore", () => {
     })).resolves.toEqual({ kind: "already-applied" });
   });
 
+  it("atomically releases and advances the fence for provider ambiguity", async () => {
+    const input = harness([
+      { contains: "begin" },
+      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
+      { contains: "pg_advisory_xact_lock" },
+      {
+        contains: "update public.email_outbox",
+        rows: [{
+          status: "quarantined",
+          claim_version: 5,
+          adapter: "gmail",
+          provider_message_id: null,
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
+          sent_at: null,
+          quarantined_at: new Date("2026-07-22T19:00:06.000Z"),
+          last_error_code: "PROVIDER_OUTCOME_AMBIGUOUS",
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.finishAfterProvider(permit, {
+      kind: "quarantined",
+      code: "PROVIDER_OUTCOME_AMBIGUOUS",
+    })).resolves.toEqual({ kind: "applied" });
+
+    const sql = input.client.calls[3]!.sql;
+    expect(sql).toContain(
+      "claim_version = case when $7::text = 'quarantined' then claim_version + 1 else claim_version end",
+    );
+    expect(sql).toContain("claim_token = null");
+    expect(sql).toContain("claim_owner = null");
+    expect(sql).toContain("lease_expires_at = null");
+    expect(sql).toContain("updated_at = pg_catalog.statement_timestamp()");
+    expect(sql).toContain("claim_token = $3::uuid");
+    expect(sql).toContain("claim_owner = $4::text");
+    expect(sql).toContain("claim_version = $5::integer");
+  });
+  it("rejects a quarantined transition that did not return the exact next generation", async () => {
+    const input = harness([
+      { contains: "begin" },
+      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
+      { contains: "pg_advisory_xact_lock" },
+      {
+        contains: "update public.email_outbox",
+        rows: [{
+          status: "quarantined",
+          claim_version: 4,
+          adapter: "gmail",
+          provider_message_id: null,
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
+          sent_at: null,
+          quarantined_at: new Date("2026-07-22T19:00:06.000Z"),
+          last_error_code: "PROVIDER_OUTCOME_AMBIGUOUS",
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.finishAfterProvider(permit, {
+      kind: "quarantined",
+      code: "PROVIDER_OUTCOME_AMBIGUOUS",
+    })).resolves.toEqual({ kind: "lost" });
+  });
+  it("finalizes a captured sent receipt against the exact released successor fence", async () => {
+    const input = harness([
+      { contains: "begin" },
+      {
+        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
+        rows: [scopeRow(5)],
+      },
+      { contains: "pg_advisory_xact_lock" },
+      { contains: "update public.email_outbox", rows: [] },
+      {
+        contains: "last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'",
+        rows: [{
+          status: "quarantined",
+          claim_version: 5,
+          adapter: "gmail",
+          provider_message_id: "gmail-sweeper-first",
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
+          sent_at: new Date("2026-07-22T19:00:07.000Z"),
+          quarantined_at: new Date("2026-07-22T19:00:06.000Z"),
+          last_error_code: "ABANDONED_POST_PROVIDER_BOUNDARY",
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.finishAfterProvider(permit, {
+      kind: "sent",
+      providerMessageId: "gmail-sweeper-first",
+    })).resolves.toEqual({ kind: "applied" });
+
+    const observedSql = input.client.calls[1]!.sql;
+    expect(observedSql).toContain("provider_call_started = $7::timestamptz");
+    expect(observedSql).toContain("claim_version = $5::integer + 1");
+    expect(observedSql).toContain("claim_token is null");
+    expect(observedSql).toContain("claim_owner is null");
+    expect(observedSql).toContain("lease_expires_at is null");
+    expect(input.client.calls[1]!.values[6]).toEqual(permit.providerCallStartedAt);
+
+    const successorSql = input.client.calls[4]!.sql;
+    expect(successorSql).toContain("claim_version = $3::integer + 1");
+    expect(successorSql).toContain("provider_call_started = $5::timestamptz");
+    expect(successorSql).toContain("user_id is not distinct from $6::text");
+    expect(successorSql).toContain("delivery_scope_key = $7::text");
+    expect(successorSql).toContain("status = 'quarantined'");
+    expect(successorSql).toContain("quarantined_at is not null");
+    expect(successorSql).toContain("last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'");
+    expect(successorSql).toContain("provider_message_id is null");
+    expect(successorSql).toContain("sent_at is null");
+    expect(successorSql).toContain("then status");
+    expect(successorSql).toContain("then last_error_code");
+  });
+
+  it("accepts an exact reconciled sent receipt at the released successor generation", async () => {
+    const input = harness([
+      { contains: "begin" },
+      {
+        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
+        rows: [scopeRow(5)],
+      },
+      { contains: "pg_advisory_xact_lock" },
+      { contains: "update public.email_outbox", rows: [] },
+      { contains: "last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'", rows: [] },
+      {
+        contains: "select status::text",
+        rows: [{
+          status: "sent",
+          claim_version: 5,
+          adapter: "gmail",
+          provider_message_id: "gmail-reconciled",
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
+          sent_at: "2026-07-22 19:00:08.000000+00",
+          quarantined_at: null,
+          last_error_code: null,
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.finishAfterProvider(permit, {
+      kind: "sent",
+      providerMessageId: "gmail-reconciled",
+    })).resolves.toEqual({ kind: "already-applied" });
+  });
+  it("rejects a conflicting reconciled provider identity at the successor generation", async () => {
+    const input = harness([
+      { contains: "begin" },
+      {
+        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
+        rows: [scopeRow(5)],
+      },
+      { contains: "pg_advisory_xact_lock" },
+      { contains: "update public.email_outbox", rows: [] },
+      { contains: "last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'", rows: [] },
+      {
+        contains: "select status::text",
+        rows: [{
+          status: "sent",
+          claim_version: 5,
+          adapter: "gmail",
+          provider_message_id: "gmail-conflicting",
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
+          sent_at: "2026-07-22 19:00:08.000000+00",
+          quarantined_at: null,
+          last_error_code: null,
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.finishAfterProvider(permit, {
+      kind: "sent",
+      providerMessageId: "gmail-expected",
+    })).resolves.toEqual({ kind: "lost" });
+  });
+  it("safely records a definite rejection against the exact released successor fence", async () => {
+    const input = harness([
+      { contains: "begin" },
+      {
+        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
+        rows: [scopeRow(5)],
+      },
+      { contains: "pg_advisory_xact_lock" },
+      { contains: "update public.email_outbox", rows: [] },
+      {
+        contains: "last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'",
+        rows: [{
+          status: "failed",
+          claim_version: 5,
+          adapter: "gmail",
+          provider_message_id: null,
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
+          sent_at: null,
+          quarantined_at: null,
+          last_error_code: "PROVIDER_DEFINITELY_REJECTED",
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.finishAfterProvider(permit, {
+      kind: "failed",
+      code: "PROVIDER_DEFINITELY_REJECTED",
+    })).resolves.toEqual({ kind: "applied" });
+
+    const successorSql = input.client.calls[4]!.sql;
+    expect(successorSql).toContain("else 'failed'::public.notification_status");
+    expect(successorSql).toContain("quarantined_at = case when $8::text = 'sent' then quarantined_at else null end");
+    expect(successorSql).toContain("last_error_code = case when $8::text = 'sent' then last_error_code else $10::text end");
+  });
   it("rejects a conflicting already-persisted provider identity", async () => {
     const input = harness([
       { contains: "begin" },
       { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
       { contains: "update public.email_outbox", rows: [] },
+      { contains: "last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'", rows: [] },
       {
         contains: "select status::text",
         rows: [{
@@ -652,7 +870,7 @@ describe("PostgresOutboxStore", () => {
           claim_version: 4,
           adapter: "gmail",
           provider_message_id: "gmail-other",
-          provider_call_started: new Date("2026-07-22T19:00:05.000Z"),
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
           sent_at: new Date("2026-07-22T19:00:06.000Z"),
           quarantined_at: null,
           last_error_code: null,
@@ -750,7 +968,7 @@ describe("PostgresOutboxStore", () => {
           claim_version: 4,
           adapter: "gmail",
           provider_message_id: "gmail-1",
-          provider_call_started: new Date("2026-07-22T19:00:05.000Z"),
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
           sent_at: new Date("2026-07-22T19:02:00.000Z"),
           quarantined_at: null,
           last_error_code: null,
@@ -792,7 +1010,7 @@ describe("PostgresOutboxStore", () => {
         }],
       },
       { contains: "pg_try_advisory_xact_lock", rows: [{ locked: true }] },
-      { contains: "update public.email_outbox", rows: [{ operation_id: OPERATION }] },
+      { contains: "update public.email_outbox", rows: [{ operation_id: OPERATION, claim_version: 5, claim_token: null, claim_owner: null, lease_expires_at: null }] },
       { contains: "commit" },
     ]);
 
@@ -801,9 +1019,52 @@ describe("PostgresOutboxStore", () => {
     expect(sql).toContain("claim_token = $3::uuid");
     expect(sql).toContain("claim_owner = $4::text");
     expect(sql).toContain("claim_version = $5::integer");
+    expect(input.client.calls[1]!.sql).toContain("lease_expires_at::text as lease_expires_at");
     expect(sql).toContain("lease_expires_at = $7::timestamptz");
-    expect(sql).not.toContain("claim_token = null");
+    expect(sql).toContain("claim_token = null");
+    expect(sql).toContain("claim_owner = null");
+    expect(sql).toContain("lease_expires_at = null");
+    expect(sql).toContain("claim_version = claim_version + 1");
+    expect(sql).toContain("updated_at = pg_catalog.statement_timestamp()");
+    expect(sql).toContain(
+      "returning operation_id::text, claim_version, claim_token::text, claim_owner, lease_expires_at",
+    );
     expect(sql).not.toContain("status = 'pending'");
+  });
+
+  it("aborts an abandoned-row transition whose returned released fence is inconsistent", async () => {
+    const lease = new Date("2026-07-22T18:58:00.000Z");
+    const input = harness([
+      { contains: "begin" },
+      {
+        contains: "provider_call_started is not null",
+        rows: [{
+          id: ID,
+          user_id: "learner-1",
+          delivery_scope_key: "a:learner-1",
+          operation_id: OPERATION,
+          claim_version: 4,
+          claim_token: TOKEN,
+          claim_owner: "worker-1",
+          lease_expires_at: lease,
+        }],
+      },
+      { contains: "pg_try_advisory_xact_lock", rows: [{ locked: true }] },
+      {
+        contains: "update public.email_outbox",
+        rows: [{
+          operation_id: OPERATION,
+          claim_version: 4,
+          claim_token: TOKEN,
+          claim_owner: "worker-1",
+          lease_expires_at: lease,
+        }],
+      },
+      { contains: "rollback" },
+    ]);
+
+    await expect(input.store.quarantineAbandoned({ limit: 10 }))
+      .rejects.toThrow("Abandoned outbox fence did not release at the next generation.");
   });
 
   it("validates claim inputs before opening a database connection", async () => {
