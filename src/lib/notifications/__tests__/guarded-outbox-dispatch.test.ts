@@ -5,7 +5,7 @@ import { EventEmitter } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  createMaterializedDispatch,
+  createConfiguredMaterializedDispatch,
   materializedDispatchEnvelope,
 } from "../guarded-prepared-dispatch";
 import {
@@ -15,9 +15,6 @@ import {
   type ArmedMailDispatchHardWatchdog,
   type MailDispatchHardWatchdog,
 } from "../mail-dispatch-hard-watchdog";
-import {
-  captureMailTransportConfiguration,
-} from "../mailer-transport-internal";
 import {
   inspectMailDispatchRuntime,
   type MailDispatchRuntimeStartupInspection,
@@ -236,11 +233,11 @@ function boundaryClient(setTuple: (tuple: AuthorityTuple) => void) {
       respond: (values) => {
         const tuple = Object.freeze({
           adapter: String(values[5]),
-          dispatch_binding_version: String(values[7]),
-          dispatch_binding_sha256: String(values[8]),
-          provider_correlation_version: String(values[15]),
-          provider_evidence_version: values[16] as string | null,
-          provider_evidence_sha256: values[17] as string | null,
+          dispatch_binding_version: String(values[18]),
+          dispatch_binding_sha256: String(values[19]),
+          provider_correlation_version: String(values[20]),
+          provider_evidence_version: values[21] as string | null,
+          provider_evidence_sha256: values[22] as string | null,
         });
         setTuple(tuple);
         return {
@@ -477,7 +474,7 @@ async function authorizeFixture(
   const store = new PostgresOutboxStore(pool, inspection);
   const runtimePlan = mailDispatchPreparedRuntimePlan(store);
   if (!runtimePlan) throw new Error("Store runtime plan was not issued.");
-  const materialized = createMaterializedDispatch({
+  const materialized = createConfiguredMaterializedDispatch({
     source: {
       applicationUrl: "http://localhost:3000",
       outboxId: claim.id,
@@ -495,7 +492,6 @@ async function authorizeFixture(
     from: "Codestead <mail@codestead.test>",
     messageId: outboxMessageId(claim.operationId),
     runtimePlan,
-    transportConfiguration: captureMailTransportConfiguration("gmail"),
   });
   const envelope = materializedDispatchEnvelope(materialized);
   if (!envelope) throw new Error("Materialized dispatch envelope was not issued.");

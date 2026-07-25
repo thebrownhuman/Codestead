@@ -5,6 +5,40 @@ import { inspect } from "node:util";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const channelOwnerState = vi.hoisted(() => ({
+  validStores: new WeakSet<object>(),
+  bindingByStore: new WeakMap<object, object>(),
+  storeByBinding: new WeakMap<object, object>(),
+}));
+
+vi.mock("../postgres-outbox-store", () => ({
+  bindPreparedDispatchChannel(
+    store: object,
+    binding: object,
+    runtimePlan: object,
+  ) {
+    void runtimePlan;
+    if (
+      !channelOwnerState.validStores.has(store)
+      || channelOwnerState.bindingByStore.has(store)
+    ) return false;
+    channelOwnerState.bindingByStore.set(store, binding);
+    channelOwnerState.storeByBinding.set(binding, store);
+    return true;
+  },
+  preparedDispatchChannelBindingMatches(store: object, binding: object) {
+    return channelOwnerState.bindingByStore.get(store) === binding
+      && channelOwnerState.storeByBinding.get(binding) === store;
+  },
+  consumeCommittedPreparedDispatchReceipt(binding: object, receipt: object) {
+    const owner = channelOwnerState.storeByBinding.get(binding) as
+      | Readonly<{
+          consumeReceipt(binding: object, receipt: object): unknown;
+        }>
+      | undefined;
+    return owner?.consumeReceipt(binding, receipt) ?? null;
+  },
+}));
 import * as publicGuardedDispatch from "../guarded-prepared-dispatch";
 import * as publicMailer from "../mailer";
 import {
@@ -32,7 +66,7 @@ import {
   outboxMessageId,
   PROVIDER_CORRELATION_VERSION,
 } from "../provider-correlation";
-import { PostgresOutboxStore } from "../postgres-outbox-store";
+import type { PostgresOutboxStore } from "../postgres-outbox-store";
 import type { ProviderCallPermit } from "../outbox-worker";
 
 const OPERATION_ID = "22222222-2222-4222-8222-222222222222";
@@ -117,36 +151,24 @@ function channelHarness(
     });
   });
   const activeReceipts = new Set(entries.map(({ receipt }) => receipt));
-  let acceptedBinding: object | null = null;
-  const store = new PostgresOutboxStore({
-    connect: vi.fn(),
-  } as never);
-  Object.defineProperties(store, {
-    acceptsPreparedDispatchChannelBinding: {
-      configurable: true,
-      value(binding: object) {
-        return binding === acceptedBinding;
-      },
+  const store = Object.freeze({
+    consumeReceipt(binding: object, receipt: object) {
+      if (
+        channelOwnerState.bindingByStore.get(store) !== binding
+        || !activeReceipts.delete(receipt as CommittedPreparedDispatchReceipt)
+      ) return null;
+      const entry = entries.find((candidate) => candidate.receipt === receipt);
+      return entry
+        ? Object.freeze({
+            envelope: entry.envelope,
+            permit: entry.permit,
+            view: entry.view,
+          })
+        : null;
     },
-    consumeCommittedPreparedDispatchReceipt: {
-      configurable: true,
-      value(binding: object, receipt: CommittedPreparedDispatchReceipt) {
-        if (binding !== acceptedBinding || !activeReceipts.delete(receipt)) {
-          return null;
-        }
-        const entry = entries.find((candidate) => candidate.receipt === receipt);
-        return entry
-          ? Object.freeze({
-              envelope: entry.envelope,
-              permit: entry.permit,
-              view: entry.view,
-            })
-          : null;
-      },
-    },
-  });
+  }) as unknown as PostgresOutboxStore;
+  channelOwnerState.validStores.add(store);
   const channel = createStoreBoundPreparedDispatchChannel(store, runtimePlan);
-  acceptedBinding = channel.binding;
   return { channel, entries, store };
 }
 
@@ -380,11 +402,11 @@ describe("exact-byte prepared-dispatch wrapper", () => {
     const guardB = await channel.authorize(entries[1]!.receipt);
     fetchMock.mockClear();
 
-    await expect(channel.dispatch(
+    expect(() => channel.dispatch(
       entries[1]!.permit,
       guardA,
       new AbortController().signal,
-    )).rejects.toThrow("Guarded prepared dispatch is invalid or already used.");
+    )).toThrow("Guarded prepared dispatch is invalid or already used.");
     expect(fetchMock).not.toHaveBeenCalled();
 
     await expect(channel.dispatch(
@@ -397,11 +419,11 @@ describe("exact-byte prepared-dispatch wrapper", () => {
 
     expect(channel.discardGuard(entries[1]!.permit, guardB)).toBe(true);
     expect(channel.discardGuard(entries[1]!.permit, guardB)).toBe(false);
-    await expect(channel.dispatch(
+    expect(() => channel.dispatch(
       entries[1]!.permit,
       guardB,
       new AbortController().signal,
-    )).rejects.toThrow("Guarded prepared dispatch is invalid or already used.");
+    )).toThrow("Guarded prepared dispatch is invalid or already used.");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

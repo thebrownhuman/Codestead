@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import {
   PostProviderPersistenceUnknownError,
   ProviderBoundaryCommitUnknownError,
@@ -33,8 +35,17 @@ import {
 } from "@/lib/security/user-authority-lock";
 import {
   PRODUCTION_EMAIL_TEMPLATES,
+  requireDeletionCapabilityTemplateAuthority,
+  requireSystemEmailTemplateAuthority,
   TEMPLATE_AUTHORITY_POLICIES,
+  type DeletionCapabilityTemplateAuthority,
+  type SystemEmailTemplateAuthority,
 } from "./template-authority-policy";
+import {
+  accountDeletionNoticeBinding,
+  deletionNoticeSecret,
+  type AccountDeletionNoticeVariables,
+} from "./deletion-notice-capability";
 import type {
   DispatchBinding,
   MailDispatchAuthority,
@@ -288,7 +299,37 @@ type ReconciliationTerminalRow = TerminalRow & {
   provider_evidence_version: string | null;
   provider_evidence_sha256: string | null;
 };
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+type IssuedGmailReconciliationFenceState = Readonly<{
+  store: PostgresOutboxStore;
+}>;
+
+const ISSUED_GMAIL_RECONCILIATION_FENCES = new WeakMap<
+  GmailReconciliationFence,
+  IssuedGmailReconciliationFenceState
+>();
+
+function issueGmailReconciliationFence(
+  store: PostgresOutboxStore,
+  fence: GmailReconciliationFence,
+): GmailReconciliationFence {
+  const issued = Object.freeze(fence);
+  ISSUED_GMAIL_RECONCILIATION_FENCES.set(
+    issued,
+    Object.freeze({ store }),
+  );
+  return issued;
+}
+
+function consumeGmailReconciliationFence(
+  store: PostgresOutboxStore,
+  fence: GmailReconciliationFence,
+) {
+  const state = ISSUED_GMAIL_RECONCILIATION_FENCES.get(fence);
+  if (state?.store !== store || !Object.isFrozen(fence)) return false;
+  ISSUED_GMAIL_RECONCILIATION_FENCES.delete(fence);
+  return true;
+}const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LOWERCASE_SHA256 = /^[0-9a-f]{64}$/;
 const ADAPTERS = new Set(["console", "gmail"]);
 const SHA256_HEX = /^[0-9a-f]{64}$/;
@@ -384,6 +425,82 @@ function variables(value: unknown): Readonly<Record<string, string>> {
   return Object.fromEntries(entries) as Record<string, string>;
 }
 
+type DeletionNoticeCapabilityEvidence = Readonly<{
+  valid: boolean;
+  recipientHmacSha256: string | null;
+  payloadSha256: string | null;
+}>;
+
+const INVALID_DELETION_NOTICE_EVIDENCE: DeletionNoticeCapabilityEvidence = {
+  valid: false,
+  recipientHmacSha256: null,
+  payloadSha256: null,
+};
+
+const ACCESS_REQUEST_ADMIN_TEMPLATE_AUTHORITY =
+  requireSystemEmailTemplateAuthority("access-request-admin");
+const ACCESS_REQUEST_APPROVED_TEMPLATE_AUTHORITY =
+  requireSystemEmailTemplateAuthority("access-request-approved");
+const ACCESS_REQUEST_REJECTED_TEMPLATE_AUTHORITY =
+  requireSystemEmailTemplateAuthority("access-request-rejected");
+const DELETION_NOTICE_TEMPLATE_AUTHORITY =
+  requireDeletionCapabilityTemplateAuthority("account-deletion-notice-v1");
+
+type SpecializedTemplateAuthority =
+  | SystemEmailTemplateAuthority
+  | DeletionCapabilityTemplateAuthority;
+
+function matchesTemplateAuthority(
+  payload: EmailOutboxPayload,
+  authority: SpecializedTemplateAuthority,
+) {
+  return payload.template === authority.template
+    && authority.versions.some((version) => version === payload.templateVersion);
+}
+
+function exactDeletionNoticeVariables(
+  value: unknown,
+): AccountDeletionNoticeVariables | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  if (
+    keys.length !== 3
+    || !keys.includes("backupRetentionUntil")
+    || !keys.includes("tombstoneId")
+    || !keys.includes("deletionRunId")
+    || typeof record.backupRetentionUntil !== "string"
+    || typeof record.tombstoneId !== "string"
+    || typeof record.deletionRunId !== "string"
+  ) {
+    return null;
+  }
+  return {
+    backupRetentionUntil: record.backupRetentionUntil,
+    tombstoneId: record.tombstoneId,
+    deletionRunId: record.deletionRunId,
+  };
+}
+
+function deletionNoticeCapabilityEvidence(
+  payload: EmailOutboxPayload,
+): DeletionNoticeCapabilityEvidence {
+  if (
+    !matchesTemplateAuthority(payload, DELETION_NOTICE_TEMPLATE_AUTHORITY)
+    || !payload.to.trim()
+  ) {
+    return INVALID_DELETION_NOTICE_EVIDENCE;
+  }
+  const parsed = exactDeletionNoticeVariables(payload.variables);
+  if (!parsed) return INVALID_DELETION_NOTICE_EVIDENCE;
+  const binding = accountDeletionNoticeBinding({
+    recipient: payload.to,
+    variables: parsed,
+    secret: deletionNoticeSecret(),
+  });
+  return { valid: true, ...binding };
+}
+
 function trustedSqlLiteral(value: string) {
   return `'${value.replaceAll("'", "''")}'`;
 }
@@ -395,6 +512,31 @@ function nonEmptySqlDisjunction(parts: readonly string[], authority: string) {
     );
   }
   return parts.join(" or ");
+}
+
+const DELETION_NOTICE_TEMPLATE_SQL = trustedSqlLiteral(
+  DELETION_NOTICE_TEMPLATE_AUTHORITY.template,
+);
+
+function templateVersionAuthorityPredicate(
+  outbox: string,
+  authority: SpecializedTemplateAuthority,
+) {
+  if (authority.versions.length === 0) {
+    throw new Error(
+      `Template authority ${authority.template} must allow at least one version.`,
+    );
+  }
+  const versions = nonEmptySqlDisjunction(
+    authority.versions.map(
+      (version) => `${outbox}.template_version = ${trustedSqlLiteral(version)}`,
+    ),
+    `Template authority ${authority.template}`,
+  );
+  return `(
+    ${outbox}.template = ${trustedSqlLiteral(authority.template)}
+    and (${versions})
+  )`;
 }
 
 const ACCOUNT_TEMPLATE_AUTHORITY_SQL = nonEmptySqlDisjunction(
@@ -440,6 +582,204 @@ function accountMailAuthorityPredicate(outbox: string, lockClause = "") {
     ${lockClause}
   )`;
 }
+
+type SystemMailAuthorityParameters = Readonly<{
+  approvedInvitationTokenHashParameter: number;
+  adminAccessUrlParameter: number;
+  lockAuthorityRows: boolean;
+}>;
+
+function systemMailAuthorityPredicate(
+  outbox: string,
+  input: SystemMailAuthorityParameters,
+) {
+  const adminAuthorityLock = input.lockAuthorityRows
+    ? "for share of source_request, admin_recipient"
+    : "";
+  const approvedAuthorityLock = input.lockAuthorityRows
+    ? "for share of source_invitation, source_request"
+    : "";
+  const rejectedAuthorityLock = input.lockAuthorityRows
+    ? "for share of source_request"
+    : "";
+
+  const adminTemplateAuthority = templateVersionAuthorityPredicate(
+    outbox,
+    ACCESS_REQUEST_ADMIN_TEMPLATE_AUTHORITY,
+  );
+  const approvedTemplateAuthority = templateVersionAuthorityPredicate(
+    outbox,
+    ACCESS_REQUEST_APPROVED_TEMPLATE_AUTHORITY,
+  );
+  const rejectedTemplateAuthority = templateVersionAuthorityPredicate(
+    outbox,
+    ACCESS_REQUEST_REJECTED_TEMPLATE_AUTHORITY,
+  );
+
+  return `(
+    ${outbox}.user_id is null
+    and ${outbox}.variables ->> '_mailOperationId' = ${outbox}.operation_id::text
+    and ${outbox}.variables ->> '_mailRecipient' = ${outbox}.to_email
+    and (
+      (
+        ${adminTemplateAuthority}
+        and ${outbox}.variables ->> '_mailProducer'
+              = ${trustedSqlLiteral(ACCESS_REQUEST_ADMIN_TEMPLATE_AUTHORITY.producer)}
+        and ${outbox}.variables ->> 'name' = 'Administrator'
+        and ${outbox}.variables ->> 'url'
+              = $${input.adminAccessUrlParameter}::text
+        and exists (
+          select 1
+          from public.access_request source_request
+          join public."user" admin_recipient
+            on lower(admin_recipient.email) = ${outbox}.to_email
+          where source_request.id::text = ${outbox}.variables ->> '_mailSourceId'
+            and source_request.status = 'pending'
+            and source_request.adult_confirmed_at is not null
+            and source_request.decided_by is null
+            and source_request.decision_reason is null
+            and source_request.decided_at is null
+            and admin_recipient.status = 'active'
+            and admin_recipient.role = 'admin'
+            and admin_recipient.banned = false
+            and admin_recipient.email_verified = true
+          ${adminAuthorityLock}
+        )
+      )
+      or (
+        ${approvedTemplateAuthority}
+        and ${outbox}.variables ->> '_mailProducer'
+              = ${trustedSqlLiteral(ACCESS_REQUEST_APPROVED_TEMPLATE_AUTHORITY.producer)}
+        and exists (
+          select 1
+          from public.invitation source_invitation
+          join public.access_request source_request
+            on source_invitation.access_request_id = source_request.id
+          where source_invitation.id::text = ${outbox}.variables ->> '_mailSourceId'
+            and source_request.status = 'approved'
+            and source_request.decided_by is not null
+            and source_request.decision_reason is not null
+            and source_request.decided_at is not null
+            and source_invitation.created_by = source_request.decided_by
+            and lower(source_invitation.email) = ${outbox}.to_email
+            and lower(source_request.email) = ${outbox}.to_email
+            and source_request.name = ${outbox}.variables ->> 'name'
+            and source_invitation.token_hash
+                  = $${input.approvedInvitationTokenHashParameter}::text
+            and source_invitation.expires_at > pg_catalog.statement_timestamp()
+            and source_invitation.consumed_at is null
+          ${approvedAuthorityLock}
+        )
+      )
+      or (
+        ${rejectedTemplateAuthority}
+        and ${outbox}.variables ->> '_mailProducer'
+              = ${trustedSqlLiteral(ACCESS_REQUEST_REJECTED_TEMPLATE_AUTHORITY.producer)}
+        and not (${outbox}.variables ? 'url')
+        and exists (
+          select 1
+          from public.access_request source_request
+          where source_request.id::text = ${outbox}.variables ->> '_mailSourceId'
+            and source_request.status = 'rejected'
+            and source_request.decided_by is not null
+            and source_request.decision_reason is not null
+            and source_request.decided_at is not null
+            and lower(source_request.email) = ${outbox}.to_email
+            and source_request.name = ${outbox}.variables ->> 'name'
+          ${rejectedAuthorityLock}
+        )
+      )
+    )
+  )`;
+}
+
+function deletionNoticeCapabilityPredicate(
+  outbox: string,
+  input: Readonly<{
+    validParameter: number;
+    recipientHmacParameter: number;
+    payloadDigestParameter: number;
+  }>,
+) {
+  const templateAuthority = templateVersionAuthorityPredicate(
+    outbox,
+    DELETION_NOTICE_TEMPLATE_AUTHORITY,
+  );
+  return `(
+    $${input.validParameter}::boolean
+    and ${outbox}.user_id is not null
+    and ${templateAuthority}
+    and exists (
+      select 1
+      from public.account_deletion_tombstone tombstone
+      join public.data_lifecycle_run lifecycle
+        on lifecycle.id::text = ${outbox}.variables ->> 'deletionRunId'
+      join public."user" deleted_user
+        on deleted_user.id = ${outbox}.user_id
+      where tombstone.id::text = ${outbox}.variables ->> 'tombstoneId'
+        and tombstone.user_id = ${outbox}.user_id
+        and tombstone.primary_deletion_completed_at is not null
+        and deleted_user.role = 'learner'
+        and deleted_user.status = 'deleted'
+        and lifecycle.target_user_id = ${outbox}.user_id
+        and lifecycle.operation = 'account_deletion'
+        and lifecycle.status = 'succeeded'
+        and lifecycle.completed_at is not null
+        and tombstone.report ->> 'runId' = lifecycle.id::text
+        and tombstone.report ->> 'tombstoneId' = tombstone.id::text
+        and tombstone.report ->> 'backupRetentionUntil'
+              = ${outbox}.variables ->> 'backupRetentionUntil'
+        and tombstone.report ->> 'primaryStoreDeletionComplete' = 'true'
+        and tombstone.report ->> 'learnerNotificationQueued' = 'true'
+        and tombstone.report #>> '{deletionNotice,outboxId}' = ${outbox}.id::text
+        and tombstone.report #>> '{deletionNotice,operationId}' = ${outbox}.operation_id::text
+        and tombstone.report #>> '{deletionNotice,recipientHmacSha256}'
+              = $${input.recipientHmacParameter}::text
+        and tombstone.report #>> '{deletionNotice,payloadSha256}'
+              = $${input.payloadDigestParameter}::text
+        and lifecycle.report ->> 'runId' = lifecycle.id::text
+        and lifecycle.report ->> 'tombstoneId' = tombstone.id::text
+        and lifecycle.report ->> 'backupRetentionUntil'
+              = ${outbox}.variables ->> 'backupRetentionUntil'
+        and lifecycle.report ->> 'primaryStoreDeletionComplete' = 'true'
+        and lifecycle.report ->> 'learnerNotificationQueued' = 'true'
+        and lifecycle.report #>> '{deletionNotice,outboxId}' = ${outbox}.id::text
+        and lifecycle.report #>> '{deletionNotice,operationId}' = ${outbox}.operation_id::text
+        and lifecycle.report #>> '{deletionNotice,recipientHmacSha256}'
+              = $${input.recipientHmacParameter}::text
+        and lifecycle.report #>> '{deletionNotice,payloadSha256}'
+              = $${input.payloadDigestParameter}::text
+    )
+  )`;
+}
+
+const ACCOUNT_MAIL_AUTHORITY_SQL = accountMailAuthorityPredicate("outbox");
+const DECISION_DELETION_CAPABILITY_SQL = deletionNoticeCapabilityPredicate("outbox", {
+  validParameter: 14,
+  recipientHmacParameter: 12,
+  payloadDigestParameter: 13,
+});
+const SUPPRESSION_DELETION_CAPABILITY_SQL = deletionNoticeCapabilityPredicate("outbox", {
+  validParameter: 15,
+  recipientHmacParameter: 13,
+  payloadDigestParameter: 14,
+});
+const BOUNDARY_DELETION_CAPABILITY_SQL = deletionNoticeCapabilityPredicate("outbox", {
+  validParameter: 16,
+  recipientHmacParameter: 14,
+  payloadDigestParameter: 15,
+});
+const SUPPRESSION_SYSTEM_MAIL_AUTHORITY_SQL = systemMailAuthorityPredicate("outbox", {
+  approvedInvitationTokenHashParameter: 16,
+  adminAccessUrlParameter: 17,
+  lockAuthorityRows: false,
+});
+const BOUNDARY_SYSTEM_MAIL_AUTHORITY_SQL = systemMailAuthorityPredicate("outbox", {
+  approvedInvitationTokenHashParameter: 17,
+  adminAccessUrlParameter: 18,
+  lockAuthorityRows: false,
+});
+
 
 type DeliveryScope = Readonly<{
   key: string;
@@ -554,8 +894,9 @@ function watchdogIsHealthy(
 }
 
 function retainLiveTx2OrTerminate(
-  _watchdog: ArmedMailDispatchHardWatchdog,
+  watchdog: ArmedMailDispatchHardWatchdog,
 ): never {
+  void watchdog;
   return terminateMailDispatchImmediately();
 }
 
@@ -1302,6 +1643,8 @@ async function lockPermitScope(
     ? scope
     : null;
 }
+const ACTIVATION_TOKEN = /^[A-Za-z0-9_-]{43}$/;
+
 function canonicalAppOrigin(): string | null {
   const configured =
     process.env.APP_URL ??
@@ -1315,6 +1658,59 @@ function canonicalAppOrigin(): string | null {
         ? appUrl.protocol === "https:"
         : appUrl.protocol === "http:" || appUrl.protocol === "https:";
     return protocolAllowed && appUrl.origin === configured ? configured : null;
+  } catch {
+    return null;
+  }
+}
+
+function matchesSystemTemplateAuthority(
+  claim: OutboxClaim<EmailOutboxPayload>,
+  authority: SystemEmailTemplateAuthority,
+) {
+  return matchesTemplateAuthority(claim.payload, authority)
+    && claim.payload.variables._mailProducer === authority.producer;
+}
+
+function canonicalAdminAccessUrl(
+  claim: OutboxClaim<EmailOutboxPayload>,
+): string | null {
+  if (
+    claim.payload.userId !== null
+    || !matchesSystemTemplateAuthority(
+      claim,
+      ACCESS_REQUEST_ADMIN_TEMPLATE_AUTHORITY,
+    )
+  ) {
+    return null;
+  }
+  const appOrigin = canonicalAppOrigin();
+  return appOrigin ? `${appOrigin}/admin/access` : null;
+}
+
+function canonicalActivationTokenHash(
+  claim: OutboxClaim<EmailOutboxPayload>,
+): string | null {
+  if (
+    claim.payload.userId !== null
+    || !matchesSystemTemplateAuthority(
+      claim,
+      ACCESS_REQUEST_APPROVED_TEMPLATE_AUTHORITY,
+    )
+  ) {
+    return null;
+  }
+
+  const appOrigin = canonicalAppOrigin();
+  if (!appOrigin) return null;
+
+  try {
+    const activationUrl = new URL(claim.payload.variables.url);
+    const tokens = activationUrl.searchParams.getAll("token");
+    if (tokens.length !== 1 || !ACTIVATION_TOKEN.test(tokens[0]!)) return null;
+    const canonicalUrl = `${appOrigin}/activate?token=${tokens[0]}`;
+    if (claim.payload.variables.url !== canonicalUrl) return null;
+
+    return createHash("sha256").update(tokens[0]!).digest("hex");
   } catch {
     return null;
   }
@@ -1334,39 +1730,12 @@ const REVOCABLE_SOURCE_TEMPLATES = new Set([
   "weekly-summary",
 ]);
 
-const SMART_REMINDER_TEMPLATES = new Set([
-  "daily-study-reminder",
-  "revision-reminder",
-  "goal-reminder",
-  "challenge-reminder",
-  "weekly-summary",
-]);
-
 function templateAuthorityPolicy(template: string) {
   return (TEMPLATE_AUTHORITY_POLICIES as Readonly<
     Record<string, Readonly<{ scope: string }>>
   >)[template] ?? null;
 }
 
-function unsupportedGuardedDispatchDecision(
-  claim: OutboxClaim<EmailOutboxPayload>,
-): BoundaryDecision | null {
-  const policy = templateAuthorityPolicy(claim.payload.template);
-  if (
-    !policy ||
-    policy.scope !== "account" ||
-    claim.userId === null ||
-    claim.payload.template === "backup-status" ||
-    claim.payload.template === "session-revocation-requested" ||
-    claim.payload.template === "inactivity-admin-notice" ||
-    SMART_REMINDER_TEMPLATES.has(claim.payload.template)
-  ) {
-    return claim.payload.template === "backup-status"
-      ? "BACKUP_AUTHORITY_UNAVAILABLE"
-      : "MAIL_SOURCE_AUTHORITY_INVALID";
-  }
-  return null;
-}
 async function backupStatusMailAuthorized(
   client: OutboxPgClient,
   outboxId: string,
@@ -1407,44 +1776,63 @@ async function lockRevocableSourceAuthority(
   if (!required) return true;
   if (!parsed || scope.userId === null) return false;
 
-  // Multi-user revokers remain callback-zero until every writer uses the same
-  // signed-advisory/user/request ordering.
-  if (
-    parsed.kind === "session-revocation-requested" ||
-    (parsed.kind === "inactivity" &&
-      claim.payload.template === "inactivity-admin-notice")
-  )
-    return false;
-
-  if (
-    !(await exactAuthorityRow(
-      client,
+  // Source IDs are untrusted hints until their rows are locked and matched
+  // again. They only identify every user row that must be acquired in the
+  // canonical ascending order before any revocable source row.
+  let sourceUserId = scope.userId;
+  if (parsed.kind === "session-revocation-requested") {
+    const source = await client.query<{ user_id: string }>(
       `
-    select id
-    from public."user"
-    where id = $1::text
-    order by id
-    for share
-  `,
-      [scope.userId],
-    ))
-  )
-    return false;
+      select user_id
+      from public.session_revocation_request
+      where id = $1::uuid
+    `,
+      [parsed.sourceId],
+    );
+    if (source.rows.length !== 1 || !source.rows[0]!.user_id) return false;
+    sourceUserId = source.rows[0]!.user_id;
+  } else if (parsed.kind === "inactivity") {
+    const source = await client.query<{ user_id: string }>(
+      `
+      select user_id
+      from public.inactivity_episode
+      where id = $1::uuid
+    `,
+      [parsed.sourceId],
+    );
+    if (source.rows.length !== 1 || !source.rows[0]!.user_id) return false;
+    sourceUserId = source.rows[0]!.user_id;
+  }
+
+  const authorityUserIds = [...new Set([scope.userId, sourceUserId])].sort();
+  for (const userId of authorityUserIds) {
+    if (
+      !(await exactAuthorityRow(
+        client,
+        `
+        select id
+        from public."user"
+        where id = $1::text
+        for share
+      `,
+        [userId],
+      ))
+    ) return false;
+  }
 
   if (parsed.kind === "reset-password") {
     if (
       !(await exactAuthorityRow(
         client,
         `
-      select id
-      from public.verification
-      where id = $1::text
-      for share
-    `,
+        select id
+        from public.verification
+        where id = $1::text
+        for share
+      `,
         [parsed.sourceId],
       ))
-    )
-      return false;
+    ) return false;
   } else if (parsed.kind === "lost-device-proof") {
     const proof = await client.query<{ session_id: string }>(
       `
@@ -1460,29 +1848,42 @@ async function lockRevocableSourceAuthority(
       !(await exactAuthorityRow(
         client,
         `
-      select id::text
-      from public.session
-      where id = $1::text
-      for share
-    `,
+        select id::text
+        from public.session
+        where id = $1::text
+        for share
+      `,
         [proof.rows[0]!.session_id],
       ))
-    )
-      return false;
+    ) return false;
+  } else if (parsed.kind === "session-revocation-requested") {
+    if (
+      !(await exactAuthorityRow(
+        client,
+        `
+        select id::text
+        from public.session_revocation_request
+        where id = $1::uuid
+          and user_id = $2::text
+        for share
+      `,
+        [parsed.sourceId, sourceUserId],
+      ))
+    ) return false;
   } else if (parsed.kind === "inactivity") {
     if (
       !(await exactAuthorityRow(
         client,
         `
-      select id::text
-      from public.inactivity_episode
-      where id = $1::uuid
-      for share
-    `,
-        [parsed.sourceId],
+        select id::text
+        from public.inactivity_episode
+        where id = $1::uuid
+          and user_id = $2::text
+        for share
+      `,
+        [parsed.sourceId, sourceUserId],
       ))
-    )
-      return false;
+    ) return false;
     const consent = await client.query(
       `
       select id::text
@@ -1493,7 +1894,7 @@ async function lockRevocableSourceAuthority(
       limit 1
       for share
     `,
-      [scope.userId],
+      [sourceUserId],
     );
     if (consent.rows.length !== 1) return false;
     const preference = await client.query(
@@ -1503,7 +1904,7 @@ async function lockRevocableSourceAuthority(
       where user_id = $1::text
       for share
     `,
-      [scope.userId],
+      [sourceUserId],
     );
     if (preference.rows.length > 1) return false;
   } else if (parsed.kind === "smart-reminder") {
@@ -1511,28 +1912,26 @@ async function lockRevocableSourceAuthority(
       !(await exactAuthorityRow(
         client,
         `
-      select user_id
-      from public.notification_preference
-      where user_id = $1::text
-      for share
-    `,
+        select user_id
+        from public.notification_preference
+        where user_id = $1::text
+        for share
+      `,
         [scope.userId],
       ))
-    )
-      return false;
+    ) return false;
     if (
       !(await exactAuthorityRow(
         client,
         `
-      select id::text
-      from public.smart_reminder_dispatch
-      where id = $1::uuid
-      for share
-    `,
+        select id::text
+        from public.smart_reminder_dispatch
+        where id = $1::uuid
+        for share
+      `,
         [parsed.sourceId],
       ))
-    )
-      return false;
+    ) return false;
   }
 
   const clock = await client.query<{ now: Date | string }>(
@@ -1554,21 +1953,35 @@ async function lockRevocableSourceAuthority(
   const authority = await client.query(query.text, [...query.values]);
   return authority.rows.length === 1;
 }
+
 async function providerBoundaryDecision(
   client: OutboxPgClient,
   claim: OutboxClaim<EmailOutboxPayload>,
   scope: DeliveryScope,
+  evidence: DeletionNoticeCapabilityEvidence,
+  approvedInvitationTokenHash: string | null,
+  adminAccessUrl: string | null,
   lockAuthorityRows: boolean,
 ): Promise<BoundaryDecision | null> {
   const accountAuthoritySql = accountMailAuthorityPredicate(
     "outbox",
     lockAuthorityRows ? "for share of account_user" : "",
   );
-  const result = await client.query<{ decision: BoundaryDecision }>(
-    `
+  const systemAuthoritySql = systemMailAuthorityPredicate("outbox", {
+    approvedInvitationTokenHashParameter: 15,
+    adminAccessUrlParameter: 16,
+    lockAuthorityRows,
+  });
+
+  const result = await client.query<{ decision: BoundaryDecision }>(`
     select case
-      when outbox.user_id is not null and ${accountAuthoritySql}
+      when ${systemAuthoritySql} then 'allowed'
+      when outbox.user_id is null then 'SYSTEM_EMAIL_AUTHORITY_INVALID'
+      when outbox.template <> ${DELETION_NOTICE_TEMPLATE_SQL} and ${accountAuthoritySql}
         then 'allowed'
+      when ${DECISION_DELETION_CAPABILITY_SQL} then 'allowed'
+      when outbox.template = ${DELETION_NOTICE_TEMPLATE_SQL}
+        then 'DELETION_NOTICE_CAPABILITY_INVALID'
       else 'ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY'
     end as decision
     from public.email_outbox outbox
@@ -1585,23 +1998,27 @@ async function providerBoundaryDecision(
       and outbox.variables = $11::jsonb
       and outbox.provider_call_started is null
       and outbox.status = 'sending'
-  `,
-    [
-      claim.id,
-      claim.operationId,
-      claim.claimToken,
-      claim.claimOwner,
-      claim.claimVersion,
-      scope.key,
-      claim.payload.userId,
-      claim.payload.to,
-      claim.payload.template,
-      claim.payload.templateVersion,
-      JSON.stringify(claim.payload.variables),
-    ],
-  );
-  return result.rows.length === 1 ? result.rows[0]!.decision : null;
+  `, [
+    claim.id,
+    claim.operationId,
+    claim.claimToken,
+    claim.claimOwner,
+    claim.claimVersion,
+    scope.key,
+    claim.payload.userId,
+    claim.payload.to,
+    claim.payload.template,
+    claim.payload.templateVersion,
+    JSON.stringify(claim.payload.variables),
+    evidence.recipientHmacSha256,
+    evidence.payloadSha256,
+    evidence.valid,
+    approvedInvitationTokenHash,
+    adminAccessUrl,
+  ]);
+  return result.rows[0]?.decision ?? null;
 }
+
 function dispatchBinding(
   value: DispatchBinding,
   adapter: string,
@@ -1755,15 +2172,35 @@ async function providerBoundaryDecisionAfterBoundary(
   claim: OutboxClaim<EmailOutboxPayload>,
   permit: PermitFenceInput,
 ): Promise<BoundaryDecision | null> {
+  const deletionEvidence = deletionNoticeCapabilityEvidence(claim.payload);
+  const approvedInvitationTokenHash = canonicalActivationTokenHash(claim);
+  const adminAccessUrl = canonicalAdminAccessUrl(claim);
   const accountAuthoritySql = accountMailAuthorityPredicate(
     "outbox",
     "for share of account_user",
   );
+  const systemAuthoritySql = systemMailAuthorityPredicate("outbox", {
+    approvedInvitationTokenHashParameter: 22,
+    adminAccessUrlParameter: 23,
+    lockAuthorityRows: true,
+  });
+  const deletionAuthoritySql = deletionNoticeCapabilityPredicate("outbox", {
+    recipientHmacParameter: 19,
+    payloadDigestParameter: 20,
+    validParameter: 21,
+  });
   const result = await client.query<{ decision: BoundaryDecision }>(
     `
     select case
-      when outbox.user_id is not null and ${accountAuthoritySql}
+      when ${systemAuthoritySql} then 'allowed'
+      when outbox.user_id is null then 'SYSTEM_EMAIL_AUTHORITY_INVALID'
+      when outbox.template <> ${DELETION_NOTICE_TEMPLATE_SQL}
+        and outbox.template <> 'backup-status'
+        and ${accountAuthoritySql}
         then 'allowed'
+      when ${deletionAuthoritySql} then 'allowed'
+      when outbox.template = ${DELETION_NOTICE_TEMPLATE_SQL}
+        then 'DELETION_NOTICE_CAPABILITY_INVALID'
       else 'ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY'
     end as decision
     from public.email_outbox outbox
@@ -1782,7 +2219,11 @@ async function providerBoundaryDecisionAfterBoundary(
       and outbox.provider_call_started = $13::timestamptz
       and outbox.dispatch_binding_version = $14::text
       and outbox.dispatch_binding_sha256 = $15::text
+      and outbox.provider_correlation_version = $16::text
+      and outbox.provider_evidence_version is not distinct from $17::text
+      and outbox.provider_evidence_sha256 is not distinct from $18::text
       and outbox.provider_message_id is null
+      and outbox.sent_at is null
       and outbox.quarantined_at is null
       and outbox.lease_expires_at > pg_catalog.statement_timestamp()
       and outbox.status = 'sending'
@@ -1803,6 +2244,14 @@ async function providerBoundaryDecisionAfterBoundary(
       permit.providerCallStartedAt,
       permit.bindingVersion,
       permit.bindingSha256,
+      permit.providerCorrelationVersion,
+      permit.providerEvidenceVersion,
+      permit.providerEvidenceSha256,
+      deletionEvidence.recipientHmacSha256,
+      deletionEvidence.payloadSha256,
+      deletionEvidence.valid,
+      approvedInvitationTokenHash,
+      adminAccessUrl,
     ],
   );
   return result.rows.length === 1 ? result.rows[0]!.decision : null;
@@ -2058,7 +2507,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         row.claim_owner === null
           ? null
           : assertBoundedText(row.claim_owner, "Outbox claim owner", 128);
-      const fence: GmailReconciliationFence = {
+      const fence = issueGmailReconciliationFence(this, {
         id: row.id,
         operationId: row.operation_id,
         claimVersion: row.claim_version,
@@ -2083,7 +2532,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         ...reconciliationAuthority,
         quarantinedAt: assertBoundedText(row.quarantined_at, "Quarantine timestamp", 64),
         lastErrorCode: assertBoundedText(row.last_error_code, "Outbox error code", 80),
-      };
+      });
       return { kind: "ready" as const, fence };
     });
   }
@@ -2094,6 +2543,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     proof: GmailReconciliationProof;
   }>) {
     const { fence } = input;
+    if (!consumeGmailReconciliationFence(this, fence)) {
+      return { kind: "lost" as const };
+    }
     assertUuid(fence.id, "Outbox ID");
     assertUuid(fence.operationId, "Outbox operation ID");
     if (!Number.isSafeInteger(fence.claimVersion) || fence.claimVersion <= 0) {
@@ -2469,6 +2921,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     );
     const inspection = authorization.inspection;
     const binding = dispatchBinding(inspection.binding, adapter);
+    const deletionEvidence = deletionNoticeCapabilityEvidence(claim.payload);
+    const approvedInvitationTokenHash = canonicalActivationTokenHash(claim);
+    const adminAccessUrl = canonicalAdminAccessUrl(claim);
 
     const boundary = await transaction(
       this.pool,
@@ -2476,36 +2931,35 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         const scope = await lockFenceScope(client, claim, true);
         if (!scope) return { kind: "lost" as const };
 
-        let decision = claim.payload.template === "backup-status"
-          ? (await backupStatusMailAuthorized(client, claim.id)
-              ? "allowed" as const
-              : "BACKUP_AUTHORITY_UNAVAILABLE" as const)
-          : unsupportedGuardedDispatchDecision(claim);
+        let decision: BoundaryDecision | null =
+          claim.payload.template === "backup-status"
+            ? (await backupStatusMailAuthorized(client, claim.id)
+                ? "allowed"
+                : "BACKUP_AUTHORITY_UNAVAILABLE")
+            : await providerBoundaryDecision(
+                client,
+                claim,
+                scope,
+                deletionEvidence,
+                approvedInvitationTokenHash,
+                adminAccessUrl,
+                true,
+              );
+        if (decision === null) return { kind: "lost" as const };
         if (
-          decision === null
+          decision === "allowed"
           && claim.payload.template !== "backup-status"
-        ) {
-          decision = await providerBoundaryDecision(
+          && !(await lockRevocableSourceAuthority(
             client,
             claim,
             scope,
-            true,
-          );
-          if (decision === null) return { kind: "lost" as const };
-          if (
-            decision === "allowed" &&
-            !(await lockRevocableSourceAuthority(
-              client,
-              claim,
-              scope,
-              inspection,
-            ))
-          ) {
-            decision = "MAIL_SOURCE_AUTHORITY_INVALID";
-          }
+            inspection,
+          ))
+        ) {
+          decision = "MAIL_SOURCE_AUTHORITY_INVALID";
         }
 
-        if (decision === null) return { kind: "lost" as const };
+
         if (decision !== "allowed") {
           const suppressed = await client.query<{ id: string }>(
             `
@@ -2536,6 +2990,34 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             and outbox.quarantined_at is null
             and outbox.lease_expires_at > pg_catalog.statement_timestamp()
             and outbox.status = 'sending'
+            and (
+              (
+                $7::text = 'DELETION_NOTICE_CAPABILITY_INVALID'
+                and outbox.template = ${DELETION_NOTICE_TEMPLATE_SQL}
+                and not (${SUPPRESSION_DELETION_CAPABILITY_SQL})
+              )
+              or (
+                $7::text = 'ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY'
+                and outbox.user_id is not null
+                and outbox.template <> ${DELETION_NOTICE_TEMPLATE_SQL}
+                and outbox.template <> 'backup-status'
+                and not (${ACCOUNT_MAIL_AUTHORITY_SQL})
+              )
+              or (
+                $7::text = 'SYSTEM_EMAIL_AUTHORITY_INVALID'
+                and outbox.user_id is null
+                and not (${SUPPRESSION_SYSTEM_MAIL_AUTHORITY_SQL})
+              )
+              or (
+                $7::text = 'MAIL_SOURCE_AUTHORITY_INVALID'
+                and outbox.template = any($18::text[])
+              )
+              or (
+                $7::text = 'BACKUP_AUTHORITY_UNAVAILABLE'
+                and outbox.template = 'backup-status'
+                and not public.backup_status_mail_authorized(outbox.id)
+              )
+            )
 
           returning outbox.id::text
         `,
@@ -2552,6 +3034,12 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               claim.payload.template,
               claim.payload.templateVersion,
               JSON.stringify(claim.payload.variables),
+              deletionEvidence.recipientHmacSha256,
+              deletionEvidence.payloadSha256,
+              deletionEvidence.valid,
+              approvedInvitationTokenHash,
+              adminAccessUrl,
+              [...REVOCABLE_SOURCE_TEMPLATES],
             ],
           );
           return suppressed.rows.length === 1
@@ -2566,11 +3054,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             adapter = $6::text,
             lease_expires_at = pg_catalog.statement_timestamp()
               + ($7::integer * interval '1 millisecond'),
-            dispatch_binding_version = $8::text,
-            dispatch_binding_sha256 = $9::text,
-            provider_correlation_version = $16::text,
-            provider_evidence_version = $17::text,
-            provider_evidence_sha256 = $18::text,
+            dispatch_binding_version = $19::text,
+            dispatch_binding_sha256 = $20::text,
+            provider_correlation_version = $21::text,
+            provider_evidence_version = $22::text,
+            provider_evidence_sha256 = $23::text,
             updated_at = pg_catalog.statement_timestamp()
         where outbox.id = $1::uuid
           and outbox.operation_id = $2::uuid
@@ -2588,12 +3076,25 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and outbox.quarantined_at is null
           and outbox.lease_expires_at > pg_catalog.statement_timestamp()
           and outbox.status = 'sending'
-          and outbox.user_id is not distinct from $10::text
-          and outbox.delivery_scope_key = $11::text
-          and outbox.to_email = lower(btrim($12::text))
-          and outbox.template = $13::text
-          and outbox.template_version = $14::text
-          and outbox.variables = $15::jsonb
+          and outbox.user_id is not distinct from $8::text
+          and outbox.delivery_scope_key = $9::text
+          and outbox.to_email = lower(btrim($10::text))
+          and outbox.template = $11::text
+          and outbox.template_version = $12::text
+          and outbox.variables = $13::jsonb
+          and (
+            (
+              outbox.template = 'backup-status'
+              and public.backup_status_mail_authorized(outbox.id)
+            )
+            or ${BOUNDARY_SYSTEM_MAIL_AUTHORITY_SQL}
+            or (
+              outbox.template <> ${DELETION_NOTICE_TEMPLATE_SQL}
+              and outbox.template <> 'backup-status'
+              and ${ACCOUNT_MAIL_AUTHORITY_SQL}
+            )
+            or ${BOUNDARY_DELETION_CAPABILITY_SQL}
+          )
 
         returning outbox.provider_call_started::text as provider_call_started,
                   outbox.lease_expires_at::text as lease_expires_at,
@@ -2611,14 +3112,19 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             claim.claimVersion,
             adapter,
             leaseStampMs,
-            binding.bindingVersion,
-            binding.bindingSha256,
             scope.userId,
             scope.key,
             claim.payload.to,
             claim.payload.template,
             claim.payload.templateVersion,
             JSON.stringify(claim.payload.variables),
+            deletionEvidence.recipientHmacSha256,
+            deletionEvidence.payloadSha256,
+            deletionEvidence.valid,
+            approvedInvitationTokenHash,
+            adminAccessUrl,
+            binding.bindingVersion,
+            binding.bindingSha256,
             inspection.providerCorrelationVersion,
             inspection.providerEvidenceVersion,
             inspection.providerEvidenceSha256,
@@ -2971,27 +3477,6 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         return safeResult({ kind: "lost" });
       }
 
-      if (
-        claim.userId === null
-        || claim.payload.template === "account-deleted"
-        || claim.payload.template === "session-revocation-requested"
-        || claim.payload.template === "inactivity-admin-notice"
-        || SMART_REMINDER_TEMPLATES.has(claim.payload.template)
-      ) {
-        await releaseBeforePhysicalInitiation(
-          lease,
-          preProviderDeadline,
-          began,
-          armedWatchdog,
-        );
-        discardGuardOrTerminate(
-        channel,
-        capability,
-        guarded,
-        armedWatchdog,
-      );
-        return safeResult({ kind: "lost" });
-      }
 
       const decision = claim.payload.template === "backup-status"
         ? (await backupStatusMailAuthorized(client, claim.id)

@@ -3,35 +3,40 @@ import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  mailDispatchPreparedRuntimePlan,
   PostgresOutboxStore,
   type EmailOutboxPayload,
   type OutboxPgClient,
   type OutboxPgPool,
 } from "../postgres-outbox-store";
-import { LEGACY_RAW_PROVIDER_CORRELATION_VERSION } from "../provider-correlation";
+import {
+  createConfiguredMaterializedDispatch,
+  materializedDispatchEnvelope,
+} from "../guarded-prepared-dispatch";
+import {
+  LEGACY_RAW_PROVIDER_CORRELATION_VERSION,
+  outboxMessageId,
+} from "../provider-correlation";
+import { inspectMailDispatchRuntime } from "../mail-dispatch-runtime-startup";
 import type { GmailReconciliationFence } from "../gmail-reconciliation";
 import {
-  PostProviderPersistenceUnknownError,
   type OutboxClaim,
   type ProviderCallPermit,
-  type ProviderStartedClaim,
 } from "../outbox-worker";
-import type { ProviderPayloadSha256 } from "../prepared-dispatch";
 
 const ID = "11111111-1111-4111-8111-111111111111";
 const OPERATION = "22222222-2222-4222-8222-222222222222";
 const TOKEN = "33333333-3333-4333-8333-333333333333";
 const SOURCE = "44444444-4444-4444-8444-444444444444";
 const ACTIVATION_TOKEN = "A".repeat(43);
-const DISPATCH_BINDING = {
-  bindingVersion: "gmail-raw-v1",
-  bindingSha256: "a".repeat(64) as ProviderPayloadSha256,
-} as const;
-
 type Step = Readonly<{
   contains: string;
   rows?: Record<string, unknown>[];
   error?: Error;
+  respond?: (
+    values: unknown[],
+    sql: string,
+  ) => Readonly<{ rows: Record<string, unknown>[] }>;
 }>;
 
 function compact(sql: string) {
@@ -56,7 +61,10 @@ class ScriptedClient implements OutboxPgClient {
     expect(step, `Unexpected SQL: ${sql}`).toBeDefined();
     expect(normalizedSql).toContain(step!.contains.toLowerCase());
     if (step!.error) throw step!.error;
-    return { rows: (step!.rows ?? []) as Row[] };
+    const result = step!.respond
+      ? step!.respond(values, sql)
+      : { rows: step!.rows ?? [] };
+    return { rows: result.rows as Row[] };
   }
 
   release(destroy = false) {
@@ -65,13 +73,87 @@ class ScriptedClient implements OutboxPgClient {
   }
 }
 
-function harness(steps: Step[]) {
+async function harness(steps: Step[]) {
   const client = new ScriptedClient(steps);
   const connect = vi.fn(async () => client);
-  const pool: OutboxPgPool = { connect };
-  return { client, connect, store: new PostgresOutboxStore(pool) };
+  const startupQuery = vi.fn(async () => ({
+    rows: [{
+      max_connections: "200",
+      admin_reserved_connections: "3",
+      server_version_num: "170010",
+    }],
+  }));
+  const pool = {
+    options: Object.freeze({
+      max: 3,
+      connectionTimeoutMillis: 2_000,
+      idleTimeoutMillis: 30_000,
+    }),
+    connect,
+    query: startupQuery,
+  } satisfies OutboxPgPool & Parameters<typeof inspectMailDispatchRuntime>[0];
+  const inspection = await inspectMailDispatchRuntime(pool);
+  return {
+    client,
+    connect,
+    startupQuery,
+    store: new PostgresOutboxStore(pool, inspection),
+  };
 }
 
+function preparedEnvelope(
+  store: PostgresOutboxStore,
+  candidate: OutboxClaim<EmailOutboxPayload>,
+) {
+  const runtimePlan = mailDispatchPreparedRuntimePlan(store);
+  if (!runtimePlan) throw new Error("Store runtime plan was not issued.");
+  const materialized = createConfiguredMaterializedDispatch({
+    source: {
+      applicationUrl: process.env.APP_URL ?? "http://localhost:3000",
+      outboxId: candidate.id,
+      operationId: candidate.operationId,
+      claimToken: candidate.claimToken,
+      claimOwner: candidate.claimOwner,
+      claimVersion: candidate.claimVersion,
+      deliveryScopeKey: candidate.deliveryScopeKey,
+      recipient: candidate.payload.to,
+      template: candidate.payload.template as never,
+      templateVersion: candidate.payload.templateVersion,
+      variables: candidate.payload.variables,
+    },
+    adapter: "gmail",
+    from: "Codestead <mail@codestead.test>",
+    messageId: outboxMessageId(candidate.operationId),
+    runtimePlan,
+  });
+  const envelope = materializedDispatchEnvelope(materialized);
+  if (!envelope) throw new Error("Materialized dispatch envelope was not issued.");
+  return envelope;
+}
+
+function beginProviderCall(
+  store: PostgresOutboxStore,
+  candidate: OutboxClaim<EmailOutboxPayload>,
+) {
+  return store.beginProviderCall(candidate, {
+    adapter: "gmail",
+    envelope: preparedEnvelope(store, candidate),
+  });
+}
+
+function providerBoundaryRow(values: unknown[]) {
+  return {
+    rows: [{
+      provider_call_started: "2026-07-22 19:00:05.123456+00",
+      lease_expires_at: "2026-07-22 19:01:05.000000+00",
+      dispatch_binding_version: values[18],
+      dispatch_binding_sha256: values[19],
+      provider_correlation_version: values[20],
+      provider_evidence_version: values[21],
+      provider_evidence_sha256: values[22],
+    }],
+  };
+}
 function claimRow() {
   return {
     id: ID,
@@ -80,9 +162,9 @@ function claimRow() {
     operation_id: OPERATION,
     claim_version: 4,
     to_email: "learner@example.test",
-    template: "invitation",
+    template: "verify-email",
     template_version: "1",
-    variables: { name: "Learner" },
+    variables: { name: "Learner", url: "https://learn.example.test/verify" },
     claim_token: TOKEN,
     claim_owner: "worker-1",
     attempt_count: 2,
@@ -122,28 +204,11 @@ const claim: OutboxClaim<EmailOutboxPayload> = {
   payload: {
     userId: "learner-1",
     to: "learner@example.test",
-    template: "invitation",
+    template: "verify-email",
     templateVersion: "1",
-    variables: { name: "Learner" },
+    variables: { name: "Learner", url: "https://learn.example.test/verify" },
   },
 };
-
-const started: ProviderStartedClaim = {
-  phase: "post-provider",
-  id: ID,
-  operationId: OPERATION,
-  claimToken: TOKEN,
-  claimOwner: "worker-1",
-  claimVersion: 4,
-  adapter: "gmail",
-  userId: "learner-1",
-  deliveryScopeKey: "a:learner-1",
-  providerCallStartedAt: "2026-07-22 19:00:05.123456+00",
-  leaseExpiresAt: new Date("2026-07-22T19:01:05.000Z"),
-  bindingVersion: DISPATCH_BINDING.bindingVersion,
-  bindingSha256: DISPATCH_BINDING.bindingSha256,
-};
-const permit = started as ProviderCallPermit;
 
 const deletionClaim: OutboxClaim<EmailOutboxPayload> = {
   ...claim,
@@ -199,24 +264,24 @@ const reconciliationFence: GmailReconciliationFence = {
   lastErrorCode: "PROVIDER_OUTCOME_AMBIGUOUS",
 };
 
-const boundReconciliationFence: GmailReconciliationFence = {
-  ...reconciliationFence,
-  dispatchBindingVersion: "gmail-raw-v1",
-  dispatchBindingSha256: "b".repeat(64),
-};
-
 describe("PostgresOutboxStore", () => {
   beforeEach(() => {
     process.env.DELETION_TOMBSTONE_KEY = "deletion-test-secret-that-is-at-least-32-bytes";
+    process.env.GMAIL_CLIENT_ID = "fixture-client";
+    process.env.GMAIL_CLIENT_SECRET = "fixture-secret";
+    process.env.GMAIL_REFRESH_TOKEN = "fixture-refresh";
   });
 
   afterEach(() => {
     delete process.env.DELETION_TOMBSTONE_KEY;
+    delete process.env.GMAIL_CLIENT_ID;
+    delete process.env.GMAIL_CLIENT_SECRET;
+    delete process.env.GMAIL_REFRESH_TOKEN;
     vi.unstubAllEnvs();
   });
 
   it("claims with an account lock and full generation fence", async () => {
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
       {
         contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
@@ -251,7 +316,7 @@ describe("PostgresOutboxStore", () => {
   });
 
   it("returns no claim when a competing CAS wins", async () => {
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
       {
         contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
@@ -270,73 +335,58 @@ describe("PostgresOutboxStore", () => {
   });
 
   it("returns a provider permit only from the freshly applied boundary", async () => {
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
-      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
-      { contains: "select case", rows: [{ decision: "allowed" }] },
+      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "select case", rows: [{ decision: "allowed" }] },
       {
         contains: "update public.email_outbox",
-        rows: [{
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
-          binding_version: DISPATCH_BINDING.bindingVersion,
-          binding_sha256: DISPATCH_BINDING.bindingSha256,
-        }],
+        respond: providerBoundaryRow,
       },
       { contains: "commit" },
     ]);
 
-    await expect(input.store.beginProviderCall(claim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-      binding: DISPATCH_BINDING,
-    })).resolves.toEqual({
-      kind: "applied",
-      permit: {
-        ...permit,
-        userId: "learner-1",
-        deliveryScopeKey: "a:learner-1",
-        ...DISPATCH_BINDING,
-      },
-    });
+    const result = await beginProviderCall(input.store, claim);
+    expect(result).toMatchObject({ kind: "applied" });
+    if (result.kind !== "applied") throw new Error("Expected an applied provider boundary.");
+    expect(Object.isFrozen(result)).toBe(true);
+    expect(Object.isFrozen(result.permit)).toBe(true);
+    expect(Reflect.ownKeys(result.permit)).toHaveLength(0);
+    expect(Object.isFrozen(result.receipt)).toBe(true);
+    expect(Reflect.ownKeys(result.receipt)).toHaveLength(0);
 
-    const sql = input.client.calls[5]!.sql;
-    expect(sql).toContain("claim_token = $3::uuid");
-    expect(sql).toContain("claim_owner = $4::text");
-    expect(sql).toContain("claim_version = $5::integer");
-    expect(sql).toContain("provider_call_started is null");
-    expect(sql).toContain("lease_expires_at > pg_catalog.statement_timestamp()");
-    expect(sql).toContain("binding_version = $8::text");
-    expect(sql).toContain("binding_sha256 = $9::text");
-    expect(sql).toContain("returning outbox.binding_version");
-    expect(input.client.releaseCalls).toEqual([false]);
-    const boundarySql = input.client.calls[3]!.sql;
-    const lockedBoundarySql = input.client.calls[4]!.sql;
-    expect(lockedBoundarySql).toContain("for share of account_user");
-    expect(lockedBoundarySql).toContain("for share of source_invitation, source_request");
-    expect(lockedBoundarySql).toContain("for share of source_request, admin_recipient");
-    expect(boundarySql).toContain("outbox.to_email = lower(btrim($8::text))");
-    expect(boundarySql).toContain("outbox.template = $9::text");
-    expect(boundarySql).toContain("outbox.template_version = $10::text");
-    expect(boundarySql).toContain("outbox.variables = $11::jsonb");
-    expect(input.client.calls[3]!.values.slice(6, 11)).toEqual([
+    const decision = input.client.calls[3]!;
+    const boundary = input.client.calls[4]!;
+    expect(decision.sql).toContain("for share of account_user");
+    expect(decision.sql).toContain("for share of source_invitation, source_request");
+    expect(decision.sql).toContain("for share of source_request, admin_recipient");
+    expect(decision.sql).toContain("outbox.to_email = lower(btrim($8::text))");
+    expect(decision.sql).toContain("outbox.template = $9::text");
+    expect(decision.sql).toContain("outbox.template_version = $10::text");
+    expect(decision.sql).toContain("outbox.variables = $11::jsonb");
+    expect(decision.values.slice(6, 11)).toEqual([
       "learner-1",
       "learner@example.test",
-      "invitation",
+      "verify-email",
       "1",
-      JSON.stringify({ name: "Learner" }),
+      JSON.stringify({ name: "Learner", url: "https://learn.example.test/verify" }),
     ]);
-    expect(input.client.calls[3]!.values.slice(11)).toEqual([null, null, false, null, null]);
-    expect(input.client.calls[4]!.values).toEqual(input.client.calls[3]!.values);
-    expect(sql).toContain("outbox.to_email = lower(btrim($10::text))");
-    expect(sql).toContain("template = $11::text");
-    expect(sql).toContain("template_version = $12::text");
-    expect(sql).toContain("variables = $13::jsonb");
-    expect(sql).toContain("source_invitation.token_hash = $17::text");
-    expect(sql).toContain("outbox.variables ->> 'url' = $18::text");
-    expect(input.client.calls[5]!.values.slice(13)).toEqual([null, null, false, null, null]);
+    expect(decision.values.slice(11)).toEqual([null, null, false, null, null]);
+    expect(boundary.sql).toContain("claim_token = $3::uuid");
+    expect(boundary.sql).toContain("claim_owner = $4::text");
+    expect(boundary.sql).toContain("claim_version = $5::integer");
+    expect(boundary.sql).toContain("provider_call_started is null");
+    expect(boundary.sql).toContain("lease_expires_at > pg_catalog.statement_timestamp()");
+    expect(boundary.sql).toContain("dispatch_binding_version = $19::text");
+    expect(boundary.sql).toContain("dispatch_binding_sha256 = $20::text");
+    expect(boundary.sql).toContain("provider_correlation_version = $21::text");
+    expect(boundary.sql).toContain("outbox.to_email = lower(btrim($10::text))");
+    expect(boundary.sql).toContain("outbox.template = $11::text");
+    expect(boundary.sql).toContain("outbox.template_version = $12::text");
+    expect(boundary.sql).toContain("outbox.variables = $13::jsonb");
+    expect(boundary.values.slice(13, 18)).toEqual([null, null, false, null, null]);
+    expect(input.client.releaseCalls).toEqual([false]);
   });
 
   it.each([
@@ -358,6 +408,8 @@ describe("PostgresOutboxStore", () => {
     vi.stubEnv("APP_URL", "https://learn.example.test");
     const approvedClaim: OutboxClaim<EmailOutboxPayload> = {
       ...claim,
+      userId: null,
+      deliveryScopeKey: `s:${OPERATION}`,
       payload: {
         userId: null,
         to: "learner@example.test",
@@ -373,22 +425,19 @@ describe("PostgresOutboxStore", () => {
         },
       },
     };
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
+      { contains: "pg_advisory_xact_lock" },
       {
         contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
         rows: [systemScopeRow()],
       },
-      { contains: "pg_advisory_xact_lock" },
       { contains: "select case", rows: [{ decision: "SYSTEM_EMAIL_AUTHORITY_INVALID" }] },
       { contains: "update public.email_outbox", rows: [{ id: ID }] },
       { contains: "commit" },
     ]);
 
-    await expect(input.store.beginProviderCall(approvedClaim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-    })).resolves.toEqual({
+    await expect(beginProviderCall(input.store, approvedClaim)).resolves.toEqual({
       kind: "suppressed",
       code: "SYSTEM_EMAIL_AUTHORITY_INVALID",
     });
@@ -422,6 +471,8 @@ describe("PostgresOutboxStore", () => {
     vi.stubEnv("APP_URL", "https://learn.example.test");
     const adminClaim: OutboxClaim<EmailOutboxPayload> = {
       ...claim,
+      userId: null,
+      deliveryScopeKey: `s:${OPERATION}`,
       payload: {
         userId: null,
         to: "admin@example.test",
@@ -437,34 +488,26 @@ describe("PostgresOutboxStore", () => {
         },
       },
     };
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
+      { contains: "pg_advisory_xact_lock" },
       {
         contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
         rows: [systemScopeRow()],
       },
-      { contains: "pg_advisory_xact_lock" },
-      { contains: "select case", rows: [{ decision: "allowed" }] },
       { contains: "select case", rows: [{ decision: "allowed" }] },
       {
         contains: "update public.email_outbox",
-        rows: [{
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
-        }],
+        respond: providerBoundaryRow,
       },
       { contains: "commit" },
     ]);
 
-    await expect(input.store.beginProviderCall(adminClaim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-    })).resolves.toEqual({ kind: "applied", permit });
+    await expect(beginProviderCall(input.store, adminClaim)).resolves.toMatchObject({ kind: "applied" });
 
     const decision = input.client.calls[3]!;
-    const lockedDecision = input.client.calls[4]!;
-    const boundary = input.client.calls[5]!;
-    for (const call of [decision, lockedDecision, boundary]) {
+    const boundary = input.client.calls[4]!;
+    for (const call of [decision, boundary]) {
       expect(call.sql).toContain("_mailOperationId");
       expect(call.sql).toContain("_mailRecipient");
       expect(call.sql).toContain("_mailProducer");
@@ -474,7 +517,7 @@ describe("PostgresOutboxStore", () => {
       expect(call.sql).toContain("admin_recipient.banned = false");
       expect(call.sql).toContain("variables ->> 'name' = 'Administrator'");
     }
-    expect(lockedDecision.sql).toContain("for share of source_request, admin_recipient");
+    expect(decision.sql).toContain("for share of source_request, admin_recipient");
     expect(decision.sql).toContain("outbox.variables ->> 'url' = $16::text");
     expect(boundary.sql).toContain("returning outbox.provider_call_started::text as provider_call_started");
     expect(boundary.sql).toContain("outbox.variables ->> 'url' = $18::text");
@@ -485,7 +528,7 @@ describe("PostgresOutboxStore", () => {
       null,
       "https://learn.example.test/admin/access",
     ]);
-    expect(boundary.values.slice(13)).toEqual([
+    expect(boundary.values.slice(13, 18)).toEqual([
       null,
       null,
       false,
@@ -495,31 +538,23 @@ describe("PostgresOutboxStore", () => {
   });
 
   it("repeats the exact immutable deletion capability inside the provider-boundary CAS", async () => {
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
-      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
-      { contains: "select case", rows: [{ decision: "allowed" }] },
+      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "select case", rows: [{ decision: "allowed" }] },
       {
         contains: "update public.email_outbox",
-        rows: [{
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
-        }],
+        respond: providerBoundaryRow,
       },
       { contains: "commit" },
     ]);
 
-    await expect(input.store.beginProviderCall(deletionClaim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-    })).resolves.toEqual({ kind: "applied", permit });
+    await expect(beginProviderCall(input.store, deletionClaim)).resolves.toMatchObject({ kind: "applied" });
 
     const decision = input.client.calls[3]!;
-    const lockedDecision = input.client.calls[4]!;
-    const boundary = input.client.calls[5]!;
-    for (const call of [decision, lockedDecision, boundary]) {
+    const boundary = input.client.calls[4]!;
+    for (const call of [decision, boundary]) {
       expect(call.sql.replace(/\s+/g, " ")).toContain(
         "( outbox.template = 'account-deleted' "
         + "and (outbox.template_version = '1') )",
@@ -543,11 +578,10 @@ describe("PostgresOutboxStore", () => {
     expect(decision.values[12]).toMatch(/^[0-9a-f]{64}$/);
     expect(decision.values[13]).toBe(true);
     expect(decision.values.slice(14)).toEqual([null, null]);
-    expect(lockedDecision.values).toEqual(decision.values);
     expect(boundary.values[13]).toBe(decision.values[11]);
     expect(boundary.values[14]).toBe(decision.values[12]);
     expect(boundary.values[15]).toBe(true);
-    expect(boundary.values.slice(16)).toEqual([null, null]);
+    expect(boundary.values.slice(16, 18)).toEqual([null, null]);
   });
 
   it.each([
@@ -556,10 +590,10 @@ describe("PostgresOutboxStore", () => {
   ] as const)(
     "suppresses deletion variables %s without throwing and rechecks invalidity atomically",
     async (_case, invalidClaim) => {
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
-      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
+      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       {
         contains: "select case",
         rows: [{ decision: "DELETION_NOTICE_CAPABILITY_INVALID" }],
@@ -568,10 +602,7 @@ describe("PostgresOutboxStore", () => {
       { contains: "commit" },
     ]);
 
-    await expect(input.store.beginProviderCall(invalidClaim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-    })).resolves.toEqual({
+    await expect(beginProviderCall(input.store, invalidClaim)).resolves.toEqual({
       kind: "suppressed",
       code: "DELETION_NOTICE_CAPABILITY_INVALID",
     });
@@ -592,10 +623,10 @@ describe("PostgresOutboxStore", () => {
   );
 
   it("reports a durable provider-boundary suppression with its authority code", async () => {
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
-      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
+      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       {
         contains: "select case",
         rows: [{ decision: "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY" }],
@@ -604,10 +635,7 @@ describe("PostgresOutboxStore", () => {
       { contains: "commit" },
     ]);
 
-    await expect(input.store.beginProviderCall(claim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-    })).resolves.toEqual({
+    await expect(beginProviderCall(input.store, claim)).resolves.toEqual({
       kind: "suppressed",
       code: "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY",
     });
@@ -619,413 +647,130 @@ describe("PostgresOutboxStore", () => {
     expect(input.client.calls[4]!.values[11]).toBe(JSON.stringify(claim.payload.variables));
   });
 
-  it("removes exam-result from every account boundary allowlist and suppresses it", async () => {
-    const examClaim: OutboxClaim<EmailOutboxPayload> = {
+  it("rejects a retired template before opening a database connection", async () => {
+    const retiredClaim: OutboxClaim<EmailOutboxPayload> = {
       ...claim,
       payload: {
-        userId: "learner-1",
-        to: "learner@example.test",
+        ...claim.payload,
         template: "exam-result",
-        templateVersion: "1",
         variables: {},
       },
     };
-    const input = harness([
-      { contains: "begin" },
-      {
-        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
-        rows: [scopeRow()],
-      },
-      { contains: "pg_advisory_xact_lock" },
-      {
-        contains: "select case",
-        rows: [{ decision: "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY" }],
-      },
-      { contains: "update public.email_outbox", rows: [{ id: ID }] },
-      { contains: "commit" },
-    ]);
+    const input = await harness([]);
 
-    await expect(input.store.beginProviderCall(examClaim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-    })).resolves.toEqual({
-      kind: "suppressed",
-      code: "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY",
-    });
-
-    for (const call of [input.client.calls[3]!, input.client.calls[4]!]) {
-      expect(call.sql).not.toContain("'exam-result'");
-      expect(call.sql).toContain("'inactivity-reminder'");
-      expect(call.sql).toContain("outbox.template_version = '2'");
-      expect(call.sql).toContain("account_user.role = 'learner'");
-      expect(call.sql).toContain("account_user.status = 'active'");
-      expect(call.sql).toContain("account_user.banned = false");
-      expect(call.sql).toContain("account_user.email_verified = true");
-    }
+    expect(() => beginProviderCall(input.store, retiredClaim))
+      .toThrow("Invalid email template.");
+    expect(input.connect).not.toHaveBeenCalled();
   });
-
   it("does not reconstruct a permit after an unknown boundary commit", async () => {
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
-      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
-      { contains: "select case", rows: [{ decision: "allowed" }] },
+      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "select case", rows: [{ decision: "allowed" }] },
       {
         contains: "update public.email_outbox",
-        rows: [{
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          lease_expires_at: new Date("2026-07-22T19:01:05.000Z"),
-        }],
+        respond: providerBoundaryRow,
       },
       { contains: "commit", error: new Error("commit acknowledgement lost") },
       { contains: "rollback" },
     ]);
 
-    await expect(input.store.beginProviderCall(claim, {
-      adapter: "gmail",
-      leaseMs: 60_000,
-    })).rejects.toThrow("commit acknowledgement lost");
+    await expect(beginProviderCall(input.store, claim)).rejects.toThrow("Provider boundary commit result is unknown.");
     expect(input.client.calls.filter(({ sql }) => sql.includes("update public.email_outbox")))
       .toHaveLength(1);
   });
 
-  it("rejects a sent update whose returned provider identity does not verify", async () => {
-    const input = harness([
-      { contains: "begin" },
-      { contains: "pg_advisory_xact_lock" },
-      {
-        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
-        rows: [
-          {
-            ...scopeRow(),
-            dispatch_binding_version: DISPATCH_BINDING.bindingVersion,
-            dispatch_binding_sha256: DISPATCH_BINDING.bindingSha256,
-          },
-        ],
-      },
-      {
-        contains: "update public.email_outbox",
-        rows: [{
-          status: "sent",
-          claim_version: 4,
-          adapter: "gmail",
-          provider_message_id: "gmail-other",
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          sent_at: new Date("2026-07-22T19:00:06.000Z"),
-          quarantined_at: null,
-          last_error_code: null,
-        }],
-      },
-      { contains: "rollback" },
-    ]);
+  it("rejects public sent finalization before opening a database connection", async () => {
+    const input = await harness([]);
 
-    await expect(input.store.finishAfterProvider(permit, {
+    await expect(input.store.finishAfterProvider({} as ProviderCallPermit, {
       kind: "sent",
       providerMessageId: "gmail-1",
-    })).rejects.toBeInstanceOf(PostProviderPersistenceUnknownError);
-    const terminal = input.client.calls[3]!;
-    expect(terminal.sql).toContain("sent_at is null");
-    expect(terminal.sql).toContain("quarantined_at is null");
-    expect(terminal.sql).toContain("last_error_code is null");
-    expect(terminal.sql).toContain("lease_expires_at = $13::timestamptz");
-    expect(terminal.values[12]).toBe(permit.leaseExpiresAt);
-    expect(input.client.calls[2]!.sql)
-      .toContain("lease_expires_at = $12::timestamptz");
-    expect(input.client.calls[2]!.values[11]).toBe(permit.leaseExpiresAt);
-    expect(input.client.calls.at(-1)!.sql).toBe("rollback");
-    expect(input.client.releaseCalls).toEqual([false]);
-  });
-
-  it("accepts an exact already-persisted provider result", async () => {
-    const input = harness([
-      { contains: "begin" },
-      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
-      { contains: "pg_advisory_xact_lock" },
-      { contains: "update public.email_outbox", rows: [] },
-      { contains: "last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'", rows: [] },
-      {
-        contains: "select status::text",
-        rows: [{
-          status: "sent",
-          claim_version: 4,
-          adapter: "gmail",
-          provider_message_id: "gmail-1",
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          sent_at: new Date("2026-07-22T19:00:06.000Z"),
-          quarantined_at: null,
-          last_error_code: null,
-        }],
-      },
-      { contains: "commit" },
-    ]);
-
-    await expect(input.store.finishAfterProvider(permit, {
-      kind: "sent",
-      providerMessageId: "gmail-1",
-    })).resolves.toEqual({ kind: "already-applied" });
-  });
-
-  it("atomically releases and advances the fence for provider ambiguity", async () => {
-    const input = harness([
-      { contains: "begin" },
-      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
-      { contains: "pg_advisory_xact_lock" },
-      {
-        contains: "update public.email_outbox",
-        rows: [{
-          status: "quarantined",
-          claim_version: 5,
-          adapter: "gmail",
-          provider_message_id: null,
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          sent_at: null,
-          quarantined_at: new Date("2026-07-22T19:00:06.000Z"),
-          last_error_code: "PROVIDER_OUTCOME_AMBIGUOUS",
-        }],
-      },
-      { contains: "commit" },
-    ]);
-
-    await expect(input.store.finishAfterProvider(permit, {
-      kind: "quarantined",
-      code: "PROVIDER_OUTCOME_AMBIGUOUS",
-    })).resolves.toEqual({ kind: "applied" });
-
-    const sql = input.client.calls[3]!.sql;
-    expect(sql).toContain(
-      "claim_version = case when $7::text = 'quarantined' then claim_version + 1 else claim_version end",
+    })).rejects.toThrow(
+      "Sent finalization requires a module-issued guarded-dispatch uncertainty.",
     );
-    expect(sql).toContain("claim_token = null");
-    expect(sql).toContain("claim_owner = null");
-    expect(sql).toContain("lease_expires_at = null");
-    expect(sql).toContain("updated_at = pg_catalog.statement_timestamp()");
-    expect(sql).toContain("claim_token = $3::uuid");
-    expect(sql).toContain("claim_owner = $4::text");
-    expect(sql).toContain("claim_version = $5::integer");
+    expect(input.connect).not.toHaveBeenCalled();
   });
-  it("rejects a quarantined transition that did not return the exact next generation", async () => {
-    const input = harness([
+
+  it("rejects a forged permit for a non-sent finalization", async () => {
+    const input = await harness([]);
+
+    await expect(input.store.finishAfterProvider({} as ProviderCallPermit, {
+      kind: "quarantined",
+      code: "PROVIDER_OUTCOME_AMBIGUOUS",
+    })).rejects.toThrow("Outbox provider permit is invalid.");
+    expect(input.connect).not.toHaveBeenCalled();
+  });
+
+  it("finalizes provider ambiguity only with a freshly issued permit", async () => {
+    const input = await harness([
       { contains: "begin" },
       { contains: "pg_advisory_xact_lock" },
       {
         contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
-        rows: [
-          {
+        rows: [scopeRow()],
+      },
+      { contains: "select case", rows: [{ decision: "allowed" }] },
+      { contains: "update public.email_outbox", respond: providerBoundaryRow },
+      { contains: "commit" },
+      { contains: "begin" },
+      { contains: "pg_advisory_xact_lock" },
+      {
+        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
+        respond: (values) => ({
+          rows: [{
             ...scopeRow(),
-            dispatch_binding_version: DISPATCH_BINDING.bindingVersion,
-            dispatch_binding_sha256: DISPATCH_BINDING.bindingSha256,
-          },
-        ],
+            dispatch_binding_version: values[9],
+            dispatch_binding_sha256: values[10],
+            provider_correlation_version: values[12],
+            provider_evidence_version: values[13],
+            provider_evidence_sha256: values[14],
+          }],
+        }),
       },
       {
         contains: "update public.email_outbox",
-        rows: [{
-          status: "quarantined",
-          claim_version: 4,
-          adapter: "gmail",
-          provider_message_id: null,
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          sent_at: null,
-          quarantined_at: new Date("2026-07-22T19:00:06.000Z"),
-          last_error_code: "PROVIDER_OUTCOME_AMBIGUOUS",
-        }],
+        respond: (values) => ({
+          rows: [{
+            status: "quarantined",
+            claim_version: 5,
+            user_id: values[10],
+            delivery_scope_key: values[8],
+            adapter: values[5],
+            provider_message_id: null,
+            provider_call_started: values[9],
+            sent_at: null,
+            quarantined_at: "2026-07-22 19:00:06.000000+00",
+            last_error_code: values[7],
+            claim_token: null,
+            claim_owner: null,
+            lease_expires_at: null,
+            dispatch_binding_version: values[11],
+            dispatch_binding_sha256: values[12],
+            provider_correlation_version: values[14],
+            provider_evidence_version: values[15],
+            provider_evidence_sha256: values[16],
+          }],
+        }),
       },
-      { contains: "rollback" },
+      { contains: "commit" },
     ]);
 
-    await expect(input.store.finishAfterProvider(permit, {
+    const boundary = await beginProviderCall(input.store, claim);
+    if (boundary.kind !== "applied") throw new Error("Expected an issued permit.");
+    await expect(input.store.finishAfterProvider(boundary.permit, {
       kind: "quarantined",
       code: "PROVIDER_OUTCOME_AMBIGUOUS",
-    })).rejects.toBeInstanceOf(PostProviderPersistenceUnknownError);
-    const terminal = input.client.calls[3]!;
-    expect(terminal.sql).toContain("sent_at is null");
-    expect(terminal.sql).toContain("last_error_code is null");
+    })).resolves.toEqual({ kind: "applied" });
+
+    const terminal = input.client.calls[9]!;
+    expect(terminal.sql).toContain("then claim_version + 1");
     expect(terminal.sql).toContain("lease_expires_at = $14::timestamptz");
-    expect(terminal.values[13]).toBe(permit.leaseExpiresAt);
-    expect(input.client.calls.at(-1)!.sql).toBe("rollback");
-    expect(input.client.releaseCalls).toEqual([false]);
+    expect(input.client.releaseCalls).toEqual([false, false]);
   });
-  it("finalizes a captured sent receipt against the exact released successor fence", async () => {
-    const input = harness([
-      { contains: "begin" },
-      {
-        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
-        rows: [scopeRow(5)],
-      },
-      { contains: "pg_advisory_xact_lock" },
-      { contains: "update public.email_outbox", rows: [] },
-      {
-        contains: "last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'",
-        rows: [{
-          status: "quarantined",
-          claim_version: 5,
-          adapter: "gmail",
-          provider_message_id: "gmail-sweeper-first",
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          sent_at: new Date("2026-07-22T19:00:07.000Z"),
-          quarantined_at: new Date("2026-07-22T19:00:06.000Z"),
-          last_error_code: "ABANDONED_POST_PROVIDER_BOUNDARY",
-        }],
-      },
-      { contains: "commit" },
-    ]);
-
-    await expect(input.store.finishAfterProvider(permit, {
-      kind: "sent",
-      providerMessageId: "gmail-sweeper-first",
-    })).resolves.toEqual({ kind: "applied" });
-
-    const observedSql = input.client.calls[1]!.sql;
-    expect(observedSql).toContain("provider_call_started = $7::timestamptz");
-    expect(observedSql).toContain("claim_version = $5::integer + 1");
-    expect(observedSql).toContain("claim_token is null");
-    expect(observedSql).toContain("claim_owner is null");
-    expect(observedSql).toContain("lease_expires_at is null");
-    expect(input.client.calls[1]!.values[6]).toEqual(permit.providerCallStartedAt);
-
-    const successorSql = input.client.calls[4]!.sql;
-    expect(successorSql).toContain("claim_version = $3::integer + 1");
-    expect(successorSql).toContain("provider_call_started = $5::timestamptz");
-    expect(successorSql).toContain("user_id is not distinct from $6::text");
-    expect(successorSql).toContain("delivery_scope_key = $7::text");
-    expect(successorSql).toContain("status = 'quarantined'");
-    expect(successorSql).toContain("quarantined_at is not null");
-    expect(successorSql).toContain("last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'");
-    expect(successorSql).toContain("provider_message_id is null");
-    expect(successorSql).toContain("sent_at is null");
-    expect(successorSql).toContain("then status");
-    expect(successorSql).toContain("then last_error_code");
-  });
-
-  it("accepts an exact reconciled sent receipt at the released successor generation", async () => {
-    const input = harness([
-      { contains: "begin" },
-      {
-        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
-        rows: [scopeRow(5)],
-      },
-      { contains: "pg_advisory_xact_lock" },
-      { contains: "update public.email_outbox", rows: [] },
-      { contains: "last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'", rows: [] },
-      {
-        contains: "select status::text",
-        rows: [{
-          status: "sent",
-          claim_version: 5,
-          adapter: "gmail",
-          provider_message_id: "gmail-reconciled",
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          sent_at: "2026-07-22 19:00:08.000000+00",
-          quarantined_at: null,
-          last_error_code: null,
-        }],
-      },
-      { contains: "commit" },
-    ]);
-
-    await expect(input.store.finishAfterProvider(permit, {
-      kind: "sent",
-      providerMessageId: "gmail-reconciled",
-    })).resolves.toEqual({ kind: "already-applied" });
-  });
-  it("rejects a conflicting reconciled provider identity at the successor generation", async () => {
-    const input = harness([
-      { contains: "begin" },
-      {
-        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
-        rows: [scopeRow(5)],
-      },
-      { contains: "pg_advisory_xact_lock" },
-      { contains: "update public.email_outbox", rows: [] },
-      { contains: "last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'", rows: [] },
-      {
-        contains: "select status::text",
-        rows: [{
-          status: "sent",
-          claim_version: 5,
-          adapter: "gmail",
-          provider_message_id: "gmail-conflicting",
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          sent_at: "2026-07-22 19:00:08.000000+00",
-          quarantined_at: null,
-          last_error_code: null,
-        }],
-      },
-      { contains: "commit" },
-    ]);
-
-    await expect(input.store.finishAfterProvider(permit, {
-      kind: "sent",
-      providerMessageId: "gmail-expected",
-    })).resolves.toEqual({ kind: "lost" });
-  });
-  it("safely records a definite rejection against the exact released successor fence", async () => {
-    const input = harness([
-      { contains: "begin" },
-      {
-        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
-        rows: [scopeRow(5)],
-      },
-      { contains: "pg_advisory_xact_lock" },
-      { contains: "update public.email_outbox", rows: [] },
-      {
-        contains: "last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'",
-        rows: [{
-          status: "failed",
-          claim_version: 5,
-          adapter: "gmail",
-          provider_message_id: null,
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          sent_at: null,
-          quarantined_at: null,
-          last_error_code: "PROVIDER_DEFINITELY_REJECTED",
-        }],
-      },
-      { contains: "commit" },
-    ]);
-
-    await expect(input.store.finishAfterProvider(permit, {
-      kind: "failed",
-      code: "PROVIDER_DEFINITELY_REJECTED",
-    })).resolves.toEqual({ kind: "applied" });
-
-    const successorSql = input.client.calls[4]!.sql;
-    expect(successorSql).toContain("else 'failed'::public.notification_status");
-    expect(successorSql).toContain("quarantined_at = case when $8::text = 'sent' then quarantined_at else null end");
-    expect(successorSql).toContain("last_error_code = case when $8::text = 'sent' then last_error_code else $10::text end");
-  });
-  it("rejects a conflicting already-persisted provider identity", async () => {
-    const input = harness([
-      { contains: "begin" },
-      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
-      { contains: "pg_advisory_xact_lock" },
-      { contains: "update public.email_outbox", rows: [] },
-      { contains: "last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'", rows: [] },
-      {
-        contains: "select status::text",
-        rows: [{
-          status: "sent",
-          claim_version: 4,
-          adapter: "gmail",
-          provider_message_id: "gmail-other",
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
-          sent_at: new Date("2026-07-22T19:00:06.000Z"),
-          quarantined_at: null,
-          last_error_code: null,
-        }],
-      },
-      { contains: "commit" },
-    ]);
-
-    await expect(input.store.finishAfterProvider(permit, {
-      kind: "sent",
-      providerMessageId: "gmail-1",
-    })).resolves.toEqual({ kind: "lost" });
-  });
-
   it("reports an exact terminal Gmail result as already applied on unknown-commit replay", async () => {
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
       {
         contains: "operation_id = $1::uuid",
@@ -1064,7 +809,7 @@ describe("PostgresOutboxStore", () => {
   });
 
   it("observes only an unresolved quarantined Gmail row as an exact reconciliation fence", async () => {
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
       {
         contains: "status = 'quarantined'",
@@ -1116,7 +861,7 @@ describe("PostgresOutboxStore", () => {
   ])("rejects persisted correlation version %j before returning a Gmail fence", async (
     providerCorrelationVersion,
   ) => {
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
       {
         contains: "status = 'quarantined'",
@@ -1152,8 +897,34 @@ describe("PostgresOutboxStore", () => {
   });
 
   it("finalizes a Gmail match only under the exact fence and delivery-scope lock", async () => {
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
+      {
+        contains: "status = 'quarantined'",
+        rows: [{
+          id: ID,
+          user_id: "learner-1",
+          operation_id: OPERATION,
+          delivery_scope_key: "a:learner-1",
+          claim_version: 4,
+          claim_token: null,
+          claim_owner: null,
+          lease_expires_at: null,
+          adapter: "gmail",
+          provider_call_started: "2026-07-22 19:00:05+00",
+          dispatch_binding_version: "gmail-raw-v1",
+          dispatch_binding_sha256: "b".repeat(64),
+          provider_correlation_version: LEGACY_RAW_PROVIDER_CORRELATION_VERSION,
+          provider_evidence_version: null,
+          provider_evidence_sha256: null,
+          status: "quarantined",
+          provider_message_id: null,
+          sent_at: null,
+          quarantined_at: "2026-07-22 19:01:05+00",
+          last_error_code: "PROVIDER_OUTCOME_AMBIGUOUS",
+        }],
+      },
+      { contains: "commit" },      { contains: "begin" },
       { contains: "pg_advisory_xact_lock" },
       { contains: "status = 'quarantined'", rows: [scopeRow()] },
       {
@@ -1165,7 +936,7 @@ describe("PostgresOutboxStore", () => {
           delivery_scope_key: "a:learner-1",
           adapter: "gmail",
           provider_message_id: "gmail-1",
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
+          provider_call_started: "2026-07-22 19:00:05+00",
           dispatch_binding_version: "gmail-raw-v1",
           dispatch_binding_sha256: "b".repeat(64),
           provider_correlation_version: "legacy-raw-v0",
@@ -1182,8 +953,13 @@ describe("PostgresOutboxStore", () => {
       { contains: "commit" },
     ]);
 
+    const observed = await input.store.findGmailReconciliationFence({
+      operationId: OPERATION,
+    });
+    expect(observed).toMatchObject({ kind: "ready" });
+    if (observed.kind !== "ready") throw new Error("Expected an issued Gmail fence.");
     await expect(input.store.finalizeGmailReconciliation({
-      fence: boundReconciliationFence,
+      fence: observed.fence,
       providerMessageId: "gmail-1",
       proof: {
         kind: "raw-sha256-v1",
@@ -1191,7 +967,18 @@ describe("PostgresOutboxStore", () => {
       },
     })).resolves.toEqual({ kind: "applied" });
 
-    const update = input.client.calls[3]!;
+    const connectCount = input.connect.mock.calls.length;
+    await expect(input.store.finalizeGmailReconciliation({
+      fence: observed.fence,
+      providerMessageId: "gmail-1",
+      proof: {
+        kind: "raw-sha256-v1",
+        adapterPayloadSha256: "b".repeat(64),
+      },
+    })).resolves.toEqual({ kind: "lost" });
+    expect(input.connect).toHaveBeenCalledTimes(connectCount);
+
+    const update = input.client.calls[6]!;
     expect(update.sql).toContain("claim_token is not distinct from $7::uuid");
     expect(update.sql).toContain("provider_call_started = $10::timestamptz");
     expect(update.sql).toContain("quarantined_at = $11::timestamptz");
@@ -1207,8 +994,34 @@ describe("PostgresOutboxStore", () => {
   });
 
   it("rolls back a Gmail reconciliation update whose returned proof is corrupted", async () => {
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
+      {
+        contains: "status = 'quarantined'",
+        rows: [{
+          id: ID,
+          user_id: "learner-1",
+          operation_id: OPERATION,
+          delivery_scope_key: "a:learner-1",
+          claim_version: 4,
+          claim_token: null,
+          claim_owner: null,
+          lease_expires_at: null,
+          adapter: "gmail",
+          provider_call_started: "2026-07-22 19:00:05+00",
+          dispatch_binding_version: "gmail-raw-v1",
+          dispatch_binding_sha256: "b".repeat(64),
+          provider_correlation_version: LEGACY_RAW_PROVIDER_CORRELATION_VERSION,
+          provider_evidence_version: null,
+          provider_evidence_sha256: null,
+          status: "quarantined",
+          provider_message_id: null,
+          sent_at: null,
+          quarantined_at: "2026-07-22 19:01:05+00",
+          last_error_code: "PROVIDER_OUTCOME_AMBIGUOUS",
+        }],
+      },
+      { contains: "commit" },      { contains: "begin" },
       { contains: "pg_advisory_xact_lock" },
       { contains: "status = 'quarantined'", rows: [scopeRow()] },
       {
@@ -1220,7 +1033,7 @@ describe("PostgresOutboxStore", () => {
           delivery_scope_key: "a:learner-1",
           adapter: "gmail",
           provider_message_id: "gmail-conflicting",
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
+          provider_call_started: "2026-07-22 19:00:05+00",
           dispatch_binding_version: "gmail-raw-v1",
           dispatch_binding_sha256: "b".repeat(64),
           provider_correlation_version: "legacy-raw-v0",
@@ -1237,8 +1050,12 @@ describe("PostgresOutboxStore", () => {
       { contains: "rollback" },
     ]);
 
+    const observed = await input.store.findGmailReconciliationFence({
+      operationId: OPERATION,
+    });
+    if (observed.kind !== "ready") throw new Error("Expected an issued Gmail fence.");
     await expect(input.store.finalizeGmailReconciliation({
-      fence: boundReconciliationFence,
+      fence: observed.fence,
       providerMessageId: "gmail-1",
       proof: {
         kind: "raw-sha256-v1",
@@ -1247,12 +1064,12 @@ describe("PostgresOutboxStore", () => {
     })).rejects.toThrow("Gmail reconciliation terminal proof mismatch.");
 
     expect(input.client.calls.at(-1)!.sql).toBe("rollback");
-    expect(input.client.releaseCalls).toEqual([false]);
+    expect(input.client.releaseCalls).toEqual([false, false]);
   });
 
   it("quarantines only expired post-boundary rows with the exact observed fence", async () => {
     const lease = new Date("2026-07-22T18:58:00.000Z");
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
       {
         contains: "provider_call_started is not null",
@@ -1265,10 +1082,34 @@ describe("PostgresOutboxStore", () => {
           claim_token: TOKEN,
           claim_owner: "worker-1",
           lease_expires_at: lease,
+          adapter: "gmail",
+          provider_call_started: "2026-07-22 18:57:00+00",
+          dispatch_binding_version: null,
+          dispatch_binding_sha256: null,
         }],
       },
       { contains: "pg_try_advisory_xact_lock", rows: [{ locked: true }] },
-      { contains: "update public.email_outbox", rows: [{ operation_id: OPERATION, claim_version: 5, claim_token: null, claim_owner: null, lease_expires_at: null }] },
+      {
+        contains: "update public.email_outbox",
+        rows: [{
+          operation_id: OPERATION,
+          claim_version: 5,
+          user_id: "learner-1",
+          delivery_scope_key: "a:learner-1",
+          adapter: "gmail",
+          provider_call_started: "2026-07-22 18:57:00+00",
+          claim_token: null,
+          claim_owner: null,
+          lease_expires_at: null,
+          dispatch_binding_version: null,
+          dispatch_binding_sha256: null,
+          status: "quarantined",
+          provider_message_id: null,
+          sent_at: null,
+          quarantined_at: "2026-07-22 19:00:00+00",
+          last_error_code: "ABANDONED_POST_PROVIDER_BOUNDARY",
+        }],
+      },
       { contains: "commit" },
     ]);
 
@@ -1285,14 +1126,14 @@ describe("PostgresOutboxStore", () => {
     expect(sql).toContain("claim_version = claim_version + 1");
     expect(sql).toContain("updated_at = pg_catalog.statement_timestamp()");
     expect(sql).toContain(
-      "returning operation_id::text, claim_version, claim_token::text, claim_owner, lease_expires_at",
+      "returning operation_id::text, claim_version, user_id, delivery_scope_key, adapter",
     );
     expect(sql).not.toContain("status = 'pending'");
   });
 
   it("aborts an abandoned-row transition whose returned released fence is inconsistent", async () => {
     const lease = new Date("2026-07-22T18:58:00.000Z");
-    const input = harness([
+    const input = await harness([
       { contains: "begin" },
       {
         contains: "provider_call_started is not null",
@@ -1305,6 +1146,10 @@ describe("PostgresOutboxStore", () => {
           claim_token: TOKEN,
           claim_owner: "worker-1",
           lease_expires_at: lease,
+          adapter: "gmail",
+          provider_call_started: "2026-07-22 18:57:00+00",
+          dispatch_binding_version: null,
+          dispatch_binding_sha256: null,
         }],
       },
       { contains: "pg_try_advisory_xact_lock", rows: [{ locked: true }] },
@@ -1326,7 +1171,7 @@ describe("PostgresOutboxStore", () => {
   });
 
   it("validates claim inputs before opening a database connection", async () => {
-    const input = harness([]);
+    const input = await harness([]);
 
     await expect(input.store.claimNext({
       owner: "worker-1",

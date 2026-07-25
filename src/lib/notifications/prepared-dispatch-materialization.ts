@@ -57,7 +57,7 @@ import type { ProviderCallPermit } from "./outbox-worker";
 const SOURCE_AUTHORITY_DOMAIN = "codestead.mail.dispatch-source.v1";
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const VARIABLE_KEY = /^[A-Za-z][A-Za-z0-9_]{0,127}$/;
+const VARIABLE_KEY = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
 const LOST_DEVICE_RAW_PROOF = /^[A-Za-z0-9_-]{43}$/;
 const REVOCABLE_TEMPLATE_VERSIONS = new Set([
   "reset-password@1",
