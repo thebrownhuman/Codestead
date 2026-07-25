@@ -203,6 +203,8 @@ test("replays post-migration privilege reconciliation idempotently", async () =>
             {
               post_migration_binding_column_count: 0,
               post_migration_binding_column_exact_count: 0,
+              post_migration_provider_column_count: 0,
+              post_migration_provider_column_exact_count: 0,
             },
           ],
         };
@@ -223,6 +225,7 @@ test("replays post-migration privilege reconciliation idempotently", async () =>
               reviewed_routine_presence_exact: true,
               reviewed_trigger_presence_exact: true,
               reviewed_constraint_presence_exact: true,
+              reviewed_provider_evidence_constraint_presence_exact: true,
             },
           ],
         };
@@ -348,7 +351,7 @@ function makeClient(role, database, options) {
   let grantCatalogVersion = 0;
   const latestApplied =
     options.appliedMigrationIndex === undefined
-      ? 65
+      ? 66
       : options.appliedMigrationIndex;
   const backupAuthorityPresent =
     options.backupAuthorityPresent ??
@@ -478,6 +481,17 @@ function makeClient(role, database, options) {
                 options.bindingColumnCount ?? 2,
               post_migration_binding_column_exact_count:
                 options.bindingColumnExactCount ?? 2,
+              post_migration_provider_column_count:
+                options.providerColumnCount
+                ?? (
+                  options.journalPresent === false
+                  || latestApplied === null
+                  || latestApplied < 66 ? 0 : 3
+                ),
+              post_migration_provider_column_exact_count:
+                options.providerColumnExactCount
+                ?? options.providerColumnCount
+                ?? (latestApplied !== null && latestApplied >= 66 ? 3 : 0),
             },
           ],
         };
@@ -490,6 +504,8 @@ function makeClient(role, database, options) {
               reviewed_routine_presence_exact: tamper !== "routine",
               reviewed_trigger_presence_exact: tamper !== "trigger",
               reviewed_constraint_presence_exact: tamper !== "constraint",
+              reviewed_provider_evidence_constraint_presence_exact:
+                tamper !== "provider-constraint",
             },
           ],
         };
@@ -660,6 +676,13 @@ function makeClient(role, database, options) {
                 "constraint-always-true",
                 "constraint-state-arm-removed",
                 "constraint-unknown-version",
+              ].includes(tamper),
+              provider_evidence_constraint_exact: ![
+                "provider-constraint",
+                "provider-constraint-type",
+                "provider-constraint-validation",
+                "provider-constraint-hash",
+                "provider-constraint-columns",
               ].includes(tamper),
               worker_table_direct_acl_exact: tamper !== "table-acl",
               worker_column_direct_acl_exact: ![
@@ -946,6 +969,8 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
     journalPresent: false,
     bindingColumnCount: 0,
     bindingColumnExactCount: 0,
+    providerColumnCount: 0,
+    providerColumnExactCount: 0,
   });
   assert.equal(
     await verifyPostMigrationReviewedContractsBeforeReconciliation(
@@ -979,6 +1004,8 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
       appliedMigrationIndex,
       bindingColumnCount: 0,
       bindingColumnExactCount: 0,
+      providerColumnCount: 0,
+      providerColumnExactCount: 0,
     });
     assert.equal(
       await verifyPostMigrationReviewedContractsBeforeReconciliation(
@@ -1013,6 +1040,13 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
           "provider_evidence_sha256",
         ],
         0,
+        "public.email_outbox",
+        "email_outbox_provider_correlation_evidence_valid",
+        "c",
+        true,
+        "02a5367ba5c5eed54bc69732c38f1517fa05d7321aaad3c11d30200ee6b06dc8",
+        REVIEWED_APPLICATION_CONSTRAINTS[1].columns,
+        false,
       ],
     );
   }
@@ -1068,6 +1102,14 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
       bindingColumnExactCount: 0,
       footprintContractTamper: "constraint",
     },
+    {
+      journalPresent: false,
+      bindingColumnCount: 0,
+      bindingColumnExactCount: 0,
+      providerColumnCount: 0,
+      providerColumnExactCount: 0,
+      footprintContractTamper: "provider-constraint",
+    },
   ]) {
     await assert.rejects(
       verifyPostMigrationReviewedContractsBeforeReconciliation(
@@ -1079,9 +1121,13 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
   for (const options of [
     { bindingColumnCount: 1, bindingColumnExactCount: 1 },
     { bindingColumnCount: 2, bindingColumnExactCount: 1 },
+    { providerColumnCount: 1, providerColumnExactCount: 1 },
+    { providerColumnCount: 3, providerColumnExactCount: 2 },
+    { appliedMigrationIndex: 65, providerColumnCount: 3 },
     { footprintContractTamper: "routine" },
     { footprintContractTamper: "trigger" },
     { footprintContractTamper: "constraint" },
+    { footprintContractTamper: "provider-constraint" },
     { routineContractTamper: "owner" },
     { routineContractTamper: "missing-acl" },
     { routineContractTamper: "extra-acl" },
@@ -1389,6 +1435,21 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
     "provider_evidence_version",
     "provider_evidence_sha256",
   ]);
+  assert.equal(
+    opsClient.queryParameters[workerQueryIndex]?.[15],
+    "email_outbox_provider_correlation_evidence_valid",
+  );
+  assert.equal(
+    opsClient.queryParameters[workerQueryIndex]?.[18],
+    REVIEWED_APPLICATION_CONSTRAINTS[1].normalizedExpressionSha256,
+  );
+  assert.deepEqual(
+    opsClient.queryParameters[workerQueryIndex]?.[19],
+    REVIEWED_APPLICATION_CONSTRAINTS[1].columns,
+  );
+  assert.equal(opsClient.queryParameters[workerQueryIndex]?.[20], true);
+  assert.match(workerQuery, /pg_catalog\.sha256/iu);
+  assert.match(workerQuery, /pg_catalog\.pg_get_expr/iu);
 
   for (const triggerContractTamper of [
     "relation",
@@ -1417,6 +1478,11 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
     "constraint-state-arm-removed",
     "constraint-unknown-version",
     "constraint",
+    "provider-constraint",
+    "provider-constraint-type",
+    "provider-constraint-validation",
+    "provider-constraint-hash",
+    "provider-constraint-columns",
     "table-acl",
     "column-acl",
     "effective-acl",
@@ -1425,7 +1491,10 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
       workerContractTamper,
     });
     await assert.rejects(
-      verifyMailWorkerOutboxContract(tampered),
+      verifyMailWorkerOutboxContract(tampered, {
+        requiresDispatchBinding: true,
+        requiresProviderEvidence: true,
+      }),
       DatabaseRoleBoundaryError,
     );
   }
