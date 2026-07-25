@@ -99,7 +99,6 @@ export async function POST(request: NextRequest) {
           createSessionRevocationSourceVariables({
             applicationUrl,
             name: admin.name,
-            device,
             requestId,
             url: actionUrl,
           }),
