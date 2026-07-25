@@ -8,6 +8,7 @@ import {
   type OutboxPgClient,
   type OutboxPgPool,
 } from "../postgres-outbox-store";
+import { LEGACY_RAW_PROVIDER_CORRELATION_VERSION } from "../provider-correlation";
 import type { GmailReconciliationFence } from "../gmail-reconciliation";
 import {
   PostProviderPersistenceUnknownError,
@@ -190,10 +191,18 @@ const reconciliationFence: GmailReconciliationFence = {
   adapter: "gmail",
   providerCallStartedAt: "2026-07-22 19:00:05+00",
   quarantinedAt: "2026-07-22 19:01:05+00",
+  dispatchBindingVersion: null,
+  dispatchBindingSha256: null,
+  providerCorrelationVersion: LEGACY_RAW_PROVIDER_CORRELATION_VERSION,
+  providerEvidenceVersion: null,
+  providerEvidenceSha256: null,
   lastErrorCode: "PROVIDER_OUTCOME_AMBIGUOUS",
-  kind: "exact-bound",
-  bindingVersion: DISPATCH_BINDING.bindingVersion,
-  bindingSha256: DISPATCH_BINDING.bindingSha256,
+};
+
+const boundReconciliationFence: GmailReconciliationFence = {
+  ...reconciliationFence,
+  dispatchBindingVersion: "gmail-raw-v1",
+  dispatchBindingSha256: "b".repeat(64),
 };
 
 describe("PostgresOutboxStore", () => {
@@ -1031,6 +1040,11 @@ describe("PostgresOutboxStore", () => {
           lease_expires_at: null,
           adapter: "gmail",
           provider_call_started: "2026-07-22 19:00:05+00",
+          dispatch_binding_version: null,
+          dispatch_binding_sha256: null,
+          provider_correlation_version: "legacy-raw-v0",
+          provider_evidence_version: null,
+          provider_evidence_sha256: null,
           status: "sent",
           provider_message_id: "gmail-1",
           sent_at: "2026-07-22 19:02:00+00",
@@ -1065,6 +1079,11 @@ describe("PostgresOutboxStore", () => {
           lease_expires_at: null,
           adapter: "gmail",
           provider_call_started: "2026-07-22 19:00:05+00",
+          dispatch_binding_version: null,
+          dispatch_binding_sha256: null,
+          provider_correlation_version: "legacy-raw-v0",
+          provider_evidence_version: null,
+          provider_evidence_sha256: null,
           status: "quarantined",
           provider_message_id: null,
           sent_at: null,
@@ -1084,6 +1103,52 @@ describe("PostgresOutboxStore", () => {
     expect(sql).toContain("provider_call_started is not null");
     expect(sql).toContain("provider_message_id is null");
     expect(sql).toContain("sent_at is null");
+    expect(sql).toContain("dispatch_binding_version");
+    expect(sql).toContain("dispatch_binding_sha256");
+    expect(sql).toContain("provider_correlation_version");
+    expect(sql).toContain("provider_evidence_version");
+    expect(sql).toContain("provider_evidence_sha256");
+  });
+
+  it.each([
+    null,
+    "future-unreviewed-v2",
+  ])("rejects persisted correlation version %j before returning a Gmail fence", async (
+    providerCorrelationVersion,
+  ) => {
+    const input = harness([
+      { contains: "begin" },
+      {
+        contains: "status = 'quarantined'",
+        rows: [{
+          id: ID,
+          user_id: "learner-1",
+          operation_id: OPERATION,
+          delivery_scope_key: "a:learner-1",
+          claim_version: 4,
+          claim_token: null,
+          claim_owner: null,
+          lease_expires_at: null,
+          adapter: "gmail",
+          provider_call_started: "2026-07-22 19:00:05+00",
+          dispatch_binding_version: null,
+          dispatch_binding_sha256: null,
+          provider_correlation_version: providerCorrelationVersion,
+          provider_evidence_version: null,
+          provider_evidence_sha256: null,
+          status: "quarantined",
+          provider_message_id: null,
+          sent_at: null,
+          quarantined_at: "2026-07-22 19:01:05+00",
+          last_error_code: "PROVIDER_OUTCOME_AMBIGUOUS",
+        }],
+      },
+      { contains: "commit" },
+    ]);
+
+    await expect(input.store.findGmailReconciliationFence({
+      operationId: OPERATION,
+    })).resolves.toEqual({ kind: "not-reconcilable" });
   });
 
   it("finalizes a Gmail match only under the exact fence and delivery-scope lock", async () => {
@@ -1100,27 +1165,29 @@ describe("PostgresOutboxStore", () => {
           delivery_scope_key: "a:learner-1",
           adapter: "gmail",
           provider_message_id: "gmail-1",
-          provider_call_started: "2026-07-22 19:00:05+00",
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
+          dispatch_binding_version: "gmail-raw-v1",
+          dispatch_binding_sha256: "b".repeat(64),
+          provider_correlation_version: "legacy-raw-v0",
+          provider_evidence_version: null,
+          provider_evidence_sha256: null,
           sent_at: new Date("2026-07-22T19:02:00.000Z"),
           quarantined_at: null,
           last_error_code: null,
           claim_token: null,
           claim_owner: null,
           lease_expires_at: null,
-          dispatch_binding_version: DISPATCH_BINDING.bindingVersion,
-          dispatch_binding_sha256: DISPATCH_BINDING.bindingSha256,
         }],
       },
       { contains: "commit" },
     ]);
 
     await expect(input.store.finalizeGmailReconciliation({
-      fence: reconciliationFence,
+      fence: boundReconciliationFence,
       providerMessageId: "gmail-1",
-      bindingEvidence: {
-        kind: "exact-bound",
-        bindingVersion: DISPATCH_BINDING.bindingVersion,
-        bindingSha256: DISPATCH_BINDING.bindingSha256,
+      proof: {
+        kind: "raw-sha256-v1",
+        adapterPayloadSha256: "b".repeat(64),
       },
     })).resolves.toEqual({ kind: "applied" });
 
@@ -1130,6 +1197,11 @@ describe("PostgresOutboxStore", () => {
     expect(update.sql).toContain("quarantined_at = $11::timestamptz");
     expect(update.sql).toContain("last_error_code = $12::text");
     expect(update.sql).toContain("status = 'quarantined'");
+    expect(update.sql).toContain("dispatch_binding_version is not distinct from");
+    expect(update.sql).toContain("dispatch_binding_sha256 is not distinct from");
+    expect(update.sql).toContain("provider_correlation_version =");
+    expect(update.sql).toContain("provider_evidence_version is not distinct from");
+    expect(update.sql).toContain("provider_evidence_sha256 is not distinct from");
     expect(update.values).toContain("a:learner-1");
     expect(update.values).toContain("gmail-1");
   });
@@ -1148,27 +1220,29 @@ describe("PostgresOutboxStore", () => {
           delivery_scope_key: "a:learner-1",
           adapter: "gmail",
           provider_message_id: "gmail-conflicting",
-          provider_call_started: "2026-07-22 19:00:05+00",
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
+          dispatch_binding_version: "gmail-raw-v1",
+          dispatch_binding_sha256: "b".repeat(64),
+          provider_correlation_version: "legacy-raw-v0",
+          provider_evidence_version: null,
+          provider_evidence_sha256: null,
           sent_at: new Date("2026-07-22T19:02:00.000Z"),
           quarantined_at: null,
           last_error_code: null,
           claim_token: null,
           claim_owner: null,
           lease_expires_at: null,
-          dispatch_binding_version: DISPATCH_BINDING.bindingVersion,
-          dispatch_binding_sha256: DISPATCH_BINDING.bindingSha256,
         }],
       },
       { contains: "rollback" },
     ]);
 
     await expect(input.store.finalizeGmailReconciliation({
-      fence: reconciliationFence,
+      fence: boundReconciliationFence,
       providerMessageId: "gmail-1",
-      bindingEvidence: {
-        kind: "exact-bound",
-        bindingVersion: DISPATCH_BINDING.bindingVersion,
-        bindingSha256: DISPATCH_BINDING.bindingSha256,
+      proof: {
+        kind: "raw-sha256-v1",
+        adapterPayloadSha256: "b".repeat(64),
       },
     })).rejects.toThrow("Gmail reconciliation terminal proof mismatch.");
 

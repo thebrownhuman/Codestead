@@ -3214,6 +3214,9 @@ export const emailOutbox = pgTable(
     adapter: text("adapter"),
     dispatchBindingVersion: text("dispatch_binding_version"),
     dispatchBindingSha256: text("dispatch_binding_sha256"),
+    providerCorrelationVersion: text("provider_correlation_version"),
+    providerEvidenceVersion: text("provider_evidence_version"),
+    providerEvidenceSha256: text("provider_evidence_sha256"),
     providerMessageId: text("provider_message_id"),
     nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).defaultNow().notNull(),
     sentAt: timestamp("sent_at", { withTimezone: true }),
@@ -3263,6 +3266,58 @@ export const emailOutbox = pgTable(
               ))
           ))
       )`,
+    ),
+    check(
+      "email_outbox_provider_correlation_evidence_valid",
+      sql`((
+        (${table.providerCallStarted} IS NULL
+          AND ${table.adapter} IS NULL
+          AND ${table.providerMessageId} IS NULL
+          AND ${table.lastErrorCode} IS DISTINCT FROM
+            'LEGACY_SENDING_AMBIGUOUS'
+          AND ${table.dispatchBindingVersion} IS NULL
+          AND ${table.dispatchBindingSha256} IS NULL
+          AND ${table.providerCorrelationVersion} IS NULL
+          AND ${table.providerEvidenceVersion} IS NULL
+          AND ${table.providerEvidenceSha256} IS NULL)
+        OR (${table.status} = 'quarantined'
+          AND ${table.providerCallStarted} IS NULL
+          AND ${table.adapter} IS NULL
+          AND ${table.providerMessageId} IS NULL
+          AND ${table.claimVersion} = 0
+          AND ${table.dispatchBindingVersion} IS NULL
+          AND ${table.dispatchBindingSha256} IS NULL
+          AND ${table.claimToken} IS NULL
+          AND ${table.claimOwner} IS NULL
+          AND ${table.leaseExpiresAt} IS NULL
+          AND ${table.sentAt} IS NULL
+          AND ${table.quarantinedAt} IS NOT NULL
+          AND ${table.lastErrorCode} = 'LEGACY_SENDING_AMBIGUOUS'
+          AND ${table.providerCorrelationVersion} = 'legacy-raw-v0'
+          AND ${table.providerEvidenceVersion} IS NULL
+          AND ${table.providerEvidenceSha256} IS NULL)
+        OR (${table.providerCallStarted} IS NOT NULL
+          AND ${table.adapter} IN ('gmail', 'console')
+          AND ${table.status} IN ('sending', 'sent', 'failed', 'quarantined')
+          AND (
+            (${table.providerCorrelationVersion} = 'legacy-raw-v0'
+              AND ${table.providerEvidenceVersion} IS NULL
+              AND ${table.providerEvidenceSha256} IS NULL)
+            OR (${table.providerCorrelationVersion} = 'opaque-sha256-v1'
+              AND (
+                (${table.adapter} = 'gmail'
+                  AND ${table.dispatchBindingVersion} = 'gmail-raw-v1'
+                  AND ${table.dispatchBindingSha256} ~ '^[0-9a-f]{64}$'
+                  AND ${table.providerEvidenceVersion} =
+                    'gmail-header-evidence-v1'
+                  AND ${table.providerEvidenceSha256} ~ '^[0-9a-f]{64}$')
+                OR (${table.adapter} = 'console'
+                  AND ${table.dispatchBindingVersion} = 'console-json-v1'
+                  AND ${table.dispatchBindingSha256} ~ '^[0-9a-f]{64}$'
+                  AND ${table.providerEvidenceVersion} IS NULL
+                  AND ${table.providerEvidenceSha256} IS NULL)
+              ))
+          )) IS TRUE)`,
     ),
     check(
       "email_outbox_quarantine_evidence",

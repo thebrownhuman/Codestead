@@ -17,10 +17,16 @@ import type {
   ProviderCallPermit,
 } from "./outbox-worker";
 
-import type {
-  GmailReconciliationDispatchBinding,
-  GmailReconciliationFence,
+import {
+  gmailProofAuthorizesFence,
+  gmailReconciliationAuthority as classifyGmailReconciliationAuthority,
+  type GmailReconciliationFence,
+  type GmailReconciliationProof,
 } from "./gmail-reconciliation";
+import {
+  LEGACY_RAW_PROVIDER_CORRELATION_VERSION,
+  OPAQUE_SHA256_PROVIDER_CORRELATION_VERSION,
+} from "./provider-correlation";
 import {
   USER_AUTHORITY_ADVISORY_LOCK_SQL,
   USER_AUTHORITY_TRY_ADVISORY_LOCK_SQL,
@@ -133,22 +139,42 @@ type SweepCandidateRow = CandidateRow & {
   dispatch_binding_sha256: string | null;
 };
 
+
+type GmailReconciliationAuthority = Pick<
+  GmailReconciliationFence,
+  | "dispatchBindingVersion"
+  | "dispatchBindingSha256"
+  | "providerCorrelationVersion"
+  | "providerEvidenceVersion"
+  | "providerEvidenceSha256"
+>;
+
 type ReconciliationRow = CandidateRow & {
-    dispatch_binding_version: string | null;
-    dispatch_binding_sha256: string | null;
-    claim_token: string | null;
-    claim_owner: string | null;
-    lease_expires_at: string | null;
-    adapter: string;
-    status: string;
-    provider_call_started: string;
-    provider_message_id: string | null;
-    sent_at: string | null;
-    quarantined_at: string | null;
-    last_error_code: string | null;
-  };
-const UUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  claim_token: string | null;
+  claim_owner: string | null;
+  lease_expires_at: string | null;
+  adapter: string;
+  status: string;
+  provider_call_started: string;
+  dispatch_binding_version: string | null;
+  dispatch_binding_sha256: string | null;
+  provider_correlation_version: string | null;
+  provider_evidence_version: string | null;
+  provider_evidence_sha256: string | null;
+  provider_message_id: string | null;
+  sent_at: string | null;
+  quarantined_at: string | null;
+  last_error_code: string | null;
+};
+type ReconciliationTerminalRow = TerminalRow & {
+  dispatch_binding_version: string | null;
+  dispatch_binding_sha256: string | null;
+  provider_correlation_version: string | null;
+  provider_evidence_version: string | null;
+  provider_evidence_sha256: string | null;
+};
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const LOWERCASE_SHA256 = /^[0-9a-f]{64}$/;
 const ADAPTERS = new Set(["console", "gmail"]);
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 
@@ -170,6 +196,58 @@ function assertLeaseMs(value: number) {
       "Outbox lease must be an integer from 15000 to 300000 milliseconds.",
     );
   }
+}
+
+function gmailReconciliationAuthority(input: Readonly<{
+  dispatch_binding_version: string | null;
+  dispatch_binding_sha256: string | null;
+  provider_correlation_version: string | null;
+  provider_evidence_version: string | null;
+  provider_evidence_sha256: string | null;
+}>): GmailReconciliationAuthority | null {
+  const {
+    dispatch_binding_version: dispatchBindingVersion,
+    dispatch_binding_sha256: dispatchBindingSha256,
+    provider_correlation_version: providerCorrelationVersion,
+    provider_evidence_version: providerEvidenceVersion,
+    provider_evidence_sha256: providerEvidenceSha256,
+  } = input;
+  if (providerCorrelationVersion === LEGACY_RAW_PROVIDER_CORRELATION_VERSION) {
+    const bindingIsGrandfathered =
+      dispatchBindingVersion === null && dispatchBindingSha256 === null;
+    const bindingIsReviewedRaw =
+      dispatchBindingVersion === "gmail-raw-v1"
+      && typeof dispatchBindingSha256 === "string"
+      && LOWERCASE_SHA256.test(dispatchBindingSha256);
+    if (
+      (!bindingIsGrandfathered && !bindingIsReviewedRaw)
+      || providerEvidenceVersion !== null
+      || providerEvidenceSha256 !== null
+    ) return null;
+    return {
+      dispatchBindingVersion,
+      dispatchBindingSha256,
+      providerCorrelationVersion,
+      providerEvidenceVersion: null,
+      providerEvidenceSha256: null,
+    };
+  }
+  if (
+    providerCorrelationVersion !== OPAQUE_SHA256_PROVIDER_CORRELATION_VERSION
+    || dispatchBindingVersion !== "gmail-raw-v1"
+    || typeof dispatchBindingSha256 !== "string"
+    || !LOWERCASE_SHA256.test(dispatchBindingSha256)
+    || providerEvidenceVersion !== "gmail-header-evidence-v1"
+    || typeof providerEvidenceSha256 !== "string"
+    || !LOWERCASE_SHA256.test(providerEvidenceSha256)
+  ) return null;
+  return {
+    dispatchBindingVersion,
+    dispatchBindingSha256,
+    providerCorrelationVersion,
+    providerEvidenceVersion,
+    providerEvidenceSha256,
+  };
 }
 
 function asDate(value: Date | string, name: string) {
@@ -895,31 +973,6 @@ function exactBindingFromRow(
     adapter,
   );
 }
-function gmailReconciliationBinding(
-  bindingVersion: string | null,
-  bindingSha256: string | null,
-): GmailReconciliationDispatchBinding | null {
-  if (bindingVersion === null && bindingSha256 === null) {
-    return Object.freeze({
-      kind: "legacy-unbound" as const,
-      bindingVersion: null,
-      bindingSha256: null,
-    });
-  }
-  if (
-    bindingVersion === "gmail-raw-v1" &&
-    bindingSha256 !== null &&
-    SHA256_HEX.test(bindingSha256)
-  ) {
-    return Object.freeze({
-      kind: "exact-bound" as const,
-      bindingVersion,
-      bindingSha256: bindingSha256 as ProviderPayloadSha256,
-    });
-  }
-  return null;
-}
-
 function exactTerminalFence(
   row: TerminalRow,
   permit: ProviderCallPermit,
@@ -1117,8 +1170,10 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                claim_version, claim_token::text, claim_owner,
                lease_expires_at::text, adapter, status::text,
                provider_call_started::text, provider_message_id,
-               sent_at::text, quarantined_at::text, last_error_code,
-               dispatch_binding_version, dispatch_binding_sha256
+               dispatch_binding_version, dispatch_binding_sha256,
+               provider_correlation_version, provider_evidence_version,
+               provider_evidence_sha256, sent_at::text,
+               quarantined_at::text, last_error_code
         from public.email_outbox
         where operation_id = $1::uuid
           and adapter = 'gmail'
@@ -1167,19 +1222,16 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         throw new Error("Outbox reconciliation claim version is invalid.");
       }
       if (
-        row.adapter !== "gmail" ||
-        typeof row.provider_call_started !== "string"
+        row.adapter !== "gmail"
+        || row.provider_call_started === null
+        || typeof row.provider_call_started !== "string"
       ) {
         return { kind: "not-reconcilable" as const };
       }
-      const binding = gmailReconciliationBinding(
-        row.dispatch_binding_version,
-        row.dispatch_binding_sha256,
-      );
-      if (!binding) {
+      const reconciliationAuthority = gmailReconciliationAuthority(row);
+      if (reconciliationAuthority === null) {
         return { kind: "not-reconcilable" as const };
       }
-
       if (row.status === "sent") {
         if (
           row.claim_token === null &&
@@ -1223,7 +1275,6 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           ? null
           : assertBoundedText(row.claim_owner, "Outbox claim owner", 128);
       const fence: GmailReconciliationFence = {
-        ...binding,
         id: row.id,
         operationId: row.operation_id,
         claimVersion: row.claim_version,
@@ -1245,28 +1296,19 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           "Provider boundary",
           64,
         ),
-        quarantinedAt: assertBoundedText(
-          row.quarantined_at,
-          "Quarantine timestamp",
-          64,
-        ),
-        lastErrorCode: assertBoundedText(
-          row.last_error_code,
-          "Outbox error code",
-          80,
-        ),
+        ...reconciliationAuthority,
+        quarantinedAt: assertBoundedText(row.quarantined_at, "Quarantine timestamp", 64),
+        lastErrorCode: assertBoundedText(row.last_error_code, "Outbox error code", 80),
       };
       return { kind: "ready" as const, fence };
     });
   }
 
-  async finalizeGmailReconciliation(
-    input: Readonly<{
-      fence: GmailReconciliationFence;
-      providerMessageId: string;
-      bindingEvidence: GmailReconciliationDispatchBinding;
-    }>,
-  ) {
+  async finalizeGmailReconciliation(input: Readonly<{
+    fence: GmailReconciliationFence;
+    providerMessageId: string;
+    proof: GmailReconciliationProof;
+  }>) {
     const { fence } = input;
     assertUuid(fence.id, "Outbox ID");
     assertUuid(fence.operationId, "Outbox operation ID");
@@ -1275,24 +1317,6 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     }
     if (fence.adapter !== "gmail") {
       throw new Error("Outbox adapter is not Gmail.");
-    }
-    const fenceBinding = gmailReconciliationBinding(
-      fence.bindingVersion,
-      fence.bindingSha256,
-    );
-    const providerBindingEvidence = gmailReconciliationBinding(
-      input.bindingEvidence.bindingVersion,
-      input.bindingEvidence.bindingSha256,
-    );
-    if (
-      !fenceBinding ||
-      !providerBindingEvidence ||
-      fenceBinding.kind !== input.bindingEvidence.kind ||
-      providerBindingEvidence.kind !== fence.kind ||
-      providerBindingEvidence.bindingVersion !== fenceBinding.bindingVersion ||
-      providerBindingEvidence.bindingSha256 !== fenceBinding.bindingSha256
-    ) {
-      throw new Error("Gmail reconciliation binding evidence is invalid.");
     }
     if ((fence.claimToken === null) !== (fence.claimOwner === null)) {
       throw new Error("Outbox reconciliation claim authority is inconsistent.");
@@ -1323,15 +1347,28 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
       "Quarantine timestamp",
       64,
     );
-    const lastErrorCode = assertBoundedText(
-      fence.lastErrorCode,
-      "Outbox error code",
-      80,
-    );
-    const leaseExpiresAt =
-      fence.leaseExpiresAt === null
-        ? null
-        : assertBoundedText(fence.leaseExpiresAt, "Outbox lease expiry", 64);
+    const lastErrorCode = assertBoundedText(fence.lastErrorCode, "Outbox error code", 80);
+    const leaseExpiresAt = fence.leaseExpiresAt === null
+      ? null
+      : assertBoundedText(fence.leaseExpiresAt, "Outbox lease expiry", 64);
+    const reconciliationAuthority = gmailReconciliationAuthority({
+      dispatch_binding_version: fence.dispatchBindingVersion,
+      dispatch_binding_sha256: fence.dispatchBindingSha256,
+      provider_correlation_version: fence.providerCorrelationVersion,
+      provider_evidence_version: fence.providerEvidenceVersion,
+      provider_evidence_sha256: fence.providerEvidenceSha256,
+    });
+    if (reconciliationAuthority === null) {
+      return { kind: "lost" as const };
+    }
+    const authorityClass = classifyGmailReconciliationAuthority(fence);
+    if (
+      authorityClass === null
+      || authorityClass.kind === "legacy-unbound-v0"
+      || !gmailProofAuthorizesFence(authorityClass, input.proof)
+    ) {
+      return { kind: "lost" as const };
+    }
 
     return transaction(this.pool, async (client) => {
       await advisoryLock(client, scope.lockKey, true);
@@ -1354,134 +1391,40 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and last_error_code = $12::text
           and dispatch_binding_version is not distinct from $13::text
           and dispatch_binding_sha256 is not distinct from $14::text
+          and provider_correlation_version = $15::text
+          and provider_evidence_version is not distinct from $16::text
+          and provider_evidence_sha256 is not distinct from $17::text
           and provider_message_id is null
           and sent_at is null
           and status = 'quarantined'
-        for update
-      `,
-        [
-          fence.id,
-          fence.operationId,
-          fence.claimVersion,
-          scope.userId,
-          scope.key,
-          fence.adapter,
-          fence.claimToken,
-          fence.claimOwner,
-          leaseExpiresAt,
-          providerCallStartedAt,
-          quarantinedAt,
-          lastErrorCode,
-          providerBindingEvidence.bindingVersion,
-          providerBindingEvidence.bindingSha256,
-        ],
-      );
-      const observedRow = observed.rows[0];
-      if (!observedRow) {
-        const existing = await client.query<{
-          status: string;
-          claim_version: number;
-          user_id: string | null;
-          delivery_scope_key: string;
-          adapter: string;
-          provider_message_id: string | null;
-          provider_call_started: Date | string | null;
-          sent_at: Date | string | null;
-          quarantined_at: Date | string | null;
-          last_error_code: string | null;
-          claim_token: string | null;
-          claim_owner: string | null;
-          lease_expires_at: Date | string | null;
-          dispatch_binding_version: string | null;
-          dispatch_binding_sha256: string | null;
-        }>(
-          `
-          select status::text, claim_version, user_id, delivery_scope_key,
-                 adapter, provider_message_id, provider_call_started, sent_at,
-                 quarantined_at, last_error_code, claim_token::text,
-                 claim_owner, lease_expires_at, dispatch_binding_version,
-                 dispatch_binding_sha256
-          from public.email_outbox
-          where id = $1::uuid
-            and operation_id = $2::uuid
-            and claim_version = $3::integer
-            and user_id is not distinct from $4::text
-            and delivery_scope_key = $5::text
-            and adapter = $6::text
-            and provider_call_started = $7::timestamptz
-            and dispatch_binding_version is not distinct from $8::text
-            and dispatch_binding_sha256 is not distinct from $9::text
-            and status = 'sent'
-            and claim_token is null
-            and claim_owner is null
-            and lease_expires_at is null
-            and provider_message_id is not null
-            and sent_at is not null
-            and quarantined_at is null
-            and last_error_code is null
-          for update
-        `,
-          [
-            fence.id,
-            fence.operationId,
-            fence.claimVersion,
-            scope.userId,
-            scope.key,
-            fence.adapter,
-            providerCallStartedAt,
-            providerBindingEvidence.bindingVersion,
-            providerBindingEvidence.bindingSha256,
-          ],
-        );
-        const terminal = existing.rows[0];
-        if (!terminal) return { kind: "lost" as const };
-        const exactFence =
-          terminal.status === "sent" &&
-          terminal.claim_version === fence.claimVersion &&
-          terminal.user_id === scope.userId &&
-          terminal.delivery_scope_key === scope.key &&
-          terminal.adapter === fence.adapter &&
-          terminal.provider_call_started !== null &&
-          asDate(terminal.provider_call_started, "Provider boundary").getTime() ===
-            asDate(providerCallStartedAt, "Provider boundary").getTime() &&
-          terminal.sent_at !== null &&
-          terminal.quarantined_at === null &&
-          terminal.last_error_code === null &&
-          terminal.claim_token === null &&
-          terminal.claim_owner === null &&
-          terminal.lease_expires_at === null &&
-          terminal.dispatch_binding_version ===
-            providerBindingEvidence.bindingVersion &&
-          terminal.dispatch_binding_sha256 ===
-            providerBindingEvidence.bindingSha256;
-        return exactFence && terminal.provider_message_id === providerMessageId
-          ? { kind: "already-applied" as const }
-          : { kind: "lost" as const };
-      }
-      const observedScope = deliveryScope(observedRow);
+      `, [
+        fence.id,
+        fence.operationId,
+        fence.claimVersion,
+        scope.userId,
+        scope.key,
+        fence.adapter,
+        fence.claimToken,
+        fence.claimOwner,
+        leaseExpiresAt,
+        providerCallStartedAt,
+        quarantinedAt,
+        lastErrorCode,
+        reconciliationAuthority.dispatchBindingVersion,
+        reconciliationAuthority.dispatchBindingSha256,
+        reconciliationAuthority.providerCorrelationVersion,
+        reconciliationAuthority.providerEvidenceVersion,
+        reconciliationAuthority.providerEvidenceSha256,
+      ]);
+      const row = observed.rows[0];
+      if (!row) return { kind: "lost" as const };
+      const observedScope = deliveryScope(row);
       if (observedScope.key !== scope.key) return { kind: "lost" as const };
 
-      const result = await client.query<{
-        status: string;
-        claim_version: number;
-        user_id: string | null;
-        delivery_scope_key: string;
-        adapter: string;
-        provider_message_id: string | null;
-        provider_call_started: Date | string | null;
-        sent_at: Date | string | null;
-        quarantined_at: Date | string | null;
-        last_error_code: string | null;
-        claim_token: string | null;
-        claim_owner: string | null;
-        lease_expires_at: Date | string | null;
-        dispatch_binding_version: string | null;
-        dispatch_binding_sha256: string | null;
-      }>(
-        `
+      const result = await client.query<ReconciliationTerminalRow>(`
         update public.email_outbox
         set status = 'sent',
-            provider_message_id = $15::text,
+            provider_message_id = $18::text,
             sent_at = pg_catalog.statement_timestamp(),
             quarantined_at = null,
             last_error_code = null,
@@ -1503,55 +1446,58 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and last_error_code = $12::text
           and dispatch_binding_version is not distinct from $13::text
           and dispatch_binding_sha256 is not distinct from $14::text
+          and provider_correlation_version = $15::text
+          and provider_evidence_version is not distinct from $16::text
+          and provider_evidence_sha256 is not distinct from $17::text
           and provider_message_id is null
           and sent_at is null
           and status = 'quarantined'
-        returning status::text, claim_version, user_id, delivery_scope_key,
-                  adapter, provider_message_id, provider_call_started, sent_at,
-                  quarantined_at, last_error_code, claim_token::text,
-                  claim_owner, lease_expires_at, dispatch_binding_version,
-                  dispatch_binding_sha256
-      `,
-        [
-          fence.id,
-          fence.operationId,
-          fence.claimVersion,
-          scope.userId,
-          scope.key,
-          fence.adapter,
-          fence.claimToken,
-          fence.claimOwner,
-          leaseExpiresAt,
-          providerCallStartedAt,
-          quarantinedAt,
-          lastErrorCode,
-          providerBindingEvidence.bindingVersion,
-          providerBindingEvidence.bindingSha256,
-          providerMessageId,
-        ],
-      );
+        returning status::text, claim_version, adapter, provider_message_id,
+                  provider_call_started, dispatch_binding_version,
+                  dispatch_binding_sha256, provider_correlation_version,
+                  provider_evidence_version, provider_evidence_sha256,
+                  sent_at, quarantined_at, last_error_code
+      `, [
+        fence.id,
+        fence.operationId,
+        fence.claimVersion,
+        scope.userId,
+        scope.key,
+        fence.adapter,
+        fence.claimToken,
+        fence.claimOwner,
+        leaseExpiresAt,
+        providerCallStartedAt,
+        quarantinedAt,
+        lastErrorCode,
+        reconciliationAuthority.dispatchBindingVersion,
+        reconciliationAuthority.dispatchBindingSha256,
+        reconciliationAuthority.providerCorrelationVersion,
+        reconciliationAuthority.providerEvidenceVersion,
+        reconciliationAuthority.providerEvidenceSha256,
+        providerMessageId,
+      ]);
       const updated = result.rows[0];
-      const exact =
-        updated?.status === "sent" &&
-        updated.claim_version === fence.claimVersion &&
-        updated.user_id === scope.userId &&
-        updated.delivery_scope_key === scope.key &&
-        updated.adapter === fence.adapter &&
-        updated.provider_message_id === providerMessageId &&
-        updated.provider_call_started !== null &&
-        asDate(updated.provider_call_started, "Provider boundary").getTime() ===
-          asDate(providerCallStartedAt, "Provider boundary").getTime() &&
-        updated.sent_at !== null &&
-        updated.quarantined_at === null &&
-        updated.last_error_code === null &&
-        updated.claim_token === null &&
-        updated.claim_owner === null &&
-        updated.lease_expires_at === null &&
-        updated.dispatch_binding_version ===
-          providerBindingEvidence.bindingVersion &&
-        updated.dispatch_binding_sha256 ===
-          providerBindingEvidence.bindingSha256;
       if (!updated) return { kind: "lost" as const };
+      const exact =
+        updated.status === "sent"
+        && updated.claim_version === fence.claimVersion
+        && updated.adapter === fence.adapter
+        && updated.provider_message_id === providerMessageId
+        && updated.provider_call_started !== null
+        && updated.dispatch_binding_version ===
+          reconciliationAuthority.dispatchBindingVersion
+        && updated.dispatch_binding_sha256 ===
+          reconciliationAuthority.dispatchBindingSha256
+        && updated.provider_correlation_version ===
+          reconciliationAuthority.providerCorrelationVersion
+        && updated.provider_evidence_version ===
+          reconciliationAuthority.providerEvidenceVersion
+        && updated.provider_evidence_sha256 ===
+          reconciliationAuthority.providerEvidenceSha256
+        && updated.sent_at !== null
+        && updated.quarantined_at === null
+        && updated.last_error_code === null;
       if (!exact) {
         throw new Error("Gmail reconciliation terminal proof mismatch.");
       }

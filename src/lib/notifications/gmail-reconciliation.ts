@@ -1,19 +1,34 @@
-import { outboxMessageId } from "./provider-correlation";
-import type { ProviderPayloadSha256 } from "./prepared-dispatch";
+import type { ProviderCorrelationVersion } from "./provider-correlation";
+import { outboxReconciliationMessageId } from
+  "./provider-correlation-reconciliation-internal";
 
-export type GmailReconciliationDispatchBinding =
-  | Readonly<{
-      kind: "legacy-unbound";
-      bindingVersion: null;
-      bindingSha256: null;
-    }>
-  | Readonly<{
-      kind: "exact-bound";
-      bindingVersion: "gmail-raw-v1";
-      bindingSha256: ProviderPayloadSha256;
-    }>;
+const LOWERCASE_SHA256 = /^[0-9a-f]{64}$/;
 
-type GmailReconciliationFenceBase = Readonly<{
+export type GmailReconciliationAuthority =
+  | { readonly kind: "legacy-unbound-v0" }
+  | {
+      readonly kind: "legacy-raw-bound-v1";
+      readonly adapterPayloadSha256: string;
+    }
+  | {
+      readonly kind: "opaque-header-v1";
+      readonly operationId: string;
+      readonly adapterPayloadSha256: string;
+      readonly providerEvidenceSha256: string;
+    };
+
+export type GmailReconciliationProof =
+  | { readonly kind: "legacy-discovery-v0" }
+  | {
+      readonly kind: "raw-sha256-v1";
+      readonly adapterPayloadSha256: string;
+    }
+  | {
+      readonly kind: "header-evidence-v1";
+      readonly providerEvidenceSha256: string;
+    };
+
+export type GmailReconciliationFence = Readonly<{
   id: string;
   operationId: string;
   claimVersion: number;
@@ -24,13 +39,69 @@ type GmailReconciliationFenceBase = Readonly<{
   leaseExpiresAt: string | null;
   adapter: "gmail";
   providerCallStartedAt: string;
+  dispatchBindingVersion: "gmail-raw-v1" | null;
+  dispatchBindingSha256: string | null;
+  providerCorrelationVersion: ProviderCorrelationVersion;
+  providerEvidenceVersion: "gmail-header-evidence-v1" | null;
+  providerEvidenceSha256: string | null;
   quarantinedAt: string;
   lastErrorCode: string;
 }>;
 
-export type GmailReconciliationFence = Readonly<
-  GmailReconciliationFenceBase & GmailReconciliationDispatchBinding
->;
+export function gmailReconciliationAuthority(
+  fence: GmailReconciliationFence,
+): GmailReconciliationAuthority | null {
+  if (fence.providerCorrelationVersion === "legacy-raw-v0") {
+    if (
+      fence.providerEvidenceVersion !== null
+      || fence.providerEvidenceSha256 !== null
+    ) return null;
+    if (
+      fence.dispatchBindingVersion === null
+      && fence.dispatchBindingSha256 === null
+    ) return { kind: "legacy-unbound-v0" };
+    if (
+      fence.dispatchBindingVersion === "gmail-raw-v1"
+      && typeof fence.dispatchBindingSha256 === "string"
+      && LOWERCASE_SHA256.test(fence.dispatchBindingSha256)
+    ) {
+      return {
+        kind: "legacy-raw-bound-v1",
+        adapterPayloadSha256: fence.dispatchBindingSha256,
+      };
+    }
+    return null;
+  }
+  if (
+    fence.providerCorrelationVersion !== "opaque-sha256-v1"
+    || fence.dispatchBindingVersion !== "gmail-raw-v1"
+    || typeof fence.dispatchBindingSha256 !== "string"
+    || !LOWERCASE_SHA256.test(fence.dispatchBindingSha256)
+    || fence.providerEvidenceVersion !== "gmail-header-evidence-v1"
+    || typeof fence.providerEvidenceSha256 !== "string"
+    || !LOWERCASE_SHA256.test(fence.providerEvidenceSha256)
+  ) return null;
+  return {
+    kind: "opaque-header-v1",
+    operationId: fence.operationId,
+    adapterPayloadSha256: fence.dispatchBindingSha256,
+    providerEvidenceSha256: fence.providerEvidenceSha256,
+  };
+}
+
+export function gmailProofAuthorizesFence(
+  authority: GmailReconciliationAuthority,
+  proof: GmailReconciliationProof,
+) {
+  return (
+    (authority.kind === "legacy-raw-bound-v1"
+      && proof.kind === "raw-sha256-v1"
+      && proof.adapterPayloadSha256 === authority.adapterPayloadSha256)
+    || (authority.kind === "opaque-header-v1"
+      && proof.kind === "header-evidence-v1"
+      && proof.providerEvidenceSha256 === authority.providerEvidenceSha256)
+  );
+}
 
 export interface GmailReconciliationStore {
   findGmailReconciliationFence(input: Readonly<{
@@ -44,7 +115,7 @@ export interface GmailReconciliationStore {
   finalizeGmailReconciliation(input: Readonly<{
     fence: GmailReconciliationFence;
     providerMessageId: string;
-    bindingEvidence: GmailReconciliationDispatchBinding;
+    proof: GmailReconciliationProof;
   }>): Promise<
     | { readonly kind: "applied" }
     | { readonly kind: "already-applied" }
@@ -53,17 +124,17 @@ export interface GmailReconciliationStore {
 }
 
 export interface GmailCorrelationLookup {
-  findByMessageId(
-    messageId: string,
-    expectedBinding: GmailReconciliationDispatchBinding,
-  ): Promise<
+  findByMessageId(input: Readonly<{
+    messageId: string;
+    authority: GmailReconciliationAuthority;
+  }>): Promise<
     | { readonly kind: "not-found" }
     | { readonly kind: "ambiguous" }
-    | Readonly<{
-        kind: "matched";
-        providerMessageId: string;
-        bindingEvidence: GmailReconciliationDispatchBinding;
-      }>
+    | {
+        readonly kind: "matched";
+        readonly providerMessageId: string;
+        readonly proof: GmailReconciliationProof;
+      }
   >;
 }
 
@@ -72,6 +143,7 @@ export type GmailReconciliationResult =
   | { readonly kind: "not-found" }
   | { readonly kind: "ambiguous" }
   | { readonly kind: "matched" }
+  | { readonly kind: "unverified-discovery" }
   | { readonly kind: "applied" }
   | { readonly kind: "already-applied" }
   | { readonly kind: "fence-lost" };
@@ -96,22 +168,44 @@ export async function reconcileGmailDelivery(
   });
   if (candidate.kind !== "ready") return candidate;
 
+  if (
+    typeof candidate.fence.providerCallStartedAt !== "string"
+    || candidate.fence.providerCallStartedAt.trim() === ""
+  ) {
+    return { kind: "not-reconcilable" };
+  }
+
+  const authority = gmailReconciliationAuthority(candidate.fence);
+  if (authority === null) {
+    return { kind: "not-reconcilable" };
+  }
+  let correlationMessageId: string;
+  try {
+    correlationMessageId = outboxReconciliationMessageId(
+      candidate.fence.operationId,
+      candidate.fence.providerCorrelationVersion,
+    );
+  } catch {
+    return { kind: "not-reconcilable" };
+  }
   const lookup = await deps.gmail.findByMessageId(
-    outboxMessageId(candidate.fence.operationId),
-    candidate.fence,
+    { messageId: correlationMessageId, authority },
   );
   if (lookup.kind !== "matched") return lookup;
-  const exactBindingEvidence =
-    lookup.bindingEvidence.kind === candidate.fence.kind &&
-    lookup.bindingEvidence.bindingVersion === candidate.fence.bindingVersion &&
-    lookup.bindingEvidence.bindingSha256 === candidate.fence.bindingSha256;
-  if (!exactBindingEvidence) return { kind: "ambiguous" };
+  if (authority.kind === "legacy-unbound-v0") {
+    return lookup.proof.kind === "legacy-discovery-v0"
+      ? { kind: "unverified-discovery" }
+      : { kind: "ambiguous" };
+  }
+  if (!gmailProofAuthorizesFence(authority, lookup.proof)) {
+    return { kind: "ambiguous" };
+  }
   if (!input.apply) return { kind: "matched" };
 
   const finalized = await deps.store.finalizeGmailReconciliation({
     fence: candidate.fence,
     providerMessageId: lookup.providerMessageId,
-    bindingEvidence: lookup.bindingEvidence,
+    proof: lookup.proof,
   });
   return finalized.kind === "lost" ? { kind: "fence-lost" } : finalized;
 }
