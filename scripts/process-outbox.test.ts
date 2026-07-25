@@ -363,7 +363,7 @@ describe("mail worker production composition", () => {
     await vi.waitFor(() => expect(exit).toHaveBeenCalledExactlyOnceWith(1));
 
     expect(process.exitCode).toBe(1);
-    expect(mocks.health.retry).toHaveBeenCalledExactlyOnceWith(failure);
+    expect(mocks.health.retry).not.toHaveBeenCalled();
     expect(mocks.health.terminalFailure)
       .toHaveBeenCalledExactlyOnceWith(failure);
     expect(mocks.poolEnd.mock.invocationCallOrder[0]).toBeLessThan(
