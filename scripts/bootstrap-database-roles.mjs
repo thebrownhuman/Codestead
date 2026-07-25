@@ -307,7 +307,7 @@ export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY_TRIGGERS = Object.freeze([
     type: 19,
     predicate: null,
     arguments: Object.freeze([]),
-    watchedColumns: Object.freeze(["id", "email", "role", "banned", "status"]),
+    watchedColumns: Object.freeze(["id", "email", "role", "status", "banned"]),
   }),
   Object.freeze({
     relation: 'public."user"',

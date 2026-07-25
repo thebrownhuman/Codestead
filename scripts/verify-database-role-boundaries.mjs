@@ -1151,6 +1151,7 @@ export async function verifyDatabaseRoleBoundaries(options) {
       positiveChecks += await verifyBackupStatusMailAuthorityObjects(
         lockClient,
         RESTRICTED_ROLE_NAMES,
+        { verifyGuardState: false },
       );
     }
     for (const [name] of ROLE_SPECS) {

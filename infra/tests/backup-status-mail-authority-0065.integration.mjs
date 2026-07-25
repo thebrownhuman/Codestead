@@ -352,8 +352,8 @@ async function main() {
         id text PRIMARY KEY,
         email text NOT NULL,
         role text NOT NULL,
-        status text NOT NULL,
-        banned boolean DEFAULT false NOT NULL
+        banned boolean DEFAULT false NOT NULL,
+        status text NOT NULL
       );
       CREATE TABLE public.email_outbox (
         id uuid PRIMARY KEY,

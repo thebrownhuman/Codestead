@@ -27,6 +27,7 @@ describe("disposable integration runtime home", () => {
       databaseMigratorUrl: "postgresql://explicit-migrator",
       databaseWorkerUrl: "postgresql://explicit-worker",
       databaseOpsUrl: "postgresql://explicit-ops",
+      databaseBackupReporterUrl: "postgresql://explicit-reporter",
       databaseUrl: "postgresql://explicit-owner",
       betterAuthSecret: "explicit-integration-auth-secret",
     });

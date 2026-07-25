@@ -886,6 +886,22 @@ async function verifyRoutine(client, routine, restrictedRoles) {
   }
 }
 
+async function verifyGuardState(client) {
+  const result = await client.query(`
+    select pg_catalog.count(*) = 1
+           and pg_catalog.bool_and(
+             authority_guard.singleton is true
+             and authority_guard.authority_epoch is not null
+             and authority_guard.authority_epoch <>
+               '00000000-0000-0000-0000-000000000000'::uuid
+           ) guard_state_exact
+      from public.backup_status_mail_admin_guard authority_guard`);
+  if (
+    result.rows.length !== 1 ||
+    !exactTrueRow(result.rows[0], ["guard_state_exact"])
+  ) fail("guard-state");
+}
+
 async function verifyTriggers(client) {
   const result = await client.query(`
     with expected(
@@ -942,12 +958,22 @@ async function verifyTriggers(client) {
           )::oid,
           ARRAY(
             SELECT attribute.attnum::smallint
-              FROM pg_catalog.pg_attribute attribute
-             WHERE attribute.attrelid = pg_catalog.to_regclass('public."user"')
-               AND attribute.attname = ANY(
-                 ARRAY['id', 'email', 'role', 'status', 'banned']::name[]
-               )
-             ORDER BY attribute.attnum
+              FROM (
+                VALUES
+                  ('id'::name, 1::integer),
+                  ('email'::name, 2::integer),
+                  ('role'::name, 3::integer),
+                  ('status'::name, 4::integer),
+                  ('banned'::name, 5::integer)
+              ) expected_attribute(attribute_name, ordinal)
+              JOIN pg_catalog.pg_attribute attribute
+                ON attribute.attrelid = pg_catalog.to_regclass(
+                     'public."user"'
+                   )
+               AND attribute.attname = expected_attribute.attribute_name
+               AND attribute.attnum > 0
+               AND NOT attribute.attisdropped
+             ORDER BY expected_attribute.ordinal
           )::smallint[],
           true,
           0::smallint,
@@ -1012,16 +1038,6 @@ async function verifyTriggers(client) {
              ) is not null
              and pg_catalog.to_regclass('public."user"') is not null
            ) relations_present,
-           (
-             select pg_catalog.count(*) = 1
-                    and pg_catalog.bool_and(
-                      authority_guard.singleton is true
-                      and authority_guard.authority_epoch is not null
-                      and authority_guard.authority_epoch <>
-                        '00000000-0000-0000-0000-000000000000'::uuid
-                    )
-               from public.backup_status_mail_admin_guard authority_guard
-           ) guard_state_exact,
            not exists (
              select 1
                from (
@@ -1035,7 +1051,7 @@ async function verifyTriggers(client) {
     result.rows.length !== 1 ||
     !exactTrueRow(
       result.rows[0],
-      ["relations_present", "guard_state_exact", "triggers_exact"],
+      ["relations_present", "triggers_exact"],
     )
   ) fail("triggers");
 }
@@ -1043,11 +1059,19 @@ async function verifyTriggers(client) {
 export async function verifyBackupStatusMailAuthorityObjects(
   client,
   restrictedRoles,
+  options = {},
 ) {
   if (
     !Array.isArray(restrictedRoles) ||
     restrictedRoles.length === 0 ||
     new Set(restrictedRoles).size !== restrictedRoles.length
+  ) fail();
+  if (
+    options === null ||
+    typeof options !== "object" ||
+    Array.isArray(options) ||
+    Object.keys(options).some((key) => key !== "verifyGuardState") ||
+    ![undefined, true, false].includes(options.verifyGuardState)
   ) fail();
   for (const relation of BACKUP_STATUS_AUTHORITY_RELATIONS) {
     await verifyRestrictedRelation(client, relation, restrictedRoles);
@@ -1055,6 +1079,7 @@ export async function verifyBackupStatusMailAuthorityObjects(
   for (const routine of BACKUP_STATUS_AUTHORITY_ROUTINES) {
     await verifyRoutine(client, routine, restrictedRoles);
   }
+  if (options.verifyGuardState !== false) await verifyGuardState(client);
   await verifyTriggers(client);
   return 7;
 }

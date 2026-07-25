@@ -214,6 +214,10 @@ function disposableRoleUrls(
     migrator: loopback("learncoding_migrator", credentials.migrator),
     worker: loopback("learncoding_worker", credentials.worker),
     ops: loopback("learncoding_ops", credentials.ops),
+    backupReporter: loopback(
+      "learncoding_backup_reporter",
+      credentials.backupReporter,
+    ),
   };
 }
 
@@ -479,10 +483,12 @@ async function main() {
     roleCredentials.migrator,
     roleCredentials.worker,
     roleCredentials.ops,
+    roleCredentials.backupReporter,
     roleUrls.app,
     roleUrls.migrator,
     roleUrls.worker,
     roleUrls.ops,
+    roleUrls.backupReporter,
   ];
   const childController = createDisposableIntegrationChildController();
   const requestedImage = process.env.INTEGRATION_POSTGRES_IMAGE;
@@ -527,6 +533,7 @@ async function main() {
         databaseMigratorUrl: roleUrls.migrator,
         databaseWorkerUrl: roleUrls.worker,
         databaseOpsUrl: roleUrls.ops,
+        databaseBackupReporterUrl: roleUrls.backupReporter,
         databaseUrl: ownerDatabaseUrl,
         betterAuthSecret,
       });

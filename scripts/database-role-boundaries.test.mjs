@@ -562,6 +562,13 @@ function makeClient(role, database, options) {
           ],
         };
       }
+      if (normalized.includes("guard_state_exact")) {
+        return {
+          rows: [{
+            guard_state_exact: options.backupContractTamper !== "guard-state",
+          }],
+        };
+      }
       if (normalized.includes("triggers_exact")) {
         return {
           rows: [
@@ -740,6 +747,11 @@ function makeClient(role, database, options) {
           sql_body_exact: true,
           effective_execute_exact: tamper !== "routine-effective-acl",
           direct_acl_exact: tamper !== "routine-direct-acl",
+        }] };
+      }
+      if (normalized.includes("guard_state_exact")) {
+        return { rows: [{
+          guard_state_exact: options.backupContractTamper !== "guard-state",
         }] };
       }
       if (normalized.includes("triggers_exact")) {
@@ -1162,6 +1174,13 @@ test("proves application-object access without mutating application rows", async
     reporterQueries.some((sql) => sql.startsWith("explain (format json)")),
     false,
   );
+  const opsQueries = harness.clients.get("learncoding_ops").queries;
+  assert.equal(
+    opsQueries.some((sql) =>
+      sql.includes("from public.backup_status_mail_admin_guard authority_guard")
+    ),
+    false,
+  );
 });
 
 test("requires the exact reviewed 0062 through 0064 routine contracts in application-object mode", async () => {
@@ -1301,6 +1320,15 @@ test("requires the exact reviewed 0062 through 0064 routine contracts in applica
 });
 
 test("requires exact reviewed trigger and worker outbox catalog contracts", async () => {
+  const backupAdminUpdateTrigger = REVIEWED_APPLICATION_TRIGGERS.find(
+    ({ name }) => name === "backup_status_mail_admin_update_lock",
+  );
+  assert.deepEqual(
+    backupAdminUpdateTrigger?.watchedColumns,
+    ["id", "email", "role", "status", "banned"],
+    "reviewed tgattr columns must preserve the migration declaration order",
+  );
+
   const verified = makePoolHarness();
   const result = await verifyDatabaseRoleBoundaries({
     ...validInput(),

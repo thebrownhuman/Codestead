@@ -85,6 +85,11 @@ function exactClient(tamper = "") {
         ]));
         return { rows: [row] };
       }
+      if (normalized.includes("guard_state_exact")) {
+        return { rows: [{
+          guard_state_exact: tamper !== "guard-state",
+        }] };
+      }
       if (normalized.includes("triggers_exact")) {
         return { rows: [{
           relations_present: true,
@@ -191,7 +196,7 @@ test("verifies the exact owner-inclusive 0065 security manifest", async () => {
     assert.equal(relation.reloptions, null);
     assert.equal(relation.tablespace, 0);
   }
-  assert.equal(client.calls.length, 7);
+  assert.equal(client.calls.length, 8);
   for (const [index, relation] of
     BACKUP_STATUS_AUTHORITY_RELATIONS.entries()) {
     assert.deepEqual(client.calls[index].parameters, [
@@ -241,6 +246,23 @@ test("verifies the exact owner-inclusive 0065 security manifest", async () => {
   }
 });
 
+test("supports catalog-only verification for a zero-DML restricted role", async () => {
+  const client = exactClient("guard-state");
+  assert.equal(
+    await verifyBackupStatusMailAuthorityObjects(
+      client,
+      restrictedRoles,
+      { verifyGuardState: false },
+    ),
+    7,
+  );
+  assert.equal(
+    client.calls.some(({ normalized }) => normalized.includes("guard_state_exact")),
+    false,
+  );
+  assert.equal(client.calls.length, 7);
+});
+
 test("includes owners, grantors, grant options, columns, and exact triggers", () => {
   const source = readFileSync(
     new URL("./verify-backup-status-mail-authority.mjs", import.meta.url),
@@ -279,6 +301,11 @@ test("includes owners, grantors, grant options, columns, and exact triggers", ()
   assert.match(source, /'backup_status_mail_admin_insert_lock'::name,\s*7::smallint/u);
   assert.match(source, /'backup_status_mail_admin_update_lock'::name,\s*19::smallint/u);
   assert.match(source, /'backup_status_mail_admin_delete_lock'::name,\s*11::smallint/u);
+  assert.match(
+    source,
+    /\('id'::name, 1::integer\),\s*\('email'::name, 2::integer\),\s*\('role'::name, 3::integer\),\s*\('status'::name, 4::integer\),\s*\('banned'::name, 5::integer\)/u,
+  );
+  assert.match(source, /order by expected_attribute\.ordinal/iu);
   assert.match(source, /trigger\.tgnargs/u);
   assert.match(source, /pg_catalog\.octet_length\(trigger\.tgargs\)/u);
 });
