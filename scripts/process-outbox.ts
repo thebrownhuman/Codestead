@@ -18,6 +18,7 @@ import {
 } from "../src/lib/notifications/postgres-outbox-store";
 import { scheduleSmartReminders } from "../src/lib/notifications/smart-reminders";
 import {
+  FatalProviderTransportError,
   processOutboxBatch,
   type ItemOutcome,
   type ProcessOutboxBatchResult,
@@ -208,15 +209,22 @@ async function processBatch(
           };
         } catch (error) {
           const failure = classifyMailDeliveryError(error);
-          return failure.kind === "definitely-rejected"
-            ? {
-                kind: "definitely-rejected" as const,
-                code: failure.code,
-              }
-            : {
-                kind: "ambiguous" as const,
-                code: failure.code,
-              };
+          if (failure.kind === "definitely-rejected") {
+            return {
+              kind: "definitely-rejected" as const,
+              code: failure.code,
+            };
+          }
+          if (failure.kind === "fatal") {
+            return {
+              kind: "fatal" as const,
+              code: failure.code,
+            };
+          }
+          return {
+            kind: "ambiguous" as const,
+            code: failure.code,
+          };
         }
       },
     },
@@ -365,9 +373,13 @@ async function main() {
 }
 
 installTerminationHandlers();
+let hardFailStop = false;
 main()
   .catch((error) => {
-    healthReporter?.retry(error);
+    hardFailStop = error instanceof FatalProviderTransportError;
+    if (!hardFailStop) {
+      healthReporter?.retry(error);
+    }
     healthReporter?.terminalFailure(error);
     console.error(
       JSON.stringify({
@@ -377,4 +389,10 @@ main()
     );
     process.exitCode = 1;
   })
-  .finally(cleanup);
+  .finally(async () => {
+    await cleanup();
+    if (hardFailStop) {
+      // A transport that ignored abort cannot safely share this process again.
+      process.exit(1);
+    }
+  });

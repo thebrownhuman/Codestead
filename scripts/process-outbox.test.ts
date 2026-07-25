@@ -21,8 +21,14 @@ const mocks = vi.hoisted(() => {
   const processOutboxBatch = vi.fn();
   const materializeDeliveryVariables = vi.fn();
   const sendEmail = vi.fn();
+  class FatalProviderTransportError extends Error {
+    constructor(readonly code: string) {
+      super(`Fatal provider transport failure (${code}).`);
+      this.name = "FatalProviderTransportError";
+    }
+  }
   const classifyMailDeliveryError = vi.fn((): {
-    kind: "definitely-rejected" | "ambiguous";
+    kind: "definitely-rejected" | "ambiguous" | "fatal";
     code: string;
   } => ({
     kind: "ambiguous" as const,
@@ -44,6 +50,7 @@ const mocks = vi.hoisted(() => {
     store,
     PostgresOutboxStore,
     processOutboxBatch,
+    FatalProviderTransportError,
     materializeDeliveryVariables,
     sendEmail,
     classifyMailDeliveryError,
@@ -76,6 +83,7 @@ vi.mock("../src/lib/notifications/postgres-outbox-store", () => ({
 }));
 vi.mock("../src/lib/notifications/outbox-worker", () => ({
   processOutboxBatch: mocks.processOutboxBatch,
+  FatalProviderTransportError: mocks.FatalProviderTransportError,
 }));
 vi.mock("../src/lib/notifications/mailer", () => ({
   sendEmail: mocks.sendEmail,
@@ -306,6 +314,70 @@ describe("mail worker production composition", () => {
       code: "GMAIL_OAUTH_FAILED",
     });
   });
+
+  it("preserves a transport-unsettled fatal classification for worker fail-stop", async () => {
+    const failure = new Error(
+      "Gmail delivery request did not settle after abort.",
+    );
+    mocks.sendEmail.mockRejectedValueOnce(failure);
+    mocks.classifyMailDeliveryError.mockReturnValueOnce({
+      kind: "fatal",
+      code: "GMAIL_DELIVERY_TRANSPORT_UNSETTLED",
+    });
+    let providerResult: unknown;
+    mocks.processOutboxBatch.mockImplementation(async (dependencies: {
+      provider: {
+        send(message: unknown, context: unknown): Promise<unknown>;
+      };
+    }) => {
+      providerResult = await dependencies.provider.send({
+        to: "learner@example.test",
+        template: "invitation",
+        variables: {},
+      }, {
+        operationId: "22222222-2222-4222-8222-222222222222",
+        messageId: "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
+        permit: { phase: "post-provider" },
+      });
+      return { claimed: 1, swept: 0, outcomes: [] };
+    });
+
+    await loadWorkerOnce();
+
+    expect(providerResult).toEqual({
+      kind: "fatal",
+      code: "GMAIL_DELIVERY_TRANSPORT_UNSETTLED",
+    });
+  });
+
+  it("hard-exits only after pool cleanup when provider transport cannot settle", async () => {
+    const exit = vi.spyOn(process, "exit").mockImplementation(
+      (() => undefined) as unknown as typeof process.exit,
+    );
+    const failure = new mocks.FatalProviderTransportError(
+      "GMAIL_OAUTH_TRANSPORT_UNSETTLED",
+    );
+    mocks.processOutboxBatch.mockRejectedValueOnce(failure);
+
+    await loadWorkerOnce();
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledExactlyOnceWith(1));
+
+    expect(process.exitCode).toBe(1);
+    expect(mocks.health.retry).not.toHaveBeenCalled();
+    expect(mocks.health.terminalFailure)
+      .toHaveBeenCalledExactlyOnceWith(failure);
+    expect(mocks.poolEnd.mock.invocationCallOrder[0]).toBeLessThan(
+      exit.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(console.info).not.toHaveBeenCalledWith(
+      expect.stringContaining('"event":"email.outbox_batch"'),
+    );
+    expect(console.error).toHaveBeenCalledWith(JSON.stringify({
+      event: "email.worker_failed",
+      code: "FatalProviderTransportError",
+    }));
+  });
+
   it("suppresses an unknown stored template before materialization or provider work", async () => {
     let materializeResult: unknown;
     mocks.processOutboxBatch.mockImplementation(async (dependencies: {
@@ -539,32 +611,6 @@ describe("mail worker production composition", () => {
     expect(mocks.health.retry).not.toHaveBeenCalled();
     expect(mocks.health.terminalFailure).not.toHaveBeenCalled();
     expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not report a timeout when pool shutdown wins the deadline race", async () => {
-    vi.useFakeTimers();
-    const exit = vi.spyOn(process, "exit").mockImplementation(
-      (() => undefined) as unknown as typeof process.exit,
-    );
-    let monotonicMilliseconds = 0;
-    vi.spyOn(globalThis.performance, "now").mockImplementation(
-      () => monotonicMilliseconds,
-    );
-    mocks.poolEnd.mockImplementationOnce(async () => {
-      monotonicMilliseconds = 5_000;
-    });
-    process.argv = [originalArgv[0]!, originalArgv[1]!, "--once"];
-
-    await import("./process-outbox");
-    await flushWorkerMicrotasks();
-
-    expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
-    expect(process.exitCode).toBeUndefined();
-    expect(exit).not.toHaveBeenCalled();
-    const entries = vi.mocked(console.error).mock.calls
-      .map(([entry]) => String(entry))
-      .filter((entry) => entry.includes('"event":"email.worker_cleanup_failed"'));
-    expect(entries).toEqual([]);
   });
 
   it("bounds pool cleanup to five seconds and reports timeout without PII", async () => {

@@ -8,6 +8,7 @@ import {
   type PreProviderExit,
   type ProviderCallPermit,
   type ProviderStartedClaim,
+  type ProviderSendResult,
 } from "../outbox-worker";
 
 type Payload = { readonly template: "invitation" };
@@ -71,7 +72,7 @@ function harness() {
     events.push("materialize");
     return { kind: "ready" as const, message: { to: "learner@example.test" } };
   });
-  const send = vi.fn(async () => {
+  const send = vi.fn(async (): Promise<ProviderSendResult> => {
     events.push("send");
     return { kind: "accepted" as const, providerMessageId: "gmail-1" };
   });
@@ -290,6 +291,28 @@ describe("fenced outbox worker", () => {
     );
   });
 
+
+  it.each([
+    "GMAIL_DELIVERY_TRANSPORT_UNSETTLED",
+    "GMAIL_OAUTH_TRANSPORT_UNSETTLED",
+  ])("fails stop without terminal persistence or retry for fatal %s", async (
+    fatalCode,
+  ) => {
+    const input = harness();
+    input.send.mockResolvedValueOnce({
+      kind: "fatal",
+      code: fatalCode,
+    });
+    const { result } = run(input);
+
+    await expect(result).rejects.toThrow(
+      `Fatal provider transport failure (${fatalCode}).`,
+    );
+    expect(input.send).toHaveBeenCalledOnce();
+    expect(input.store.finishAfterProvider).not.toHaveBeenCalled();
+    expect(input.store.claimNext).toHaveBeenCalledOnce();
+    expect(input.store.finishBeforeProvider).not.toHaveBeenCalled();
+  });
   it("defensively quarantines an accepted response with a blank provider ID", async () => {
     const input = harness();
     input.send.mockResolvedValueOnce({
