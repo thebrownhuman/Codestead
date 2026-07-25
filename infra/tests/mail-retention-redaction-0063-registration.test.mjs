@@ -3,11 +3,13 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import os from "node:os";
@@ -75,6 +77,7 @@ assert.doesNotMatch(
 
 const {
   buildNativeChildSpawnOptions,
+  buildPostgresServerOptions,
   createNativeChildFilesystem,
   outwardFailureCode,
   parseChildJsonOutput,
@@ -150,38 +153,57 @@ const posixFilesystem = Object.freeze({
   tempDirectory:
     "/tmp/codestead-mail-retention-0063-pg18-posix-model/tmp",
 });
+const posixPostgresBin = "/usr/lib/postgresql/18/bin";
 const posixEnvironment = buildNativeChildSpawnOptions(
   { label: "posix_model" },
   {
-    PATH: "/reviewed/bin",
+    PATH: "/home/ambient-profile/.local/bin:/reviewed/bin",
     path: "/unreviewed/lowercase/bin",
     LANG: "C.UTF-8",
-    HOME: "/ambient/home-secret",
+    HOME: "/home/ambient-profile",
     TEMP: "/ambient/temp-secret",
+    TMPDIR: "/ambient/tmpdir-secret",
     ...seededSecretEnvironment,
   },
-  { POSTGRES_18_BIN: "/usr/lib/postgresql/18/bin" },
+  { POSTGRES_18_BIN: posixPostgresBin },
   posixFilesystem,
   "linux",
 ).env;
 assert.deepEqual(posixEnvironment, {
-  PATH: "/reviewed/bin",
+  PATH: `${posixPostgresBin}:/usr/bin:/bin`,
   LANG: "C.UTF-8",
   HOME: posixFilesystem.profileDirectory,
   TEMP: posixFilesystem.tempDirectory,
   TMP: posixFilesystem.tempDirectory,
-  POSTGRES_18_BIN: "/usr/lib/postgresql/18/bin",
+  TMPDIR: posixFilesystem.tempDirectory,
+  POSTGRES_18_BIN: posixPostgresBin,
   PGCONNECT_TIMEOUT: "5",
   PSQL_HISTORY: "/dev/null",
 });
+assert.equal(posixEnvironment.PATH.includes("/home/ambient-profile"), false);
 const posixLowercaseOnly = buildNativeChildSpawnOptions(
   { label: "posix_lowercase_model" },
-  { path: "/unreviewed/lowercase/bin" },
-  { POSTGRES_18_BIN: "/usr/lib/postgresql/18/bin" },
+  { path: "/home/ambient-profile/unreviewed/bin" },
+  { POSTGRES_18_BIN: posixPostgresBin },
   posixFilesystem,
   "linux",
 ).env;
-assert.equal(Object.hasOwn(posixLowercaseOnly, "PATH"), false);
+assert.equal(
+  posixLowercaseOnly.PATH,
+  `${posixPostgresBin}:/usr/bin:/bin`,
+);
+const posixLowercasePostgresFailure = captureFailure(() =>
+  buildNativeChildSpawnOptions(
+    { label: "posix_lowercase_postgres_model" },
+    { PATH: "/home/ambient-profile/bin", HOME: "/home/ambient-profile" },
+    { postgres_18_bin: posixPostgresBin },
+    posixFilesystem,
+    "linux",
+  ));
+assertSafeFailure(
+  posixLowercasePostgresFailure,
+  "invalid_child_environment_input",
+);
 
 const windowsFilesystem = Object.freeze({
   taskRoot: "C:\\Temp\\codestead-mail-retention-0063-pg18-windows-model",
@@ -190,27 +212,33 @@ const windowsFilesystem = Object.freeze({
   tempDirectory:
     "C:\\Temp\\codestead-mail-retention-0063-pg18-windows-model\\tmp",
 });
+const windowsPostgresBin = "C:\\PostgreSQL\\18\\bin";
 const windowsEnvironment = buildNativeChildSpawnOptions(
   { label: "windows_model" },
   {
-    Path: "C:\\reviewed-bin",
+    Path: "C:\\Users\\ambient-profile-secret\\bin;C:\\reviewed-bin",
     SYSTEMROOT: "C:\\Windows",
     windir: "C:\\Windows",
     COMSPEC: "C:\\Windows\\System32\\cmd.exe",
     pathext: ".COM;.EXE;.CMD",
     lang: "en_US.UTF-8",
-    HOME: "C:\\ambient-home-secret",
-    USERPROFILE: "C:\\ambient-profile-secret",
-    TEMP: "C:\\ambient-temp-secret",
+    HOME: "C:\\Users\\ambient-profile-secret",
+    USERPROFILE: "C:\\Users\\ambient-profile-secret",
+    TEMP: "C:\\Users\\ambient-profile-secret\\Temp",
     ...ambientIdentityEnvironment,
     ...seededSecretEnvironment,
   },
-  { POSTGRES_18_BIN: "C:\\PostgreSQL\\18\\bin" },
+  { POSTGRES_18_BIN: windowsPostgresBin },
   windowsFilesystem,
   "win32",
 ).env;
 assert.deepEqual(windowsEnvironment, {
-  PATH: "C:\\reviewed-bin",
+  PATH: [
+    windowsPostgresBin,
+    "C:\\Windows\\System32",
+    "C:\\Windows",
+    "C:\\Windows\\System32\\Wbem",
+  ].join(";"),
   SystemRoot: "C:\\Windows",
   WINDIR: "C:\\Windows",
   ComSpec: "C:\\Windows\\System32\\cmd.exe",
@@ -227,15 +255,43 @@ assert.deepEqual(windowsEnvironment, {
   SYSTEMDRIVE: "C:",
   USERDOMAIN: "CODESTEAD_TEST",
   USERNAME: "codestead_test",
-  POSTGRES_18_BIN: "C:\\PostgreSQL\\18\\bin",
+  POSTGRES_18_BIN: windowsPostgresBin,
   PGCONNECT_TIMEOUT: "5",
   PSQL_HISTORY: nullDeviceFor("win32"),
 });
+assert.equal(
+  windowsEnvironment.PATH.toLowerCase()
+    .includes("c:\\users\\ambient-profile-secret"),
+  false,
+);
+const windowsLowercasePostgresEnvironment = buildNativeChildSpawnOptions(
+  { label: "windows_lowercase_postgres_model" },
+  {
+    Path: "C:\\Users\\ambient-profile-secret\\bin",
+    SystemRoot: "C:\\Windows",
+  },
+  { postgres_18_bin: windowsPostgresBin },
+  windowsFilesystem,
+  "win32",
+).env;
+assert.equal(
+  windowsLowercasePostgresEnvironment.POSTGRES_18_BIN,
+  windowsPostgresBin,
+);
+assert.equal(
+  windowsLowercasePostgresEnvironment.PATH,
+  [
+    windowsPostgresBin,
+    "C:\\Windows\\System32",
+    "C:\\Windows",
+    "C:\\Windows\\System32\\Wbem",
+  ].join(";"),
+);
 assert.throws(
   () => buildNativeChildSpawnOptions(
     { label: "windows_duplicate_model" },
     { PATH: "first-path", Path: "duplicate-path" },
-    { POSTGRES_18_BIN: "C:\\PostgreSQL\\18\\bin" },
+    { POSTGRES_18_BIN: windowsPostgresBin },
     windowsFilesystem,
     "win32",
   ),
@@ -250,18 +306,35 @@ for (const invalidEnvironment of [
   },
   {
     POSTGRES_17_BIN: "/usr/lib/postgresql/17/bin",
-    POSTGRES_18_BIN: "/usr/lib/postgresql/18/bin",
+    POSTGRES_18_BIN: posixPostgresBin,
   },
 ]) {
   const error = captureFailure(() => buildNativeChildSpawnOptions(
     { label: "postgres_version" },
-    { PATH: "/reviewed/bin" },
+    { PATH: "/home/ambient-profile/bin", HOME: "/home/ambient-profile" },
     invalidEnvironment,
     posixFilesystem,
     "linux",
   ));
   assertSafeFailure(error, "invalid_child_environment_input");
 }
+
+const posixServerOptions = buildPostgresServerOptions(
+  55432,
+  posixFilesystem,
+  "linux",
+);
+assert.match(
+  posixServerOptions,
+  new RegExp(
+    `(?:^| )-c unix_socket_directories="${posixFilesystem.tempDirectory}"`,
+    "u",
+  ),
+);
+assert.doesNotMatch(
+  buildPostgresServerOptions(55432, windowsFilesystem, "win32"),
+  /unix_socket_directories/u,
+);
 
 const canaryTaskRoot = mkdtempSync(path.join(
   os.tmpdir(),
@@ -274,6 +347,10 @@ assert.match(
   path.basename(resolvedCanaryTaskRoot),
   /^codestead-mail-retention-0063-pg18-canary-/u,
 );
+const cleanupReportRoot = mkdtempSync(path.join(
+  os.tmpdir(),
+  "codestead-mail-retention-0063-cleanup-reports-",
+));
 try {
   const ambientProfile = path.join(canaryTaskRoot, "ambient-profile");
   mkdirSync(ambientProfile, { mode: 0o700 });
@@ -306,6 +383,7 @@ try {
     HOMEPATH: "\\ambient-profile-secret",
     TEMP: ambientProfile,
     TMP: ambientProfile,
+    TMPDIR: ambientProfile,
     POSTGRES_18_BIN: "ambient-postgres-bin-must-not-pass",
     PGCONNECT_TIMEOUT: "999999",
     PSQL_HISTORY: path.join(ambientProfile, ".psql_history"),
@@ -331,12 +409,35 @@ try {
   assert.equal(childOptions.env.HOME, childFilesystem.profileDirectory);
   assert.equal(childOptions.env.TEMP, childFilesystem.tempDirectory);
   assert.equal(childOptions.env.TMP, childFilesystem.tempDirectory);
+  if (process.platform === "win32") {
+    assert.equal(Object.hasOwn(childOptions.env, "TMPDIR"), false);
+  } else {
+    assert.equal(childOptions.env.TMPDIR, childFilesystem.tempDirectory);
+  }
   assert.equal(
     childOptions.env.POSTGRES_18_BIN,
     explicitPostgresEnvironment.POSTGRES_18_BIN,
   );
   assert.equal(childOptions.env.PGCONNECT_TIMEOUT, "5");
   assert.equal(childOptions.env.PSQL_HISTORY, nullDeviceFor(process.platform));
+  const ambientProfileSubstrings = [
+    process.env.USERPROFILE,
+    process.env.HOME,
+    ambientProfile,
+  ].filter((value, index, values) =>
+    typeof value === "string"
+    && value.length > 0
+    && values.indexOf(value) === index);
+  for (const profileSubstring of ambientProfileSubstrings) {
+    assert.equal(
+      childOptions.env.PATH.toLowerCase()
+        .includes(profileSubstring.toLowerCase()),
+      false,
+    );
+  }
+  const profileSubstringDigestSpecs = ambientProfileSubstrings
+    .map((value) => value.toLowerCase())
+    .map((value) => ({ digest: digest(value), length: value.length }));
   const serializedEnvironment = JSON.stringify(childOptions.env);
   for (const sensitiveValue of canaryAmbientValues) {
     assert.equal(serializedEnvironment.includes(sensitiveValue), false);
@@ -387,6 +488,20 @@ try {
           forbiddenValueHashes.has(digest(value))),
         false,
       );
+      const forbiddenPathSubstrings = JSON.parse(process.argv[4]);
+      const childPath = (process.env.PATH ?? "").toLowerCase();
+      for (const forbidden of forbiddenPathSubstrings) {
+        for (
+          let index = 0;
+          index <= childPath.length - forbidden.length;
+          index += 1
+        ) {
+          assert.notEqual(
+            digest(childPath.slice(index, index + forbidden.length)),
+            forbidden.digest,
+          );
+        }
+      }
       const profileRoots = process.platform === "win32"
         ? [
             process.env.HOME,
@@ -394,7 +509,9 @@ try {
             (process.env.HOMEDRIVE ?? "") + (process.env.HOMEPATH ?? ""),
           ]
         : [process.env.HOME];
-      const tempRoots = [process.env.TEMP, process.env.TMP];
+      const tempRoots = process.platform === "win32"
+        ? [process.env.TEMP, process.env.TMP]
+        : [process.env.TEMP, process.env.TMP, process.env.TMPDIR];
       assert.equal(profileRoots.every((value) => typeof value === "string"), true);
       assert.equal(tempRoots.every((value) => typeof value === "string"), true);
       assert.equal(
@@ -434,6 +551,7 @@ try {
       profileHash,
       tempHash,
       JSON.stringify(forbiddenValueHashes),
+      JSON.stringify(profileSubstringDigestSpecs),
     ],
     { label: "child_environment_canary" },
     seededParentEnvironment,
@@ -475,29 +593,114 @@ try {
   ));
   assertSafeFailure(spawnFailure, "canary_spawn_spawn_failed");
 
-  const retentionTemporaryRootNames = () => readdirSync(os.tmpdir())
-    .filter((name) =>
-      /^codestead-mail-retention-0063-pg(?:17|18)-/u.test(name))
-    .sort();
-  const rootsBeforeTopLevelCanary = retentionTemporaryRootNames();
+  const nestedTemporaryEntryNames = () =>
+    readdirSync(childFilesystem.tempDirectory, { withFileTypes: true })
+      .map((entry) =>
+        `${entry.name}:${entry.isDirectory() ? "directory" : "entry"}`)
+      .sort();
+  const integrationHarnessPath = fileURLToPath(
+    new URL(
+      "./mail-retention-redaction-0063.integration.mjs",
+      import.meta.url,
+    ),
+  );
+  const missingPostgresEnvironment = {
+    POSTGRES_18_BIN: path.join(
+      canaryTaskRoot,
+      "missing-postgres-bin",
+    ),
+  };
+  const readCleanupReport = (reportPath) => {
+    assert.equal(
+      existsSync(reportPath),
+      true,
+      "nested harness must leave its cleanup report before outer cleanup",
+    );
+    return JSON.parse(readFileSync(reportPath, "utf8"));
+  };
+  const assertInvalidCleanupReportPath = (reportPath) => {
+    const entriesBeforeInvalidReport = nestedTemporaryEntryNames();
+    const result = runNativeChild(
+      process.execPath,
+      [
+        integrationHarnessPath,
+        `--cleanup-report=${reportPath}`,
+      ],
+      { allowFailure: true, label: "canary_invalid_cleanup_report" },
+      seededParentEnvironment,
+      missingPostgresEnvironment,
+      childFilesystem,
+      process.platform,
+    );
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.equal(
+      result.stderr,
+      "mail_retention_0063=invalid_cleanup_report_path\n",
+    );
+    assert.deepEqual(
+      nestedTemporaryEntryNames(),
+      entriesBeforeInvalidReport,
+    );
+  };
+  const traversalReportPath = cleanupReportRoot
+    + path.sep
+    + ".."
+    + path.sep
+    + path.basename(cleanupReportRoot)
+    + path.sep
+    + "success.json";
+  assertInvalidCleanupReportPath(traversalReportPath);
+
+  const existingReportPath = path.join(
+    cleanupReportRoot,
+    "existing.json",
+  );
+  writeFileSync(existingReportPath, "preexisting-marker\n", {
+    encoding: "utf8",
+    flag: "wx",
+    mode: 0o600,
+  });
+  assertInvalidCleanupReportPath(existingReportPath);
+  assert.equal(
+    readFileSync(existingReportPath, "utf8"),
+    "preexisting-marker\n",
+  );
+
+  const symlinkReportPath = path.join(
+    cleanupReportRoot,
+    "symlink.json",
+  );
+  symlinkSync(
+    path.join(cleanupReportRoot, "missing-symlink-target"),
+    symlinkReportPath,
+    "file",
+  );
+  assertInvalidCleanupReportPath(symlinkReportPath);
+  assert.equal(existsSync(symlinkReportPath), false);
+  const expectedSuccessfulCleanupReport = {
+    schemaVersion: 1,
+    cleanupVerified: true,
+    taskRootRemoved: true,
+    profileDirectoryRemoved: true,
+    tempDirectoryRemoved: true,
+    injectedLeakDetected: false,
+    recoveryVerified: true,
+  };
+  const entriesBeforeTopLevelCanary = nestedTemporaryEntryNames();
+  const successfulCleanupReportPath = path.join(
+    cleanupReportRoot,
+    "success.json",
+  );
   const topLevelResult = runNativeChild(
     process.execPath,
     [
-      fileURLToPath(
-        new URL(
-          "./mail-retention-redaction-0063.integration.mjs",
-          import.meta.url,
-        ),
-      ),
+      integrationHarnessPath,
+      `--cleanup-report=${successfulCleanupReportPath}`,
     ],
     { allowFailure: true, label: "canary_top_level" },
     seededParentEnvironment,
-    {
-      POSTGRES_18_BIN: path.join(
-        canaryTaskRoot,
-        "missing-postgres-bin",
-      ),
-    },
+    missingPostgresEnvironment,
     childFilesystem,
     process.platform,
   );
@@ -508,12 +711,72 @@ try {
     "mail_retention_0063=postgres_version_spawn_failed\n",
   );
   assert.deepEqual(
-    retentionTemporaryRootNames(),
-    rootsBeforeTopLevelCanary,
+    nestedTemporaryEntryNames(),
+    entriesBeforeTopLevelCanary,
   );
+  assert.deepEqual(
+    readCleanupReport(successfulCleanupReportPath),
+    expectedSuccessfulCleanupReport,
+  );
+
+  const entriesBeforeLeakInjection = nestedTemporaryEntryNames();
+  const injectedLeakReportPath = path.join(
+    cleanupReportRoot,
+    "injected-leak.json",
+  );
+  const injectedLeakResult = runNativeChild(
+    process.execPath,
+    [
+      integrationHarnessPath,
+      `--cleanup-report=${injectedLeakReportPath}`,
+      "--inject-cleanup-leak",
+    ],
+    { allowFailure: true, label: "canary_injected_cleanup_leak" },
+    seededParentEnvironment,
+    missingPostgresEnvironment,
+    childFilesystem,
+    process.platform,
+  );
+  assert.equal(injectedLeakResult.status, 1);
+  assert.equal(injectedLeakResult.stdout, "");
+  assert.equal(
+    injectedLeakResult.stderr,
+    "mail_retention_0063=temporary_postgres_cleanup_failed\n"
+      + "mail_retention_0063=postgres_version_spawn_failed\n",
+  );
+  assert.deepEqual(
+    nestedTemporaryEntryNames(),
+    entriesBeforeLeakInjection,
+  );
+  assert.deepEqual(
+    readCleanupReport(injectedLeakReportPath),
+    {
+      schemaVersion: 1,
+      cleanupVerified: false,
+      taskRootRemoved: false,
+      profileDirectoryRemoved: false,
+      tempDirectoryRemoved: false,
+      injectedLeakDetected: true,
+      recoveryVerified: true,
+    },
+  );
+  for (const reportPath of [
+    successfulCleanupReportPath,
+    injectedLeakReportPath,
+  ]) {
+    const serializedCleanupReport = readFileSync(reportPath, "utf8");
+    for (const sensitiveValue of canaryAmbientValues) {
+      assert.equal(serializedCleanupReport.includes(sensitiveValue), false);
+    }
+  }
   for (const sensitiveValue of seededSensitiveValues) {
     assert.equal(
       `${topLevelResult.stdout}${topLevelResult.stderr}`
+        .includes(sensitiveValue),
+      false,
+    );
+    assert.equal(
+      `${injectedLeakResult.stdout}${injectedLeakResult.stderr}`
         .includes(sensitiveValue),
       false,
     );
@@ -556,19 +819,34 @@ try {
     "unexpected_failure",
   );
 } finally {
+  const cleanupReportTarget = path.resolve(cleanupReportRoot);
   const cleanupTarget = path.resolve(canaryTaskRoot);
-  assert.equal(cleanupTarget, resolvedCanaryTaskRoot);
-  assert.ok(cleanupTarget.startsWith(resolvedOperatingSystemTemp));
-  assert.match(
-    path.basename(cleanupTarget),
-    /^codestead-mail-retention-0063-pg18-canary-/u,
-  );
-  rmSync(cleanupTarget, {
-    recursive: true,
-    force: true,
-    maxRetries: 10,
-    retryDelay: 100,
-  });
+  try {
+    assert.ok(cleanupReportTarget.startsWith(resolvedOperatingSystemTemp));
+    assert.match(
+      path.basename(cleanupReportTarget),
+      /^codestead-mail-retention-0063-cleanup-reports-/u,
+    );
+    rmSync(cleanupReportTarget, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 100,
+    });
+  } finally {
+    assert.equal(cleanupTarget, resolvedCanaryTaskRoot);
+    assert.ok(cleanupTarget.startsWith(resolvedOperatingSystemTemp));
+    assert.match(
+      path.basename(cleanupTarget),
+      /^codestead-mail-retention-0063-pg18-canary-/u,
+    );
+    rmSync(cleanupTarget, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 100,
+    });
+  }
 }
 
 if (!staticOnly) {
