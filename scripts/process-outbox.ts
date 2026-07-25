@@ -212,15 +212,22 @@ async function processBatch(
           };
         } catch (error) {
           const failure = classifyMailDeliveryError(error);
-          return failure.kind === "definitely-rejected"
-            ? {
-                kind: "definitely-rejected" as const,
-                code: failure.code,
-              }
-            : {
-                kind: "ambiguous" as const,
-                code: failure.code,
-              };
+          if (failure.kind === "definitely-rejected") {
+            return {
+              kind: "definitely-rejected" as const,
+              code: failure.code,
+            };
+          }
+          if (failure.kind === "fatal") {
+            return {
+              kind: "fatal" as const,
+              code: failure.code,
+            };
+          }
+          return {
+            kind: "ambiguous" as const,
+            code: failure.code,
+          };
         }
       },
     },

@@ -22,7 +22,7 @@ const mocks = vi.hoisted(() => {
   const materializeDeliveryVariables = vi.fn();
   const sendEmail = vi.fn();
   const classifyMailDeliveryError = vi.fn((): {
-    kind: "definitely-rejected" | "ambiguous";
+    kind: "definitely-rejected" | "ambiguous" | "fatal";
     code: string;
   } => ({
     kind: "ambiguous" as const,
@@ -304,6 +304,41 @@ describe("mail worker production composition", () => {
     expect(providerResult).toEqual({
       kind: "definitely-rejected",
       code: "GMAIL_OAUTH_FAILED",
+    });
+  });
+
+  it("preserves a transport-unsettled fatal classification for worker fail-stop", async () => {
+    const failure = new Error(
+      "Gmail delivery request did not settle after abort.",
+    );
+    mocks.sendEmail.mockRejectedValueOnce(failure);
+    mocks.classifyMailDeliveryError.mockReturnValueOnce({
+      kind: "fatal",
+      code: "GMAIL_DELIVERY_TRANSPORT_UNSETTLED",
+    });
+    let providerResult: unknown;
+    mocks.processOutboxBatch.mockImplementation(async (dependencies: {
+      provider: {
+        send(message: unknown, context: unknown): Promise<unknown>;
+      };
+    }) => {
+      providerResult = await dependencies.provider.send({
+        to: "learner@example.test",
+        template: "invitation",
+        variables: {},
+      }, {
+        operationId: "22222222-2222-4222-8222-222222222222",
+        messageId: "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
+        permit: { phase: "post-provider" },
+      });
+      return { claimed: 1, swept: 0, outcomes: [] };
+    });
+
+    await loadWorkerOnce();
+
+    expect(providerResult).toEqual({
+      kind: "fatal",
+      code: "GMAIL_DELIVERY_TRANSPORT_UNSETTLED",
     });
   });
   it("suppresses an unknown stored template before materialization or provider work", async () => {
