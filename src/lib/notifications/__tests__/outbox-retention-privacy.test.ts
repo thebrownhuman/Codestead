@@ -42,7 +42,7 @@ describe("mail outbox retention privacy", () => {
 
   it("redacts PII without destroying unresolved provider authority", () => {
     const source = retentionSource();
-    const redactStart = source.indexOf("const redactedEmailAuthority =");
+    const redactStart = source.indexOf("from public.redact_unresolved_email_outbox_authority(");
     const redactEnd = source.indexOf(
       "categories.unresolvedEmailDeliveryAuthority =",
       redactStart,
@@ -56,5 +56,17 @@ describe("mail outbox retention privacy", () => {
     );
     expect(redaction).toContain("$1::timestamptz, $2::integer");
     expect(redaction).not.toContain("update email_outbox");
+  });
+
+  it("contains redaction in a same-client savepoint and surfaces stable retry health", () => {
+    const source = retentionSource();
+
+    expect(source).toContain('client.query("savepoint retention_email_redaction")');
+    expect(source).toContain('client.query("rollback to savepoint retention_email_redaction")');
+    expect(source).toContain('client.query("release savepoint retention_email_redaction")');
+    expect(source).toContain("EMAIL_OUTBOX_REDACTION_RETRYABLE");
+    expect(source).toContain('outcome: "failed"');
+    expect(source).toContain('outcome: "completed_with_errors"');
+    expect(source).toContain("requiresRetry: true");
   });
 });

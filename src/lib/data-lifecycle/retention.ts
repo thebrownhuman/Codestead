@@ -17,6 +17,7 @@ import {
 
 const DEFAULT_BATCH_SIZE = 1_000;
 const MAX_BATCH_SIZE = 5_000;
+export const EMAIL_OUTBOX_REDACTION_RETRYABLE = "EMAIL_OUTBOX_REDACTION_RETRYABLE";
 
 type RetentionDependencies = Readonly<{
   processFileErasures?: typeof processFileErasures;
@@ -36,6 +37,8 @@ export type RetentionCategoryReport = Readonly<{
   retained: number;
   hasMore: boolean;
   transitioned?: number;
+  outcome?: "failed";
+  failureCode?: typeof EMAIL_OUTBOX_REDACTION_RETRYABLE;
   note?: string;
 }>;
 
@@ -47,15 +50,47 @@ export type RetentionReport = Readonly<{
   cutoffs: ReturnType<typeof retentionCutoffManifest>;
   categories: Readonly<Record<string, RetentionCategoryReport>>;
   objectFiles: Readonly<{ removed: number; alreadyAbsent: number; failed: number }>;
+  outcome: "succeeded" | "completed_with_errors";
+  requiresRetry: boolean;
   replayed: boolean;
 }>;
 
-type RetentionFileCheckpoint = Readonly<{
-  phase: "file_erasure_pending";
+type RetentionCheckpointBase = Readonly<{
   evaluatedAt: string;
   cutoffs: ReturnType<typeof retentionCutoffManifest>;
+  batchSize: number;
   categories: Readonly<Record<string, RetentionCategoryReport>>;
 }>;
+
+type RetentionRelationalCheckpoint = RetentionCheckpointBase & Readonly<{
+  phase: "relational_retention_committed";
+  objectEligible: number;
+}>;
+
+type RetentionFileCheckpoint = RetentionCheckpointBase & Readonly<{
+  phase: "file_erasure_pending";
+}>;
+
+type RetentionCheckpoint = RetentionRelationalCheckpoint | RetentionFileCheckpoint;
+
+type RedactionSummaryRow = Readonly<{
+  disposition: "eligible" | "blocked" | "malformed";
+  eligible: string | number;
+  transitioned: string | number;
+}>;
+
+type RedactionCapabilityResult =
+  | Readonly<{
+      outcome: "succeeded";
+      eligible: number;
+      transitioned: number;
+      blocked: number;
+      malformed: number;
+    }>
+  | Readonly<{
+      outcome: "failed";
+      failureCode: typeof EMAIL_OUTBOX_REDACTION_RETRYABLE;
+    }>;
 
 export class RetentionRunConflictError extends Error {
   constructor(public readonly code: "RUN_IN_PROGRESS" | "PREVIOUS_RUN_FAILED" | "IDEMPOTENCY_MISMATCH") {
@@ -117,6 +152,135 @@ function transitionedCategory(
   };
 }
 
+function parseRedactionCount(value: string | number) {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new Error("Email outbox redaction summary is invalid.");
+  }
+  return parsed;
+}
+
+async function queryRedactionCapability(
+  client: PoolClient,
+  cutoff: string,
+  batchLimit: number,
+) {
+  const result = await client.query<RedactionSummaryRow>(
+    `select disposition, eligible::text as eligible, transitioned::text as transitioned
+       from public.redact_unresolved_email_outbox_authority(
+         $1::timestamptz, $2::integer
+       )`,
+    [cutoff, batchLimit],
+  );
+  const summaries = new Map<RedactionSummaryRow["disposition"], RedactionSummaryRow>();
+  for (const row of result.rows) {
+    if (
+      !["eligible", "blocked", "malformed"].includes(row.disposition)
+      || summaries.has(row.disposition)
+    ) {
+      throw new Error("Email outbox redaction summary is invalid.");
+    }
+    summaries.set(row.disposition, row);
+  }
+  if (summaries.size !== 3) {
+    throw new Error("Email outbox redaction summary is incomplete.");
+  }
+  const eligible = summaries.get("eligible")!;
+  const blocked = summaries.get("blocked")!;
+  const malformed = summaries.get("malformed")!;
+  if (parseRedactionCount(blocked.transitioned) !== 0
+      || parseRedactionCount(malformed.transitioned) !== 0) {
+    throw new Error("Email outbox redaction summary is invalid.");
+  }
+  return {
+    outcome: "succeeded" as const,
+    eligible: parseRedactionCount(eligible.eligible),
+    transitioned: parseRedactionCount(eligible.transitioned),
+    blocked: parseRedactionCount(blocked.eligible),
+    malformed: parseRedactionCount(malformed.eligible),
+  };
+}
+
+async function runRedactionCapability(
+  client: PoolClient,
+  cutoff: string,
+  batchLimit: number,
+  mode: "report-only" | "apply",
+): Promise<RedactionCapabilityResult> {
+  if (mode === "report-only") {
+    try {
+      return await queryRedactionCapability(client, cutoff, 0);
+    } catch {
+      return { outcome: "failed", failureCode: EMAIL_OUTBOX_REDACTION_RETRYABLE };
+    }
+  }
+
+  await client.query("savepoint retention_email_redaction");
+  let summary: RedactionCapabilityResult;
+  try {
+    summary = await queryRedactionCapability(client, cutoff, batchLimit);
+  } catch {
+    await client.query("rollback to savepoint retention_email_redaction");
+    summary = { outcome: "failed", failureCode: EMAIL_OUTBOX_REDACTION_RETRYABLE };
+  }
+  await client.query("release savepoint retention_email_redaction");
+  return summary;
+}
+
+function redactionFailureCategory(note: string): RetentionCategoryReport {
+  return {
+    eligible: 0,
+    deleted: 0,
+    retained: 0,
+    transitioned: 0,
+    hasMore: true,
+    outcome: "failed",
+    failureCode: EMAIL_OUTBOX_REDACTION_RETRYABLE,
+    note,
+  };
+}
+
+function setRedactionCategories(
+  categories: Record<string, RetentionCategoryReport>,
+  result: RedactionCapabilityResult,
+  dryRun: boolean,
+) {
+  if (result.outcome === "failed") {
+    categories.unresolvedEmailDeliveryAuthority = redactionFailureCategory(
+      "Redaction reporting failed safely; retry with a new reviewed idempotency key.",
+    );
+    categories.unresolvedEmailDeliveryAuthorityBlocked = redactionFailureCategory(
+      "Held reconciliation authority could not be counted safely.",
+    );
+    categories.unresolvedEmailDeliveryAuthorityMalformed = redactionFailureCategory(
+      "Malformed reconciliation authority could not be counted safely.",
+    );
+    return;
+  }
+
+  categories.unresolvedEmailDeliveryAuthority = transitionedCategory(
+    result.eligible,
+    dryRun ? 0 : result.transitioned,
+    dryRun
+      ? "dry-run; would redact recipient payload while retaining unresolved provider authority"
+      : "Recipient payload redacted; unresolved provider authority evidence retained until reconciliation.",
+  );
+  categories.unresolvedEmailDeliveryAuthorityBlocked = transitionedCategory(
+    result.blocked,
+    0,
+    "Held authority is blocked from redaction until its fence is atomically released and aged.",
+  );
+  categories.unresolvedEmailDeliveryAuthorityMalformed = transitionedCategory(
+    result.malformed,
+    0,
+    "Malformed authority is retained for explicit operator repair and is never auto-redacted.",
+  );
+}
+
+function hasRedactionFailure(categories: Readonly<Record<string, RetentionCategoryReport>>) {
+  return categories.unresolvedEmailDeliveryAuthority?.outcome === "failed";
+}
+
 async function deleteBounded(
   client: PoolClient,
   table: string,
@@ -144,6 +308,12 @@ async function deleteBounded(
   return category(eligible, result.rowCount ?? 0);
 }
 
+function isRetentionCheckpoint(report: unknown): report is RetentionCheckpoint {
+  if (!report || typeof report !== "object") return false;
+  const phase = (report as { phase?: unknown }).phase;
+  return phase === "relational_retention_committed" || phase === "file_erasure_pending";
+}
+
 async function claimRun(
   client: PoolClient,
   input: {
@@ -157,7 +327,7 @@ async function claimRun(
     const recoverable = await client.query<{
       id: string;
       status: "running" | "failed";
-      report: RetentionFileCheckpoint;
+      report: RetentionCheckpoint;
     }>(
       `select id, status, report
          from data_lifecycle_run
@@ -165,7 +335,9 @@ async function claimRun(
           and policy_version = $1
           and dry_run = false
           and status in ('running', 'failed')
-          and report ->> 'phase' = 'file_erasure_pending'
+          and report ->> 'phase' in (
+            'relational_retention_committed', 'file_erasure_pending'
+          )
         order by created_at asc, id asc
         limit 1`,
       [RETENTION_POLICY_VERSION],
@@ -187,6 +359,7 @@ async function claimRun(
       return { id: checkpoint.id, replay: null, resume: checkpoint.report };
     }
   }
+
   const inserted = await client.query<{ id: string }>(
     `insert into data_lifecycle_run
       (operation, policy_version, idempotency_key, dry_run, status, cutoff_manifest, started_at)
@@ -202,40 +375,53 @@ async function claimRun(
     ],
   );
   if (inserted.rows[0]) return { id: inserted.rows[0].id, replay: null, resume: null };
+
   const existing = await client.query<{
     id: string;
     operation: string;
     policy_version: string;
     dry_run: boolean;
     status: string;
-    report: RetentionReport | RetentionFileCheckpoint;
+    cutoff_matches: boolean;
+    report: RetentionReport | RetentionCheckpoint;
   }>(
-    `select id, operation, policy_version, dry_run, status, report
+    `select id, operation, policy_version, dry_run, status, report,
+            cutoff_manifest = $2::jsonb as cutoff_matches
        from data_lifecycle_run where idempotency_key = $1`,
-    [input.idempotencyKey],
+    [input.idempotencyKey, JSON.stringify(input.cutoffs)],
   );
   const row = existing.rows[0];
   if (!row) throw new Error("Lifecycle idempotency state could not be resolved.");
+  const recoverableCheckpoint = !input.dryRun
+    && (row.status === "running" || row.status === "failed")
+    && isRetentionCheckpoint(row.report);
   if (
     row.operation !== "retention"
     || row.policy_version !== RETENTION_POLICY_VERSION
     || row.dry_run !== input.dryRun
+    || (!recoverableCheckpoint && !row.cutoff_matches)
   ) {
     throw new RetentionRunConflictError("IDEMPOTENCY_MISMATCH");
   }
   if (row.status === "succeeded") {
+    const persisted = row.report as RetentionReport;
     return {
       id: row.id,
-      replay: { ...(row.report as RetentionReport), replayed: true } as RetentionReport,
+      replay: {
+        ...persisted,
+        outcome: persisted.outcome ?? "succeeded",
+        requiresRetry: persisted.requiresRetry ?? false,
+        replayed: true,
+      } as RetentionReport,
       resume: null,
     };
   }
-  if (row.status === "running" && "phase" in row.report && row.report.phase === "file_erasure_pending") {
+  if (recoverableCheckpoint && row.status === "running") {
     // The global retention advisory lock proves no earlier process still owns
     // this run; its connection would otherwise still hold the lock.
-    return { id: row.id, replay: null, resume: row.report as RetentionFileCheckpoint };
+    return { id: row.id, replay: null, resume: row.report as RetentionCheckpoint };
   }
-  if (row.status === "failed" && "phase" in row.report && row.report.phase === "file_erasure_pending") {
+  if (recoverableCheckpoint && row.status === "failed") {
     const resumed = await client.query(
       `update data_lifecycle_run
           set status = 'running', error_code = null, completed_at = null,
@@ -244,22 +430,20 @@ async function claimRun(
       [row.id, input.now],
     );
     if ((resumed.rowCount ?? 0) === 1) {
-      return { id: row.id, replay: null, resume: row.report as RetentionFileCheckpoint };
+      return { id: row.id, replay: null, resume: row.report as RetentionCheckpoint };
     }
   }
   throw new RetentionRunConflictError(
     row.status === "running" ? "RUN_IN_PROGRESS" : "PREVIOUS_RUN_FAILED",
   );
 }
-
 async function eligibleObjectRows(
   client: PoolClient,
   cutoffs: ReturnType<typeof retentionCutoffManifest>,
   limit: number,
 ) {
   return client.query<{ id: string; storage_key: string }>(
-    `select id, storage_key
-       from stored_object
+    `select id, storage_key from stored_object
       where (
         retention_class = 'temporary' and created_at < $1
       ) or (
@@ -304,6 +488,162 @@ async function countEligibleObjects(
   );
 }
 
+type DurableRetentionCounts = Readonly<{
+  oldAudit: number;
+  durableEvidence: number;
+  durableDraftsAndReceipts: number;
+  durableProjectRevisionHistory: number;
+  durableCertificatesAndPublicPortfolio: number;
+}>;
+
+function setDurableCategories(
+  categories: Record<string, RetentionCategoryReport>,
+  counts: DurableRetentionCounts,
+) {
+  categories.adminAudit = category(
+    counts.oldAudit,
+    0,
+    "24 months is a minimum; launch policy performs no automatic audit purge.",
+  );
+  categories.masteryAndOfficialEvidence = category(
+    counts.durableEvidence,
+    0,
+    "Retained until an administrator completes account deletion.",
+  );
+  categories.learnerDraftsAndSyncReceipts = category(
+    counts.durableDraftsAndReceipts,
+    0,
+    "Authoritative drafts and idempotency receipts are retained until administrator account deletion; browser session cache is not a backup.",
+  );
+  categories.projectRevisionHistory = category(
+    counts.durableProjectRevisionHistory,
+    0,
+    "Append-only project checkpoints and file metadata snapshots are retained until administrator account deletion; associated bytes remain governed by stored-object retention.",
+  );
+  categories.certificatesAndPublicPortfolio = category(
+    counts.durableCertificatesAndPublicPortfolio,
+    0,
+    "Certificate evidence, revocations, explicit public-profile consent history, and selected public proofs are retained until administrator account deletion.",
+  );
+}
+
+async function commitObjectRetentionCheckpoint(
+  client: PoolClient,
+  runId: string,
+  checkpoint: RetentionRelationalCheckpoint,
+): Promise<RetentionFileCheckpoint> {
+  const categories = { ...checkpoint.categories };
+  const evaluatedAt = new Date(checkpoint.evaluatedAt);
+  if (!Number.isFinite(evaluatedAt.getTime())) {
+    throw new Error("Retention checkpoint timestamp is invalid.");
+  }
+  await client.query("begin");
+  try {
+    const objectRows = await eligibleObjectRows(
+      client,
+      checkpoint.cutoffs,
+      checkpoint.batchSize,
+    );
+    const objectIds = objectRows.rows.map((object) => object.id);
+    let deletedObjects = 0;
+    if (objectIds.length) {
+      await client.query("delete from quota_ledger where object_id = any($1::uuid[])", [objectIds]);
+      const deleted = await client.query<{ id: string; storage_key: string }>(
+        `delete from stored_object
+          where id = any($1::uuid[])
+            and (
+              (
+                retention_class = 'temporary' and created_at < $2
+              ) or (
+                retention_class = 'ai_request_attachment' and created_at < $3
+              ) or (
+                (scan_status in ('quarantined', 'scanner_error', 'deleted') or deleted_at is not null)
+                and coalesce(deleted_at, updated_at) < $4
+              )
+            )
+          returning id, storage_key`,
+        [
+          objectIds,
+          checkpoint.cutoffs.temporaryObjects,
+          checkpoint.cutoffs.aiRequestMetadataAndAttachments,
+          checkpoint.cutoffs.failedQuarantinedOrSoftDeletedObjects,
+        ],
+      );
+      if ((deleted.rowCount ?? 0) !== objectRows.rows.length) {
+        throw new Error("Retention object eligibility changed during locked deletion.");
+      }
+      await enqueueFileErasures(client, {
+        lifecycleRunId: runId,
+        operation: "retention",
+        objects: deleted.rows.map((object) => ({
+          id: object.id,
+          storageKey: object.storage_key,
+        })),
+        now: evaluatedAt,
+      });
+      deletedObjects = deleted.rowCount ?? 0;
+    }
+    categories.objects = category(checkpoint.objectEligible, deletedObjects);
+    const fileCheckpoint: RetentionFileCheckpoint = {
+      phase: "file_erasure_pending",
+      evaluatedAt: checkpoint.evaluatedAt,
+      cutoffs: checkpoint.cutoffs,
+      batchSize: checkpoint.batchSize,
+      categories,
+    };
+    const persisted = await client.query(
+      `update data_lifecycle_run set report = $2::jsonb, updated_at = $3
+        where id = $1 and status = 'running'`,
+      [runId, JSON.stringify(fileCheckpoint), evaluatedAt],
+    );
+    if ((persisted.rowCount ?? 0) !== 1) {
+      throw new Error("Retention object checkpoint state changed before commit.");
+    }
+    await client.query("commit");
+    return fileCheckpoint;
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  }
+}
+
+function reportOutcome(categories: Readonly<Record<string, RetentionCategoryReport>>) {
+  if (hasRedactionFailure(categories)) {
+    return { outcome: "completed_with_errors" as const, requiresRetry: true as const };
+  }
+  return { outcome: "succeeded" as const, requiresRetry: false as const };
+}
+
+async function persistFinalRetentionReport(
+  client: PoolClient,
+  runId: string,
+  report: RetentionReport,
+  finishedAt: Date,
+) {
+  await client.query("begin");
+  try {
+    const persisted = await client.query(
+      `update data_lifecycle_run
+          set status = 'succeeded', report = $2::jsonb, error_code = $4,
+              completed_at = $3, updated_at = $3
+        where id = $1 and status = 'running'`,
+      [
+        runId,
+        JSON.stringify(report),
+        finishedAt,
+        report.requiresRetry ? EMAIL_OUTBOX_REDACTION_RETRYABLE : null,
+      ],
+    );
+    if ((persisted.rowCount ?? 0) !== 1) {
+      throw new Error("Retention terminal state changed before commit.");
+    }
+    if (!report.dryRun) await purgeCompletedFileErasureJobs(client, runId);
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback").catch(() => undefined);
+    throw error;
+  }
+}
 function safeFailureCode(error: unknown) {
   const name = error instanceof Error ? error.name : "UnknownError";
   return `RETENTION_${createHash("sha256").update(name).digest("hex").slice(0, 12)}`;
@@ -339,42 +679,32 @@ export async function runRetention(input: {
     if (claimed.replay) return claimed.replay;
     if (claimed.resume) {
       const objectRoot = input.objectStorageRoot ?? process.env.OBJECT_STORAGE_PATH ?? "./data/objects";
+      const fileCheckpoint = claimed.resume.phase === "relational_retention_committed"
+        ? await commitObjectRetentionCheckpoint(client, runId, claimed.resume)
+        : claimed.resume;
       const fileSummary = await fileErasureProcessor({
         lifecycleRunId: runId,
         objectStorageRoot: objectRoot,
       });
+      const outcome = reportOutcome(fileCheckpoint.categories);
       const report: RetentionReport = {
         runId,
         policyVersion: RETENTION_POLICY.version,
         dryRun: false,
-        evaluatedAt: claimed.resume.evaluatedAt,
-        cutoffs: claimed.resume.cutoffs,
-        categories: claimed.resume.categories,
+        evaluatedAt: fileCheckpoint.evaluatedAt,
+        cutoffs: fileCheckpoint.cutoffs,
+        categories: fileCheckpoint.categories,
         objectFiles: {
           removed: fileSummary.removed,
           alreadyAbsent: fileSummary.alreadyAbsent,
-          failed: 0,
+          failed: fileSummary.failed,
         },
+        ...outcome,
         replayed: false,
       };
-      await client.query("begin");
-      try {
-        await client.query(
-          `update data_lifecycle_run
-              set status = 'succeeded', report = $2::jsonb,
-                  completed_at = $3, updated_at = $3
-            where id = $1 and status = 'running'`,
-          [runId, JSON.stringify(report), new Date()],
-        );
-        await purgeCompletedFileErasureJobs(client, runId);
-        await client.query("commit");
-      } catch (error) {
-        await client.query("rollback").catch(() => undefined);
-        throw error;
-      }
+      await persistFinalRetentionReport(client, runId, report, new Date());
       return report;
     }
-
     const categories: Record<string, RetentionCategoryReport> = {};
     const chatEligible = await count(
       client,
@@ -425,25 +755,6 @@ export async function runRetention(input: {
             and provider_message_id is null
           )
           and coalesce(sent_at, updated_at) < $1`,
-      [cutoffs.terminalEmailDeliveryRecords],
-    );
-    const unresolvedEmailAuthorityEligible = await count(
-      client,
-      `select count(*)::text as count from email_outbox
-        where user_id is not null
-          and delivery_scope_key = 'a:' || user_id
-          and status = 'quarantined'
-          and provider_call_started is not null
-          and provider_message_id is null
-          and sent_at is null
-          and adapter = 'gmail'
-          and lease_expires_at is not null
-          and lease_expires_at <= statement_timestamp()
-          and updated_at < $1
-          and (
-            to_email is distinct from 'redacted+' || id::text || '@invalid.local'
-            or variables is distinct from '{}'::jsonb
-          )`,
       [cutoffs.terminalEmailDeliveryRecords],
     );
     const oldAudit = await count(
@@ -497,6 +808,13 @@ export async function runRetention(input: {
         where backup_status = 'awaiting_retention_expiry' and backup_retention_until <= $1`,
       [now],
     );
+    const durableCounts: DurableRetentionCounts = {
+      oldAudit,
+      durableEvidence,
+      durableDraftsAndReceipts,
+      durableProjectRevisionHistory,
+      durableCertificatesAndPublicPortfolio,
+    };
 
     const objectFiles = { removed: 0, alreadyAbsent: 0, failed: 0 };
     if (input.dryRun) {
@@ -520,17 +838,20 @@ export async function runRetention(input: {
       );
       categories.objects = category(objectEligible, 0, "dry-run");
       categories.terminalEmailDeliveryRecords = category(emailEligible, 0, "dry-run");
-      categories.unresolvedEmailDeliveryAuthority = transitionedCategory(
-        unresolvedEmailAuthorityEligible,
+      const redaction = await runRedactionCapability(
+        client,
+        cutoffs.terminalEmailDeliveryRecords,
         0,
-        "dry-run; would redact recipient and variables while retaining unresolved provider authority",
+        "report-only",
       );
+      setRedactionCategories(categories, redaction, true);
       categories.backupExpiryEligibility = transitionedCategory(
         backupExpiryEligible,
         0,
         "dry-run; would mark eligible for operator verification, never verified erased",
       );
     } else {
+      let relationalCheckpoint: RetentionRelationalCheckpoint | null = null;
       await client.query("begin");
       try {
         const deletedChat = await client.query<IdRow>(
@@ -624,18 +945,13 @@ export async function runRetention(input: {
           "Marked expired; not physically deleted in the same run.",
         );
 
-        const redactedEmailAuthority = await client.query<IdRow>(
-          `select id::text as id
-             from public.redact_unresolved_email_outbox_authority(
-               $1::timestamptz, $2::integer
-             )`,
-          [cutoffs.terminalEmailDeliveryRecords, limit],
+        const redaction = await runRedactionCapability(
+          client,
+          cutoffs.terminalEmailDeliveryRecords,
+          limit,
+          "apply",
         );
-        categories.unresolvedEmailDeliveryAuthority = transitionedCategory(
-          unresolvedEmailAuthorityEligible,
-          redactedEmailAuthority.rowCount ?? 0,
-          "Recipient and variables redacted; unresolved provider authority evidence retained until reconciliation.",
-        );
+        setRedactionCategories(categories, redaction, false);
 
         const deletedEmail = await client.query<IdRow>(
           `delete from email_outbox where id in (
@@ -668,132 +984,51 @@ export async function runRetention(input: {
           markedBackupEligible.rowCount ?? 0,
           "Marked eligible for operator verification only; no backup erasure is claimed.",
         );
+        setDurableCategories(categories, durableCounts);
+        relationalCheckpoint = {
+          phase: "relational_retention_committed",
+          evaluatedAt: now.toISOString(),
+          cutoffs,
+          batchSize: limit,
+          objectEligible,
+          categories: { ...categories },
+        };
+        const persisted = await client.query(
+          `update data_lifecycle_run set report = $2::jsonb, updated_at = $3
+            where id = $1 and status = 'running'`,
+          [runId, JSON.stringify(relationalCheckpoint), now],
+        );
+        if ((persisted.rowCount ?? 0) !== 1) {
+          throw new Error("Retention relational checkpoint state changed before commit.");
+        }
         await client.query("commit");
       } catch (error) {
         await client.query("rollback");
         throw error;
       }
 
-      const objectRoot = input.objectStorageRoot ?? process.env.OBJECT_STORAGE_PATH ?? "./data/objects";
-      await client.query("begin");
-      try {
-        const objectRows = await eligibleObjectRows(client, cutoffs, limit);
-        const objectIds = objectRows.rows.map((object) => object.id);
-        let deletedObjects = 0;
-        if (objectIds.length) {
-          await client.query("delete from quota_ledger where object_id = any($1::uuid[])", [objectIds]);
-          const deleted = await client.query<{ id: string; storage_key: string }>(
-            `delete from stored_object
-              where id = any($1::uuid[])
-                and (
-                  (
-                    retention_class = 'temporary' and created_at < $2
-                  ) or (
-                    retention_class = 'ai_request_attachment' and created_at < $3
-                  ) or (
-                    (scan_status in ('quarantined', 'scanner_error', 'deleted') or deleted_at is not null)
-                    and coalesce(deleted_at, updated_at) < $4
-                  )
-                )
-              returning id, storage_key`,
-            [
-              objectIds,
-              cutoffs.temporaryObjects,
-              cutoffs.aiRequestMetadataAndAttachments,
-              cutoffs.failedQuarantinedOrSoftDeletedObjects,
-            ],
-          );
-          if ((deleted.rowCount ?? 0) !== objectRows.rows.length) {
-            throw new Error("Retention object eligibility changed during locked deletion.");
-          }
-          await enqueueFileErasures(client, {
-            lifecycleRunId: runId,
-            operation: "retention",
-            objects: deleted.rows.map((object) => ({
-              id: object.id,
-              storageKey: object.storage_key,
-            })),
-            now,
-          });
-          deletedObjects = deleted.rowCount ?? 0;
-        }
-        categories.objects = category(objectEligible, deletedObjects);
-        categories.adminAudit = category(
-          oldAudit,
-          0,
-          "24 months is a minimum; launch policy performs no automatic audit purge.",
-        );
-        categories.masteryAndOfficialEvidence = category(
-          durableEvidence,
-          0,
-          "Retained until an administrator completes account deletion.",
-        );
-        categories.learnerDraftsAndSyncReceipts = category(
-          durableDraftsAndReceipts,
-          0,
-          "Authoritative drafts and idempotency receipts are retained until administrator account deletion; browser session cache is not a backup.",
-        );
-        categories.projectRevisionHistory = category(
-          durableProjectRevisionHistory,
-          0,
-          "Append-only project checkpoints and file metadata snapshots are retained until administrator account deletion; associated bytes remain governed by stored-object retention.",
-        );
-        categories.certificatesAndPublicPortfolio = category(
-          durableCertificatesAndPublicPortfolio,
-          0,
-          "Certificate evidence, revocations, explicit public-profile consent history, and selected public proofs are retained until administrator account deletion.",
-        );
-        const checkpoint: RetentionFileCheckpoint = {
-          phase: "file_erasure_pending",
-          evaluatedAt: now.toISOString(),
-          cutoffs,
-          categories,
-        };
-        await client.query(
-          `update data_lifecycle_run set report = $2::jsonb, updated_at = $3
-            where id = $1 and status = 'running'`,
-          [runId, JSON.stringify(checkpoint), now],
-        );
-        await client.query("commit");
-      } catch (error) {
-        await client.query("rollback").catch(() => undefined);
-        throw error;
+      if (!relationalCheckpoint) {
+        throw new Error("Retention relational checkpoint was not created.");
       }
-      // No unlink occurs until both the metadata deletion and its queue are
-      // durable. If this process dies, claimRun resumes this checkpoint.
+      const objectRoot = input.objectStorageRoot ?? process.env.OBJECT_STORAGE_PATH ?? "./data/objects";
+      const fileCheckpoint = await commitObjectRetentionCheckpoint(
+        client,
+        runId,
+        relationalCheckpoint,
+      );
+      Object.assign(categories, fileCheckpoint.categories);
+      // No unlink occurs until both metadata deletion and its durable queue
+      // checkpoint commit. A crash resumes from the stored checkpoint.
       const fileSummary = await fileErasureProcessor({
         lifecycleRunId: runId,
         objectStorageRoot: objectRoot,
       });
       objectFiles.removed = fileSummary.removed;
       objectFiles.alreadyAbsent = fileSummary.alreadyAbsent;
+      objectFiles.failed = fileSummary.failed;
     }
-
-    categories.adminAudit = category(
-      oldAudit,
-      0,
-      "24 months is a minimum; launch policy performs no automatic audit purge.",
-    );
-    categories.masteryAndOfficialEvidence = category(
-      durableEvidence,
-      0,
-      "Retained until an administrator completes account deletion.",
-    );
-    categories.learnerDraftsAndSyncReceipts = category(
-      durableDraftsAndReceipts,
-      0,
-      "Authoritative drafts and idempotency receipts are retained until administrator account deletion; browser session cache is not a backup.",
-    );
-    categories.projectRevisionHistory = category(
-      durableProjectRevisionHistory,
-      0,
-      "Append-only project checkpoints and file metadata snapshots are retained until administrator account deletion; associated bytes remain governed by stored-object retention.",
-    );
-    categories.certificatesAndPublicPortfolio = category(
-      durableCertificatesAndPublicPortfolio,
-      0,
-      "Certificate evidence, revocations, explicit public-profile consent history, and selected public proofs are retained until administrator account deletion.",
-    );
+    setDurableCategories(categories, durableCounts);
+    const outcome = reportOutcome(categories);
 
     const report: RetentionReport = {
       runId,
@@ -803,22 +1038,10 @@ export async function runRetention(input: {
       cutoffs,
       categories,
       objectFiles,
+      ...outcome,
       replayed: false,
     };
-    await client.query("begin");
-    try {
-      await client.query(
-        `update data_lifecycle_run
-            set status = 'succeeded', report = $2::jsonb, completed_at = $3, updated_at = $3
-          where id = $1 and status = 'running'`,
-        [runId, JSON.stringify(report), new Date()],
-      );
-      if (!input.dryRun) await purgeCompletedFileErasureJobs(client, runId);
-      await client.query("commit");
-    } catch (error) {
-      await client.query("rollback").catch(() => undefined);
-      throw error;
-    }
+    await persistFinalRetentionReport(client, runId, report, new Date());
     return report;
   } catch (error) {
     if (runId) {

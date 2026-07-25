@@ -67,7 +67,7 @@ type ClaimRow = CandidateRow & {
 };
 
 type BoundaryRow = {
-  provider_call_started: Date | string;
+  provider_call_started: string;
   lease_expires_at: Date | string;
 };
 
@@ -85,7 +85,7 @@ type TerminalRow = {
 type SweepCandidateRow = CandidateRow & {
   claim_token: string;
   claim_owner: string;
-  lease_expires_at: Date | string;
+  lease_expires_at: string;
 };
 
 
@@ -520,7 +520,10 @@ async function lockFenceScope(
   return await advisoryLock(client, scope.lockKey, wait) ? scope : null;
 }
 
-type PermitFenceInput = ClaimFenceInput & Readonly<{ adapter: string }>;
+type PermitFenceInput = ClaimFenceInput & Readonly<{
+  adapter: string;
+  providerCallStartedAt: string;
+}>;
 
 async function lockPermitScope(
   client: OutboxPgClient,
@@ -532,14 +535,27 @@ async function lockPermitScope(
     from public.email_outbox
     where id = $1::uuid
       and operation_id = $2::uuid
-      and claim_version = $5::integer
       and adapter = $6::text
-      and provider_call_started is not null
+      and provider_call_started = $7::timestamptz
       and (
-        (claim_token = $3::uuid and claim_owner = $4::text)
+        (
+          claim_version = $5::integer
+          and claim_token = $3::uuid
+          and claim_owner = $4::text
+        )
         or (
-          claim_token is null
+          claim_version = $5::integer
+          and claim_token is null
           and claim_owner is null
+          and lease_expires_at is null
+          and status in ('sent', 'failed', 'quarantined')
+        )
+        or (
+          $5::integer < 2147483647
+          and claim_version = $5::integer + 1
+          and claim_token is null
+          and claim_owner is null
+          and lease_expires_at is null
           and status in ('sent', 'failed', 'quarantined')
         )
       )
@@ -550,13 +566,13 @@ async function lockPermitScope(
     permit.claimOwner,
     permit.claimVersion,
     permit.adapter,
+    permit.providerCallStartedAt,
   ]);
   const row = result.rows[0];
   if (!row) return null;
   const scope = deliveryScope(row);
   return await advisoryLock(client, scope.lockKey, wait) ? scope : null;
 }
-
 const ACTIVATION_TOKEN = /^[A-Za-z0-9_-]{43}$/;
 
 function canonicalAppOrigin(): string | null {
@@ -735,6 +751,7 @@ function validatePermit(permit: ProviderCallPermit) {
     throw new Error("Outbox claim version must be a positive integer.");
   }
   if (!ADAPTERS.has(permit.adapter)) throw new Error("Outbox adapter is not allowed.");
+  assertBoundedText(permit.providerCallStartedAt, "Provider boundary timestamp", 64);
 }
 
 export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
@@ -1005,8 +1022,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                    order by candidate.next_attempt_at, candidate.created_at, candidate.id
                  ) as scope_rank
           from public.email_outbox candidate
-          where (
-            (candidate.user_id is not null and candidate.delivery_scope_key = 'a:' || candidate.user_id)
+          where candidate.claim_version < 2147483647
+            and (
+              (candidate.user_id is not null and candidate.delivery_scope_key = 'a:' || candidate.user_id)
             or (
               candidate.user_id is null
               and candidate.delivery_scope_key = 's:' || candidate.operation_id::text
@@ -1077,9 +1095,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           where id = $1::uuid
             and operation_id = $2::uuid
             and claim_version = $3::integer
+            and claim_version < 2147483647
             and user_id is not distinct from $7::text
             and delivery_scope_key = $8::text
-            and claim_version < 2147483647
             and (
               (
                 status = 'pending'
@@ -1283,7 +1301,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             )
             or ${BOUNDARY_DELETION_CAPABILITY_SQL}
           )
-        returning outbox.provider_call_started, outbox.lease_expires_at
+        returning outbox.provider_call_started::text as provider_call_started, outbox.lease_expires_at
       `, [
         claim.id,
         claim.operationId,
@@ -1314,7 +1332,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         claimOwner: claim.claimOwner,
         claimVersion: claim.claimVersion,
         adapter,
-        providerCallStartedAt: asDate(row.provider_call_started, "Provider boundary"),
+        providerCallStartedAt: assertBoundedText(row.provider_call_started, "Provider boundary", 64),
         leaseExpiresAt: asDate(row.lease_expires_at, "Provider lease expiry"),
       };
       return { kind: "applied", permit: started as ProviderCallPermit };
@@ -1335,7 +1353,13 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     return transaction(this.pool, async (client) => {
       const scope = await lockFenceScope(client, claim, true);
       if (!scope) return { kind: "lost" };
-      const result = await client.query<{ operation_id: string }>(`
+      const result = await client.query<{
+          operation_id: string;
+          claim_version: number;
+          claim_token: string | null;
+          claim_owner: string | null;
+          lease_expires_at: Date | string | null;
+        }>(`
         update public.email_outbox
         set status = case $6::text
               when 'retry' then 'pending'::public.notification_status
@@ -1394,7 +1418,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     return transaction(this.pool, async (client) => {
       const scope = await lockPermitScope(client, permit, true);
       if (!scope) return { kind: "lost" };
-      const result = exit.kind === "sent"
+      let result = exit.kind === "sent"
         ? await client.query<TerminalRow>(`
             update public.email_outbox
             set provider_message_id = $7::text,
@@ -1415,8 +1439,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               and claim_version = $5::integer
               and adapter = $6::text
               and provider_message_id is null
-              and provider_call_started is not null
+              and provider_call_started = $9::timestamptz
               and status in ('sending', 'quarantined')
+              and user_id is not distinct from $10::text
               and delivery_scope_key = $8::text
             returning status::text, claim_version, adapter, provider_message_id,
                       provider_call_started, sent_at, quarantined_at, last_error_code
@@ -1429,6 +1454,8 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             permit.adapter,
             providerMessageId,
             scope.key,
+            permit.providerCallStartedAt,
+            scope.userId,
           ])
         : await client.query<TerminalRow>(`
             update public.email_outbox
@@ -1441,6 +1468,10 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                   then pg_catalog.statement_timestamp()
                   else null
                 end,
+                claim_version = case when $7::text = 'quarantined'
+                  then claim_version + 1
+                  else claim_version
+                end,
                 claim_token = null,
                 claim_owner = null,
                 lease_expires_at = null,
@@ -1450,11 +1481,13 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               and claim_token = $3::uuid
               and claim_owner = $4::text
               and claim_version = $5::integer
+              and ($7::text <> 'quarantined' or claim_version < 2147483647)
               and adapter = $6::text
               and provider_message_id is null
-              and provider_call_started is not null
+              and provider_call_started = $10::timestamptz
               and quarantined_at is null
               and status = 'sending'
+              and user_id is not distinct from $11::text
               and delivery_scope_key = $9::text
             returning status::text, claim_version, adapter, provider_message_id,
                       provider_call_started, sent_at, quarantined_at, last_error_code
@@ -1468,39 +1501,152 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             exit.kind,
             code,
             scope.key,
+            permit.providerCallStartedAt,
+            scope.userId,
           ]);
-      const updated = result.rows[0];
+
+      let updated = result.rows[0];
+      let successorFinalized = false;
+      if (!updated && exit.kind !== "quarantined" && permit.claimVersion < 2147483647) {
+        result = await client.query<TerminalRow>(`
+          update public.email_outbox
+          set status = case when $8::text = 'sent'
+                then status
+                else 'failed'::public.notification_status
+              end,
+              provider_message_id = case when $8::text = 'sent' then $9::text else null end,
+              sent_at = case when $8::text = 'sent'
+                then pg_catalog.statement_timestamp()
+                else null
+              end,
+              quarantined_at = case when $8::text = 'sent' then quarantined_at else null end,
+              last_error_code = case when $8::text = 'sent' then last_error_code else $10::text end,
+              updated_at = pg_catalog.statement_timestamp()
+          where id = $1::uuid
+            and operation_id = $2::uuid
+            and $3::integer < 2147483647
+            and claim_version = $3::integer + 1
+            and adapter = $4::text
+            and provider_call_started = $5::timestamptz
+            and user_id is not distinct from $6::text
+            and delivery_scope_key = $7::text
+            and claim_token is null
+            and claim_owner is null
+            and lease_expires_at is null
+            and status = 'quarantined'
+            and quarantined_at is not null
+            and last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'
+            and provider_message_id is null
+            and sent_at is null
+          returning status::text, claim_version, adapter, provider_message_id,
+                    provider_call_started, sent_at, quarantined_at, last_error_code
+        `, [
+          permit.id,
+          permit.operationId,
+          permit.claimVersion,
+          permit.adapter,
+          permit.providerCallStartedAt,
+          scope.userId,
+          scope.key,
+          exit.kind,
+          providerMessageId,
+          code,
+        ]);
+        updated = result.rows[0];
+        successorFinalized = updated !== undefined;
+      }
+
       if (updated) {
-        if (exit.kind !== "sent") return { kind: "applied" };
-        return (
-          (updated.status === "sent" || updated.status === "quarantined")
-          && updated.claim_version === permit.claimVersion
-          && updated.adapter === permit.adapter
-          && updated.provider_message_id === providerMessageId
-          && updated.provider_call_started !== null
-          && updated.sent_at !== null
-        )
-          ? { kind: "applied" }
-          : { kind: "lost" };
+        const normalExpectedVersion = exit.kind === "quarantined"
+          ? permit.claimVersion + 1
+          : permit.claimVersion;
+        const expectedClaimVersion = successorFinalized
+          ? permit.claimVersion + 1
+          : normalExpectedVersion;
+        const exact = exit.kind === "sent"
+          ? (
+              (successorFinalized ? updated.status === "quarantined" : (
+                updated.status === "sent" || updated.status === "quarantined"
+              ))
+              && updated.claim_version === expectedClaimVersion
+              && updated.adapter === permit.adapter
+              && updated.provider_message_id === providerMessageId
+              && updated.provider_call_started !== null
+              && updated.sent_at !== null
+              && (!successorFinalized || (
+                updated.quarantined_at !== null
+                && updated.last_error_code === "ABANDONED_POST_PROVIDER_BOUNDARY"
+              ))
+            )
+          : (
+              updated.status === exit.kind
+              && updated.claim_version === expectedClaimVersion
+              && updated.adapter === permit.adapter
+              && updated.provider_message_id === null
+              && updated.provider_call_started !== null
+              && updated.last_error_code === code
+              && (exit.kind !== "quarantined" || updated.quarantined_at !== null)
+              && (!successorFinalized || updated.quarantined_at === null)
+            );
+        return exact ? { kind: "applied" } : { kind: "lost" };
       }
 
       const existing = await client.query<TerminalRow>(`
         select status::text, claim_version, adapter, provider_message_id,
                provider_call_started, sent_at, quarantined_at, last_error_code
         from public.email_outbox
-        where id = $1::uuid and operation_id = $2::uuid
-          and delivery_scope_key = $3::text
-      `, [permit.id, permit.operationId, scope.key]);
+        where id = $1::uuid
+          and operation_id = $2::uuid
+          and adapter = $3::text
+          and provider_call_started = $4::timestamptz
+          and user_id is not distinct from $5::text
+          and delivery_scope_key = $6::text
+          and claim_token is null
+          and claim_owner is null
+          and lease_expires_at is null
+          and (
+            claim_version = $7::integer
+            or ($7::integer < 2147483647 and claim_version = $7::integer + 1)
+          )
+      `, [
+        permit.id,
+        permit.operationId,
+        permit.adapter,
+        permit.providerCallStartedAt,
+        scope.userId,
+        scope.key,
+        permit.claimVersion,
+      ]);
       const row = existing.rows[0];
-      if (!row || row.claim_version !== permit.claimVersion || row.adapter !== permit.adapter) {
-        return { kind: "lost" };
-      }
+      if (!row || row.adapter !== permit.adapter) return { kind: "lost" };
+      const normalExpectedVersion = exit.kind === "quarantined"
+        ? permit.claimVersion + 1
+        : permit.claimVersion;
+      const successorVersion = permit.claimVersion < 2147483647
+        && row.claim_version === permit.claimVersion + 1;
       if (
         exit.kind === "sent"
-        && (row.status === "sent" || row.status === "quarantined")
         && row.provider_message_id === providerMessageId
         && row.provider_call_started !== null
         && row.sent_at !== null
+        && (
+          (
+            row.claim_version === normalExpectedVersion
+            && (row.status === "sent" || row.status === "quarantined")
+          )
+          || (
+            successorVersion
+            && row.status === "quarantined"
+            && row.quarantined_at !== null
+            && row.last_error_code === "ABANDONED_POST_PROVIDER_BOUNDARY"
+          )
+          || (
+            successorVersion
+            && row.status === "sent"
+            && row.quarantined_at === null
+            && row.last_error_code === null
+          )
+        )
       ) {
         return { kind: "already-applied" };
       }
@@ -1511,13 +1657,16 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         && row.provider_call_started !== null
         && row.last_error_code === code
         && (exit.kind !== "quarantined" || row.quarantined_at !== null)
+        && (
+          row.claim_version === normalExpectedVersion
+          || (exit.kind === "failed" && successorVersion && row.quarantined_at === null)
+        )
       ) {
         return { kind: "already-applied" };
       }
       return { kind: "lost" };
     });
   }
-
   async quarantineAbandoned(input: Readonly<{ limit: number }>) {
     if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 500) {
       throw new Error("Outbox sweep limit must be an integer from 1 to 500.");
@@ -1525,7 +1674,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     return transaction(this.pool, async (client) => {
       const candidates = await client.query<SweepCandidateRow>(`
         select id::text, user_id, operation_id::text, delivery_scope_key, claim_version,
-               claim_token::text, claim_owner, lease_expires_at
+               claim_token::text, claim_owner, lease_expires_at::text as lease_expires_at
         from public.email_outbox
         where status = 'sending'
           and provider_call_started is not null
@@ -1533,6 +1682,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and provider_message_id is null
           and quarantined_at is null
           and lease_expires_at < pg_catalog.statement_timestamp() - interval '30 seconds'
+          and claim_version < 2147483647
           and (
             (user_id is not null and delivery_scope_key = 'a:' || user_id)
             or (user_id is null and delivery_scope_key = 's:' || operation_id::text)
@@ -1545,17 +1695,28 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         const scope = deliveryScope(candidate);
         const locked = await advisoryLock(client, scope.lockKey, false);
         if (!locked) continue;
-        const result = await client.query<{ operation_id: string }>(`
+        const result = await client.query<{
+          operation_id: string;
+          claim_version: number;
+          claim_token: string | null;
+          claim_owner: string | null;
+          lease_expires_at: Date | string | null;
+        }>(`
           update public.email_outbox
           set status = 'quarantined',
               quarantined_at = pg_catalog.statement_timestamp(),
               last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY',
+              claim_token = null,
+              claim_owner = null,
+              claim_version = claim_version + 1,
+              lease_expires_at = null,
               updated_at = pg_catalog.statement_timestamp()
           where id = $1::uuid
             and operation_id = $2::uuid
             and claim_token = $3::uuid
             and claim_owner = $4::text
             and claim_version = $5::integer
+            and claim_version < 2147483647
             and user_id is not distinct from $6::text
             and delivery_scope_key = $8::text
             and lease_expires_at = $7::timestamptz
@@ -1565,7 +1726,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             and provider_message_id is null
             and quarantined_at is null
             and status = 'sending'
-          returning operation_id::text
+          returning operation_id::text, claim_version, claim_token::text, claim_owner, lease_expires_at
         `, [
           candidate.id,
           candidate.operation_id,
@@ -1576,7 +1737,18 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           candidate.lease_expires_at,
           scope.key,
         ]);
-        if (result.rows[0]) quarantined += 1;
+        const released = result.rows[0];
+        if (released) {
+          if (
+            released.claim_version !== candidate.claim_version + 1
+            || released.claim_token !== null
+            || released.claim_owner !== null
+            || released.lease_expires_at !== null
+          ) {
+            throw new Error("Abandoned outbox fence did not release at the next generation.");
+          }
+          quarantined += 1;
+        }
       }
       return quarantined;
     });

@@ -18,7 +18,7 @@ export type OutboxClaim<P = unknown> = ClaimFence & Readonly<{
 export type ProviderStartedClaim = ClaimFence & Readonly<{
   phase: "post-provider";
   adapter: string;
-  providerCallStartedAt: Date;
+  providerCallStartedAt: string;
   leaseExpiresAt: Date;
 }>;
 
