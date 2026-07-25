@@ -10,8 +10,15 @@ const packageManifest = JSON.parse(read("package.json"));
 const workflow = read(".github/workflows/ci.yml");
 const runner = read("scripts/run-full-schema-restore-gate.ts");
 const archiveHelper = read("scripts/lib/full-schema-restore-archive.ts");
+const databaseHelper = read("scripts/lib/full-schema-restore-database.ts");
+const gateHelper = read("scripts/lib/full-schema-restore-gate.ts");
 const lifecycleHelper = read("scripts/lib/full-schema-restore-lifecycle.ts");
 const runtimeHelper = read("scripts/lib/full-schema-restore-runtime.ts");
+const ledgerHelper = read("scripts/lib/restore-migration-ledger.mjs");
+const preRepairVerifier = read(
+  "scripts/verify-pre-repair-restored-database.mjs",
+);
+const dockerfile = read("Dockerfile");
 const scripts = packageManifest.scripts;
 
 const registrationScript = "test:full-schema-restore:registration";
@@ -105,14 +112,21 @@ assert.match(runner, /deriveMigrationLedgerContract/u);
 assert.match(runner, /databaseBackupReporterUrl/u);
 assert.match(runner, /createSafeFullSchemaRestoreTaskRoot/u);
 assert.match(runner, /createFullSchemaRestoreLifecycle/u);
+assert.match(runner, /verifyPostMigrationReviewedContractsBeforeReconciliation/u);
 assert.match(
   runner,
   /verifyReviewedMailAuthorityCatalogContracts/u,
 );
+assert.match(runner, /requireExactFullSchemaRestoreOwnerRole/u);
+assert.match(runner, /requireFullSchemaAclSuppressionControl/u);
+assert.match(runner, /restoreTargetWithoutAcl/u);
+assert.match(runner, /aclSuppressionControlPublicExecute/u);
 assert.match(runner, /createDisposableIntegrationChildController/u);
 assert.match(runner, /buildDisposableIntegrationChildLaunch/u);
 assert.match(runner, /runFullSchemaArchiveDump/u);
+assert.match(runner, /runFullSchemaArchiveList/u);
 assert.match(runner, /runFullSchemaArchiveRestore/u);
+assert.match(archiveHelper, /deriveFullSchemaArchiveEvidence/u);
 assert.match(runner, /lifecycle\.ownContainer\("source", source\)/u);
 assert.match(runner, /lifecycle\.ownContainer\("target", target\)/u);
 assert.match(
@@ -159,6 +173,45 @@ assert.ok(childCleanupIndex < targetCleanupIndex);
 assert.ok(targetCleanupIndex < sourceCleanupIndex);
 assert.ok(sourceCleanupIndex < rootCleanupIndex);
 assert.match(runtimeHelper, /input\.ownTaskRoot\(cleanup\)/u);
+assert.match(runtimeHelper, /restoreWithoutAcl/u);
+assert.match(runtimeHelper, /--role=learncoding_owner/u);
+const runtimeWithoutControl = runtimeHelper.replace(
+  /restoreWithoutAcl:[\s\S]*?\n    restore:/u,
+  "restore:",
+);
+assert.doesNotMatch(runtimeWithoutControl, /--no-acl/u);
+assert.match(databaseHelper, /pg_catalog\.aclexplode/u);
+assert.match(databaseHelper, /acl\.grantee = 0/u);
+assert.match(databaseHelper, /routine\.proacl is null/u);
+assert.match(gateHelper, /await dependencies\.restoreTargetWithoutAcl\(archive\)/u);
+assert.match(gateHelper, /await target\.verifyAclSuppressionControl\(\)/u);
+assert.match(gateHelper, /await dependencies\.restoreTarget\(archive\)/u);
+assert.ok(
+  gateHelper.indexOf("await dependencies.restoreTargetWithoutAcl(archive)")
+    < gateHelper.indexOf("await target.verifyAclSuppressionControl()"),
+);
+assert.ok(
+  gateHelper.indexOf("await target.verifyAclSuppressionControl()")
+    < gateHelper.indexOf("await dependencies.restoreTarget(archive)"),
+);
+assert.match(ledgerHelper, /journal\.entries\.length < MINIMUM_MIGRATION_COUNT/u);
+assert.match(ledgerHelper, /migration\.hash::text as migration_sha256/u);
+assert.match(ledgerHelper, /result\.rows\.length !== expected\.length/u);
+assert.match(preRepairVerifier, /readCheckedInRestoreMigrationLedger/u);
+assert.match(preRepairVerifier, /verifyRestoredMigrationLedger/u);
+assert.match(
+  preRepairVerifier,
+  /verifyPostMigrationReviewedContractsBeforeReconciliation/u,
+);
+assert.match(
+  preRepairVerifier,
+  /verifyReviewedMailAuthorityCatalogContracts/u,
+);
+assert.match(dockerfile, /COPY --chown=node:node drizzle \.\/drizzle/u);
+assert.match(
+  dockerfile,
+  /COPY --chown=node:node scripts\/lib\/restore-migration-ledger\.mjs/u,
+);
 assert.doesNotMatch(runner, /\bfetch\s*\(|gmail|oauth/iu);
 assert.doesNotMatch(
   runner,

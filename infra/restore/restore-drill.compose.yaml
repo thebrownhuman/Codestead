@@ -21,7 +21,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
-      POSTGRES_DB: learncoding_restore
+      POSTGRES_DB: learncoding_restore_drill
       POSTGRES_USER: learncoding_restore
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       POSTGRES_INITDB_ARGS: --data-checksums --encoding=UTF8 --auth-local=scram-sha-256 --auth-host=scram-sha-256
@@ -36,7 +36,7 @@ services:
       - /run/learncoding-postgres:rw,noexec,nosuid,nodev,size=16m,uid=${RESTORE_POSTGRES_UID},gid=${RESTORE_POSTGRES_GID},mode=0700
       - /tmp:rw,noexec,nosuid,nodev,size=32m,mode=1777
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h /run/learncoding-postgres -U learncoding_restore -d learncoding_restore"]
+      test: ["CMD-SHELL", "pg_isready -h /run/learncoding-postgres -U learncoding_restore -d learncoding_restore_drill"]
       interval: 2s
       timeout: 2s
       retries: 30
@@ -55,7 +55,7 @@ services:
       - no-new-privileges:true
     command: ["node", "/app/scripts/bootstrap-database-roles.mjs"]
     environment:
-      POSTGRES_DB: learncoding_restore
+      POSTGRES_DB: learncoding_restore_drill
       POSTGRES_USER: learncoding_restore
       REQUIRE_COMPLETE_MIGRATION_LEDGER: ${REQUIRE_COMPLETE_MIGRATION_LEDGER:-false}
       DATABASE_BOOTSTRAP_URL_FILE: /run/secrets/database_bootstrap_url
@@ -98,7 +98,7 @@ services:
       - no-new-privileges:true
     command: ["node", "/app/scripts/verify-database-role-boundaries.mjs"]
     environment:
-      POSTGRES_DB: learncoding_restore
+      POSTGRES_DB: learncoding_restore_drill
       DATABASE_URL_FILE: /run/secrets/database_url
       DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
       DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
@@ -136,7 +136,7 @@ services:
       - no-new-privileges:true
     command: ["node", "/app/scripts/verify-database-role-boundaries.mjs", "--require-application-objects"]
     environment:
-      POSTGRES_DB: learncoding_restore
+      POSTGRES_DB: learncoding_restore_drill
       DATABASE_URL_FILE: /run/secrets/database_url
       DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
       DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import type {
+  FullSchemaAclSuppressionControl,
   FullSchemaRestoreSmoke,
   FullSchemaRestoreSnapshot,
 } from "./full-schema-restore-gate";
@@ -11,6 +12,99 @@ export type FullSchemaRestoreQueryClient = Readonly<{
     values?: readonly unknown[],
   ) => Promise<Readonly<{ rows: readonly Record<string, unknown>[] }>>;
 }>;
+
+export async function requireExactFullSchemaRestoreOwnerRole(
+  client: FullSchemaRestoreQueryClient,
+): Promise<void> {
+  const result = await client.query(`
+    select role.rolname,
+           role.rolcanlogin,
+           role.rolsuper,
+           role.rolcreatedb,
+           role.rolcreaterole,
+           role.rolinherit,
+           role.rolreplication,
+           role.rolbypassrls,
+           role.rolconnlimit,
+           role.rolvaliduntil = 'infinity'::pg_catalog.timestamptz
+             as valid_until_infinity,
+           role.rolpassword is null as password_is_null,
+           not exists (
+             select 1
+               from pg_catalog.pg_db_role_setting setting
+              where setting.setrole = role.oid
+           ) as role_settings_empty
+      from pg_catalog.pg_authid role
+     where role.rolname = 'learncoding_owner'
+  `);
+  const row = result.rows[0];
+  if (
+    result.rows.length !== 1
+    || row?.rolname !== "learncoding_owner"
+    || row.rolcanlogin !== false
+    || row.rolsuper !== false
+    || row.rolcreatedb !== false
+    || row.rolcreaterole !== false
+    || row.rolinherit !== false
+    || row.rolreplication !== false
+    || row.rolbypassrls !== false
+    || row.rolconnlimit !== -1
+    || row.valid_until_infinity !== true
+    || row.password_is_null !== true
+    || row.role_settings_empty !== true
+  ) {
+    throw new Error("full-schema restore owner role is invalid");
+  }
+}
+
+export async function prepareFullSchemaAclSuppressionControl(
+  client: FullSchemaRestoreQueryClient,
+): Promise<void> {
+  await client.query(`
+    alter default privileges for role learncoding_owner
+      in schema public
+      grant execute on routines to public
+  `);
+}
+
+const ACL_SUPPRESSION_CONTROL_ROUTINE =
+  "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)";
+
+export async function requireFullSchemaAclSuppressionControl(
+  client: FullSchemaRestoreQueryClient,
+): Promise<FullSchemaAclSuppressionControl> {
+  const result = await client.query(`
+    select routine.proacl is null as proacl_is_null,
+           exists (
+             select 1
+               from pg_catalog.aclexplode(
+                 coalesce(
+                   routine.proacl,
+                   pg_catalog.acldefault('f', routine.proowner)
+                 )
+               ) acl
+              where acl.grantee = 0
+                and acl.privilege_type = 'EXECUTE'
+           ) as public_execute
+      from pg_catalog.pg_proc routine
+     where routine.oid = pg_catalog.to_regprocedure($1)::oid
+  `, [ACL_SUPPRESSION_CONTROL_ROUTINE]);
+  const row = result.rows[0];
+  if (
+    result.rows.length !== 1
+    || row?.proacl_is_null !== true
+    || row.public_execute !== true
+  ) {
+    throw new Error(
+      "full-schema restore ACL suppression control failed",
+    );
+  }
+  return {
+    proaclIsNull: true,
+    publicExecute: true,
+    routine: ACL_SUPPRESSION_CONTROL_ROUTINE,
+  };
+}
 
 function canonicalJson(value: unknown): string {
   if (value === null) return "null";

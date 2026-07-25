@@ -145,15 +145,15 @@ write_restore_secret() {
 restore_postgres_password="${restore_passwords[0]}"
 write_restore_secret "$restore_postgres_password_file" "$restore_postgres_password"
 write_restore_secret "$restore_database_bootstrap_url_file" \
-  "postgresql://learncoding_restore:$restore_postgres_password@postgres:5432/learncoding_restore"
+  "postgresql://learncoding_restore:$restore_postgres_password@postgres:5432/learncoding_restore_drill"
 write_restore_secret "$restore_database_app_url_file" \
-  "postgresql://learncoding_app:${restore_passwords[1]}@postgres:5432/learncoding_restore"
+  "postgresql://learncoding_app:${restore_passwords[1]}@postgres:5432/learncoding_restore_drill"
 write_restore_secret "$restore_database_migrator_url_file" \
-  "postgresql://learncoding_migrator:${restore_passwords[2]}@postgres:5432/learncoding_restore"
+  "postgresql://learncoding_migrator:${restore_passwords[2]}@postgres:5432/learncoding_restore_drill"
 write_restore_secret "$restore_database_worker_url_file" \
-  "postgresql://learncoding_worker:${restore_passwords[3]}@postgres:5432/learncoding_restore"
+  "postgresql://learncoding_worker:${restore_passwords[3]}@postgres:5432/learncoding_restore_drill"
 write_restore_secret "$restore_database_ops_url_file" \
-  "postgresql://learncoding_ops:${restore_passwords[4]}@postgres:5432/learncoding_restore"
+  "postgresql://learncoding_ops:${restore_passwords[4]}@postgres:5432/learncoding_restore_drill"
 unset restore_password restore_passwords restore_password_set restore_postgres_password
 
 archive_name=unknown
@@ -366,10 +366,50 @@ production_postgres_version_num_is_reviewed "$restore_database_version_num" \
 restore_one_shot database-role-bootstrap
 # Authenticated negative probes must pass before restored bytes are accepted.
 restore_one_shot database-boundary-preflight
+restore_owner_count="$(restore_compose exec -T postgres /bin/sh -ceu '
+  export PGPASSWORD="$(cat /run/secrets/postgres_password)"
+  exec psql --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname=postgres -tAc "$1"
+' _ "select pg_catalog.count(*)::text
+       from (
+         select role.rolname,
+                role.rolcanlogin,
+                role.rolsuper,
+                role.rolcreatedb,
+                role.rolcreaterole,
+                role.rolinherit,
+                role.rolreplication,
+                role.rolbypassrls,
+                role.rolconnlimit,
+                role.rolvaliduntil = 'infinity'::pg_catalog.timestamptz
+                  as valid_until_infinity,
+                role.rolpassword is null as password_is_null,
+                not exists (
+                  select 1
+                    from pg_catalog.pg_db_role_setting setting
+                   where setting.setrole = role.oid
+                ) as role_settings_empty
+           from pg_catalog.pg_authid role
+       ) role
+      where role.rolname = 'learncoding_owner'
+        and not role.rolcanlogin and not role.rolsuper
+        and not role.rolcreatedb and not role.rolcreaterole
+        and not role.rolinherit and not role.rolreplication
+        and not role.rolbypassrls and role.rolconnlimit = -1
+        and role.valid_until_infinity and role.password_is_null
+        and role.role_settings_empty")"
+[[ "$restore_owner_count" == 1 ]] \
+  || die "exact learncoding_owner restore role is unavailable"
 restore_compose exec -T postgres /bin/sh -ceu '
   export PGPASSWORD="$(cat /run/secrets/postgres_password)"
-  exec pg_restore --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --role=learncoding_owner --exit-on-error --no-owner --no-acl
+  exec pg_restore --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --role=learncoding_owner --exit-on-error --no-owner
 ' <"$extracted/database.dump" >/dev/null
+pre_repair_verification="$(restore_compose --profile operations run --rm \
+  --no-deps --no-build --pull never \
+  -e RESTORE_DATABASE_NAME=learncoding_restore_drill \
+  database-role-bootstrap \
+  node /app/scripts/verify-pre-repair-restored-database.mjs)"
+[[ "$pre_repair_verification" == restore_pre_repair_catalog_valid=true ]] \
+  || die "raw restored catalog verifier returned an invalid acknowledgement"
 REQUIRE_COMPLETE_MIGRATION_LEDGER=true \
   restore_one_shot database-role-bootstrap
 restore_one_shot database-boundary-verifier
