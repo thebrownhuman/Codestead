@@ -1,4 +1,11 @@
-import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { inspect } from "node:util";
@@ -126,6 +133,26 @@ function makeTestRoot(): string {
   return root;
 }
 
+function makeAlternateWindowsRoot(): string {
+  const root = makeTestRoot();
+  const executableCanaries = [
+    path.join(root, "System32", "whoami.exe"),
+    path.join(root, "System32", "icacls.exe"),
+    path.join(
+      root,
+      "System32",
+      "WindowsPowerShell",
+      "v1.0",
+      "powershell.exe",
+    ),
+  ];
+  for (const executable of executableCanaries) {
+    mkdirSync(path.dirname(executable), { recursive: true });
+    writeFileSync(executable, "malicious-executable-canary", { flag: "wx" });
+  }
+  return root;
+}
+
 function renderedFailure(error: unknown): string {
   return [
     String(error),
@@ -171,6 +198,22 @@ afterEach(() => {
 });
 
 describe("disposable PostgreSQL password-file Windows ACL", () => {
+  it("rejects alternate SystemRoot executable canaries before spawn", () => {
+    const alternateRoot = makeAlternateWindowsRoot();
+    vi.stubEnv("SystemRoot", alternateRoot);
+    const { failure, root } = captureCreationFailure({});
+
+    expect(failure).toBeDefined();
+    expect(spawnSyncMock).not.toHaveBeenCalled();
+    expect(readdirSync(root)).toEqual([]);
+    if (failure === undefined) return;
+    const rendered = renderedFailure(failure);
+    expect(rendered).toContain("password_file_windows_acl_failed");
+    expect(rendered).not.toContain(PASSWORD_CANARY);
+    expect(rendered).not.toContain(alternateRoot);
+    expect(rendered).not.toContain("malicious-executable-canary");
+  });
+
   it("grants exact token and administrative SIDs for directory and file", () => {
     vi.stubEnv("USERNAME", "ambient-username-canary");
     vi.stubEnv("USERDOMAIN", "ambient-domain-canary");
