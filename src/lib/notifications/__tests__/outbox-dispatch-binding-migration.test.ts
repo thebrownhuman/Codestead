@@ -269,6 +269,10 @@ describe("0064 email outbox dispatch binding", () => {
     expect(integrationRunner).toContain(
       "postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193",
     );
+    expect(pinnedIntegration).toContain(
+      "SELECT disposition, eligible::text, transitioned::text",
+    );
+    expect(harness).toContain("\"eligible|1|1\"");
     expect(harness).toContain("migration_rollback:pass");
     expect(harness).toContain("legacy_grandfather:pass");
     expect(harness).toContain("transition_matrix:pass");
