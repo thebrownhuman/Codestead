@@ -99,9 +99,12 @@ describe("mail dispatch runtime policy", () => {
           transactionTimeoutMs: 0,
         },
         postProviderInitiation: {
-          idleInTransactionSessionTimeoutMs: 35_000,
+          idleInTransactionSessionTimeoutMs: 60_000,
           transactionTimeoutMs: 60_000,
           transactionTimeoutMinimumPostgresMajor: 17,
+          minimumSupportedPostgresMajor: 17,
+          postgres17EffectiveTimeoutAtEquality: "transaction_timeout",
+          postgres17SchedulesEqualIdleTimeout: false,
         },
       },
       providerLease: {
@@ -159,9 +162,12 @@ describe("mail dispatch runtime policy", () => {
         transactionTimeoutMs: 0,
       },
       postProviderInitiation: {
-        idleInTransactionSessionTimeoutMs: 35_000,
+        idleInTransactionSessionTimeoutMs: 60_000,
         transactionTimeoutMs: 60_000,
         transactionTimeoutMinimumPostgresMajor: 17,
+        minimumSupportedPostgresMajor: 17,
+        postgres17EffectiveTimeoutAtEquality: "transaction_timeout",
+        postgres17SchedulesEqualIdleTimeout: false,
       },
     });
     expect(Object.isFrozen(MAIL_DISPATCH_RUNTIME_DEFAULTS)).toBe(true);
@@ -423,9 +429,12 @@ describe("mail dispatch runtime policy", () => {
     expect(
       plan.liveProviderTx2DatabaseTimeouts.postProviderInitiation,
     ).toEqual({
-      idleInTransactionSessionTimeoutMs: 35_000,
+      idleInTransactionSessionTimeoutMs: 60_000,
       transactionTimeoutMs: 60_000,
       transactionTimeoutMinimumPostgresMajor: 17,
+      minimumSupportedPostgresMajor: 17,
+      postgres17EffectiveTimeoutAtEquality: "transaction_timeout",
+      postgres17SchedulesEqualIdleTimeout: false,
     });
     expect(plan.timeouts.preProviderTx2PhaseBudgetMs).toBe(6_000);
     expect(plan.timeouts.postProviderTx2PhaseBudgetMs).toBe(6_000);
@@ -443,6 +452,49 @@ describe("mail dispatch runtime policy", () => {
     expect(() => planMailDispatchRuntime({
       postProviderInitiationTransactionTimeoutMs: 0,
     })).toThrow(/post-provider transaction timeout must be a positive safe integer/i);
+  });
+
+  it("keeps PG17 database fallbacks five seconds behind the hard watchdog", () => {
+    const plan = planMailDispatchRuntime();
+    const { postProviderInitiation } =
+      plan.liveProviderTx2DatabaseTimeouts;
+    const minimumFallbackLeadMs =
+      MAIL_DISPATCH_RUNTIME_LIMITS.minimumPostProviderDatabaseFallbackLeadMs;
+
+    expect(minimumFallbackLeadMs).toBe(5_000);
+    expect(postProviderInitiation.idleInTransactionSessionTimeoutMs).toBe(
+      60_000,
+    );
+    expect(postProviderInitiation.transactionTimeoutMs).toBe(60_000);
+    expect(postProviderInitiation.minimumSupportedPostgresMajor).toBe(17);
+    expect(
+      postProviderInitiation.postgres17EffectiveTimeoutAtEquality,
+    ).toBe("transaction_timeout");
+    expect(
+      postProviderInitiation.postgres17SchedulesEqualIdleTimeout,
+    ).toBe(false);
+    expect(plan.timeouts.hardWatchdogMs + minimumFallbackLeadMs).toBe(
+      postProviderInitiation.idleInTransactionSessionTimeoutMs,
+    );
+    expect(plan.timeouts.hardWatchdogMs + minimumFallbackLeadMs).toBe(
+      postProviderInitiation.transactionTimeoutMs,
+    );
+
+    expect(planMailDispatchRuntime({
+      postProviderInitiationIdleInTransactionSessionTimeoutMs: 60_000,
+      postProviderInitiationTransactionTimeoutMs: 60_000,
+    }).liveProviderTx2DatabaseTimeouts.postProviderInitiation).toEqual(
+      postProviderInitiation,
+    );
+    expect(() => planMailDispatchRuntime({
+      postProviderInitiationIdleInTransactionSessionTimeoutMs: 59_999,
+    })).toThrow(/idle-in-transaction session timeout must remain at least 5000ms after the hard watchdog/i);
+    expect(() => planMailDispatchRuntime({
+      postProviderInitiationTransactionTimeoutMs: 59_999,
+    })).toThrow(/transaction timeout must remain at least 5000ms after the hard watchdog/i);
+    expect(() => planMailDispatchRuntime({
+      postProviderInitiationIdleInTransactionSessionTimeoutMs: 60_001,
+    })).toThrow(/post-provider idle-in-transaction session timeout/i);
   });
 
   it("bounds both watchdog control-plane deliveries", () => {
@@ -639,18 +691,22 @@ describe("mail dispatch runtime policy", () => {
     expect(timeouts.watchdogDisarmDeliveryMs).toBe(2_000);
     expect(absoluteWindowMs).toBe(51_000);
     expect(timeouts.hardWatchdogMs).toBe(55_000);
+    expect(postProviderInitiation.idleInTransactionSessionTimeoutMs).toBe(
+      60_000,
+    );
     expect(postProviderInitiation.transactionTimeoutMs).toBe(60_000);
     expect(guardedNetworkMs).toBeLessThan(
       postProviderInitiation.idleInTransactionSessionTimeoutMs,
     );
     expect(
       postProviderInitiation.idleInTransactionSessionTimeoutMs,
-    ).toBeLessThan(
-      postProviderInitiation.transactionTimeoutMs,
-    );
+    ).toBe(postProviderInitiation.transactionTimeoutMs);
     expect(tx2PathMs).toBeLessThan(timeouts.hardWatchdogMs);
     expect(watchedPathMs).toBeLessThan(timeouts.hardWatchdogMs);
     expect(absoluteWindowMs).toBeLessThan(timeouts.hardWatchdogMs);
+    expect(timeouts.hardWatchdogMs).toBeLessThan(
+      postProviderInitiation.idleInTransactionSessionTimeoutMs,
+    );
     expect(timeouts.hardWatchdogMs).toBeLessThan(
       postProviderInitiation.transactionTimeoutMs,
     );
@@ -671,20 +727,11 @@ describe("mail dispatch runtime policy", () => {
       queryTimeoutMs: 15_000,
     })).toThrow(/query timeout must finish inside TX1 and TX2/i);
     expect(() => planMailDispatchRuntime({
-      postProviderInitiationIdleInTransactionSessionTimeoutMs: 30_000,
-    })).toThrow(/locked provider window must finish before the idle-in-transaction session timeout/i);
-    expect(() => planMailDispatchRuntime({
-      postProviderInitiationIdleInTransactionSessionTimeoutMs: 60_000,
-    })).toThrow(/idle-in-transaction session timeout must finish inside the TX2 transaction timeout/i);
-    expect(() => planMailDispatchRuntime({
       hardWatchdogMs: 51_000,
     })).toThrow(/watchdog control path must finish before the hard watchdog/i);
     expect(() => planMailDispatchRuntime({
       preProviderTx2PhaseBudgetMs: 10_000,
     })).toThrow(/watchdog control path must finish before the hard watchdog/i);
-    expect(() => planMailDispatchRuntime({
-      postProviderInitiationTransactionTimeoutMs: 55_000,
-    })).toThrow(/hard watchdog must fire before the post-provider transaction timeout/i);
     expect(() => planMailDispatchRuntime({
       hardWatchdogMs: 55_001,
     })).toThrow(/hard watchdog/i);
@@ -764,13 +811,13 @@ describe("mail dispatch runtime policy", () => {
         databaseUrl: "postgres://must-not-flow-through-policy",
       } as never)).toThrow(/unknown mail dispatch runtime override/i);
       expect(() => planMailDispatchRuntime({
-        idleInTransactionProofBudgetMs: 35_000,
+        idleInTransactionProofBudgetMs: 60_000,
       } as never)).toThrow(/unknown mail dispatch runtime override/i);
       expect(() => planMailDispatchRuntime({
-        tx2ProofBudgetMs: 50_000,
+        tx2ProofBudgetMs: 55_000,
       } as never)).toThrow(/unknown mail dispatch runtime override/i);
       expect(() => planMailDispatchRuntime({
-        idleInTransactionSessionTimeoutMs: 35_000,
+        idleInTransactionSessionTimeoutMs: 60_000,
       } as never)).toThrow(/unknown mail dispatch runtime override/i);
       expect(() => planMailDispatchRuntime({
         tx2TransactionTimeoutMs: 60_000,
