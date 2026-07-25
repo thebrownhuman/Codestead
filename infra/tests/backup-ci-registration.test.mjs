@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   assertPostgresCiProjectionContract,
   canonicalPostgresCiProjectionContract,
+  projectPostgresCiProjectionContract,
 } from "./mail-retention-redaction-0063-ci-contract.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -733,6 +734,10 @@ function runtimeEvidenceUploadProjection(artifactName) {
     "          retention-days: 14",
   ];
 }
+
+const canonicalPostgresProjection = projectPostgresCiProjectionContract(
+  canonicalPostgresCiProjectionContract,
+);
 const reviewedJobContracts = new Map([
   [
     "application",
@@ -827,19 +832,17 @@ const reviewedJobContracts = new Map([
   [
     "postgres-integration",
     [
-      "    runs-on: ubuntu-24.04",
-      "    timeout-minutes: 20",
+      canonicalPostgresProjection.runnerLine,
+      canonicalPostgresProjection.timeoutLine,
       "    steps:",
       ...checkoutProjection,
       ...setupNodeProjection,
       "      - run: npm ci",
-      "      - run: npm run test:mail-delivery-scope-0059:registration",
-      "      - run: npm run test:mail-payload-immutability-0060:registration",
-      "      - run: npm run test:mail-retention-redaction-0063:registration",
+      ...canonicalPostgresProjection.registrationLines,
       "      - run: npm run test:integration",
-      "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+      canonicalPostgresProjection.dockerPg17PullLine,
       "      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
-      "      - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/database-least-privilege-integration.sh",
+      canonicalPostgresProjection.dockerPg17IntegrationLine,
       "      - run: |",
       "          set -Eeuo pipefail",
       "          key_path=\"$RUNNER_TEMP/postgresql-pgdg.asc\"",
@@ -863,11 +866,9 @@ const reviewedJobContracts = new Map([
       "            'Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc' \\",
       "            | sudo tee /etc/apt/sources.list.d/pgdg.sources >/dev/null",
       "          sudo apt-get update",
-      "          sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18",
-      "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063",
-      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
-      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-payload-immutability-0060",
-      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-retention-redaction-0063",
+      canonicalPostgresProjection.installLine,
+      ...canonicalPostgresProjection.productionPg17Lines,
+      ...canonicalPostgresProjection.targetedPg18Lines,
     ],
   ],
   [
@@ -1031,14 +1032,18 @@ function requireReviewedExecutableContracts(blocks) {
   }
 }
 
-function requireCanonicalPostgresCiCrossGuard() {
-  const projection = reviewedJobContracts.get("postgres-integration");
-  if (projection === undefined) {
+function requireCanonicalPostgresCiCrossGuard(blocks) {
+  const actualBlock = blocks.get("postgres-integration");
+  if (actualBlock === undefined) {
     fail("canonical PostgreSQL CI cross-guard projection is missing");
   }
   try {
+    const projection = behavioralJobProjection(
+      actualBlock,
+      "postgres-integration",
+    ).join("\n");
     assertPostgresCiProjectionContract(
-      projection.join("\n"),
+      projection,
       canonicalPostgresCiProjectionContract,
     );
   } catch (error) {
@@ -1097,8 +1102,8 @@ function validateWorkflow(document) {
   if (actualJobNames.join("\n") !== expectedJobNames.join("\n")) {
     fail("workflow job set is outside the reviewed executable allowlist");
   }
+  requireCanonicalPostgresCiCrossGuard(blocks);
   requireReviewedExecutableContracts(blocks);
-  requireCanonicalPostgresCiCrossGuard();
   const backup = requireJob(blocks, "backup-safety");
 
   if (
@@ -1497,7 +1502,9 @@ function runAdversarialSelfTests(document) {
           `  ${jobName}:\n`,
           `  ${jobName}:\n${line}\n`,
         ),
-        `${jobName} executable contract changed`,
+        jobName === "postgres-integration"
+          ? "canonical PostgreSQL CI cross-guard changed"
+          : `${jobName} executable contract changed`,
       );
     }
   }
@@ -1684,7 +1691,16 @@ function runAdversarialSelfTests(document) {
       "  postgres-integration:\n    runs-on: ubuntu-24.04\n",
       "  postgres-integration:\n    runs-on: self-hosted\n",
     ),
-    "postgres-integration executable contract changed",
+    "canonical PostgreSQL CI cross-guard changed",
+  );
+  expectRejectedWithMessage(
+    "actual PostgreSQL Docker downgrade reaches the canonical cross-guard",
+    replaceExactly(
+      document,
+      "docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+      "docker pull postgres:16-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+    ),
+    "canonical PostgreSQL CI cross-guard changed: the pinned Docker PostgreSQL 17 integration image must appear exactly once",
   );
   expectRejectedWithMessage(
     "extra curriculum runtime command",

@@ -43,6 +43,21 @@ assert.equal(
   "the shared PostgreSQL CI contract must expose one canonical projection assertion",
 );
 
+for (const unauthorizedTimeout of [21, 34, 35]) {
+  assert.throws(
+    () =>
+      postgresCiProjectionModule.definePostgresCiProjectionExtension({
+        id: `self-test-non-restore-timeout-${unauthorizedTimeout}`,
+        registrationScripts: [
+          `test:self-test-non-restore-timeout-${unauthorizedTimeout}:registration`,
+        ],
+        minimumTimeoutMinutes: unauthorizedTimeout,
+      }),
+    /only the dedicated restore extension may raise the PostgreSQL CI timeout/u,
+    `a normal extension cannot raise the timeout to ${unauthorizedTimeout}`,
+  );
+}
+
 const selfTest0064Extension =
   postgresCiProjectionModule.definePostgresCiProjectionExtension({
     id: "self-test-0064",
@@ -60,6 +75,7 @@ const selfTest0065Extension =
 const selfTestRestoreExtension =
   postgresCiProjectionModule.definePostgresCiProjectionExtension({
     id: "self-test-restore",
+    kind: "restore",
     registrationScripts: ["test:self-test-restore:registration"],
     productionPg17Scripts: ["test:self-test-restore"],
     targetedPg18Scripts: ["test:self-test-restore"],
@@ -298,6 +314,32 @@ if (!staticOnly) {
     "PostgreSQL 16 cannot re-enter the matrix",
     `${postgresJob}      - run: POSTGRES_16_BIN=/usr/lib/postgresql/16/bin npm run test:future-mail-gate\n`,
     /PostgreSQL 16/u,
+  );
+  expectProjectionRejected(
+    "the pinned Docker integration cannot regress from PostgreSQL 17 to 16",
+    replaceProjectionExactly(
+      postgresJob,
+      "docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+      "docker pull postgres:16-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+    ),
+    /pinned Docker PostgreSQL 17 integration image/u,
+  );
+  expectProjectionRejected(
+    "the pinned Docker pull must precede its PostgreSQL 17 integration gate",
+    replaceProjectionExactly(
+      postgresJob,
+      [
+        "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+        "      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
+        "      - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/database-least-privilege-integration.sh",
+      ].join("\n"),
+      [
+        "      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
+        "      - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/database-least-privilege-integration.sh",
+        "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+      ].join("\n"),
+    ),
+    /Docker PostgreSQL 17 pull must precede its integration gate/u,
   );
   expectProjectionRejected(
     "runtime environment and binary majors cannot diverge",
