@@ -164,6 +164,56 @@ describe("durable provider-operation idempotency", () => {
     expect(execute).toHaveBeenCalledTimes(1);
   });
 
+  it("stores a safe replay projection without persisting a one-time sensitive response", async () => {
+    const store = new MemoryStore();
+    const execute = vi.fn(async () => ({
+      status: 200,
+      body: { credential: "one-time-plaintext", provider: "nvidia_nim" },
+    }));
+
+    const first = await executeProviderOperationIdempotently({
+      ...base,
+      action: "credential.reveal",
+      store,
+      execute,
+      durableResponse: () => ({
+        status: 409,
+        body: {
+          error: "This reveal request was already completed. Start a new reveal ceremony.",
+          code: "CREDENTIAL_REVEAL_ALREADY_COMPLETED",
+        },
+      }),
+    });
+    const replay = await executeProviderOperationIdempotently({
+      ...base,
+      action: "credential.reveal",
+      store,
+      execute,
+      durableResponse: () => ({
+        status: 409,
+        body: {
+          error: "This reveal request was already completed. Start a new reveal ceremony.",
+          code: "CREDENTIAL_REVEAL_ALREADY_COMPLETED",
+        },
+      }),
+    });
+
+    expect(first).toEqual({
+      status: 200,
+      body: { credential: "one-time-plaintext", provider: "nvidia_nim" },
+      replayed: false,
+    });
+    expect(replay).toEqual({
+      status: 409,
+      body: {
+        error: "This reveal request was already completed. Start a new reveal ceremony.",
+        code: "CREDENTIAL_REVEAL_ALREADY_COMPLETED",
+      },
+      replayed: true,
+    });
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify([...store.receipts.values()])).not.toContain("one-time-plaintext");
+
   it("terminalizes a thrown provider callback immediately and replays without another call", async () => {
     const store = new MemoryStore();
     const execute = vi.fn(async () => {
