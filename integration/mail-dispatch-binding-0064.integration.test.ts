@@ -74,50 +74,61 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
 
   async function insertAndClaim(row: ReturnType<typeof fixture>) {
     insertedIds.add(row.id);
-    await owner.query(`
-      INSERT INTO public.email_outbox (
-        id, operation_id, user_id, delivery_scope_key, to_email, template,
-        template_version, variables, idempotency_key, status,
-        next_attempt_at, created_at, updated_at
-      ) VALUES (
-        $1::uuid,
-        $2::uuid,
-        NULL,
-        's:' || $2::uuid::text,
-        $3::text,
-        'access-request-admin',
-        '1',
-        pg_catalog.jsonb_build_object(
-          '_mailOperationId', $2::uuid::text,
-          '_mailRecipient', $3::text,
-          '_mailProducer', 'access-request-admin',
-          '_mailSourceId', $4::uuid::text
-        ),
-        'dispatch-binding-pg17-' || $5::text,
-        'pending',
-        pg_catalog.statement_timestamp(),
-        pg_catalog.statement_timestamp(),
-        pg_catalog.statement_timestamp()
-      );
-      UPDATE public.email_outbox
-         SET status = 'sending',
-             attempt_count = 1,
-             claim_token = $6::uuid,
-             claim_owner = 'mail-dispatch-0064-pg17',
-             claim_version = 1,
-             lease_expires_at =
-               pg_catalog.statement_timestamp() + interval '120 seconds',
-             last_error_code = NULL,
-             updated_at = pg_catalog.statement_timestamp()
-       WHERE id = $1::uuid;
-    `, [
-      row.id,
-      row.operationId,
-      `dispatch-${row.suffix}@integration.invalid`,
-      row.sourceId,
-      row.suffix,
-      row.claimToken,
-    ]);
+    const setupClient = await owner.connect();
+    try {
+      await setupClient.query("BEGIN");
+      await setupClient.query(`
+        INSERT INTO public.email_outbox (
+          id, operation_id, user_id, delivery_scope_key, to_email, template,
+          template_version, variables, idempotency_key, status,
+          next_attempt_at, created_at, updated_at
+        ) VALUES (
+          $1::uuid,
+          $2::uuid,
+          NULL,
+          's:' || $2::uuid::text,
+          $3::text,
+          'access-request-admin',
+          '1',
+          pg_catalog.jsonb_build_object(
+            '_mailOperationId', $2::uuid::text,
+            '_mailRecipient', $3::text,
+            '_mailProducer', 'access-request-admin',
+            '_mailSourceId', $4::uuid::text
+          ),
+          'dispatch-binding-pg17-' || $5::text,
+          'pending',
+          pg_catalog.statement_timestamp(),
+          pg_catalog.statement_timestamp(),
+          pg_catalog.statement_timestamp()
+        )
+      `, [
+        row.id,
+        row.operationId,
+        `dispatch-${row.suffix}@integration.invalid`,
+        row.sourceId,
+        row.suffix,
+      ]);
+      await setupClient.query(`
+        UPDATE public.email_outbox
+           SET status = 'sending',
+               attempt_count = 1,
+               claim_token = $2::uuid,
+               claim_owner = 'mail-dispatch-0064-pg17',
+               claim_version = 1,
+               lease_expires_at =
+                 pg_catalog.statement_timestamp() + interval '120 seconds',
+               last_error_code = NULL,
+               updated_at = pg_catalog.statement_timestamp()
+         WHERE id = $1::uuid
+      `, [row.id, row.claimToken]);
+      await setupClient.query("COMMIT");
+    } catch (error) {
+      await setupClient.query("ROLLBACK");
+      throw error;
+    } finally {
+      setupClient.release();
+    }
   }
 
   async function arm(
@@ -304,7 +315,7 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
       tgqual: null,
       tgnargs: 0,
       tgattr: "",
-      function_name: "enforce_email_outbox_dispatch_binding()",
+      function_name: "enforce_email_outbox_dispatch_binding",
       constraint_validated: true,
     }]);
   });
