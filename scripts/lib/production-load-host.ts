@@ -7,6 +7,7 @@ import {
   PRODUCTION_LOAD_FAULT_MATRIX,
   type ProductionLoadSeedPlan,
 } from "../../src/lib/performance/load-report";
+import { lockUserAuthorityOnPgClient } from "../../src/lib/security/user-authority-lock";
 import type { ProductionLoadControlOperation } from "./production-load-control";
 
 export type ProductionLoadDatabaseResult<T> = { readonly rows: readonly T[] };
@@ -395,6 +396,20 @@ function blueprint(now: Date) {
   };
 }
 
+function compareCodePointOrder(left: string, right: string) {
+  const leftCodePoints = [...left];
+  const rightCodePoints = [...right];
+  const sharedLength = Math.min(leftCodePoints.length, rightCodePoints.length);
+  for (let index = 0; index < sharedLength; index += 1) {
+    const leftPoint = leftCodePoints[index]!.codePointAt(0)!;
+    const rightPoint = rightCodePoints[index]!.codePointAt(0)!;
+    if (leftPoint !== rightPoint) {
+      return leftPoint - rightPoint;
+    }
+  }
+  return leftCodePoints.length - rightCodePoints.length;
+}
+
 async function seedDatabase(
   options: CreateProductionLoadHostOptions,
   plan: ProductionLoadSeedPlan,
@@ -422,6 +437,12 @@ async function seedDatabase(
         },
       };
       await db.query("select pg_advisory_xact_lock($1::bigint)", ["6081241526994772101"]);
+      const learnerAuthorityIds = [...new Set(
+        plan.learners.map((learner) => learner.id),
+      )].sort(compareCodePointOrder);
+      for (const learnerId of learnerAuthorityIds) {
+        await lockUserAuthorityOnPgClient(db, learnerId);
+      }
       const namespaceUsers = await db.query<{ id: string; email: string }>(
         "select id, lower(email) as email from \"user\" where id = any($1::text[]) or lower(email) = any($2::text[]) /* production_load_namespace */",
         [plan.learners.map((learner) => learner.id), plan.learners.map((learner) => learner.email)],
