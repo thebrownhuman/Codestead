@@ -64,7 +64,7 @@ describe("mail outbox retention privacy", () => {
 
   it("redacts PII without destroying unresolved provider authority", () => {
     const source = retentionSource();
-    const redactStart = source.indexOf("from public.redact_unresolved_email_outbox_authority(");
+    const redactStart = source.indexOf("from public.redact_quarantined_email_outbox_authority_v2(");
     const redactEnd = source.indexOf(
       "categories.unresolvedEmailDeliveryAuthority =",
       redactStart,
@@ -74,7 +74,7 @@ describe("mail outbox retention privacy", () => {
     const redaction = source.slice(redactStart, redactEnd);
 
     expect(redaction).toContain(
-      "from public.redact_unresolved_email_outbox_authority(",
+      "from public.redact_quarantined_email_outbox_authority_v2(",
     );
     expect(redaction).toContain("$1::timestamptz, $2::integer");
     expect(redaction).not.toContain("update email_outbox");
