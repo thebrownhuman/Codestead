@@ -9,11 +9,13 @@ import {
   type OutboxPgPool,
 } from "../postgres-outbox-store";
 import type { GmailReconciliationFence } from "../gmail-reconciliation";
-import type {
-  OutboxClaim,
-  ProviderCallPermit,
-  ProviderStartedClaim,
+import {
+  PostProviderPersistenceUnknownError,
+  type OutboxClaim,
+  type ProviderCallPermit,
+  type ProviderStartedClaim,
 } from "../outbox-worker";
+import type { ProviderPayloadSha256 } from "../prepared-dispatch";
 
 const ID = "11111111-1111-4111-8111-111111111111";
 const OPERATION = "22222222-2222-4222-8222-222222222222";
@@ -22,7 +24,7 @@ const SOURCE = "44444444-4444-4444-8444-444444444444";
 const ACTIVATION_TOKEN = "A".repeat(43);
 const DISPATCH_BINDING = {
   bindingVersion: "gmail-raw-v1",
-  bindingSha256: "a".repeat(64),
+  bindingSha256: "a".repeat(64) as ProviderPayloadSha256,
 } as const;
 
 type Step = Readonly<{
@@ -112,6 +114,8 @@ const claim: OutboxClaim<EmailOutboxPayload> = {
   claimToken: TOKEN,
   claimOwner: "worker-1",
   claimVersion: 4,
+  userId: "learner-1",
+  deliveryScopeKey: "a:learner-1",
   attempt: 2,
   leaseExpiresAt: new Date("2026-07-22T19:01:00.000Z"),
   payload: {
@@ -131,8 +135,12 @@ const started: ProviderStartedClaim = {
   claimOwner: "worker-1",
   claimVersion: 4,
   adapter: "gmail",
+  userId: "learner-1",
+  deliveryScopeKey: "a:learner-1",
   providerCallStartedAt: "2026-07-22 19:00:05.123456+00",
   leaseExpiresAt: new Date("2026-07-22T19:01:05.000Z"),
+  bindingVersion: DISPATCH_BINDING.bindingVersion,
+  bindingSha256: DISPATCH_BINDING.bindingSha256,
 };
 const permit = started as ProviderCallPermit;
 
@@ -183,6 +191,9 @@ const reconciliationFence: GmailReconciliationFence = {
   providerCallStartedAt: "2026-07-22 19:00:05+00",
   quarantinedAt: "2026-07-22 19:01:05+00",
   lastErrorCode: "PROVIDER_OUTCOME_AMBIGUOUS",
+  kind: "exact-bound",
+  bindingVersion: DISPATCH_BINDING.bindingVersion,
+  bindingSha256: DISPATCH_BINDING.bindingSha256,
 };
 
 describe("PostgresOutboxStore", () => {
@@ -673,8 +684,17 @@ describe("PostgresOutboxStore", () => {
   it("rejects a sent update whose returned provider identity does not verify", async () => {
     const input = harness([
       { contains: "begin" },
-      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
+      {
+        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
+        rows: [
+          {
+            ...scopeRow(),
+            dispatch_binding_version: DISPATCH_BINDING.bindingVersion,
+            dispatch_binding_sha256: DISPATCH_BINDING.bindingSha256,
+          },
+        ],
+      },
       {
         contains: "update public.email_outbox",
         rows: [{
@@ -688,13 +708,24 @@ describe("PostgresOutboxStore", () => {
           last_error_code: null,
         }],
       },
-      { contains: "commit" },
+      { contains: "rollback" },
     ]);
 
     await expect(input.store.finishAfterProvider(permit, {
       kind: "sent",
       providerMessageId: "gmail-1",
-    })).resolves.toEqual({ kind: "lost" });
+    })).rejects.toBeInstanceOf(PostProviderPersistenceUnknownError);
+    const terminal = input.client.calls[3]!;
+    expect(terminal.sql).toContain("sent_at is null");
+    expect(terminal.sql).toContain("quarantined_at is null");
+    expect(terminal.sql).toContain("last_error_code is null");
+    expect(terminal.sql).toContain("lease_expires_at = $13::timestamptz");
+    expect(terminal.values[12]).toBe(permit.leaseExpiresAt);
+    expect(input.client.calls[2]!.sql)
+      .toContain("lease_expires_at = $12::timestamptz");
+    expect(input.client.calls[2]!.values[11]).toBe(permit.leaseExpiresAt);
+    expect(input.client.calls.at(-1)!.sql).toBe("rollback");
+    expect(input.client.releaseCalls).toEqual([false]);
   });
 
   it("accepts an exact already-persisted provider result", async () => {
@@ -767,8 +798,17 @@ describe("PostgresOutboxStore", () => {
   it("rejects a quarantined transition that did not return the exact next generation", async () => {
     const input = harness([
       { contains: "begin" },
-      { contains: "select id::text, user_id, operation_id::text, delivery_scope_key", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
+      {
+        contains: "select id::text, user_id, operation_id::text, delivery_scope_key",
+        rows: [
+          {
+            ...scopeRow(),
+            dispatch_binding_version: DISPATCH_BINDING.bindingVersion,
+            dispatch_binding_sha256: DISPATCH_BINDING.bindingSha256,
+          },
+        ],
+      },
       {
         contains: "update public.email_outbox",
         rows: [{
@@ -782,13 +822,20 @@ describe("PostgresOutboxStore", () => {
           last_error_code: "PROVIDER_OUTCOME_AMBIGUOUS",
         }],
       },
-      { contains: "commit" },
+      { contains: "rollback" },
     ]);
 
     await expect(input.store.finishAfterProvider(permit, {
       kind: "quarantined",
       code: "PROVIDER_OUTCOME_AMBIGUOUS",
-    })).resolves.toEqual({ kind: "lost" });
+    })).rejects.toBeInstanceOf(PostProviderPersistenceUnknownError);
+    const terminal = input.client.calls[3]!;
+    expect(terminal.sql).toContain("sent_at is null");
+    expect(terminal.sql).toContain("last_error_code is null");
+    expect(terminal.sql).toContain("lease_expires_at = $14::timestamptz");
+    expect(terminal.values[13]).toBe(permit.leaseExpiresAt);
+    expect(input.client.calls.at(-1)!.sql).toBe("rollback");
+    expect(input.client.releaseCalls).toEqual([false]);
   });
   it("finalizes a captured sent receipt against the exact released successor fence", async () => {
     const input = harness([
@@ -1042,19 +1089,26 @@ describe("PostgresOutboxStore", () => {
   it("finalizes a Gmail match only under the exact fence and delivery-scope lock", async () => {
     const input = harness([
       { contains: "begin" },
-      { contains: "status = 'quarantined'", rows: [scopeRow()] },
       { contains: "pg_advisory_xact_lock" },
+      { contains: "status = 'quarantined'", rows: [scopeRow()] },
       {
         contains: "update public.email_outbox",
         rows: [{
           status: "sent",
           claim_version: 4,
+          user_id: "learner-1",
+          delivery_scope_key: "a:learner-1",
           adapter: "gmail",
           provider_message_id: "gmail-1",
-          provider_call_started: "2026-07-22 19:00:05.123456+00",
+          provider_call_started: "2026-07-22 19:00:05+00",
           sent_at: new Date("2026-07-22T19:02:00.000Z"),
           quarantined_at: null,
           last_error_code: null,
+          claim_token: null,
+          claim_owner: null,
+          lease_expires_at: null,
+          dispatch_binding_version: DISPATCH_BINDING.bindingVersion,
+          dispatch_binding_sha256: DISPATCH_BINDING.bindingSha256,
         }],
       },
       { contains: "commit" },
@@ -1063,6 +1117,11 @@ describe("PostgresOutboxStore", () => {
     await expect(input.store.finalizeGmailReconciliation({
       fence: reconciliationFence,
       providerMessageId: "gmail-1",
+      bindingEvidence: {
+        kind: "exact-bound",
+        bindingVersion: DISPATCH_BINDING.bindingVersion,
+        bindingSha256: DISPATCH_BINDING.bindingSha256,
+      },
     })).resolves.toEqual({ kind: "applied" });
 
     const update = input.client.calls[3]!;
@@ -1073,6 +1132,48 @@ describe("PostgresOutboxStore", () => {
     expect(update.sql).toContain("status = 'quarantined'");
     expect(update.values).toContain("a:learner-1");
     expect(update.values).toContain("gmail-1");
+  });
+
+  it("rolls back a Gmail reconciliation update whose returned proof is corrupted", async () => {
+    const input = harness([
+      { contains: "begin" },
+      { contains: "pg_advisory_xact_lock" },
+      { contains: "status = 'quarantined'", rows: [scopeRow()] },
+      {
+        contains: "update public.email_outbox",
+        rows: [{
+          status: "sent",
+          claim_version: 4,
+          user_id: "learner-1",
+          delivery_scope_key: "a:learner-1",
+          adapter: "gmail",
+          provider_message_id: "gmail-conflicting",
+          provider_call_started: "2026-07-22 19:00:05+00",
+          sent_at: new Date("2026-07-22T19:02:00.000Z"),
+          quarantined_at: null,
+          last_error_code: null,
+          claim_token: null,
+          claim_owner: null,
+          lease_expires_at: null,
+          dispatch_binding_version: DISPATCH_BINDING.bindingVersion,
+          dispatch_binding_sha256: DISPATCH_BINDING.bindingSha256,
+        }],
+      },
+      { contains: "rollback" },
+    ]);
+
+    await expect(input.store.finalizeGmailReconciliation({
+      fence: reconciliationFence,
+      providerMessageId: "gmail-1",
+      bindingEvidence: {
+        kind: "exact-bound",
+        bindingVersion: DISPATCH_BINDING.bindingVersion,
+        bindingSha256: DISPATCH_BINDING.bindingSha256,
+      },
+    })).rejects.toThrow("Gmail reconciliation terminal proof mismatch.");
+
+    expect(input.client.calls.at(-1)!.sql).toBe("rollback");
+    expect(input.client.releaseCalls).toEqual([false]);
   });
 
   it("quarantines only expired post-boundary rows with the exact observed fence", async () => {

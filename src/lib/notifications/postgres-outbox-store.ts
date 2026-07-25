@@ -427,6 +427,7 @@ type PermitFenceInput = ClaimFenceInput &
   Readonly<{
     adapter: string;
     providerCallStartedAt: string;
+    leaseExpiresAt: Date;
     bindingVersion: DispatchBinding["bindingVersion"];
     bindingSha256: ProviderPayloadSha256;
   }>;
@@ -460,6 +461,7 @@ async function lockPermitScope(
           claim_version = $5::integer
           and claim_token = $3::uuid
           and claim_owner = $4::text
+          and lease_expires_at = $12::timestamptz
         )
         or (
           claim_version = $5::integer
@@ -491,6 +493,7 @@ async function lockPermitScope(
       expectedScope.key,
       permit.bindingVersion,
       permit.bindingSha256,
+      permit.leaseExpiresAt,
     ],
   );
   if (result.rows.length !== 1) return null;
@@ -1548,7 +1551,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           providerBindingEvidence.bindingVersion &&
         updated.dispatch_binding_sha256 ===
           providerBindingEvidence.bindingSha256;
-      return exact ? { kind: "applied" as const } : { kind: "lost" as const };
+      if (!updated) return { kind: "lost" as const };
+      if (!exact) {
+        throw new Error("Gmail reconciliation terminal proof mismatch.");
+      }
+      return { kind: "applied" as const };
     });
   }
   async claimNext(
@@ -2400,6 +2407,10 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               and claim_version = $5::integer
               and adapter = $6::text
               and provider_message_id is null
+              and sent_at is null
+              and quarantined_at is null
+              and last_error_code is null
+              and lease_expires_at = $13::timestamptz
               and provider_call_started = $9::timestamptz
               and status = 'sending'
               and user_id is not distinct from $10::text
@@ -2425,6 +2436,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                 scope.userId,
                 permit.bindingVersion,
                 permit.bindingSha256,
+                permit.leaseExpiresAt,
               ],
             )
           : await client.query<TerminalRow>(
@@ -2455,6 +2467,9 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               and ($7::text <> 'quarantined' or claim_version < 2147483647)
               and adapter = $6::text
               and provider_message_id is null
+              and sent_at is null
+              and last_error_code is null
+              and lease_expires_at = $14::timestamptz
               and provider_call_started = $10::timestamptz
               and quarantined_at is null
               and status = 'sending'
@@ -2482,6 +2497,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                 scope.userId,
                 permit.bindingVersion,
                 permit.bindingSha256,
+                permit.leaseExpiresAt,
               ],
             );
 
@@ -2584,9 +2600,10 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                   "Quarantine timestamp",
                 ) &&
                 updated.last_error_code === code;
-        return exactTerminalFence(updated, permit) && exactOutcome
-          ? { kind: "applied" }
-          : { kind: "lost" };
+        if (!exactTerminalFence(updated, permit) || !exactOutcome) {
+          throw new PostProviderPersistenceUnknownError(exit);
+        }
+        return { kind: "applied" };
       }
 
       const existing = await client.query<TerminalRow>(
