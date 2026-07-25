@@ -62,6 +62,8 @@ describe("PostgresOutboxStore delivery authority", () => {
   it("derives specialized template/version checks without literal policy copies", () => {
     expect(source).toContain("requireSystemEmailTemplateAuthority");
     expect(source).toContain("requireDeletionCapabilityTemplateAuthority");
+    expect(source).toContain("function nonEmptySqlDisjunction");
+    expect(source).not.toMatch(/\b(?:and|or)\s*\(\s*\)/i);
     expect(source).not.toContain("${outbox}.template_version = '1'");
     expect(source).not.toContain('claim.payload.templateVersion !== "1"');
     expect(deletionCapabilitySource)
