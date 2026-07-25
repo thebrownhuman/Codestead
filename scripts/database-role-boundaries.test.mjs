@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
@@ -10,6 +11,7 @@ import {
   REVIEWED_APPLICATION_FUNCTIONS,
   REVIEWED_APPLICATION_TRIGGERS,
   REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES,
+  backupStatusAuthorityPrivilegesSql,
   mailWorkerOutboxPrivilegesSql,
   reconcileDatabaseRolePrivileges,
   reviewedApplicationFunctionPrivilegesSql,
@@ -32,6 +34,7 @@ const validInput = () => ({
   databaseMigratorUrl: `postgresql://learncoding_migrator:${password("m")}@postgres:5432/learncoding`,
   databaseWorkerUrl: `postgresql://learncoding_worker:${password("w")}@postgres:5432/learncoding`,
   databaseOpsUrl: `postgresql://learncoding_ops:${password("o")}@postgres:5432/learncoding`,
+  databaseBackupReporterUrl: `postgresql://learncoding_backup_reporter:${password("r")}@postgres:5432/learncoding`,
 });
 
 const PLATFORM_ENVIRONMENT_KEYS = Object.freeze([
@@ -237,10 +240,48 @@ test("replays post-migration privilege reconciliation idempotently", async () =>
   );
 });
 
-test("accepts only the exact four distinct restricted-role URLs", () => {
+test("reconciles both authority relations to an exact zero-DML surface", () => {
+  const sql = backupStatusAuthorityPrivilegesSql();
+  assert.match(
+    sql,
+    /revoke all on table\s+public\.backup_status_mail_authority,\s+public\.backup_status_mail_admin_guard/iu,
+  );
+  assert.match(
+    sql,
+    /revoke all \(\s+id, run_key, outcome, outbox_id, operation_id, authority_epoch,\s+created_at\s+\) on table public\.backup_status_mail_authority/iu,
+  );
+  assert.match(
+    sql,
+    /revoke all \(\s+singleton, authority_epoch\s+\) on table public\.backup_status_mail_admin_guard/iu,
+  );
+  assert.doesNotMatch(sql, /\bgrant\b/iu);
+
+  const bootstrapSource = readFileSync(
+    new URL("./bootstrap-database-roles.mjs", import.meta.url),
+    "utf8",
+  );
+  const precheck = bootstrapSource.indexOf(
+    "await verifyBackupStatusAuthorityBeforeRepair(client)",
+  );
+  const repair = bootstrapSource.indexOf("await createAndResetRoles(client)");
+  const postcheck = bootstrapSource.indexOf(
+    "await verifyBackupStatusAuthorityAfterRepair(client)",
+  );
+  assert.ok(precheck >= 0 && precheck < repair);
+  assert.ok(postcheck > repair);
+});
+
+test("accepts only the exact five distinct restricted-role URLs", () => {
   const parsed = validateDatabaseRoleBoundaryUrls(validInput());
-  assert.deepEqual(Object.keys(parsed), ["app", "migrator", "worker", "ops"]);
+  assert.deepEqual(Object.keys(parsed), [
+    "app",
+    "migrator",
+    "worker",
+    "ops",
+    "backupReporter",
+  ]);
   assert.equal(parsed.app.username, "learncoding_app");
+  assert.equal(parsed.backupReporter.username, "learncoding_backup_reporter");
 
   for (const mutate of [
     (input) => {
@@ -268,6 +309,12 @@ test("accepts only the exact four distinct restricted-role URLs", () => {
       input.databaseOpsUrl = input.databaseWorkerUrl.replace(
         "learncoding_worker",
         "learncoding_ops",
+      );
+    },
+    (input) => {
+      input.databaseBackupReporterUrl = input.databaseOpsUrl.replace(
+        "learncoding_ops",
+        "learncoding_backup_reporter",
       );
     },
   ]) {
@@ -512,6 +559,79 @@ function makeClient(role, database, options) {
           ],
         };
       }
+      if (
+        normalized.includes("pg_catalog.aclexplode") &&
+        normalized.includes("current_role_direct_grantable")
+      ) {
+        return { rows: [{
+          delegated,
+          current_role_effective_grantable:
+            options.currentRoleEffectiveGrantable === true,
+          current_role_direct_grantable:
+            options.currentRoleDirectGrantable === true,
+          table_acl: `catalog-version-${grantCatalogVersion}`,
+        }] };
+      }
+      if (normalized.includes("effective_table_acl_exact")) {
+        const tamper = options.backupContractTamper;
+        return { rows: [{
+          owner_exact: tamper !== "table-owner",
+          relation_kind_exact: true,
+          persistence_exact: true,
+          access_method_exact: true,
+          replica_identity_exact: true,
+          reloptions_exact: true,
+          tablespace_exact: true,
+          row_security_exact: true,
+          forced_row_security_exact: true,
+          columns_exact: tamper !== "table-columns",
+          column_definitions_exact: tamper !== "table-definitions",
+          constraints_exact: tamper !== "table-constraints",
+          indexes_exact: tamper !== "table-indexes",
+          effective_table_acl_exact: tamper !== "table-effective-acl",
+          effective_column_acl_exact: tamper !== "column-effective-acl",
+          direct_acl_exact: tamper !== "table-direct-acl",
+        }] };
+      }
+      if (normalized.includes("routine_kind_exact")) {
+        const tamper = options.backupContractTamper;
+        return { rows: [{
+          body_sha256_exact: tamper !== "routine-body",
+          definition_sha256_exact: tamper !== "routine-definition",
+          owner_exact: tamper !== "routine-owner",
+          language_exact: true,
+          routine_kind_exact: true,
+          security_definer_exact: tamper !== "routine-security",
+          configuration_exact: tamper !== "routine-config",
+          volatility_exact: true,
+          strict_exact: true,
+          parallel_exact: true,
+          leakproof_exact: true,
+          argument_names_exact: true,
+          argument_modes_exact: true,
+          argument_types_exact: tamper !== "routine-arguments",
+          input_argument_count_exact: true,
+          argument_defaults_exact: true,
+          return_type_exact: true,
+          returns_set_exact: true,
+          variadic_exact: true,
+          cost_exact: tamper !== "routine-cost",
+          rows_exact: true,
+          support_exact: true,
+          transform_types_exact: true,
+          binary_exact: true,
+          sql_body_exact: true,
+          effective_execute_exact: tamper !== "routine-effective-acl",
+          direct_acl_exact: tamper !== "routine-direct-acl",
+        }] };
+      }
+      if (normalized.includes("triggers_exact")) {
+        return { rows: [{
+          relations_present: true,
+          guard_state_exact: options.backupContractTamper !== "guard-state",
+          triggers_exact: options.backupContractTamper !== "triggers",
+        }] };
+      }
       if (normalized.startsWith("select has_table_privilege")) {
         if (
           role === "learncoding_migrator" &&
@@ -741,9 +861,9 @@ test("authenticates every restricted role under the shared administration lock",
   });
 
   assert.deepEqual(result, {
-    rolesAuthenticated: 4,
-    positiveChecks: 13,
-    negativeChecks: 15,
+    rolesAuthenticated: 5,
+    positiveChecks: 16,
+    negativeChecks: 19,
   });
   assert.equal(
     harness.pools.every((pool) => pool.ended),
@@ -765,6 +885,10 @@ test("authenticates every restricted role under the shared administration lock",
       true,
     );
   }
+  assert.equal(
+    harness.clients.get("learncoding_backup_reporter").queries.includes("set role learncoding_owner"),
+    true,
+  );
 });
 
 test("proves application-object access without mutating application rows", async () => {
@@ -777,9 +901,9 @@ test("proves application-object access without mutating application rows", async
   });
 
   assert.deepEqual(result, {
-    rolesAuthenticated: 4,
-    positiveChecks: 38,
-    negativeChecks: 23,
+    rolesAuthenticated: 5,
+    positiveChecks: 48,
+    negativeChecks: 29,
   });
   for (const role of [
     "learncoding_app",
@@ -800,6 +924,11 @@ test("proves application-object access without mutating application rows", async
       true,
     );
   }
+  const reporterQueries = harness.clients.get("learncoding_backup_reporter").queries;
+  assert.equal(
+    reporterQueries.some((sql) => sql.startsWith("explain (format json)")),
+    false,
+  );
 });
 
 test("requires the exact reviewed 0062 through 0064 routine contracts in application-object mode", async () => {
@@ -812,9 +941,9 @@ test("requires the exact reviewed 0062 through 0064 routine contracts in applica
   });
 
   assert.deepEqual(result, {
-    rolesAuthenticated: 4,
-    positiveChecks: 38,
-    negativeChecks: 23,
+    rolesAuthenticated: 5,
+    positiveChecks: 48,
+    negativeChecks: 29,
   });
   const routineQueries = verified.clients
     .get("learncoding_ops")
@@ -846,6 +975,7 @@ test("requires the exact reviewed 0062 through 0064 routine contracts in applica
     "learncoding_migrator",
     "learncoding_worker",
     "learncoding_ops",
+    "learncoding_backup_reporter",
   ];
   assert.deepEqual(
     verified.clients
@@ -946,9 +1076,9 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
     requireApplicationObjects: true,
   });
   assert.deepEqual(result, {
-    rolesAuthenticated: 4,
-    positiveChecks: 38,
-    negativeChecks: 23,
+    rolesAuthenticated: 5,
+    positiveChecks: 48,
+    negativeChecks: 29,
   });
 
   const opsClient = verified.clients.get("learncoding_ops");
@@ -1102,18 +1232,23 @@ test("grounds PostgreSQL's successful no-op GRANT in unchanged effective and cat
   });
 
   assert.deepEqual(result, {
-    rolesAuthenticated: 4,
-    positiveChecks: 38,
-    negativeChecks: 23,
+    rolesAuthenticated: 5,
+    positiveChecks: 48,
+    negativeChecks: 29,
   });
   for (const role of [
     "learncoding_app",
     "learncoding_migrator",
     "learncoding_worker",
     "learncoding_ops",
+    "learncoding_backup_reporter",
   ]) {
     const queries = harness.clients.get(role).queries;
-    const probesWithGrant = role !== "learncoding_migrator";
+    const probesWithGrant = [
+      "learncoding_app",
+      "learncoding_worker",
+      "learncoding_ops",
+    ].includes(role);
     assert.equal(
       queries.filter(
         (sql) =>
@@ -1217,8 +1352,27 @@ test("fails closed when the fixed GRANT probe errors for any SQLSTATE", async ()
   }
 });
 
+test("keeps P2-A catalog-based without a conditional throw probe", () => {
+  const source = readFileSync(
+    new URL("./verify-database-role-boundaries.mjs", import.meta.url),
+    "utf8",
+  );
+  const probe = source.match(
+    /async function tablePrivilegeDelegationState[\s\S]*?(?=\nasync function discoverApplicationObjects)/u,
+  )?.[0] ?? "";
+  assert.match(probe, /pg_catalog\.aclexplode/u);
+  assert.match(probe, /acl\.is_grantable/u);
+  assert.match(probe, /current_role_effective_grantable/u);
+  assert.match(probe, /current_role_direct_grantable/u);
+  assert.match(probe, /if \(RUNTIME_ROLES\.has\(role\)\)/u);
+  assert.match(probe, /if \(!exactRow\(after, before\)\) fail\(\)/u);
+  assert.doesNotMatch(probe, /catch\s*\(/u);
+  assert.doesNotMatch(probe, /error\?\.code\s*!==\s*"42501"/u);
+  assert.doesNotMatch(probe, /savepoint codestead_table_grant_probe/u);
+});
+
 test("post-migration mode fails closed on insecure or missing authority routines", async () => {
-  const harness = makePoolHarness({ privilegedRoutinesExact: false });
+  const harness = makePoolHarness({ backupContractTamper: "routine-direct-acl" });
   await assert.rejects(
     verifyDatabaseRoleBoundaries({
       ...validInput(),
@@ -1321,6 +1475,7 @@ test("CLI failure output never includes credential material", () => {
       DATABASE_MIGRATOR_URL: validInput().databaseMigratorUrl,
       DATABASE_WORKER_URL: validInput().databaseWorkerUrl,
       DATABASE_OPS_URL: validInput().databaseOpsUrl,
+      DATABASE_BACKUP_REPORTER_URL: validInput().databaseBackupReporterUrl,
     },
   });
   assert.equal(result.status, 1);

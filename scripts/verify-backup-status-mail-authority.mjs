@@ -9,9 +9,59 @@ function exactColumn(name, type, notNull, defaultExpression = null) {
   });
 }
 
+function exactConstraint(name, type, keyColumns, definition) {
+  return Object.freeze({
+    name,
+    type,
+    validated: true,
+    deferrable: false,
+    initiallyDeferred: false,
+    keyColumns: Object.freeze([...keyColumns]),
+    definition,
+  });
+}
+
+function exactIndex(name, keyColumn, primary) {
+  const relationName = name.startsWith("backup_status_mail_admin_guard")
+    ? "backup_status_mail_admin_guard"
+    : "backup_status_mail_authority";
+  return Object.freeze({
+    name,
+    owner: "learncoding_owner",
+    relationKind: "i",
+    persistence: "p",
+    accessMethod: "btree",
+    unique: true,
+    nullsNotDistinct: false,
+    primary,
+    exclusion: false,
+    immediate: true,
+    clustered: false,
+    valid: true,
+    checkXmin: false,
+    ready: true,
+    live: true,
+    replicaIdentity: false,
+    attributes: 1,
+    keyAttributes: 1,
+    keyColumns: Object.freeze([keyColumn]),
+    expressions: null,
+    predicate: null,
+    definition:
+      `CREATE UNIQUE INDEX ${name} ON ${relationName} `
+      + `USING btree (${keyColumn})`,
+    reloptions: null,
+    tablespace: 0,
+  });
+}
+
 export const BACKUP_STATUS_AUTHORITY_RELATIONS = Object.freeze([
   Object.freeze({
     name: "public.backup_status_mail_authority",
+    accessMethod: "heap",
+    replicaIdentity: "d",
+    reloptions: null,
+    tablespace: 0,
     columns: Object.freeze([
       exactColumn("id", "uuid", true),
       exactColumn("run_key", "text", true),
@@ -26,23 +76,106 @@ export const BACKUP_STATUS_AUTHORITY_RELATIONS = Object.freeze([
         "statement_timestamp()",
       ),
     ]),
-    epochConstraint: Object.freeze({
-      name: "backup_status_mail_authority_epoch_valid",
-      definition:
+    constraints: Object.freeze([
+      exactConstraint(
+        "backup_status_mail_authority_epoch_valid",
+        "c",
+        ["authority_epoch"],
         `CHECK (authority_epoch <> '${ZERO_UUID}'::uuid)`,
-    }),
+      ),
+      exactConstraint(
+        "backup_status_mail_authority_operation_id_key",
+        "u",
+        ["operation_id"],
+        "UNIQUE (operation_id)",
+      ),
+      exactConstraint(
+        "backup_status_mail_authority_outbox_id_key",
+        "u",
+        ["outbox_id"],
+        "UNIQUE (outbox_id)",
+      ),
+      exactConstraint(
+        "backup_status_mail_authority_outcome_valid",
+        "c",
+        ["outcome"],
+        "CHECK (outcome = ANY (ARRAY['success'::text, 'failure'::text]))",
+      ),
+      exactConstraint(
+        "backup_status_mail_authority_pkey",
+        "p",
+        ["id"],
+        "PRIMARY KEY (id)",
+      ),
+      exactConstraint(
+        "backup_status_mail_authority_run_key_key",
+        "u",
+        ["run_key"],
+        "UNIQUE (run_key)",
+      ),
+      exactConstraint(
+        "backup_status_mail_authority_run_key_valid",
+        "c",
+        ["run_key"],
+        "CHECK (run_key ~ '^[0-9]{8}T[0-9]{6}Z$'::text)",
+      ),
+    ]),
+    indexes: Object.freeze([
+      exactIndex(
+        "backup_status_mail_authority_operation_id_key",
+        "operation_id",
+        false,
+      ),
+      exactIndex(
+        "backup_status_mail_authority_outbox_id_key",
+        "outbox_id",
+        false,
+      ),
+      exactIndex("backup_status_mail_authority_pkey", "id", true),
+      exactIndex(
+        "backup_status_mail_authority_run_key_key",
+        "run_key",
+        false,
+      ),
+    ]),
   }),
   Object.freeze({
     name: "public.backup_status_mail_admin_guard",
+    accessMethod: "heap",
+    replicaIdentity: "d",
+    reloptions: null,
+    tablespace: 0,
     columns: Object.freeze([
       exactColumn("singleton", "boolean", true, "true"),
       exactColumn("authority_epoch", "uuid", true, "gen_random_uuid()"),
     ]),
-    epochConstraint: Object.freeze({
-      name: "backup_status_mail_admin_guard_epoch_valid",
-      definition:
+    constraints: Object.freeze([
+      exactConstraint(
+        "backup_status_mail_admin_guard_epoch_valid",
+        "c",
+        ["authority_epoch"],
         `CHECK (authority_epoch <> '${ZERO_UUID}'::uuid)`,
-    }),
+      ),
+      exactConstraint(
+        "backup_status_mail_admin_guard_pkey",
+        "p",
+        ["singleton"],
+        "PRIMARY KEY (singleton)",
+      ),
+      exactConstraint(
+        "backup_status_mail_admin_guard_singleton",
+        "c",
+        ["singleton"],
+        "CHECK (singleton IS TRUE)",
+      ),
+    ]),
+    indexes: Object.freeze([
+      exactIndex(
+        "backup_status_mail_admin_guard_pkey",
+        "singleton",
+        true,
+      ),
+    ]),
   }),
 ]);
 
@@ -215,6 +348,18 @@ async function verifyRestrictedRelation(
              'learncoding_owner' owner_exact,
            target.relkind = 'r' relation_kind_exact,
            target.relpersistence = 'p' persistence_exact,
+           (
+             select pg_catalog.count(*) = 1
+                    and pg_catalog.bool_and(
+                      access_method.amname = $5::name
+                    )
+               from pg_catalog.pg_am access_method
+              where access_method.oid = target.relam
+           ) access_method_exact,
+           target.relreplident::text is not distinct from
+             $6::text replica_identity_exact,
+           target.reloptions is not distinct from $7::text[] reloptions_exact,
+           target.reltablespace is not distinct from $8::oid tablespace_exact,
            target.relrowsecurity = false row_security_exact,
            target.relforcerowsecurity = false forced_row_security_exact,
            ARRAY(
@@ -251,18 +396,124 @@ async function verifyRestrictedRelation(
                 and not attribute.attisdropped
            ) column_definitions_exact,
            (
-             select pg_catalog.count(*) = 1
-                    and pg_catalog.bool_and(
-                      pg_catalog.pg_get_constraintdef(
-                        constraint_definition.oid, true
-                      ) = $6::text
-                    )
+             select coalesce(
+                      pg_catalog.jsonb_agg(
+                        pg_catalog.jsonb_build_object(
+                          'name', constraint_definition.conname,
+                          'type', constraint_definition.contype::text,
+                          'validated',
+                            constraint_definition.convalidated,
+                          'deferrable',
+                            constraint_definition.condeferrable,
+                          'initiallyDeferred',
+                            constraint_definition.condeferred,
+                          'keyColumns',
+                            ARRAY(
+                              select attribute.attname::text
+                                from pg_catalog.unnest(
+                                  constraint_definition.conkey
+                                ) with ordinality key_column(
+                                  attnum, key_order
+                                )
+                                join pg_catalog.pg_attribute attribute
+                                  on attribute.attrelid =
+                                       constraint_definition.conrelid
+                                 and attribute.attnum = key_column.attnum
+                               order by key_column.key_order
+                            ),
+                          'definition',
+                            pg_catalog.pg_get_constraintdef(
+                              constraint_definition.oid,
+                              true
+                            )
+                        )
+                        order by constraint_definition.conname
+                      ),
+                      '[]'::jsonb
+                    ) = $9::jsonb
                from pg_catalog.pg_constraint constraint_definition
               where constraint_definition.conrelid = target.oid
-                and constraint_definition.conname = $5::name
-                and constraint_definition.contype = 'c'
-                and constraint_definition.convalidated is true
-           ) epoch_constraint_exact,
+                and constraint_definition.contype <> 'n'
+           ) constraints_exact,
+           (
+             select coalesce(
+                      pg_catalog.jsonb_agg(
+                        pg_catalog.jsonb_build_object(
+                          'name', index_relation.relname,
+                          'owner',
+                            pg_catalog.pg_get_userbyid(
+                              index_relation.relowner
+                            ),
+                          'relationKind',
+                            index_relation.relkind::text,
+                          'persistence',
+                            index_relation.relpersistence::text,
+                          'accessMethod', access_method.amname,
+                          'unique', index_definition.indisunique,
+                          'nullsNotDistinct',
+                            index_definition.indnullsnotdistinct,
+                          'primary', index_definition.indisprimary,
+                          'exclusion', index_definition.indisexclusion,
+                          'immediate', index_definition.indimmediate,
+                          'clustered', index_definition.indisclustered,
+                          'valid', index_definition.indisvalid,
+                          'checkXmin', index_definition.indcheckxmin,
+                          'ready', index_definition.indisready,
+                          'live', index_definition.indislive,
+                          'replicaIdentity',
+                            index_definition.indisreplident,
+                          'attributes', index_definition.indnatts,
+                          'keyAttributes', index_definition.indnkeyatts,
+                          'keyColumns',
+                            ARRAY(
+                              select case key_column.attnum
+                                       when 0 then null
+                                       else attribute.attname::text
+                                     end
+                                from pg_catalog.unnest(
+                                  index_definition.indkey
+                                ) with ordinality key_column(
+                                  attnum, key_order
+                                )
+                                left join pg_catalog.pg_attribute attribute
+                                  on attribute.attrelid = target.oid
+                                 and attribute.attnum = key_column.attnum
+                               order by key_column.key_order
+                            ),
+                          'expressions',
+                            pg_catalog.pg_get_expr(
+                              index_definition.indexprs,
+                              index_definition.indrelid,
+                              true
+                            ),
+                          'predicate',
+                            pg_catalog.pg_get_expr(
+                              index_definition.indpred,
+                              index_definition.indrelid,
+                              true
+                            ),
+                          'definition',
+                            pg_catalog.pg_get_indexdef(
+                              index_definition.indexrelid,
+                              0,
+                              true
+                            ),
+                          'reloptions', index_relation.reloptions,
+                          'tablespace',
+                            index_relation.reltablespace::integer
+                        )
+                        order by index_relation.relname
+                      ),
+                      '[]'::jsonb
+                    ) = $10::jsonb
+               from pg_catalog.pg_index index_definition
+               join pg_catalog.pg_class index_relation
+                 on index_relation.oid =
+                      index_definition.indexrelid
+               join pg_catalog.pg_am access_method
+                 on access_method.oid = index_relation.relam
+              where index_definition.indrelid = target.oid
+           ) indexes_exact,
            (
              not pg_catalog.has_table_privilege(
                0, target.oid, 'SELECT'
@@ -377,8 +628,12 @@ async function verifyRestrictedRelation(
       restrictedRoles,
       expectedColumns,
       JSON.stringify(relation.columns),
-      relation.epochConstraint.name,
-      relation.epochConstraint.definition,
+      relation.accessMethod,
+      relation.replicaIdentity,
+      relation.reloptions,
+      relation.tablespace,
+      JSON.stringify(relation.constraints),
+      JSON.stringify(relation.indexes),
     ],
   );
   if (
@@ -387,11 +642,16 @@ async function verifyRestrictedRelation(
       "owner_exact",
       "relation_kind_exact",
       "persistence_exact",
+      "access_method_exact",
+      "replica_identity_exact",
+      "reloptions_exact",
+      "tablespace_exact",
       "row_security_exact",
       "forced_row_security_exact",
       "columns_exact",
       "column_definitions_exact",
-      "epoch_constraint_exact",
+      "constraints_exact",
+      "indexes_exact",
       "effective_table_acl_exact",
       "effective_column_acl_exact",
       "direct_acl_exact",
@@ -441,21 +701,24 @@ async function verifyRoutine(client, routine, restrictedRoles) {
              ),
              '{}'::text[]
            ) is not distinct from $15::text[] argument_modes_exact,
-           coalesce(
-             p.proallargtypes,
-             p.proargtypes::oid[]
-           ) is not distinct from (
-             select coalesce(
-                      pg_catalog.array_agg(
-                        pg_catalog.to_regtype(argument_type)::oid
-                        order by argument_order
-                      ),
-                      '{}'::oid[]
-                    )
+           ARRAY(
+             select argument_type
+               from pg_catalog.unnest(
+                 coalesce(
+                   p.proallargtypes,
+                   p.proargtypes::oid[]
+                 )
+               ) with ordinality observed(
+                 argument_type, argument_order
+               )
+              order by argument_order
+           ) is not distinct from ARRAY(
+             select pg_catalog.to_regtype(argument_type)::oid
                from pg_catalog.unnest($16::text[])
                     with ordinality expected(
                       argument_type, argument_order
                     )
+              order by argument_order
            ) argument_types_exact,
            p.pronargs::integer is not distinct from
              $17::integer input_argument_count_exact,
@@ -726,6 +989,9 @@ async function verifyTriggers(client) {
          and (
            trigger.tgrelid = pg_catalog.to_regclass(
              'public.backup_status_mail_authority'
+           )
+           or trigger.tgrelid = pg_catalog.to_regclass(
+             'public.backup_status_mail_admin_guard'
            )
            or (
              trigger.tgrelid = pg_catalog.to_regclass('public."user"')

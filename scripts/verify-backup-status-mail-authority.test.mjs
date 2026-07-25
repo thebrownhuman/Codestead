@@ -27,30 +27,63 @@ function exactClient(tamper = "") {
       if (normalized.includes("effective_table_acl_exact")) {
         const relation = parameters[0];
         const prefix = relation?.includes("admin_guard") ? "guard" : "ledger";
+        const row = Object.fromEntries([
+          "owner_exact",
+          "relation_kind_exact",
+          "persistence_exact",
+          "access_method_exact",
+          "replica_identity_exact",
+          "reloptions_exact",
+          "tablespace_exact",
+          "row_security_exact",
+          "forced_row_security_exact",
+          "columns_exact",
+          "column_definitions_exact",
+          "constraints_exact",
+          "indexes_exact",
+          "effective_table_acl_exact",
+          "effective_column_acl_exact",
+          "direct_acl_exact",
+        ].map((key) => [key, tamper !== `${prefix}:${key}`]));
         return { rows: [{
-          owner_exact: tamper !== `${prefix}-owner`,
-          relation_kind_exact: true,
-          persistence_exact: true,
-          row_security_exact: true,
-          forced_row_security_exact: true,
-          columns_exact: tamper !== `${prefix}-columns`,
-          column_definitions_exact: tamper !== `${prefix}-definitions`,
-          epoch_constraint_exact: tamper !== `${prefix}-epoch-constraint`,
-          effective_table_acl_exact: tamper !== `${prefix}-effective-acl`,
-          effective_column_acl_exact: tamper !== `${prefix}-column-acl`,
-          direct_acl_exact: tamper !== `${prefix}-direct-acl`,
+          ...row,
         }] };
       }
       if (normalized.includes("routine_kind_exact")) {
         if (tamper === `missing:${parameters[0]}`) return { rows: [] };
-        return { rows: [{
-          owner_exact: tamper !== `owner:${parameters[0]}`,
-          routine_kind_exact: true,
-          security_definer_exact: true,
-          configuration_exact: true,
-          effective_execute_exact: tamper !== `effective:${parameters[0]}`,
-          direct_acl_exact: tamper !== `direct:${parameters[0]}`,
-        }] };
+        const row = Object.fromEntries([
+          "body_sha256_exact",
+          "definition_sha256_exact",
+          "owner_exact",
+          "language_exact",
+          "routine_kind_exact",
+          "security_definer_exact",
+          "configuration_exact",
+          "volatility_exact",
+          "strict_exact",
+          "parallel_exact",
+          "leakproof_exact",
+          "argument_names_exact",
+          "argument_modes_exact",
+          "argument_types_exact",
+          "input_argument_count_exact",
+          "argument_defaults_exact",
+          "return_type_exact",
+          "returns_set_exact",
+          "variadic_exact",
+          "cost_exact",
+          "rows_exact",
+          "support_exact",
+          "transform_types_exact",
+          "binary_exact",
+          "sql_body_exact",
+          "effective_execute_exact",
+          "direct_acl_exact",
+        ].map((key) => [
+          key,
+          tamper !== `routine:${parameters[0]}:${key}`,
+        ]));
+        return { rows: [row] };
       }
       if (normalized.includes("triggers_exact")) {
         return { rows: [{
@@ -70,77 +103,94 @@ test("verifies the exact owner-inclusive 0065 security manifest", async () => {
     await verifyBackupStatusMailAuthorityObjects(client, restrictedRoles),
     7,
   );
-  assert.deepEqual(BACKUP_STATUS_AUTHORITY_ROUTINES, [
-    {
-      signature: "public.reject_backup_status_mail_authority_mutation()",
-      owner: "learncoding_owner",
-      securityDefiner: false,
-      configuration: ["search_path=pg_catalog"],
-      allowedRoles: [],
-    },
-    {
-      signature: "public.lock_backup_status_mail_admin_authority()",
-      owner: "learncoding_owner",
-      securityDefiner: true,
-      configuration: ["search_path=pg_catalog"],
-      allowedRoles: [],
-    },
-    {
-      signature: "public.enqueue_backup_status_mail_authority(text,text)",
-      owner: "learncoding_owner",
-      securityDefiner: true,
-      configuration: ["search_path=pg_catalog"],
-      allowedRoles: ["learncoding_backup_reporter"],
-    },
-    {
-      signature: "public.backup_status_mail_authorized(uuid)",
-      owner: "learncoding_owner",
-      securityDefiner: true,
-      configuration: ["search_path=pg_catalog"],
-      allowedRoles: ["learncoding_worker"],
-    },
-  ]);
-  assert.deepEqual(BACKUP_STATUS_AUTHORITY_RELATIONS, [
+  assert.deepEqual(
+    BACKUP_STATUS_AUTHORITY_ROUTINES.map((routine) => ({
+      signature: routine.signature,
+      securityDefiner: routine.securityDefiner,
+      allowedRoles: routine.allowedRoles,
+    })),
+    [
+      {
+        signature: "public.reject_backup_status_mail_authority_mutation()",
+        securityDefiner: false,
+        allowedRoles: [],
+      },
+      {
+        signature: "public.lock_backup_status_mail_admin_authority()",
+        securityDefiner: true,
+        allowedRoles: [],
+      },
+      {
+        signature: "public.enqueue_backup_status_mail_authority(text,text)",
+        securityDefiner: true,
+        allowedRoles: ["learncoding_backup_reporter"],
+      },
+      {
+        signature: "public.backup_status_mail_authorized(uuid)",
+        securityDefiner: true,
+        allowedRoles: ["learncoding_worker"],
+      },
+    ],
+  );
+  for (const routine of BACKUP_STATUS_AUTHORITY_ROUTINES) {
+    assert.equal(routine.owner, "learncoding_owner");
+    assert.deepEqual(routine.configuration, ["search_path=pg_catalog"]);
+    assert.match(routine.bodySha256, /^[0-9a-f]{64}$/u);
+    assert.match(routine.definitionSha256, /^[0-9a-f]{64}$/u);
+  }
+  assert.deepEqual(
+    BACKUP_STATUS_AUTHORITY_RELATIONS.map((relation) => ({
+      name: relation.name,
+      columns: relation.columns.map(({ name }) => name),
+      constraints: relation.constraints.map(({ name }) => name),
+      indexes: relation.indexes.map(({ name }) => name),
+    })),
+    [
     {
       name: "public.backup_status_mail_authority",
       columns: [
-        { name: "id", type: "uuid", notNull: true, default: null },
-        { name: "run_key", type: "text", notNull: true, default: null },
-        { name: "outcome", type: "text", notNull: true, default: null },
-        { name: "outbox_id", type: "uuid", notNull: true, default: null },
-        { name: "operation_id", type: "uuid", notNull: true, default: null },
-        { name: "authority_epoch", type: "uuid", notNull: true, default: null },
-        {
-          name: "created_at",
-          type: "timestamp with time zone",
-          notNull: true,
-          default: "statement_timestamp()",
-        },
+        "id",
+        "run_key",
+        "outcome",
+        "outbox_id",
+        "operation_id",
+        "authority_epoch",
+        "created_at",
       ],
-      epochConstraint: {
-        name: "backup_status_mail_authority_epoch_valid",
-        definition:
-          "CHECK (authority_epoch <> '00000000-0000-0000-0000-000000000000'::uuid)",
-      },
+      constraints: [
+        "backup_status_mail_authority_epoch_valid",
+        "backup_status_mail_authority_operation_id_key",
+        "backup_status_mail_authority_outbox_id_key",
+        "backup_status_mail_authority_outcome_valid",
+        "backup_status_mail_authority_pkey",
+        "backup_status_mail_authority_run_key_key",
+        "backup_status_mail_authority_run_key_valid",
+      ],
+      indexes: [
+        "backup_status_mail_authority_operation_id_key",
+        "backup_status_mail_authority_outbox_id_key",
+        "backup_status_mail_authority_pkey",
+        "backup_status_mail_authority_run_key_key",
+      ],
     },
     {
       name: "public.backup_status_mail_admin_guard",
-      columns: [
-        { name: "singleton", type: "boolean", notNull: true, default: "true" },
-        {
-          name: "authority_epoch",
-          type: "uuid",
-          notNull: true,
-          default: "gen_random_uuid()",
-        },
+      columns: ["singleton", "authority_epoch"],
+      constraints: [
+        "backup_status_mail_admin_guard_epoch_valid",
+        "backup_status_mail_admin_guard_pkey",
+        "backup_status_mail_admin_guard_singleton",
       ],
-      epochConstraint: {
-        name: "backup_status_mail_admin_guard_epoch_valid",
-        definition:
-          "CHECK (authority_epoch <> '00000000-0000-0000-0000-000000000000'::uuid)",
-      },
+      indexes: ["backup_status_mail_admin_guard_pkey"],
     },
-  ]);
+    ],
+  );
+  for (const relation of BACKUP_STATUS_AUTHORITY_RELATIONS) {
+    assert.equal(relation.accessMethod, "heap");
+    assert.equal(relation.replicaIdentity, "d");
+    assert.equal(relation.reloptions, null);
+    assert.equal(relation.tablespace, 0);
+  }
   assert.equal(client.calls.length, 7);
   for (const [index, relation] of
     BACKUP_STATUS_AUTHORITY_RELATIONS.entries()) {
@@ -149,8 +199,12 @@ test("verifies the exact owner-inclusive 0065 security manifest", async () => {
       restrictedRoles,
       relation.columns.map(({ name }) => name),
       JSON.stringify(relation.columns),
-      relation.epochConstraint.name,
-      relation.epochConstraint.definition,
+      relation.accessMethod,
+      relation.replicaIdentity,
+      relation.reloptions,
+      relation.tablespace,
+      JSON.stringify(relation.constraints),
+      JSON.stringify(relation.indexes),
     ]);
   }
   for (const [index, routine] of BACKUP_STATUS_AUTHORITY_ROUTINES.entries()) {
@@ -161,6 +215,28 @@ test("verifies the exact owner-inclusive 0065 security manifest", async () => {
       routine.configuration,
       restrictedRoles,
       routine.allowedRoles,
+      routine.bodySha256,
+      routine.language,
+      routine.kind,
+      routine.volatility,
+      routine.strict,
+      routine.parallel,
+      routine.leakproof,
+      routine.argumentNames,
+      routine.argumentModes,
+      routine.argumentTypes,
+      routine.inputArgumentCount,
+      routine.argumentDefaultCount,
+      routine.returnType,
+      routine.returnsSet,
+      routine.variadic,
+      routine.cost,
+      routine.rows,
+      routine.supportFunction,
+      routine.transformTypes,
+      routine.binary,
+      routine.sqlBody,
+      routine.definitionSha256,
     ]);
   }
 });
@@ -179,7 +255,24 @@ test("includes owners, grantors, grant options, columns, and exact triggers", ()
   assert.match(source, /\$3::name\[\]/u);
   assert.match(source, /column_definitions_exact/u);
   assert.match(source, /\$4::jsonb/u);
-  assert.match(source, /constraint_definition\.convalidated is true/u);
+  assert.match(source, /constraints_exact/u);
+  assert.match(source, /\$9::jsonb/u);
+  assert.match(
+    source,
+    /constraint_definition\.contype <> 'n'/u,
+  );
+  assert.match(source, /indexes_exact/u);
+  assert.match(source, /\$10::jsonb/u);
+  assert.match(source, /index_definition\.indnullsnotdistinct/u);
+  assert.match(source, /index_definition\.indcheckxmin/u);
+  assert.match(source, /pg_catalog\.pg_get_indexdef/u);
+  assert.match(source, /body_sha256_exact/u);
+  assert.match(source, /definition_sha256_exact/u);
+  assert.match(source, /p\.procost/u);
+  assert.match(
+    source,
+    /trigger\.tgrelid = pg_catalog\.to_regclass\(\s*'public\.backup_status_mail_admin_guard'/u,
+  );
   assert.match(source, /guard_state_exact/u);
   assert.match(source, /'backup_status_mail_authority_immutable'::name,\s*27::smallint/u);
   assert.match(source, /'backup_status_mail_authority_no_truncate'::name,\s*34::smallint/u);
@@ -192,28 +285,45 @@ test("includes owners, grantors, grant options, columns, and exact triggers", ()
 
 test("fails closed for every missing or altered manifest component", async () => {
   const routine = BACKUP_STATUS_AUTHORITY_ROUTINES[1].signature;
-  for (const tamper of [
-    "ledger-owner",
-    "ledger-columns",
-    "ledger-definitions",
-    "ledger-epoch-constraint",
-    "ledger-effective-acl",
-    "ledger-column-acl",
-    "ledger-direct-acl",
-    "guard-owner",
-    "guard-columns",
-    "guard-definitions",
-    "guard-epoch-constraint",
-    "guard-effective-acl",
-    "guard-column-acl",
-    "guard-direct-acl",
+  const relationChecks = [
+    "owner_exact",
+    "relation_kind_exact",
+    "persistence_exact",
+    "access_method_exact",
+    "replica_identity_exact",
+    "reloptions_exact",
+    "tablespace_exact",
+    "row_security_exact",
+    "forced_row_security_exact",
+    "columns_exact",
+    "column_definitions_exact",
+    "constraints_exact",
+    "indexes_exact",
+    "effective_table_acl_exact",
+    "effective_column_acl_exact",
+    "direct_acl_exact",
+  ];
+  const routineChecks = [
+    "body_sha256_exact",
+    "definition_sha256_exact",
+    "owner_exact",
+    "security_definer_exact",
+    "configuration_exact",
+    "argument_types_exact",
+    "cost_exact",
+    "effective_execute_exact",
+    "direct_acl_exact",
+  ];
+  const tampers = [
+    ...["ledger", "guard"].flatMap((prefix) =>
+      relationChecks.map((check) => `${prefix}:${check}`)
+    ),
     "guard-state",
     `missing:${routine}`,
-    `owner:${routine}`,
-    `effective:${routine}`,
-    `direct:${routine}`,
+    ...routineChecks.map((check) => `routine:${routine}:${check}`),
     "triggers",
-  ]) {
+  ];
+  for (const tamper of tampers) {
     await assert.rejects(
       verifyBackupStatusMailAuthorityObjects(
         exactClient(tamper),

@@ -580,7 +580,7 @@ fi
 
 is_known_service() {
   case "$1" in
-    postgres|app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|practice-runner-recovery-worker|project-review-correction-worker|file-erasure-worker|scan-worker|cloudflared|runner-egress-gateway|database-role-bootstrap|database-negative-probes|database-boundary-verifier|migrate|lifecycle|platform-seed|admin-bootstrap|clamav) return 0 ;;
+    postgres|app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|practice-runner-recovery-worker|project-review-correction-worker|file-erasure-worker|scan-worker|cloudflared|runner-egress-gateway|database-role-bootstrap|database-negative-probes|database-boundary-verifier|backup-status-reporter|migrate|lifecycle|platform-seed|admin-bootstrap|clamav) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -594,7 +594,7 @@ is_long_running_service() {
 
 is_one_shot_service() {
   case "$1" in
-    database-role-bootstrap|database-negative-probes|database-boundary-verifier|migrate|lifecycle|platform-seed|admin-bootstrap) return 0 ;;
+    database-role-bootstrap|database-negative-probes|database-boundary-verifier|backup-status-reporter|migrate|lifecycle|platform-seed|admin-bootstrap) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -740,7 +740,7 @@ done
 
 if [[ "$validation_mode" == operations ]]; then
   for service in database-role-bootstrap database-negative-probes database-boundary-verifier \
-    migrate lifecycle platform-seed admin-bootstrap; do
+    backup-status-reporter migrate lifecycle platform-seed admin-bootstrap; do
     [[ -n "${rendered_services[$service]:-}" ]] || {
       fatal "rendered Compose operations service inventory is incomplete"
     }
