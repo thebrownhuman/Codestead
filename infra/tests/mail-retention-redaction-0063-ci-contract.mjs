@@ -14,6 +14,10 @@ export const postgresCiRuntimePolicy = Object.freeze({
   maximumTimeoutMinutes: 35,
   installCommand:
     "sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18",
+  dockerPg17Image:
+    "postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+  dockerPg17IntegrationCommand:
+    "CODESTEAD_DISPOSABLE_HOST=1 bash infra/tests/database-least-privilege-integration.sh",
   productionMajor: 17,
   targetedMajor: 18,
 });
@@ -64,6 +68,7 @@ function freezePostgresCiProjectionContract({
   targetedPg18Scripts,
   extensionIds,
   timeoutMinutes,
+  restoreExtensionId,
 }) {
   return Object.freeze({
     [postgresCiProjectionContractBrand]: true,
@@ -72,6 +77,7 @@ function freezePostgresCiProjectionContract({
     targetedPg18Scripts: freezeScriptList(targetedPg18Scripts),
     extensionIds: freezeScriptList(extensionIds),
     timeoutMinutes,
+    restoreExtensionId,
   });
 }
 
@@ -91,6 +97,7 @@ export function definePostgresCiProjectionExtension({
   productionPg17Scripts = [],
   targetedPg18Scripts = [],
   minimumTimeoutMinutes = null,
+  kind = "gate",
 }) {
   assert.equal(typeof id, "string", "extension id must be a string");
   assert.match(
@@ -98,25 +105,33 @@ export function definePostgresCiProjectionExtension({
     /^[a-z0-9][a-z0-9-]*$/u,
     "extension id must be a lowercase kebab-case identifier",
   );
-  if (minimumTimeoutMinutes !== null) {
-    assert.ok(
+  assert.ok(
+    kind === "gate" || kind === "restore",
+    `${id}.kind must be "gate" or "restore"`,
+  );
+  assert.ok(
+    minimumTimeoutMinutes === null ||
       Number.isInteger(minimumTimeoutMinutes),
-      `${id}.minimumTimeoutMinutes must be an integer or null`,
+    `${id}.minimumTimeoutMinutes must be an integer or null`,
+  );
+  if (kind === "restore") {
+    assert.equal(
+      minimumTimeoutMinutes,
+      postgresCiRuntimePolicy.maximumTimeoutMinutes,
+      "the dedicated restore extension must set the PostgreSQL CI timeout to exactly 35",
     );
+  } else {
     assert.ok(
-      minimumTimeoutMinutes >=
-        postgresCiRuntimePolicy.baselineTimeoutMinutes,
-      `${id}.minimumTimeoutMinutes cannot lower the canonical timeout`,
-    );
-    assert.ok(
-      minimumTimeoutMinutes <=
-        postgresCiRuntimePolicy.maximumTimeoutMinutes,
-      `${id}.minimumTimeoutMinutes exceeds the approved timeout ceiling`,
+      minimumTimeoutMinutes === null ||
+        minimumTimeoutMinutes ===
+          postgresCiRuntimePolicy.baselineTimeoutMinutes,
+      "only the dedicated restore extension may raise the PostgreSQL CI timeout",
     );
   }
   return Object.freeze({
     [postgresCiProjectionExtensionBrand]: true,
     id,
+    kind,
     registrationScripts: validateScriptList(
       registrationScripts,
       `${id}.registrationScripts`,
@@ -151,6 +166,7 @@ export const canonicalPostgresCiProjectionContract =
     ],
     extensionIds: [],
     timeoutMinutes: postgresCiRuntimePolicy.baselineTimeoutMinutes,
+    restoreExtensionId: null,
   });
 
 export function composeCanonicalPostgresCiProjectionContract(...extensions) {
@@ -165,6 +181,7 @@ export function composeCanonicalPostgresCiProjectionContract(...extensions) {
   ];
   const extensionIds = new Set();
   let timeoutMinutes = canonicalPostgresCiProjectionContract.timeoutMinutes;
+  let restoreExtensionId = null;
 
   for (const extension of extensions) {
     assert.equal(
@@ -177,6 +194,14 @@ export function composeCanonicalPostgresCiProjectionContract(...extensions) {
       `duplicate PostgreSQL CI extension id: ${extension.id}`,
     );
     extensionIds.add(extension.id);
+    if (extension.kind === "restore") {
+      assert.equal(
+        restoreExtensionId,
+        null,
+        "the PostgreSQL CI contract may contain only one restore extension",
+      );
+      restoreExtensionId = extension.id;
+    }
     if (extension.minimumTimeoutMinutes !== null) {
       timeoutMinutes = Math.max(
         timeoutMinutes,
@@ -206,6 +231,53 @@ export function composeCanonicalPostgresCiProjectionContract(...extensions) {
     targetedPg18Scripts,
     extensionIds: [...extensionIds],
     timeoutMinutes,
+    restoreExtensionId,
+  });
+}
+
+function assertCanonicalContract(contract) {
+  assert.equal(
+    contract?.[postgresCiProjectionContractBrand],
+    true,
+    "the projection contract must come from the canonical composer",
+  );
+}
+
+export function projectPostgresCiProjectionContract(
+  contract = canonicalPostgresCiProjectionContract,
+) {
+  assertCanonicalContract(contract);
+  const {
+    runner,
+    dockerPg17Image,
+    dockerPg17IntegrationCommand,
+    installCommand,
+    productionMajor,
+    targetedMajor,
+  } = postgresCiRuntimePolicy;
+  const runtimeLine = (major, script) =>
+    `      - run: POSTGRES_${major}_BIN=/usr/lib/postgresql/${major}/bin npm run ${script}`;
+
+  return Object.freeze({
+    runnerLine: `    runs-on: ${runner}`,
+    timeoutLine: `    timeout-minutes: ${contract.timeoutMinutes}`,
+    registrationLines: freezeScriptList(
+      contract.registrationScripts.map(
+        (script) => `      - run: npm run ${script}`,
+      ),
+    ),
+    dockerPg17PullLine: `      - run: docker pull ${dockerPg17Image}`,
+    dockerPg17IntegrationLine:
+      `      - run: ${dockerPg17IntegrationCommand}`,
+    installLine: `          ${installCommand}`,
+    productionPg17Lines: freezeScriptList(
+      contract.productionPg17Scripts.map((script) =>
+        runtimeLine(productionMajor, script)),
+    ),
+    targetedPg18Lines: freezeScriptList(
+      contract.targetedPg18Scripts.map((script) =>
+        runtimeLine(targetedMajor, script)),
+    ),
   });
 }
 
@@ -237,11 +309,24 @@ function assertCanonicalPostgresInstallAndRuntimeMajors(
   postgresProjection,
   contract,
 ) {
-  const {
-    installCommand,
-    productionMajor,
-    targetedMajor,
-  } = postgresCiRuntimePolicy;
+  const { productionMajor, targetedMajor } = postgresCiRuntimePolicy;
+  const expected = projectPostgresCiProjectionContract(contract);
+  const dockerPostgresPullLines = postgresProjection.match(
+    /^      - run: docker pull postgres:\S+$/gmu,
+  ) ?? [];
+  assert.deepEqual(
+    dockerPostgresPullLines,
+    [expected.dockerPg17PullLine],
+    "the pinned Docker PostgreSQL 17 integration image must appear exactly once",
+  );
+  const dockerPg17IntegrationLines = postgresProjection.match(
+    /^      - run: CODESTEAD_DISPOSABLE_HOST=1 bash infra\/tests\/database-least-privilege-integration\.sh$/gmu,
+  ) ?? [];
+  assert.deepEqual(
+    dockerPg17IntegrationLines,
+    [expected.dockerPg17IntegrationLine],
+    "the disposable Docker PostgreSQL 17 integration gate must appear exactly once",
+  );
   assert.doesNotMatch(
     postgresProjection,
     /(?:postgresql-16|POSTGRES_16_BIN|\/postgresql\/16\/bin)/u,
@@ -253,8 +338,21 @@ function assertCanonicalPostgresInstallAndRuntimeMajors(
   ) ?? [];
   assert.deepEqual(
     installLines,
-    [`          ${installCommand}`],
+    [expected.installLine],
     "the canonical install must contain exactly PostgreSQL 17 and PostgreSQL 18 once",
+  );
+  const dockerPullIndex = postgresProjection.indexOf(expected.dockerPg17PullLine);
+  const dockerIntegrationIndex = postgresProjection.indexOf(
+    expected.dockerPg17IntegrationLine,
+  );
+  const installIndex = postgresProjection.indexOf(expected.installLine);
+  assert.ok(
+    dockerPullIndex >= 0 && dockerIntegrationIndex > dockerPullIndex,
+    "the Docker PostgreSQL 17 pull must precede its integration gate",
+  );
+  assert.ok(
+    installIndex > dockerIntegrationIndex,
+    "the Docker PostgreSQL 17 integration gate must precede the PostgreSQL runtime installation",
   );
 
   const runtimeEntries = extractRuntimeEntries(postgresProjection);
@@ -288,7 +386,6 @@ function assertCanonicalPostgresInstallAndRuntimeMajors(
     "PostgreSQL 18 scripts must match the exact composed contract",
   );
 
-  const installIndex = postgresProjection.indexOf(`          ${installCommand}`);
   const firstProductionIndex = productionEntries.at(0)?.index ?? -1;
   const lastProductionIndex = productionEntries.at(-1)?.index ?? -1;
   const firstTargetedIndex = targetedEntries.at(0)?.index ?? -1;
@@ -311,19 +408,15 @@ export function assertPostgresCiProjectionContract(
   postgresProjection,
   contract = canonicalPostgresCiProjectionContract,
 ) {
-  assert.equal(
-    contract?.[postgresCiProjectionContractBrand],
-    true,
-    "the projection contract must come from the canonical composer",
-  );
+  const expected = projectPostgresCiProjectionContract(contract);
   assert.deepEqual(
     postgresProjection.match(/^    runs-on: .+$/gmu) ?? [],
-    [`    runs-on: ${postgresCiRuntimePolicy.runner}`],
+    [expected.runnerLine],
     "the PostgreSQL CI runner must match the canonical policy",
   );
   assert.deepEqual(
     postgresProjection.match(/^    timeout-minutes: \d+$/gmu) ?? [],
-    [`    timeout-minutes: ${contract.timeoutMinutes}`],
+    [expected.timeoutLine],
     "timeout-minutes must match the single canonical PostgreSQL CI policy",
   );
   assert.doesNotMatch(
@@ -349,9 +442,7 @@ export function assertPostgresCiProjectionContract(
     contract,
   );
 
-  const installIndex = postgresProjection.indexOf(
-    `          ${postgresCiRuntimePolicy.installCommand}`,
-  );
+  const installIndex = postgresProjection.indexOf(expected.installLine);
   const lastRegistrationIndex = registrationEntries.at(-1)?.index ?? -1;
   assert.ok(
     lastRegistrationIndex >= 0 && installIndex > lastRegistrationIndex,
