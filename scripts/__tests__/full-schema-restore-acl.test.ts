@@ -126,12 +126,39 @@ describe("controlled restore role prerequisite", () => {
         valid_until_infinity: true,
         password_is_null: true,
         role_settings_empty: true,
+        membership_contract_exact: true,
       }],
     }));
 
     await expect(requireExactFullSchemaRestoreOwnerRole({ query }))
       .resolves.toBeUndefined();
     expect(query.mock.calls[0]?.[0]).toContain("pg_catalog.pg_authid");
+    expect(query.mock.calls[0]?.[0]).toContain("pg_catalog.pg_auth_members");
+    expect(query.mock.calls[0]?.[0]).toContain("membership.inherit_option");
+    expect(query.mock.calls[0]?.[0]).toContain("membership.set_option");
+    expect(query.mock.calls[0]?.[0]).toContain("'learncoding_backup_reporter'");
+  });
+
+  it("rejects any noncanonical membership involving an application role", async () => {
+    await expect(requireExactFullSchemaRestoreOwnerRole({
+      query: async () => ({
+        rows: [{
+          rolname: "learncoding_owner",
+          rolcanlogin: false,
+          rolsuper: false,
+          rolcreatedb: false,
+          rolcreaterole: false,
+          rolinherit: false,
+          rolreplication: false,
+          rolbypassrls: false,
+          rolconnlimit: -1,
+          valid_until_infinity: true,
+          password_is_null: true,
+          role_settings_empty: true,
+          membership_contract_exact: false,
+        }],
+      }),
+    })).rejects.toThrow("full-schema restore owner role is invalid");
   });
 
   it("rejects a PUBLIC-capable login role substitute", async () => {
@@ -253,6 +280,9 @@ describe("raw pre-repair restore evidence", () => {
           trace.push("target.acl-suppression");
           return { proaclIsNull: true, publicExecute: true, routine: "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)" };
         },
+        resetAfterAclSuppressionControl: async () => {
+          trace.push("target.reset-after-acl-suppression");
+        },
         verifyMailAuthorityCatalog: async () => {
           trace.push("target.catalog.reviewed");
         },
@@ -301,6 +331,7 @@ describe("raw pre-repair restore evidence", () => {
       "target.acl-suppression.prepare",
       "archive.restore.no-acl",
       "target.acl-suppression",
+      "target.reset-after-acl-suppression",
       "target.roles",
       "target.boundary:false",
       "target.restore-role",
@@ -345,6 +376,7 @@ describe("raw pre-repair restore evidence", () => {
           publicExecute: true,
           routine: "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
         }),
+        resetAfterAclSuppressionControl: async () => undefined,
         verifyPreRepairMailAuthorityCatalog: async () => undefined,
         verifyMailAuthorityCatalog: async () => undefined,
         snapshot: async () => {

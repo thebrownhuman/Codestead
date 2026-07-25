@@ -243,6 +243,7 @@ describe("full-schema restore verification", () => {
         requireRestoreOwnerRole: async () => undefined,
         prepareAclSuppressionControl: async () => undefined,
         verifyAclSuppressionControl: async () => aclSuppressionControl,
+        resetAfterAclSuppressionControl: async () => undefined,
         verifyPreRepairMailAuthorityCatalog: async () => undefined,
         verifyMailAuthorityCatalog: async () => undefined,
         snapshot: async () => snapshot(),
@@ -312,6 +313,9 @@ describe("full-schema restore verification", () => {
         verifyMailAuthorityCatalog: async () => {
           trace.push("target.catalog.reviewed");
         },
+        resetAfterAclSuppressionControl: async () => {
+          trace.push("target.reset-after-acl-suppression");
+        },
         snapshot: async () => {
           trace.push("target.snapshot");
           return restoredSnapshot;
@@ -366,6 +370,7 @@ describe("full-schema restore verification", () => {
       "target.acl-suppression.prepare",
       "archive.restore.no-acl",
       "target.acl-suppression",
+      "target.reset-after-acl-suppression",
       "target.roles",
       "target.boundary:false",
       "target.restore-role",
@@ -433,6 +438,7 @@ describe("full-schema restore verification", () => {
           requireRestoreOwnerRole: async () => undefined,
           prepareAclSuppressionControl: async () => undefined,
           verifyAclSuppressionControl: async () => aclSuppressionControl,
+          resetAfterAclSuppressionControl: async () => undefined,
           verifyPreRepairMailAuthorityCatalog: targetCatalog,
           verifyMailAuthorityCatalog: targetCatalog,
           snapshot: targetSnapshot,
@@ -501,6 +507,7 @@ describe("full-schema restore verification", () => {
         requireRestoreOwnerRole: async () => undefined,
         prepareAclSuppressionControl: async () => undefined,
         verifyAclSuppressionControl: async () => aclSuppressionControl,
+        resetAfterAclSuppressionControl: async () => undefined,
         verifyPreRepairMailAuthorityCatalog: async () => undefined,
         verifyMailAuthorityCatalog: async () => undefined,
         snapshot: async () => snapshot(restoredOverride),
@@ -540,6 +547,7 @@ describe("full-schema restore verification", () => {
         requireRestoreOwnerRole: async () => undefined,
         prepareAclSuppressionControl: async () => undefined,
         verifyAclSuppressionControl: async () => aclSuppressionControl,
+        resetAfterAclSuppressionControl: async () => undefined,
         verifyPreRepairMailAuthorityCatalog: async () => undefined,
         verifyMailAuthorityCatalog: async () => undefined,
         snapshot: async () => snapshot(),
@@ -580,6 +588,7 @@ describe("full-schema restore verification", () => {
         requireRestoreOwnerRole: async () => undefined,
         prepareAclSuppressionControl: async () => undefined,
         verifyAclSuppressionControl: async () => aclSuppressionControl,
+        resetAfterAclSuppressionControl: async () => undefined,
         verifyPreRepairMailAuthorityCatalog: async () => undefined,
         verifyMailAuthorityCatalog: async () => undefined,
         snapshot: async () => snapshot(),

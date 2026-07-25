@@ -33,7 +33,32 @@ export async function requireExactFullSchemaRestoreOwnerRole(
              select 1
                from pg_catalog.pg_db_role_setting setting
               where setting.setrole = role.oid
-           ) as role_settings_empty
+           ) as role_settings_empty,
+           (
+             select pg_catalog.count(*) = 1
+                    and pg_catalog.count(*) filter (
+                      where granted.rolname = 'learncoding_owner'
+                        and member.rolname = 'learncoding_migrator'
+                        and not membership.admin_option
+                        and not membership.inherit_option
+                        and membership.set_option
+                    ) = 1
+               from pg_catalog.pg_auth_members membership
+               join pg_catalog.pg_roles granted
+                 on granted.oid = membership.roleid
+               join pg_catalog.pg_roles member
+                 on member.oid = membership.member
+              where granted.rolname in (
+                'learncoding_owner', 'learncoding_migrator',
+                'learncoding_app', 'learncoding_worker', 'learncoding_ops',
+                'learncoding_backup_reporter'
+              )
+                 or member.rolname in (
+                   'learncoding_owner', 'learncoding_migrator',
+                   'learncoding_app', 'learncoding_worker', 'learncoding_ops',
+                   'learncoding_backup_reporter'
+                 )
+           ) as membership_contract_exact
       from pg_catalog.pg_authid role
      where role.rolname = 'learncoding_owner'
   `);
@@ -52,6 +77,7 @@ export async function requireExactFullSchemaRestoreOwnerRole(
     || row.valid_until_infinity !== true
     || row.password_is_null !== true
     || row.role_settings_empty !== true
+    || row.membership_contract_exact !== true
   ) {
     throw new Error("full-schema restore owner role is invalid");
   }
@@ -165,6 +191,16 @@ const OBJECT_CONTRACT_SQL = `
             from pg_catalog.unnest(
               coalesce(database.datacl, '{}'::aclitem[])
             ) item
+        ), '[]'::jsonb),
+        'acl_is_null', database.datacl is null,
+        'effective_acl', coalesce((
+          select pg_catalog.jsonb_agg(item::text order by item::text)
+            from pg_catalog.unnest(
+              coalesce(
+                database.datacl,
+                pg_catalog.acldefault('d', database.datdba)
+              )
+            ) item
         ), '[]'::jsonb)
       ) as attributes
       from pg_catalog.pg_database database
@@ -217,6 +253,16 @@ const OBJECT_CONTRACT_SQL = `
             from pg_catalog.unnest(
               coalesce(namespace.nspacl, '{}'::aclitem[])
             ) item
+        ), '[]'::jsonb),
+        'acl_is_null', namespace.nspacl is null,
+        'effective_acl', coalesce((
+          select pg_catalog.jsonb_agg(item::text order by item::text)
+            from pg_catalog.unnest(
+              coalesce(
+                namespace.nspacl,
+                pg_catalog.acldefault('n', namespace.nspowner)
+              )
+            ) item
         ), '[]'::jsonb)
       )
       from pg_catalog.pg_namespace namespace
@@ -235,6 +281,22 @@ const OBJECT_CONTRACT_SQL = `
           select pg_catalog.jsonb_agg(item::text order by item::text)
             from pg_catalog.unnest(
               coalesce(relation.relacl, '{}'::aclitem[])
+            ) item
+        ), '[]'::jsonb),
+        'acl_is_null', relation.relacl is null,
+        'effective_acl', coalesce((
+          select pg_catalog.jsonb_agg(item::text order by item::text)
+            from pg_catalog.unnest(
+              coalesce(
+                relation.relacl,
+                case
+                  when relation.relkind = 'S'
+                    then pg_catalog.acldefault('S', relation.relowner)
+                  when relation.relkind in ('r', 'p', 'v', 'm', 'f')
+                    then pg_catalog.acldefault('r', relation.relowner)
+                  else '{}'::aclitem[]
+                end
+              )
             ) item
         ), '[]'::jsonb),
         'definition', case relation.relkind
@@ -325,6 +387,16 @@ const OBJECT_CONTRACT_SQL = `
               coalesce(attribute.attacl, '{}'::aclitem[])
             ) item
         ), '[]'::jsonb),
+        'acl_is_null', attribute.attacl is null,
+        'effective_acl', coalesce((
+          select pg_catalog.jsonb_agg(item::text order by item::text)
+            from pg_catalog.unnest(
+              coalesce(
+                attribute.attacl,
+                pg_catalog.acldefault('c', relation.relowner)
+              )
+            ) item
+        ), '[]'::jsonb),
         'default', pg_catalog.pg_get_expr(
           attribute_default.adbin,
           attribute_default.adrelid
@@ -388,6 +460,16 @@ const OBJECT_CONTRACT_SQL = `
               coalesce(routine.proacl, '{}'::aclitem[])
             ) item
         ), '[]'::jsonb),
+        'acl_is_null', routine.proacl is null,
+        'effective_acl', coalesce((
+          select pg_catalog.jsonb_agg(item::text order by item::text)
+            from pg_catalog.unnest(
+              coalesce(
+                routine.proacl,
+                pg_catalog.acldefault('f', routine.proowner)
+              )
+            ) item
+        ), '[]'::jsonb),
         'configuration', coalesce(
           pg_catalog.to_jsonb(routine.proconfig),
           '[]'::jsonb
@@ -439,6 +521,16 @@ const OBJECT_CONTRACT_SQL = `
           select pg_catalog.jsonb_agg(item::text order by item::text)
             from pg_catalog.unnest(
               coalesce(type_row.typacl, '{}'::aclitem[])
+            ) item
+        ), '[]'::jsonb),
+        'acl_is_null', type_row.typacl is null,
+        'effective_acl', coalesce((
+          select pg_catalog.jsonb_agg(item::text order by item::text)
+            from pg_catalog.unnest(
+              coalesce(
+                type_row.typacl,
+                pg_catalog.acldefault('T', type_row.typowner)
+              )
             ) item
         ), '[]'::jsonb),
         'domain', case when type_row.typtype = 'd' then
@@ -545,6 +637,16 @@ const OBJECT_CONTRACT_SQL = `
             from pg_catalog.unnest(
               coalesce(default_acl.defaclacl, '{}'::aclitem[])
             ) item
+        ), '[]'::jsonb),
+        'acl_is_null', default_acl.defaclacl is null,
+        'effective_acl', coalesce((
+          select pg_catalog.jsonb_agg(item::text order by item::text)
+            from pg_catalog.unnest(
+              coalesce(
+                default_acl.defaclacl,
+                pg_catalog.acldefault(default_acl.defaclobjtype, default_acl.defaclrole)
+              )
+            ) item
         ), '[]'::jsonb)
       )
       from pg_catalog.pg_default_acl default_acl
@@ -583,7 +685,7 @@ const BACKUP_AUTHORITY_ROWS_SQL = `
 `;
 
 const MIGRATION_LEDGER_VERSION = "drizzle-migration-ledger-v1";
-const OBJECT_CONTRACT_VERSION = "postgres-object-contract-v2";
+const OBJECT_CONTRACT_VERSION = "postgres-object-contract-v3";
 const MAIL_AUTHORITY_VERSION = "mail-authority-rows-v2";
 
 function positiveInteger(value: unknown): number | undefined {

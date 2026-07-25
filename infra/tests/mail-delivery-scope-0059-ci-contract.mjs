@@ -39,7 +39,7 @@ export function assertMailDeliveryScope0059PostgresProjection(
     "URIs: https://apt.postgresql.org/pub/repos/apt",
     "Suites: noble-pgdg",
     "Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc",
-    "sudo apt-get install --yes --no-install-recommends postgresql-18",
+    "sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18",
   ]) {
     assert.equal(
       postgresProjection.split(requiredSetup).length,
@@ -49,7 +49,7 @@ export function assertMailDeliveryScope0059PostgresProjection(
   }
 
   const installIndex = postgresProjection.indexOf(
-    "sudo apt-get install --yes --no-install-recommends postgresql-18",
+    "sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18",
   );
   const registrationIndex = postgresProjection.indexOf(
     `      - run: npm run ${registrationScript}`,

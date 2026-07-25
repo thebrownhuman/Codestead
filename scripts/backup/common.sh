@@ -314,6 +314,23 @@ compose_cmd() {
   "${args[@]}" "$@"
 }
 
+remove_restore_database() {
+  local database="${1:-}" exists
+
+  [[ "$database" =~ ^learncoding_restore_[A-Za-z0-9_]+$ ]] || return 1
+  # The inner container shell, not this host shell, expands these variables.
+  # shellcheck disable=SC2016
+  compose_cmd exec -T postgres sh -ceu \
+    'dropdb --host=/run/learncoding-postgres --username="$POSTGRES_USER" --if-exists "$1"' \
+    _ "$database" || return 1
+  # shellcheck disable=SC2016
+  exists="$(compose_cmd exec -T postgres sh -ceu \
+    'psql --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname=postgres -tAc "$1"' _ \
+    "SELECT 1 FROM pg_catalog.pg_database WHERE datname = '$database'")" \
+    || return 1
+  [[ -z "$exists" ]]
+}
+
 emit_alert() {
   local severity="$1" event="$2" message="$3"
   log "alert severity=$severity event=$event message=$message"
