@@ -314,8 +314,12 @@ if verify_ciphertext_checksum "$archive"; then
 fi
 
 compose_calls="$work/compose-calls"
+compose_deadlines="$work/compose-deadlines"
 compose_result=queued
-compose_cmd() {
+run_compose_managed() {
+  local deadline="$1"
+  shift
+  printf '%s\n' "$deadline" >>"$compose_deadlines"
   printf '%s\n' "$@" >>"$compose_calls"
   printf '%s\n' "$compose_result"
 }
@@ -340,6 +344,11 @@ compose_result=existing
 enqueue_backup_status failure 20260712T120001Z
 grep -Fq "BACKUP_REPORT_OUTCOME=failure" "$compose_calls"
 grep -Fq "BACKUP_REPORT_RUN_KEY=20260712T120001Z" "$compose_calls"
+if grep -Evqx '45' "$compose_deadlines" \
+  || [[ "$(wc -l <"$compose_deadlines")" -ne 2 ]]; then
+  echo "backup status reporting did not use its fixed managed deadline" >&2
+  exit 1
+fi
 
 compose_result=forged
 if enqueue_backup_status success 20260712T120002Z >/dev/null 2>&1; then
@@ -355,6 +364,10 @@ if enqueue_backup_status success ../unsafe >/dev/null 2>&1; then
   exit 1
 fi
 
+grep -Fq 'run_compose_managed "$BACKUP_STATUS_REPORT_DEADLINE_SECONDS"' \
+  "$repo_root/scripts/backup/common.sh"
+grep -Fq 'run_managed_backup_command "$allotted_seconds" "${args[@]}" "$@"' \
+  "$repo_root/scripts/backup/common.sh"
 grep -Fq 'enqueue_backup_status failure "$timestamp"' "$repo_root/scripts/backup/backup.sh"
 grep -Fq 'enqueue_backup_status success "$timestamp"' "$repo_root/scripts/backup/backup.sh"
 

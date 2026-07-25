@@ -20,6 +20,9 @@ const backupCommon = read("scripts/backup/common.sh");
 const secrets = read("infra/secrets/README.md");
 const runtimeValidator = read("infra/ops/validate-runtime.sh");
 const restoreCompose = read("infra/restore/restore-drill.compose.yaml");
+const migration0065 = read(
+  "drizzle/0065_backup_status_mail_authority.sql",
+);
 
 describe("dedicated backup-status reporter role contract", () => {
   it("creates and validates one independent fixed-role credential", () => {
@@ -121,6 +124,9 @@ describe("dedicated backup-status reporter role contract", () => {
     expect(dockerfile).toContain(
       "scripts/backup/enqueue-backup-status.mjs ./scripts/backup/enqueue-backup-status.mjs",
     );
+    expect(dockerfile).toContain(
+      "scripts/verify-backup-status-mail-authority.mjs ./scripts/verify-backup-status-mail-authority.mjs",
+    );
     expect(entrypoint).toMatch(/DATABASE_BACKUP_REPORTER_URL\s*\\/u);
     for (const [manifest, preflightName] of [
       [compose, "database-negative-probes"],
@@ -144,6 +150,63 @@ describe("dedicated backup-status reporter role contract", () => {
     );
     expect(boundaryVerifier).toContain(
       "databaseBackupReporterUrl: process.env.DATABASE_BACKUP_REPORTER_URL",
+    );
+  });
+
+  it("ships the complete backup-authority verifier import closure", () => {
+    const operationsStage = dockerfile.match(
+      /FROM worker AS operations[\s\S]*?(?=\nFROM worker AS regrade-worker)/u,
+    )?.[0] ?? "";
+    expect(bootstrap).toContain(
+      'from "./verify-backup-status-mail-authority.mjs"',
+    );
+    expect(boundaryVerifier).toContain(
+      'from "./verify-backup-status-mail-authority.mjs"',
+    );
+    expect(operationsStage).toContain(
+      "scripts/bootstrap-database-roles.mjs ./scripts/bootstrap-database-roles.mjs",
+    );
+    expect(operationsStage).toContain(
+      "scripts/verify-database-role-boundaries.mjs ./scripts/verify-database-role-boundaries.mjs",
+    );
+    expect(operationsStage).toContain(
+      "scripts/verify-backup-status-mail-authority.mjs ./scripts/verify-backup-status-mail-authority.mjs",
+    );
+  });
+
+  it("pins a finite ordered reporter policy in the one-shot service", () => {
+    const service = compose.match(
+      /  backup-status-reporter:[\s\S]*?(?=\n  [a-z][a-z0-9-]*:)/u,
+    )?.[0] ?? "";
+    for (const entry of [
+      'BACKUP_STATUS_REPORTER_CONNECTION_TIMEOUT_MS: "5000"',
+      'BACKUP_STATUS_REPORTER_QUERY_TIMEOUT_MS: "6000"',
+      'BACKUP_STATUS_REPORTER_STATEMENT_TIMEOUT_MS: "5000"',
+      'BACKUP_STATUS_REPORTER_LOCK_TIMEOUT_MS: "3000"',
+      'BACKUP_STATUS_REPORTER_IDLE_IN_TRANSACTION_TIMEOUT_MS: "5000"',
+      'BACKUP_STATUS_REPORTER_POOL_IDLE_TIMEOUT_MS: "2000"',
+      'BACKUP_STATUS_REPORTER_POOL_SHUTDOWN_TIMEOUT_MS: "2000"',
+    ]) expect(service).toContain(entry);
+  });
+
+  it("binds backup email to a generic outcome without artifact metadata", () => {
+    const outboxInsert = migration0065.match(
+      /INSERT INTO public\.email_outbox[\s\S]*?\n  \);/u,
+    )?.[0] ?? "";
+    expect(outboxInsert).toMatch(
+      /pg_catalog\.jsonb_build_object\(\s*'name', 'Administrator',\s*'summary', fixed_summary\s*\)/u,
+    );
+    expect(outboxInsert).not.toMatch(
+      /'(?:archive|archive_id|backup_id|checksum|size|recovery_point_count|provider|log|key|learner|run_key)'\s*,/u,
+    );
+    expect(migration0065).toContain(
+      "No archive is attached to this email.",
+    );
+    expect(migration0065).toContain(
+      "no archive or log is attached to this email.",
+    );
+    expect(backupCommon).not.toMatch(
+      /BACKUP_REPORT_(?:ARCHIVE|CHECKSUM|SIZE|RECOVERY|PROVIDER|LOG|KEY|LEARNER)/u,
     );
   });
 
@@ -171,6 +234,15 @@ describe("dedicated backup-status reporter role contract", () => {
       /enqueue_backup_status\(\) \{[\s\S]*?\n\}/u,
     )?.[0] ?? "";
     expect(functionSource).toContain("backup-status-reporter");
+    expect(functionSource).toContain(
+      'run_compose_managed "$BACKUP_STATUS_REPORT_DEADLINE_SECONDS"',
+    );
+    expect(backupCommon).toContain(
+      'readonly BACKUP_STATUS_REPORT_DEADLINE_SECONDS="45"',
+    );
+    expect(backupCommon).toContain(
+      'run_managed_backup_command "$allotted_seconds" "${args[@]}" "$@"',
+    );
     expect(functionSource).toContain("BACKUP_REPORT_RUN_KEY");
     expect(functionSource).toContain("BACKUP_REPORT_OUTCOME");
     expect(functionSource).not.toContain("POSTGRES_USER");

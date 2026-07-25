@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -13,6 +14,48 @@ const reporterUrl =
   "postgresql://learncoding_backup_reporter:"
   + "a".repeat(64)
   + "@postgres:5432/learncoding";
+
+const reporterEnvironment = Object.freeze({
+  BACKUP_STATUS_REPORTER_CONNECTION_TIMEOUT_MS: "5000",
+  BACKUP_STATUS_REPORTER_QUERY_TIMEOUT_MS: "6000",
+  BACKUP_STATUS_REPORTER_STATEMENT_TIMEOUT_MS: "5000",
+  BACKUP_STATUS_REPORTER_LOCK_TIMEOUT_MS: "3000",
+  BACKUP_STATUS_REPORTER_IDLE_IN_TRANSACTION_TIMEOUT_MS: "5000",
+  BACKUP_STATUS_REPORTER_POOL_IDLE_TIMEOUT_MS: "2000",
+  BACKUP_STATUS_REPORTER_POOL_SHUTDOWN_TIMEOUT_MS: "2000",
+});
+
+const authorityRow = Object.freeze({
+  acknowledgement: "queued",
+  authority_id: "11111111-1111-4111-8111-111111111111",
+  outbox_id: "22222222-2222-4222-8222-222222222222",
+  operation_id: "33333333-3333-4333-8333-333333333333",
+});
+
+function reporterInput(overrides = {}) {
+  return {
+    databaseUrl: reporterUrl,
+    databaseName: "learncoding",
+    environment: reporterEnvironment,
+    outcome: "success",
+    runKey: "20260725T051500Z",
+    ...overrides,
+  };
+}
+
+function immediateDeadlineDependencies() {
+  const delays = [];
+  return {
+    delays,
+    setTimeout(callback, delay) {
+      delays.push(delay);
+      return setImmediate(callback);
+    },
+    clearTimeout(handle) {
+      clearImmediate(handle);
+    },
+  };
+}
 
 let temporaryDirectory;
 
@@ -84,6 +127,53 @@ test("database URL validation accepts only the dedicated reporter topology", {
   }
 });
 
+test("reporter policy requires finite ordered bounds with no implicit defaults", {
+  skip: implementation === null,
+}, () => {
+  assert.deepEqual(
+    implementation.validateBackupStatusReporterPolicy(reporterEnvironment),
+    {
+      connectionTimeoutMillis: 5000,
+      queryTimeoutMillis: 6000,
+      statementTimeoutMillis: 5000,
+      lockTimeoutMillis: 3000,
+      idleInTransactionSessionTimeoutMillis: 5000,
+      idleTimeoutMillis: 2000,
+      shutdownTimeoutMillis: 2000,
+    },
+  );
+
+  const {
+    BACKUP_STATUS_REPORTER_QUERY_TIMEOUT_MS: omitted,
+    ...missingQueryTimeout
+  } = reporterEnvironment;
+  assert.equal(omitted, "6000");
+  for (const environment of [
+    missingQueryTimeout,
+    {
+      ...reporterEnvironment,
+      BACKUP_STATUS_REPORTER_QUERY_TIMEOUT_MS: "5000",
+    },
+    {
+      ...reporterEnvironment,
+      BACKUP_STATUS_REPORTER_LOCK_TIMEOUT_MS: "5000",
+    },
+    {
+      ...reporterEnvironment,
+      BACKUP_STATUS_REPORTER_CONNECTION_TIMEOUT_MS: "5001",
+    },
+    {
+      ...reporterEnvironment,
+      BACKUP_STATUS_REPORTER_QUERY_TIMEOUT_MS: "6001",
+    },
+  ]) {
+    assert.throws(
+      () => implementation.validateBackupStatusReporterPolicy(environment),
+      { message: "backup status reporter policy is invalid" },
+    );
+  }
+});
+
 test("secret loading requires a bounded regular file and preserves no newline", {
   skip: implementation === null,
 }, () => {
@@ -102,34 +192,38 @@ test("secret loading requires a bounded regular file and preserves no newline", 
   );
 });
 
-test("enqueue calls only the owner routine with parameterized non-secret fields", {
+test("enqueue uses one private bounded connection and only the owner routine", {
   skip: implementation === null,
 }, async () => {
   const calls = [];
+  const releases = [];
   let ended = 0;
-  const result = await implementation.enqueueBackupStatus({
-    databaseUrl: reporterUrl,
-    databaseName: "learncoding",
-    outcome: "success",
-    runKey: "20260725T051500Z",
-  }, {
+  const result = await implementation.enqueueBackupStatus(reporterInput(), {
     createPool: (options) => {
       assert.deepEqual(options, {
         connectionString: reporterUrl,
         max: 1,
+        connectionTimeoutMillis: 5000,
+        idleTimeoutMillis: 2000,
+        query_timeout: 6000,
+        statement_timeout: 5000,
+        lock_timeout: 3000,
+        idle_in_transaction_session_timeout: 5000,
         application_name: "codestead-backup-status-reporter",
       });
       return {
-        async query(sql, values) {
-          calls.push({ sql, values });
+        async connect() {
           return {
-            rowCount: 1,
-            rows: [{
-              acknowledgement: "queued",
-              authority_id: "11111111-1111-4111-8111-111111111111",
-              outbox_id: "22222222-2222-4222-8222-222222222222",
-              operation_id: "33333333-3333-4333-8333-333333333333",
-            }],
+            async query(sql, values) {
+              calls.push({ sql, values });
+              return {
+                rowCount: 1,
+                rows: [authorityRow],
+              };
+            },
+            release(destroy) {
+              releases.push(destroy);
+            },
           };
         },
         async end() {
@@ -141,6 +235,7 @@ test("enqueue calls only the owner routine with parameterized non-secret fields"
 
   assert.equal(result, "queued");
   assert.equal(ended, 1);
+  assert.deepEqual(releases, [false]);
   assert.equal(calls.length, 1);
   assert.match(
     calls[0].sql,
@@ -155,22 +250,24 @@ test("enqueue accepts exact replay and closes the pool on malformed acknowledgem
 }, async () => {
   for (const acknowledgement of ["existing", "forged"]) {
     let ended = 0;
-    const action = implementation.enqueueBackupStatus({
-      databaseUrl: reporterUrl,
-      databaseName: "learncoding",
+    let released = 0;
+    const action = implementation.enqueueBackupStatus(reporterInput({
       outcome: "failure",
       runKey: "20260725T051501Z",
-    }, {
+    }), {
       createPool: () => ({
-        async query() {
+        async connect() {
           return {
-            rowCount: 1,
-            rows: [{
-              acknowledgement,
-              authority_id: "11111111-1111-4111-8111-111111111111",
-              outbox_id: "22222222-2222-4222-8222-222222222222",
-              operation_id: "33333333-3333-4333-8333-333333333333",
-            }],
+            async query() {
+              return {
+                rowCount: 1,
+                rows: [{ ...authorityRow, acknowledgement }],
+              };
+            },
+            release(destroy) {
+              assert.equal(destroy, acknowledgement === "forged");
+              released += 1;
+            },
           };
         },
         async end() {
@@ -186,6 +283,227 @@ test("enqueue accepts exact replay and closes the pool on malformed acknowledgem
         message: "backup status reporter acknowledgement is invalid",
       });
     }
+    assert.equal(released, 1);
     assert.equal(ended, 1);
   }
+});
+
+test("a hung connection fails with a fixed deadline and bounded pool shutdown", {
+  skip: implementation === null,
+}, async () => {
+  const deadline = immediateDeadlineDependencies();
+  let ended = 0;
+  await assert.rejects(
+    implementation.enqueueBackupStatus(reporterInput(), {
+      ...deadline,
+      createPool: () => ({
+        connect() {
+          return new Promise(() => {});
+        },
+        async end() {
+          ended += 1;
+        },
+      }),
+    }),
+    { message: "backup status reporter connection timed out" },
+  );
+  assert.equal(ended, 1);
+  assert.deepEqual(deadline.delays, [5000, 2000]);
+});
+
+test("a connection acquired after timeout is destroyed without becoming usable", {
+  skip: implementation === null,
+}, async () => {
+  const deadline = immediateDeadlineDependencies();
+  const releases = [];
+  let resolveConnection;
+  let queryCalls = 0;
+  const action = implementation.enqueueBackupStatus(reporterInput(), {
+    ...deadline,
+    createPool: () => ({
+      connect() {
+        return new Promise((resolve) => {
+          resolveConnection = resolve;
+        });
+      },
+      async end() {},
+    }),
+  });
+  await assert.rejects(action, {
+    message: "backup status reporter connection timed out",
+  });
+  resolveConnection({
+    query() {
+      queryCalls += 1;
+    },
+    release(destroy) {
+      releases.push(destroy);
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(queryCalls, 0);
+  assert.deepEqual(releases, [true]);
+});
+
+test("a hung query destroys its connection and fails with a fixed deadline", {
+  skip: implementation === null,
+}, async () => {
+  const deadline = immediateDeadlineDependencies();
+  const releases = [];
+  let resolveQuery;
+  await assert.rejects(
+    implementation.enqueueBackupStatus(reporterInput(), {
+      ...deadline,
+      createPool: () => ({
+        async connect() {
+          return {
+            query() {
+              return new Promise((resolve) => {
+                resolveQuery = resolve;
+              });
+            },
+            release(destroy) {
+              releases.push(destroy);
+            },
+          };
+        },
+        async end() {},
+      }),
+    }),
+    { message: "backup status reporter query timed out" },
+  );
+  resolveQuery({ rowCount: 1, rows: [authorityRow] });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(releases, [true]);
+  assert.deepEqual(deadline.delays, [5000, 6000, 2000]);
+});
+
+test("a hung pool shutdown fails with its fixed deadline after a valid query", {
+  skip: implementation === null,
+}, async () => {
+  const deadline = immediateDeadlineDependencies();
+  await assert.rejects(
+    implementation.enqueueBackupStatus(reporterInput(), {
+      ...deadline,
+      createPool: () => ({
+        async connect() {
+          return {
+            async query() {
+              return { rowCount: 1, rows: [authorityRow] };
+            },
+            release(destroy) {
+              assert.equal(destroy, false);
+            },
+          };
+        },
+        end() {
+          return new Promise(() => {});
+        },
+      }),
+    }),
+    { message: "backup status reporter pool shutdown timed out" },
+  );
+  assert.deepEqual(deadline.delays, [5000, 6000, 2000]);
+});
+
+test("the one-shot process remains alive until its hard shutdown deadline fires", {
+  skip: implementation === null,
+}, () => {
+  const proof = `
+    import { enqueueBackupStatus } from ${JSON.stringify(modulePath.href)};
+    const environment = {
+      BACKUP_STATUS_REPORTER_CONNECTION_TIMEOUT_MS: "10",
+      BACKUP_STATUS_REPORTER_QUERY_TIMEOUT_MS: "30",
+      BACKUP_STATUS_REPORTER_STATEMENT_TIMEOUT_MS: "20",
+      BACKUP_STATUS_REPORTER_LOCK_TIMEOUT_MS: "10",
+      BACKUP_STATUS_REPORTER_IDLE_IN_TRANSACTION_TIMEOUT_MS: "20",
+      BACKUP_STATUS_REPORTER_POOL_IDLE_TIMEOUT_MS: "10",
+      BACKUP_STATUS_REPORTER_POOL_SHUTDOWN_TIMEOUT_MS: "20",
+    };
+    const input = {
+      databaseUrl:
+        "postgresql://learncoding_backup_reporter:"
+        + "a".repeat(64)
+        + "@postgres:5432/learncoding",
+      databaseName: "learncoding",
+      environment,
+      outcome: "success",
+      runKey: "20260725T051500Z",
+    };
+    const row = {
+      acknowledgement: "queued",
+      authority_id: "11111111-1111-4111-8111-111111111111",
+      outbox_id: "22222222-2222-4222-8222-222222222222",
+      operation_id: "33333333-3333-4333-8333-333333333333",
+    };
+    void enqueueBackupStatus(input, {
+      createPool: () => ({
+        async connect() {
+          return {
+            async query() {
+              return { rowCount: 1, rows: [row] };
+            },
+            release() {},
+          };
+        },
+        end() {
+          return new Promise(() => {});
+        },
+      }),
+    }).then(
+      () => process.stdout.write("unexpected-success"),
+      (error) => process.stdout.write(error.message),
+    );
+  `;
+  const child = spawnSync(
+    process.execPath,
+    ["--input-type=module", "--eval", proof],
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      timeout: 5_000,
+      windowsHide: true,
+    },
+  );
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(
+    child.stdout,
+    "backup status reporter pool shutdown timed out",
+  );
+  assert.equal(child.stderr, "");
+});
+
+test("shutdown failure cannot mask the primary query failure", {
+  skip: implementation === null,
+}, async () => {
+  const deadline = immediateDeadlineDependencies();
+  const primary = new Error("primary reporter query failure");
+  await assert.rejects(
+    implementation.enqueueBackupStatus(reporterInput(), {
+      ...deadline,
+      createPool: () => ({
+        async connect() {
+          return {
+            async query() {
+              throw primary;
+            },
+            release(destroy) {
+              assert.equal(destroy, true);
+            },
+          };
+        },
+        end() {
+          return new Promise(() => {});
+        },
+      }),
+    }),
+    (error) => {
+      assert.equal(error, primary);
+      assert.equal(
+        error.cause?.message,
+        "backup status reporter pool shutdown timed out",
+      );
+      return true;
+    },
+  );
 });
