@@ -58,7 +58,7 @@ import {
   type StoreBoundPreparedDispatchChannel,
 } from "./prepared-dispatch-materialization";
 import {
-  isMailDispatchRuntimeStartupInspection,
+  isMailDispatchRuntimeStartupInspectionForPool,
   type MailDispatchRuntimeStartupInspection,
 } from "./mail-dispatch-runtime-startup";
 import {
@@ -1913,7 +1913,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     private readonly pool: OutboxPgPool,
     startupInspection: MailDispatchRuntimeStartupInspection,
   ) {
-    if (!isMailDispatchRuntimeStartupInspection(startupInspection)) {
+    if (!isMailDispatchRuntimeStartupInspectionForPool(startupInspection, pool)) {
       throw new Error("Mail dispatch startup inspection is invalid.");
     }
     const runtimePlan = Object.freeze({
@@ -3384,7 +3384,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
     const state = GUARDED_DISPATCH_UNKNOWN_STATES.get(uncertainty);
     if (!state || state.store !== this) return null;
     GUARDED_DISPATCH_UNKNOWN_STATES.delete(uncertainty);
-    const result = await this.finishAfterProvider(state.permit, state.exit);
+    const result = await this.finishAuthorizedProviderExit(state.permit, state.exit);
     return Object.freeze({
       result,
       exit: state.exit,
@@ -3392,6 +3392,18 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
   }
 
   async finishAfterProvider(
+    capability: ProviderCallPermit,
+    exit: PostProviderExit,
+  ): Promise<PostFinishResult> {
+    if (exit.kind === "sent") {
+      throw new Error(
+        "Sent finalization requires a module-issued guarded-dispatch uncertainty.",
+      );
+    }
+    return this.finishAuthorizedProviderExit(capability, exit);
+  }
+
+  private async finishAuthorizedProviderExit(
     capability: ProviderCallPermit,
     exit: PostProviderExit,
   ): Promise<PostFinishResult> {
