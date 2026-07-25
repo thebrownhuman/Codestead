@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 rollback="$repo_root/infra/ops/rollback-production.sh"
+release="$repo_root/infra/ops/release-production.sh"
 fixture_generator="$repo_root/infra/tests/fixtures/create-release-tree-fixture.py"
 ingress_control_script="$repo_root/infra/ops/ingress-control.py"
 work="$(mktemp -d)"
@@ -40,8 +41,10 @@ retention_boundary_commit=18b2366db1347d7328d1ae85d7ee285c0fae4e5d
 retention_boundary_tree=2fd3e0b2c4fe6bceb3a70755e2b4b951ada0fbed
 dispatch_binding_boundary_commit=b73788a4b4d213e6423d737050b9e14c6a5d91b5
 dispatch_binding_capability_path=infra/ops/mail-outbox-dispatch-binding-capability.env
+dispatch_binding_capability_blob=ea707715f84608b1e1a33ac1832d533b878b6c07
 dispatch_binding_runtime_capability=exact-adapter-payload-sha256-before-provider-call-v1
 dispatch_binding_privilege_contract=owner-execute-worker-columns-update-only-no-grant-option-trigger-v1
+dispatch_binding_registry_row="0064_mail_outbox_dispatch_binding|$dispatch_binding_boundary_commit|$dispatch_binding_capability_path|100644|$dispatch_binding_capability_blob|SCHEMA_VERSION=1|OUTBOX_WORKER_MODE=fenced-postgres-v1|DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability|DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract"
 contract_required_commit=abe2a67ad20215bff64317182cc306b3329e5bed
 contract_required_tree=6cf35f3a88e373e9cba13647d7be01265d21e0da
 pre_contract_commit=c893132eb4f2778575d566957cbdb55626efc1fa
@@ -52,6 +55,18 @@ pre_retention_commit=9ec43e87cc786ea73c0cd4eed3e7b9638e2cde89
 pre_retention_tree=354bf1afe68f0e35582a52e5d9eebaf65be104c5
 older_pre_retention_commit=6a0220b0c2ca9931461f59960282773daa0457a9
 older_pre_retention_tree=99ce219eee07992a3dde57fa0a9895e9b770dce3
+for capability_consumer in "$release" "$rollback"; do
+  grep -Fq "$dispatch_binding_registry_row" "$capability_consumer" || {
+    fail "release and rollback must share the exact pinned capability registry row"
+  }
+  grep -Fq "readonly mail_outbox_dispatch_binding_capability_blob=$dispatch_binding_capability_blob" \
+    "$capability_consumer" || fail "capability consumer does not pin the reviewed Git blob"
+done
+grep -Fq "load_dispatch_binding_capability \"\$record_git_commit\" \"\$record_git_tree\" \"source image\"" \
+  "$rollback" || fail "rollback capability is not bound to the recorded source tree"
+grep -Fq "load_dispatch_binding_capability \"\$previous_git_commit\" \"\$previous_git_tree\" \"previous image\"" \
+  "$rollback" || fail "rollback capability is not bound to the previous Git tree"
+
 declare -a source_git
 if source_git_dir="$(
   git -C "$repo_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null
@@ -69,6 +84,44 @@ else
   source_git_dir="$(wslpath -u "$source_git_dir_windows")"
 fi
 [[ -d "$source_git_dir" ]] || fail "source Git directory is unavailable"
+dispatch_binding_real_source_commit="$(
+  "${source_git[@]}" rev-parse --verify HEAD | tr -d '\r'
+)"
+dispatch_binding_real_source_tree="$(
+  "${source_git[@]}" rev-parse --verify \
+    "${dispatch_binding_real_source_commit}^{tree}" | tr -d '\r'
+)"
+dispatch_binding_real_capability_entry="$(
+  "${source_git[@]}" ls-tree "$dispatch_binding_real_source_tree" -- \
+    "$dispatch_binding_capability_path" | tr -d '\r'
+)"
+[[ "$dispatch_binding_real_capability_entry" == "100644 blob $dispatch_binding_capability_blob"$'\t'"$dispatch_binding_capability_path" ]] || {
+  fail "the real source tree does not contain the exact reviewed 0064 capability blob"
+}
+dispatch_binding_real_target_commit=""
+while IFS= read -r candidate_commit; do
+  candidate_commit="${candidate_commit//$'\r'/}"
+  candidate_tree="$(
+    "${source_git[@]}" rev-parse --verify "${candidate_commit}^{tree}" | tr -d '\r'
+  )"
+  candidate_capability_entry="$(
+    "${source_git[@]}" ls-tree "$candidate_tree" -- \
+      "$dispatch_binding_capability_path" | tr -d '\r'
+  )"
+  if [[ "$candidate_capability_entry" == "100644 blob $dispatch_binding_capability_blob"$'\t'"$dispatch_binding_capability_path" ]]; then
+    dispatch_binding_real_target_commit="$candidate_commit"
+    dispatch_binding_real_target_tree="$candidate_tree"
+    break
+  fi
+done < <("${source_git[@]}" rev-list --first-parent \
+  "${dispatch_binding_real_source_commit}^")
+[[ -n "$dispatch_binding_real_target_commit" ]] || {
+  fail "the real source lineage lacks two reviewed post-0064 capability trees"
+}
+"${source_git[@]}" merge-base --is-ancestor \
+  "$dispatch_binding_boundary_commit" "$dispatch_binding_real_target_commit" || {
+  fail "the real capability target does not descend from the 0064 boundary"
+}
 source_ref="$(
   "${source_git[@]}" for-each-ref --contains "$retention_boundary_commit" \
     --format='%(refname)' refs/heads refs/remotes | tr -d '\r' | sed -n '1p'
@@ -89,7 +142,7 @@ git -c protocol.ext.allow=always -C "$work/repo" fetch --quiet --filter=blob:non
   fail "unable to import the complete 0062 boundary fixture"
 }
 dispatch_binding_source_ref="$(
-  "${source_git[@]}" for-each-ref --contains "$dispatch_binding_boundary_commit" \
+  "${source_git[@]}" for-each-ref --contains "$dispatch_binding_real_source_commit" \
     --format='%(refname)' refs/heads refs/remotes | tr -d '\r' | sed -n '1p'
 )"
 [[ "$dispatch_binding_source_ref" == refs/* ]] || {
@@ -117,6 +170,24 @@ git -c protocol.ext.allow=always -C "$work/repo" fetch --quiet --filter=blob:non
   "$dispatch_binding_source_ref" 2>/dev/null || {
   fail "unable to import the complete 0064 boundary fixture"
 }
+dispatch_binding_real_repo="$work/dispatch-binding-real-repo"
+mkdir -p "$dispatch_binding_real_repo"
+git -C "$dispatch_binding_real_repo" init -q
+git -C "$dispatch_binding_real_repo" remote add origin \
+  https://github.com/example/codestead
+git -C "$dispatch_binding_real_repo" remote add source \
+  "ext::git -c safe.directory=$source_git_dir upload-pack $source_git_dir"
+git -c protocol.ext.allow=always -C "$dispatch_binding_real_repo" fetch --quiet \
+  --depth="$dispatch_binding_source_depth" source \
+  "$dispatch_binding_source_ref" 2>/dev/null || {
+  fail "unable to import the real post-0064 rollback source without a blob filter"
+}
+git -C "$dispatch_binding_real_repo" checkout --quiet --detach \
+  "$dispatch_binding_real_source_commit" || {
+  fail "unable to check out the real post-0064 rollback source"
+}
+git -C "$dispatch_binding_real_repo" remote remove source
+
 dispatch_binding_boundary_tree="$(
   git -C "$work/repo" rev-parse --verify "${dispatch_binding_boundary_commit}^{tree}"
 )"
@@ -155,33 +226,24 @@ if GIT_NO_LAZY_FETCH=1 git -C "$work/repo" cat-file -e \
     "${dispatch_binding_pruned_source_commit}^{commit}" >/dev/null 2>&1; then
   fail "pruned pre-0064 fixture object is unexpectedly available"
 fi
+dispatch_binding_compatible_source_commit="$dispatch_binding_real_source_commit"
+dispatch_binding_compatible_tree="$dispatch_binding_real_source_tree"
+dispatch_binding_compatible_target_commit="$dispatch_binding_real_target_commit"
+dispatch_binding_compatible_target_tree="$dispatch_binding_real_target_tree"
+for compatible_commit in "$dispatch_binding_compatible_source_commit" \
+  "$dispatch_binding_compatible_target_commit"; do
+  git -C "$work/repo" cat-file -e "${compatible_commit}^{commit}" 2>/dev/null || {
+    fail "the real compatible post-0064 commit was not imported"
+  }
+done
+git -C "$work/repo" merge-base --is-ancestor \
+  "$dispatch_binding_compatible_target_commit" \
+  "$dispatch_binding_compatible_source_commit" || {
+  fail "the real compatible capability target is not an ancestor of its source"
+}
 dispatch_binding_index="$work/dispatch-binding.index"
-dispatch_binding_capability_blob="$(
-  printf '%s\n' \
-    'SCHEMA_VERSION=1' \
-    'OUTBOX_WORKER_MODE=fenced-postgres-v1' \
-    "DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability" \
-    "DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract" \
-    | git -C "$work/repo" hash-object -w --stdin
-)"
 GIT_INDEX_FILE="$dispatch_binding_index" \
-  git -C "$work/repo" read-tree 'HEAD^{tree}'
-GIT_INDEX_FILE="$dispatch_binding_index" \
-  git -C "$work/repo" update-index --add --cacheinfo \
-    100644 "$dispatch_binding_capability_blob" "$dispatch_binding_capability_path"
-dispatch_binding_compatible_tree="$(
-  GIT_INDEX_FILE="$dispatch_binding_index" git -C "$work/repo" write-tree
-)"
-dispatch_binding_compatible_target_commit="$(
-  printf '%s\n' 'fixture compatible dispatch binding target' \
-    | git -C "$work/repo" commit-tree "$dispatch_binding_compatible_tree" \
-      -p "$dispatch_binding_boundary_commit"
-)"
-dispatch_binding_compatible_source_commit="$(
-  printf '%s\n' 'fixture compatible dispatch binding source' \
-    | git -C "$work/repo" commit-tree "$dispatch_binding_compatible_tree" \
-      -p "$dispatch_binding_compatible_target_commit"
-)"
+  git -C "$work/repo" read-tree "$dispatch_binding_compatible_tree"
 dispatch_binding_unknown_capability_blob="$(
   printf '%s\n' \
     'SCHEMA_VERSION=2' \
@@ -194,13 +256,53 @@ GIT_INDEX_FILE="$dispatch_binding_index" \
   git -C "$work/repo" update-index --add --cacheinfo \
     100644 "$dispatch_binding_unknown_capability_blob" "$dispatch_binding_capability_path"
 dispatch_binding_unknown_capability_tree="$(
-  GIT_INDEX_FILE="$dispatch_binding_index" git -C "$work/repo" write-tree
+  GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE="$dispatch_binding_index" git -C "$work/repo" write-tree --missing-ok
 )"
 dispatch_binding_unknown_capability_commit="$(
   printf '%s\n' 'fixture unknown future dispatch binding capability' \
     | git -C "$work/repo" commit-tree "$dispatch_binding_unknown_capability_tree" \
       -p "$dispatch_binding_compatible_target_commit"
 )"
+GIT_INDEX_FILE="$dispatch_binding_index" \
+  git -C "$work/repo" read-tree "$dispatch_binding_compatible_tree"
+GIT_INDEX_FILE="$dispatch_binding_index" \
+  git -C "$work/repo" update-index --add --cacheinfo \
+    100755 "$dispatch_binding_capability_blob" \
+    "$dispatch_binding_capability_path"
+dispatch_binding_wrong_mode_tree="$(
+  GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE="$dispatch_binding_index" \
+    git -C "$work/repo" write-tree --missing-ok
+)"
+dispatch_binding_wrong_mode_commit="$(
+  printf '%s\n' 'fixture executable dispatch binding capability' \
+    | git -C "$work/repo" commit-tree "$dispatch_binding_wrong_mode_tree" \
+      -p "$dispatch_binding_compatible_target_commit"
+)"
+
+dispatch_binding_tampered_blob="$(
+  printf '%s\n' \
+    'SCHEMA_VERSION=1' \
+    'OUTBOX_WORKER_MODE=fenced-postgres-v1' \
+    "DISPATCH_BINDING_RUNTIME=${dispatch_binding_runtime_capability}-tampered" \
+    "DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract" \
+    | git -C "$work/repo" hash-object -w --stdin
+)"
+GIT_INDEX_FILE="$dispatch_binding_index" \
+  git -C "$work/repo" read-tree "$dispatch_binding_compatible_tree"
+GIT_INDEX_FILE="$dispatch_binding_index" \
+  git -C "$work/repo" update-index --add --cacheinfo \
+    100644 "$dispatch_binding_tampered_blob" \
+    "$dispatch_binding_capability_path"
+dispatch_binding_tampered_tree="$(
+  GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE="$dispatch_binding_index" \
+    git -C "$work/repo" write-tree --missing-ok
+)"
+dispatch_binding_tampered_commit="$(
+  printf '%s\n' 'fixture tampered dispatch binding capability' \
+    | git -C "$work/repo" commit-tree "$dispatch_binding_tampered_tree" \
+      -p "$dispatch_binding_compatible_target_commit"
+)"
+
 dispatch_binding_unapproved_target_commit="$(
   git -C "$work/repo" rev-parse --verify HEAD
 )"
@@ -237,6 +339,11 @@ rm -f -- "$dispatch_binding_index"
   --destination "$work/release-package" \
   >/dev/null || fail "unable to generate canonical rollback fixture"
 cp "$work/repo/RELEASE.SHA256SUMS" "$work/valid-release-manifest"
+/usr/bin/python3 "$fixture_generator" \
+  --source "$dispatch_binding_real_repo" \
+  --packager "$dispatch_binding_real_repo/infra/ops/package-release-tree.py" \
+  --destination "$work/dispatch-binding-real-release-package" \
+  >/dev/null || fail "unable to generate canonical real post-0064 rollback fixture"
 
 previous_commit="$dispatch_binding_pre_boundary_target_commit"
 candidate_commit="$dispatch_binding_pre_boundary_source_commit"
@@ -460,6 +567,9 @@ run_rollback() {
   local scenario="$1"
   shift
   local case_dir="$work/case-$scenario"
+  local run_repo_root="${RUN_REPO_ROOT:-$work/repo}"
+  local run_git_object_directory="${RUN_GIT_OBJECT_DIRECTORY:-$run_repo_root/.git/objects}"
+  local run_stage_timeout="${RUN_STAGE_TIMEOUT:-5}"
   local lock_file="${RUN_LOCK_FILE:-$case_dir/release.lock}"
   mkdir -p "$case_dir"
   : >"$case_dir/docker.log"
@@ -473,10 +583,10 @@ run_rollback() {
     chmod 0600 "$lock_file"
   fi
   set +e
-  REPO_ROOT="$work/repo" \
-    GIT_OBJECT_DIRECTORY="${RUN_GIT_OBJECT_DIRECTORY:-$work/repo/.git/objects}" \
+  REPO_ROOT="$run_repo_root" \
+    GIT_OBJECT_DIRECTORY="$run_git_object_directory" \
     COMPOSE_ENV_FILE="$work/compose.env" \
-    COMPOSE_FILE_PATH="$work/repo/compose.yaml" \
+    COMPOSE_FILE_PATH="$run_repo_root/compose.yaml" \
     RELEASE_LOCK_FILE="$lock_file" \
     RELEASE_RECORD_ROOT="$work/records" \
     RUNTIME_STATE_ROOT="$work/runtime-state" \
@@ -489,15 +599,16 @@ run_rollback() {
     FAKE_QUARANTINE_STOP_COUNT="$case_dir/quarantine-stop.count" \
     FAKE_CONTROL_ROOT="$work" \
     EXPECTED_COMPOSE_ENV="$work/compose.env" \
-    EXPECTED_COMPOSE_FILE="$work/repo/compose.yaml" \
+    EXPECTED_COMPOSE_FILE="$run_repo_root/compose.yaml" \
     EXPECTED_OVERRIDE="$work/records/20260719T000000Z-2/previous-runtime.override.yaml" \
     bash "$rollback" --test-harness-root "$work" \
       --release-record "$work/records/20260719T000000Z-2" \
-      --lock-timeout 1 --stage-timeout 5 --startup-wait 3 "$@" \
+      --lock-timeout 1 --stage-timeout "$run_stage_timeout" --startup-wait 3 "$@" \
       >"$case_dir/stdout" 2>"$case_dir/stderr"
   ROLLBACK_STATUS=$?
   set -e
   ROLLBACK_CASE="$case_dir"
+  ROLLBACK_REPO_ROOT_USED="$run_repo_root"
 }
 
 set_rollback_git_evidence() {
@@ -525,7 +636,7 @@ assert_only_quarantine_stops() {
       timeout_flag seconds service extra <<<"$line"
     [[ "$command" == compose && "$env_flag" == --env-file \
       && "$env_path" == "$work/compose.env" && "$file_flag" == -f \
-      && "$file_path" == "$work/repo/compose.yaml" && "$action" == stop \
+      && "$file_path" == "$ROLLBACK_REPO_ROOT_USED/compose.yaml" && "$action" == stop \
       && "$timeout_flag" == --timeout && "$seconds" == 30 \
       && "$service" == cloudflared && -z "$extra" ]] || {
       fail "$label performed Docker work beyond tunnel quarantine"
@@ -784,7 +895,7 @@ chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
 echo "ok - rollback permits the absent-contract gate only wholly before contracts became mandatory"
 
 set_rollback_git_evidence \
-  "$dispatch_binding_compatible_target_commit" "$dispatch_binding_compatible_tree" \
+  "$dispatch_binding_compatible_target_commit" "$dispatch_binding_compatible_target_tree" \
   "$dispatch_binding_boundary_commit" "$dispatch_binding_boundary_tree"
 cat >"$mail_contract_path" <<'EOF'
 SCHEMA_VERSION=2
@@ -999,7 +1110,7 @@ echo "ok - rollback rejects any 0064 migration outside its approved Git lineage"
 
 set_rollback_git_evidence \
   "$dispatch_binding_compatible_source_commit" "$dispatch_binding_compatible_tree" \
-  "$dispatch_binding_compatible_target_commit" "$dispatch_binding_compatible_tree"
+  "$dispatch_binding_compatible_target_commit" "$dispatch_binding_compatible_target_tree"
 cat >"$mail_contract_path" <<EOF
 SCHEMA_VERSION=3
 MAIL_OUTBOX_PHASE=dual-write-v1
@@ -1020,7 +1131,9 @@ chmod 0600 "$mail_contract_path"
 cp "$work/records/20260719T000000Z-2/previous-runtime.override.yaml" \
   "$work/dispatch-binding-compatible-valid.override.yaml"
 printf '%s\n' 'not-services:' >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
-run_rollback dispatch-binding-compatible-fenced --schema-backward-compatible
+RUN_REPO_ROOT="$dispatch_binding_real_repo" RUN_STAGE_TIMEOUT=30 \
+  run_rollback dispatch-binding-compatible-fenced --schema-backward-compatible
+unset RUN_REPO_ROOT RUN_STAGE_TIMEOUT
 mv "$work/dispatch-binding-compatible-valid.override.yaml" \
   "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
 chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
@@ -1028,6 +1141,7 @@ chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
 assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "compatible 0064 rollback gate"
 [[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "compatible 0064 gate reached smoke"
 grep -Fq 'rollback override is malformed' "$ROLLBACK_CASE/stderr" || {
+  cat "$ROLLBACK_CASE/stderr" >&2
   fail "exact compatible fenced images did not pass the 0064 rollback gate"
 }
 if grep -Eq '0064_mail_outbox_dispatch_binding|dispatch binding capability' \
@@ -1038,7 +1152,7 @@ echo "ok - rollback permits only exact compatible fenced dispatch binding images
 
 set_rollback_git_evidence \
   "$dispatch_binding_unknown_capability_commit" "$dispatch_binding_unknown_capability_tree" \
-  "$dispatch_binding_compatible_target_commit" "$dispatch_binding_compatible_tree"
+  "$dispatch_binding_compatible_target_commit" "$dispatch_binding_compatible_target_tree"
 cp "$work/records/20260719T000000Z-2/previous-runtime.override.yaml" \
   "$work/dispatch-binding-unknown-valid.override.yaml"
 printf '%s\n' 'not-services:' >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
@@ -1060,6 +1174,51 @@ if grep -Eq '[0-9a-f]{40}|[0-9a-f]{64}' "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/
   fail "unknown future dispatch binding capability refusal disclosed hashes"
 fi
 echo "ok - rollback fails closed for future capability versions until an exact boundary is approved"
+set_rollback_git_evidence \
+  "$dispatch_binding_wrong_mode_commit" "$dispatch_binding_wrong_mode_tree" \
+  "$dispatch_binding_compatible_target_commit" "$dispatch_binding_compatible_target_tree"
+cp "$work/records/20260719T000000Z-2/previous-runtime.override.yaml" \
+  "$work/dispatch-binding-wrong-mode-valid.override.yaml"
+printf '%s\n' 'not-services:' >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+run_rollback dispatch-binding-wrong-mode --schema-backward-compatible
+mv "$work/dispatch-binding-wrong-mode-valid.override.yaml" \
+  "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback accepted an executable capability manifest"
+assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "wrong-mode capability refusal"
+[[ ! -s "$ROLLBACK_CASE/smoke.log" && ! -s "$ROLLBACK_CASE/stdout" ]] || {
+  fail "wrong-mode capability refusal reached later rollback work"
+}
+grep -Fq 'not a canonical regular Git blob' "$ROLLBACK_CASE/stderr" || {
+  fail "wrong-mode capability was not rejected explicitly"
+}
+if grep -Fq 'rollback override is malformed' "$ROLLBACK_CASE/stderr"; then
+  fail "wrong-mode capability reached override evidence"
+fi
+echo "ok - rollback rejects a mode-100755 capability before Docker work beyond quarantine"
+
+set_rollback_git_evidence \
+  "$dispatch_binding_tampered_commit" "$dispatch_binding_tampered_tree" \
+  "$dispatch_binding_compatible_target_commit" "$dispatch_binding_compatible_target_tree"
+cp "$work/records/20260719T000000Z-2/previous-runtime.override.yaml" \
+  "$work/dispatch-binding-tampered-valid.override.yaml"
+printf '%s\n' 'not-services:' >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+run_rollback dispatch-binding-tampered --schema-backward-compatible
+mv "$work/dispatch-binding-tampered-valid.override.yaml" \
+  "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback accepted a tampered capability manifest"
+assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "tampered capability refusal"
+[[ ! -s "$ROLLBACK_CASE/smoke.log" && ! -s "$ROLLBACK_CASE/stdout" ]] || {
+  fail "tampered capability refusal reached later rollback work"
+}
+grep -Fq 'absent, unknown, or mismatched version' "$ROLLBACK_CASE/stderr" || {
+  fail "tampered capability was not rejected explicitly"
+}
+if grep -Fq 'rollback override is malformed' "$ROLLBACK_CASE/stderr"; then
+  fail "tampered capability reached override evidence"
+fi
+echo "ok - rollback rejects same-schema tampered capability content before later Docker work"
 
 set_rollback_git_evidence \
   "$candidate_commit" "$candidate_tree" "$previous_commit" "$previous_tree"
