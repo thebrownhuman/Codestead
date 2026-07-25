@@ -1,0 +1,91 @@
+diff --git a/drizzle/0065_backup_status_mail_authority.sql b/drizzle/0065_backup_status_mail_authority.sql
+--- a/drizzle/0065_backup_status_mail_authority.sql
++++ b/drizzle/0065_backup_status_mail_authority.sql
+@@ -161,8 +161,9 @@
+   requested_outcome text := p_outcome;
+   selected_admin_count integer;
+   revalidated_admin_count integer;
++  hinted_admin_id text;
+   selected_admin_id text;
+   selected_admin_email text;
+@@ -192,6 +193,42 @@
+-  PERFORM pg_catalog.pg_advisory_xact_lock(
+-    pg_catalog.hashtextextended(
+-      'backup-status-authority:' || p_run_key,
+-      0
+-    )
+-  );
++  SELECT candidate.user_id
++    INTO hinted_admin_id
++    FROM public.backup_status_mail_authority AS source
++    JOIN public.email_outbox AS candidate
++      ON candidate.id = source.outbox_id
++   WHERE source.run_key = p_run_key
++     AND source.outbox_id = candidate.id
++     AND source.operation_id = candidate.operation_id;
++
++  IF FOUND AND hinted_admin_id IS NULL THEN
++    RAISE EXCEPTION
++      'backup status mail replay conflicts with durable authority'
++      USING ERRCODE = '23514';
++  END IF;
++
++  IF NOT FOUND THEN
++    SELECT pg_catalog.count(*), pg_catalog.min(admin_recipient.id)
++      INTO selected_admin_count, hinted_admin_id
++      FROM public."user" AS admin_recipient
++     WHERE admin_recipient.role = 'admin'
++       AND admin_recipient.status = 'active'
++       AND coalesce(admin_recipient.banned, false) = false;
++    IF selected_admin_count <> 1 OR hinted_admin_id IS NULL THEN
++      RAISE EXCEPTION
++        'backup status mail requires exactly one active administrator'
++        USING ERRCODE = '23514';
++    END IF;
++  END IF;
++
++  PERFORM pg_catalog.pg_advisory_xact_lock(
++    pg_catalog.hashtext(
++      'user-authority:' || hinted_admin_id
++    )::pg_catalog.int8
++  );
++
++  PERFORM pg_catalog.pg_advisory_xact_lock(
++    pg_catalog.hashtextextended(
++      'backup-status-authority:' || p_run_key,
++      0
++    )
++  );
+@@ -210,16 +247,14 @@
+     IF NOT FOUND OR selected_admin_id IS NULL THEN
+       RAISE EXCEPTION 'backup status mail replay conflicts with durable authority'
+         USING ERRCODE = '23514';
+     END IF;
+-
+-    PERFORM pg_catalog.pg_advisory_xact_lock(
+-      pg_catalog.hashtext(
+-        'user-authority:' || selected_admin_id
+-      )::pg_catalog.int8
+-    );
++    IF selected_admin_id IS DISTINCT FROM hinted_admin_id THEN
++      RAISE EXCEPTION 'backup status mail replay conflicts with durable authority'
++        USING ERRCODE = '23514';
++    END IF;
+ 
+     PERFORM locked_recipient.id
+       FROM public."user" AS locked_recipient
+-     WHERE locked_recipient.id = selected_admin_id
++     WHERE locked_recipient.id = hinted_admin_id
+      FOR SHARE OF locked_recipient;
+@@ -230,6 +265,6 @@
+      WHERE locked_candidate.id = existing_source.outbox_id
+        AND locked_candidate.operation_id = existing_source.operation_id
+-       AND locked_candidate.user_id = selected_admin_id
++       AND locked_candidate.user_id = hinted_admin_id
+      FOR SHARE OF locked_candidate;
+@@ -272,6 +307,7 @@
+        AND source.operation_id = candidate.operation_id
+        AND source.authority_epoch = current_authority_epoch
+-       AND candidate.user_id = admin_recipient.id
++       AND candidate.user_id = hinted_admin_id
++       AND candidate.user_id = admin_recipient.id

@@ -1,0 +1,79 @@
+diff --git a/drizzle/0065_backup_status_mail_authority.sql b/drizzle/0065_backup_status_mail_authority.sql
+--- a/drizzle/0065_backup_status_mail_authority.sql
++++ b/drizzle/0065_backup_status_mail_authority.sql
+@@ -161,42 +161,79 @@
+ DECLARE
+   requested_outcome text := p_outcome;
+   selected_admin_count integer;
+   revalidated_admin_count integer;
++  hinted_admin_id text;
+   selected_admin_id text;
+   selected_admin_email text;
+   selected_authority_epoch uuid;
+   current_authority_epoch uuid;
+   new_authority_id uuid;
+   new_outbox_id uuid;
+   new_operation_id uuid;
+   existing_source public.backup_status_mail_authority%ROWTYPE;
+   replay_authorized boolean := false;
+   fixed_summary text;
+ BEGIN
+   IF session_user <> 'learncoding_backup_reporter'
+      OR current_user <> 'learncoding_owner' THEN
+     RAISE EXCEPTION 'backup status mail reporter is not authorized'
+       USING ERRCODE = '42501';
+   END IF;
+   IF p_run_key IS NULL
+      OR p_run_key !~ '^[0-9]{8}T[0-9]{6}Z$' THEN
+     RAISE EXCEPTION 'backup status mail run key is invalid'
+       USING ERRCODE = '22023';
+   END IF;
+   IF requested_outcome IS NULL
+      OR requested_outcome NOT IN ('success', 'failure') THEN
+     RAISE EXCEPTION 'backup status mail outcome is invalid'
+       USING ERRCODE = '22023';
+   END IF;
+ 
++  SELECT candidate.user_id
++    INTO hinted_admin_id
++    FROM public.backup_status_mail_authority AS source
++    JOIN public.email_outbox AS candidate
++      ON candidate.id = source.outbox_id
++   WHERE source.run_key = p_run_key
++     AND source.outbox_id = candidate.id
++     AND source.operation_id = candidate.operation_id;
++
++  IF FOUND AND hinted_admin_id IS NULL THEN
++    RAISE EXCEPTION
++      'backup status mail replay conflicts with durable authority'
++      USING ERRCODE = '23514';
++  END IF;
++
++  IF NOT FOUND THEN
++    SELECT pg_catalog.count(*), pg_catalog.min(admin_recipient.id)
++      INTO selected_admin_count, hinted_admin_id
++      FROM public."user" AS admin_recipient
++     WHERE admin_recipient.role = 'admin'
++       AND admin_recipient.status = 'active'
++       AND coalesce(admin_recipient.banned, false) = false;
++    IF selected_admin_count <> 1 OR hinted_admin_id IS NULL THEN
++      RAISE EXCEPTION
++        'backup status mail requires exactly one active administrator'
++        USING ERRCODE = '23514';
++    END IF;
++  END IF;
++
++  PERFORM pg_catalog.pg_advisory_xact_lock(
++    pg_catalog.hashtext(
++      'user-authority:' || hinted_admin_id
++    )::pg_catalog.int8
++  );
++
+   PERFORM pg_catalog.pg_advisory_xact_lock(
+     pg_catalog.hashtextextended(
+       'backup-status-authority:' || p_run_key,
+       0
+     )
+   );
+ 
+   SELECT source.*

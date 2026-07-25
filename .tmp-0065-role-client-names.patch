@@ -1,0 +1,42 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -668,12 +668,38 @@
+ 
+     reporter = await connected(
+-      clientConfig(port, "learncoding_backup_reporter"),
++      clientConfig(
++        port,
++        "learncoding_backup_reporter",
++        "backup_status_0065",
++        "codestead-backup-status-0065-reporter",
++      ),
++    );
++    worker = await connected(
++      clientConfig(
++        port,
++        "learncoding_worker",
++        "backup_status_0065",
++        "codestead-backup-status-0065-worker",
++      ),
++    );
++    app = await connected(
++      clientConfig(
++        port,
++        "learncoding_app",
++        "backup_status_0065",
++        "codestead-backup-status-0065-app",
++      ),
++    );
++    authorityWriter = await connected(
++      clientConfig(
++        port,
++        "postgres",
++        "backup_status_0065",
++        "codestead-backup-status-0065-authority-writer",
++      ),
+     );
+-    worker = await connected(clientConfig(port, "learncoding_worker"));
+-    app = await connected(clientConfig(port, "learncoding_app"));
+-    authorityWriter = await connected(clientConfig(port, "postgres"));
+     for (const client of [reporter, worker]) {

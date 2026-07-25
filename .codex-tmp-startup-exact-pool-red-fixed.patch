@@ -1,0 +1,31 @@
+diff --git a/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts b/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
+index 685faff..a68c01e 100644
+--- a/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
++++ b/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
+@@ -117,6 +117,26 @@ describe("mail dispatch runtime startup inspection", () => {
+      ).toBe(83);
+    });
+ 
++  it("rejects an issued inspection and plan for a different pool identity", async () => {
++    const poolA = pool();
++    const poolB = pool();
++    const inspection = await inspectMailDispatchRuntime(poolA);
++    const startupModule = await import(
++      "../mail-dispatch-runtime-startup"
++    );
++    const poolAware = (startupModule as {
++      readonly isMailDispatchRuntimeStartupInspectionForPool?: (
++        value: unknown,
++        pool: Parameters<typeof inspectMailDispatchRuntime>[0],
++      ) => boolean;
++    }).isMailDispatchRuntimeStartupInspectionForPool;
++
++    expect(poolAware).toBeTypeOf("function");
++    expect(poolAware?.(inspection, poolA)).toBe(true);
++    expect(poolAware?.(inspection, poolB)).toBe(false);
++    expect(isMailDispatchRuntimeStartupInspection(inspection)).toBe(true);
++  });
++
+    it("accepts 87 connections and rejects 86 after all exact reserves", async () => {
+      await expect(inspectMailDispatchRuntime(pool())).resolves.toMatchObject({
+        plan: {

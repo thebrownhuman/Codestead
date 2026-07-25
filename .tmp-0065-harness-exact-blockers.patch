@@ -1,0 +1,122 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -987,6 +987,12 @@
++    const adminPid = (
++      await admin.query("SELECT pg_backend_pid() pid")
++    ).rows[0].pid;
++    const authorityWriterPid = (
++      await authorityWriter.query("SELECT pg_backend_pid() pid")
++    ).rows[0].pid;
+     const workerPid = (
+       await worker.query("SELECT pg_backend_pid() pid")
+@@ -1015,15 +1021,14 @@
+         const boundaryActivity = await admin.query(
+-          `SELECT state, wait_event_type, wait_event,
+-                  pg_catalog.cardinality(
+-                    pg_catalog.pg_blocking_pids(pid)
+-                  ) blocking_count
++          `SELECT state, wait_event_type, wait_event, query, usename,
++                  application_name,
++                  pg_catalog.pg_blocking_pids(pid) blocker_pids
+              FROM pg_catalog.pg_stat_activity
+             WHERE pid = $1`,
+@@ -1024,7 +1029,10 @@
+         );
+         lastBoundaryActivity = boundaryActivity.rows[0];
+-        if (Number(lastBoundaryActivity?.blocking_count) > 0) {
++        if (
++          Array.isArray(lastBoundaryActivity?.blocker_pids)
++          && lastBoundaryActivity.blocker_pids.length > 0
++        ) {
+           boundaryWaitObserved = true;
+@@ -1035,6 +1043,20 @@
+         `the boundary must own A before waiting on U: ${JSON.stringify(lastBoundaryActivity)}`,
+       );
++      assert.deepEqual(
++        lastBoundaryActivity.blocker_pids.map(Number),
++        [Number(authorityWriterPid)],
++      );
++      assert.equal(
++        lastBoundaryActivity.application_name,
++        "codestead-backup-status-0065-worker",
++      );
++      assert.equal(lastBoundaryActivity.usename, "learncoding_worker");
++      assert.match(
++        lastBoundaryActivity.query,
++        /backup_status_mail_authorized/iu,
++      );
+@@ -1061,9 +1083,6 @@
+-    const authorityWriterPid = (
+-      await authorityWriter.query("SELECT pg_backend_pid() pid")
+-    ).rows[0].pid;
+     let guardTransactionOpen = false;
+@@ -1103,15 +1122,14 @@
+         const writerActivity = await admin.query(
+-          `SELECT state, wait_event_type, wait_event,
+-                  pg_catalog.cardinality(
+-                    pg_catalog.pg_blocking_pids(pid)
+-                  ) blocking_count
++          `SELECT state, wait_event_type, wait_event, query, usename,
++                  application_name,
++                  pg_catalog.pg_blocking_pids(pid) blocker_pids
+              FROM pg_catalog.pg_stat_activity
+             WHERE pid = $1`,
+@@ -1112,7 +1130,10 @@
+         );
+         lastWriterActivity = writerActivity.rows[0];
+-        if (Number(lastWriterActivity?.blocking_count) > 0) {
++        if (
++          Array.isArray(lastWriterActivity?.blocker_pids)
++          && lastWriterActivity.blocker_pids.length > 0
++        ) {
+           writerWaitObserved = true;
+@@ -1123,6 +1144,19 @@
+         `the canonical admin change must own A and U before waiting on G: ${JSON.stringify(lastWriterActivity)}`,
+       );
++      assert.deepEqual(
++        lastWriterActivity.blocker_pids.map(Number),
++        [Number(adminPid)],
++      );
++      assert.equal(
++        lastWriterActivity.application_name,
++        "codestead-backup-status-0065-authority-writer",
++      );
++      assert.equal(lastWriterActivity.usename, "postgres");
++      assert.match(lastWriterActivity.query, /UPDATE public\."user"/u);
+@@ -1136,15 +1170,14 @@
+         const boundaryActivity = await admin.query(
+-          `SELECT state, wait_event_type, wait_event,
+-                  pg_catalog.cardinality(
+-                    pg_catalog.pg_blocking_pids(pid)
+-                  ) blocking_count
++          `SELECT state, wait_event_type, wait_event, query, usename,
++                  application_name,
++                  pg_catalog.pg_blocking_pids(pid) blocker_pids
+              FROM pg_catalog.pg_stat_activity
+             WHERE pid = $1`,
+@@ -1145,7 +1178,10 @@
+         );
+         lastBoundaryActivity = boundaryActivity.rows[0];
+-        if (Number(lastBoundaryActivity?.blocking_count) > 0) {
++        if (
++          Array.isArray(lastBoundaryActivity?.blocker_pids)
++          && lastBoundaryActivity.blocker_pids.length > 0
++        ) {
+           boundaryWaitObserved = true;
+@@ -1156,6 +1192,20 @@
+         `the provider boundary must stop at A behind the canonical writer: ${JSON.stringify(lastBoundaryActivity)}`,
+       );
++      assert.deepEqual(
++        lastBoundaryActivity.blocker_pids.map(Number),
++        [Number(authorityWriterPid)],
++      );
++      assert.equal(
++        lastBoundaryActivity.application_name,
++        "codestead-backup-status-0065-worker",
++      );
++      assert.equal(lastBoundaryActivity.usename, "learncoding_worker");
++      assert.match(
++        lastBoundaryActivity.query,
++        /backup_status_mail_authorized/iu,
++      );

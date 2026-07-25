@@ -1,0 +1,44 @@
+diff --git a/drizzle/0065_backup_status_mail_authority.sql b/drizzle/0065_backup_status_mail_authority.sql
+--- a/drizzle/0065_backup_status_mail_authority.sql
++++ b/drizzle/0065_backup_status_mail_authority.sql
+@@ -351,43 +351,15 @@
+     RETURN;
+   END IF;
+ 
+-  SELECT pg_catalog.count(*)
+-    INTO selected_admin_count
+-    FROM public."user" AS admin_recipient
+-   WHERE admin_recipient.role = 'admin'
+-     AND admin_recipient.status = 'active'
+-     AND coalesce(admin_recipient.banned, false) = false;
+-  IF selected_admin_count <> 1 THEN
+-    RAISE EXCEPTION 'backup status mail requires exactly one active administrator'
+-      USING ERRCODE = '23514';
+-  END IF;
+-
+-  SELECT admin_recipient.id
+-    INTO selected_admin_id
+-    FROM public."user" AS admin_recipient
+-   WHERE admin_recipient.role = 'admin'
+-     AND admin_recipient.status = 'active'
+-     AND coalesce(admin_recipient.banned, false) = false;
+-  IF NOT FOUND OR selected_admin_id IS NULL THEN
+-    RAISE EXCEPTION
+-      'backup status mail administrator changed during selection'
+-      USING ERRCODE = '23514';
+-  END IF;
+-
+-  PERFORM pg_catalog.pg_advisory_xact_lock(
+-    pg_catalog.hashtext(
+-      'user-authority:' || selected_admin_id
+-    )::pg_catalog.int8
+-  );
+-
+   SELECT
+     admin_recipient.id,
+     pg_catalog.lower(pg_catalog.btrim(admin_recipient.email))
+     INTO selected_admin_id, selected_admin_email
+     FROM public."user" AS admin_recipient
+-   WHERE admin_recipient.id = selected_admin_id
++   WHERE admin_recipient.id = hinted_admin_id
+      AND admin_recipient.role = 'admin'

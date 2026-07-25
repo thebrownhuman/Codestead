@@ -1,0 +1,22 @@
+diff --git a/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts b/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
+--- a/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
++++ b/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
+@@ -310,2 +310,18 @@ describe("mail dispatch runtime startup inspection", () => {
+   });
++
++  it("fails closed when the startup snapshot query never resolves", async () => {
++    vi.useFakeTimers();
++    const database = pool();
++    database.query.mockImplementationOnce(
++      () => new Promise<never>(() => undefined),
++    );
++
++    const pending = inspectMailDispatchRuntime(database);
++    const rejection = expect(pending)
++      .rejects.toThrow("Mail dispatch startup database inspection failed.");
++
++    await vi.advanceTimersByTimeAsync(6_000);
++    await rejection;
++    vi.useRealTimers();
++  });
+ });

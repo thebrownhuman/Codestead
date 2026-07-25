@@ -1,0 +1,47 @@
+diff --git a/scripts/bootstrap-database-roles.mjs b/scripts/bootstrap-database-roles.mjs
+--- a/scripts/bootstrap-database-roles.mjs
++++ b/scripts/bootstrap-database-roles.mjs
+@@ -334,6 +334,16 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
+     triggers: REVIEWED_APPLICATION_TRIGGERS,
+     requiresWorkerContract: true,
+   }),
++  reviewedCatalogPhase({
++    index: 65,
++    createdAt: "1784936400000",
++    migrationFile: "0065_backup_status_mail_authority.sql",
++    migrationSha256:
++      "3aedb0c34774e187fd853808e78584c64b8828d346a94fc7b817cfc6235fb6a7",
++    routines: REVIEWED_APPLICATION_FUNCTIONS,
++    triggers: REVIEWED_APPLICATION_TRIGGERS,
++    requiresWorkerContract: true,
++  }),
+ ]);
+ 
+ function sqlLiteral(value) {
+diff --git a/scripts/database-role-boundaries.test.mjs b/scripts/database-role-boundaries.test.mjs
+--- a/scripts/database-role-boundaries.test.mjs
++++ b/scripts/database-role-boundaries.test.mjs
+@@ -365,7 +365,7 @@ function createRoleBoundaryMock(options = {}) {
+       ) {
+         const latestApplied =
+           options.appliedMigrationIndex === undefined
+-            ? 64
++            ? 65
+             : options.appliedMigrationIndex;
+         return {
+           rows: REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.map((phase) => {
+@@ -667,10 +667,14 @@ test("post-migration verifier binds exact reviewed migration hashes and catalog
+ 
+   for (const options of [
+     { journalHashTamper: 62 },
++    { journalHashTamper: 65 },
+     { missingMigrationIndex: 62 },
+     { missingMigrationIndex: 63 },
++    { missingMigrationIndex: 64 },
++    { missingMigrationIndex: 65 },
+     { appliedMigrationIndex: 63, bindingColumnCount: 2 },
+     { appliedMigrationIndex: 64, bindingColumnCount: 0 },
++    { appliedMigrationIndex: 65, bindingColumnCount: 0 },
+     { journalPresent: false, bindingColumnCount: 2 },
+     {
+       journalPresent: false,

@@ -1,0 +1,50 @@
+diff --git a/scripts/reconcile-gmail-outbox.test.ts b/scripts/reconcile-gmail-outbox.test.ts
+--- a/scripts/reconcile-gmail-outbox.test.ts
++++ b/scripts/reconcile-gmail-outbox.test.ts
+@@ -92,6 +92,7 @@ describe("Gmail reconciliation operator command", () => {
+   });
+ 
+   afterEach(() => {
++    vi.useRealTimers();
+     process.argv = [...originalArgv];
+@@ -236,6 +237,43 @@ describe("Gmail reconciliation operator command", () => {
+     expect(process.exitCode).toBe(1);
+   });
+ 
++  it("bounds dedicated pool cleanup to five seconds", async () => {
++    vi.useFakeTimers();
++    mocks.pool.end.mockImplementationOnce(
++      () => new Promise<void>(() => undefined),
++    );
++    process.argv = [
++      originalArgv[0]!,
++      originalArgv[1]!,
++      "--operation-id",
++      OPERATION_ID,
++    ];
++
++    await import("./reconcile-gmail-outbox");
++    for (let index = 0; index < 12; index += 1) {
++      await Promise.resolve();
++    }
++
++    expect(mocks.pool.end).toHaveBeenCalledOnce();
++    await vi.advanceTimersByTimeAsync(4_999);
++    expect(console.error).not.toHaveBeenCalledWith(
++      JSON.stringify({
++        event: "email.gmail_reconciliation_cleanup_failed",
++        code: "GMAIL_RECONCILIATION_POOL_CLOSE_FAILED",
++      }),
++    );
++
++    await vi.advanceTimersByTimeAsync(1);
++    expect(console.error).toHaveBeenCalledWith(
++      JSON.stringify({
++        event: "email.gmail_reconciliation_cleanup_failed",
++        code: "GMAIL_RECONCILIATION_POOL_CLOSE_FAILED",
++      }),
++    );
++    expect(process.exitCode).toBe(1);
++  });
++
+   it("requires explicit apply confirmation and logs no operation, correlation, or provider identity", async () => {

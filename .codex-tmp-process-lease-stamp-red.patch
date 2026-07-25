@@ -1,0 +1,14 @@
+diff --git a/scripts/process-outbox.test.ts b/scripts/process-outbox.test.ts
+--- a/scripts/process-outbox.test.ts
++++ b/scripts/process-outbox.test.ts
+@@ -296,8 +296,9 @@ describe("mail worker production composition", () => {
+     expect(dependencies.policy).toEqual({
+       batchSize: 10,
+       materializeLeaseMs: 60_000,
+-      providerLeaseMs: 95_000,
++      providerLeaseMs: 110_000,
+       maxMaterializeAttempts: 8,
+       maxRetryDelayMs: 6 * 60 * 60_000,
+       terminalPersistenceAttempts: 3,
+     });
++    expect(dependencies.policy.providerLeaseMs - 15_000).toBe(95_000);

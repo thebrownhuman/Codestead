@@ -1,0 +1,12 @@
+diff --git a/drizzle/meta/0065_snapshot.json b/drizzle/meta/0065_snapshot.json
+--- a/drizzle/meta/0065_snapshot.json
++++ b/drizzle/meta/0065_snapshot.json
+@@ -1,6 +1,6 @@
+ {
+-  "id": "5bfa9769-f63a-4b31-8532-515d735bf4df",
+-  "prevId": "d2a68a3d-c790-4f56-b83e-7c7ba0eb6d68",
++  "id": "e8c1a2f4-6b73-4d90-8f21-5a7c3e9b0645",
++  "prevId": "5bfa9769-f63a-4b31-8532-515d735bf4df",
+   "version": "7",
+   "dialect": "postgresql",
+   "tables": {

@@ -1,0 +1,11 @@
+diff --git a/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts b/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
+--- a/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
++++ b/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
+@@ -133,4 +133,7 @@ describe("mail dispatch runtime startup inspection", () => {
+     expect(
+       inspection.plan.pool.serverCapacity.sumProcessPoolMaximumConnections,
+     ).toBe(83);
++    expect(
++      isMailDispatchRuntimeStartupInspectionForPool(inspection, database),
++    ).toBe(false);
+   });

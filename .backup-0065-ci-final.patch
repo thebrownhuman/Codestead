@@ -1,0 +1,131 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -43,5 +43,7 @@
+     "test:mail-dispatch-binding-0064:roles": "node --test infra/tests/mail-dispatch-binding-0064-role-contract.test.mjs",
+     "test:mail-dispatch-binding-0064:pg17": "node infra/tests/mail-dispatch-binding-0064.integration.mjs",
+     "test:mail-dispatch-binding-0064:pg18": "node infra/tests/mail-dispatch-binding-0064.integration.mjs",
++    "test:backup-status-mail-authority-0065:registration": "node infra/tests/backup-status-mail-authority-0065-registration.test.mjs",
++    "test:backup-status-mail-authority-0065": "node infra/tests/backup-status-mail-authority-0065.integration.mjs",
+     "test:e2e": "playwright test",
+@@ -120,1 +122,1 @@
+-    "check": "npm run production-load:release-gates && npm run lint && npm run test:mail-delivery-scope-0059:registration && npm run test:mail-payload-immutability-0060:registration && npm run test:mail-retention-redaction-0063:registration && npm run test:mail-dispatch-binding-0064:registration && npm run test:mail-dispatch-binding-0064:roles && npm run typecheck && npm run security:dependencies:known && npm run security:secrets && npm run security:encoding && npm run security:api-surface && npm run architecture:check && npm run ai:eval -- --check && npm run test:auth-boundary && npm run test:coverage && npm run content:brand:check && npm run content:validate && npm run projects:catalog:validate && npm run dsa:parity:check && npm run c-cpp:executable:check && npm run java-python:executable:check && npm run ai-code:executable:check && npm run web:executable:check && npm run audit:release && npm run evidence:verify && npm run build"
++    "check": "npm run production-load:release-gates && npm run lint && npm run test:mail-delivery-scope-0059:registration && npm run test:mail-payload-immutability-0060:registration && npm run test:mail-retention-redaction-0063:registration && npm run test:mail-dispatch-binding-0064:registration && npm run test:mail-dispatch-binding-0064:roles && npm run test:backup-status-mail-authority-0065:registration && npm run typecheck && npm run security:dependencies:known && npm run security:secrets && npm run security:encoding && npm run security:api-surface && npm run architecture:check && npm run ai:eval -- --check && npm run test:auth-boundary && npm run test:coverage && npm run content:brand:check && npm run content:validate && npm run projects:catalog:validate && npm run dsa:parity:check && npm run c-cpp:executable:check && npm run java-python:executable:check && npm run ai-code:executable:check && npm run web:executable:check && npm run audit:release && npm run evidence:verify && npm run build"
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -413,10 +413,10 @@
+       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063
+       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17
+-      - run: BACKUP_STATUS_POSTGRES_BIN=/usr/lib/postgresql/17/bin BACKUP_STATUS_POSTGRES_MAJOR=17 npm run test:backup-status-mail-authority-0065
+-      - run: BACKUP_STATUS_POSTGRES_BIN=/usr/lib/postgresql/18/bin BACKUP_STATUS_POSTGRES_MAJOR=18 npm run test:backup-status-mail-authority-0065
++      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:backup-status-mail-authority-0065
+       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059
+       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-payload-immutability-0060
+       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-retention-redaction-0063
+       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-dispatch-binding-0064:pg18
++      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:backup-status-mail-authority-0065
+diff --git a/infra/tests/mail-dispatch-binding-0064-ci-contract.mjs b/infra/tests/mail-dispatch-binding-0064-ci-contract.mjs
+--- a/infra/tests/mail-dispatch-binding-0064-ci-contract.mjs
++++ b/infra/tests/mail-dispatch-binding-0064-ci-contract.mjs
+@@ -34,11 +34,12 @@
+ 
+ export function assertMailDispatchBinding0064PostgresProjection(
+   postgresProjection,
++  projectionContract = postgresCiProjectionThrough0064,
+ ) {
+   assertPostgresCiProjectionContract(
+     postgresProjection,
+-    postgresCiProjectionThrough0064,
++    projectionContract,
+   );
+diff --git a/infra/tests/mail-dispatch-binding-0064-registration.test.mjs b/infra/tests/mail-dispatch-binding-0064-registration.test.mjs
+--- a/infra/tests/mail-dispatch-binding-0064-registration.test.mjs
++++ b/infra/tests/mail-dispatch-binding-0064-registration.test.mjs
+@@ -8,6 +8,9 @@
+   assertMailDispatchBinding0064PostgresProjection,
+   mailDispatchBinding0064CiContract,
+ } from "./mail-dispatch-binding-0064-ci-contract.mjs";
++import {
++  postgresCiProjectionThrough0065,
++} from "./backup-status-mail-authority-0065-ci-contract.mjs";
+ 
+@@ -186,6 +189,9 @@
+     /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
+   )?.[0] ?? "";
+-assertMailDispatchBinding0064PostgresProjection(postgresJob);
++assertMailDispatchBinding0064PostgresProjection(
++  postgresJob,
++  postgresCiProjectionThrough0065,
++);
+diff --git a/infra/tests/mail-retention-redaction-0063-registration.test.mjs b/infra/tests/mail-retention-redaction-0063-registration.test.mjs
+--- a/infra/tests/mail-retention-redaction-0063-registration.test.mjs
++++ b/infra/tests/mail-retention-redaction-0063-registration.test.mjs
+@@ -3,10 +3,13 @@
+ import assert from "node:assert/strict";
+ import { readFileSync, readdirSync } from "node:fs";
+ import {
+   mailDispatchBinding0064PostgresCiExtension,
+-  postgresCiProjectionThrough0064,
+ } from "./mail-dispatch-binding-0064-ci-contract.mjs";
++import {
++  backupStatusMailAuthority0065CiExtension,
++  postgresCiProjectionThrough0065,
++} from "./backup-status-mail-authority-0065-ci-contract.mjs";
+ import * as postgresCiProjectionModule from "./mail-retention-redaction-0063-ci-contract.mjs";
+@@ -90,10 +93,11 @@
+     selfTestRestoreExtension,
+   );
+-const composedSelfTestContractThrough0064 =
++const composedSelfTestContractThrough0065 =
+   postgresCiProjectionModule.composeCanonicalPostgresCiProjectionContract(
+     mailDispatchBinding0064PostgresCiExtension,
++    backupStatusMailAuthority0065CiExtension,
+     selfTest0064Extension,
+@@ -292,7 +296,7 @@
+   postgresCiProjectionModule.assertPostgresCiProjectionContract(
+     postgresJob,
+-    postgresCiProjectionThrough0064,
++    postgresCiProjectionThrough0065,
+   );
+@@ -308,7 +312,7 @@
+         postgresCiProjectionModule.assertPostgresCiProjectionContract(
+           projection,
+-          postgresCiProjectionThrough0064,
++          postgresCiProjectionThrough0065,
+         ),
+@@ -448,7 +452,7 @@
+       postgresCiProjectionModule.assertPostgresCiProjectionContract(
+         extendedProjection,
+-        composedSelfTestContractThrough0064,
++        composedSelfTestContractThrough0065,
+       ),
+@@ -460,7 +464,7 @@
+         ),
+-        composedSelfTestContractThrough0064,
++        composedSelfTestContractThrough0065,
+       ),
+diff --git a/infra/tests/backup-ci-registration.test.mjs b/infra/tests/backup-ci-registration.test.mjs
+--- a/infra/tests/backup-ci-registration.test.mjs
++++ b/infra/tests/backup-ci-registration.test.mjs
+@@ -3,7 +3,9 @@
+ import { readFileSync } from "node:fs";
+ import { dirname, resolve } from "node:path";
+ import { fileURLToPath } from "node:url";
+-import { postgresCiProjectionThrough0064 } from "./mail-dispatch-binding-0064-ci-contract.mjs";
++import {
++  postgresCiProjectionThrough0065,
++} from "./backup-status-mail-authority-0065-ci-contract.mjs";
+ import {
+@@ -782,7 +784,7 @@
+ 
+ const canonicalPostgresProjection = projectPostgresCiProjectionContract(
+-  postgresCiProjectionThrough0064,
++  postgresCiProjectionThrough0065,
+ );
+@@ -1093,7 +1095,7 @@
+     assertPostgresCiProjectionContract(
+       projection,
+-      postgresCiProjectionThrough0064,
++      postgresCiProjectionThrough0065,
+     );

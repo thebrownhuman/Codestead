@@ -1,0 +1,11 @@
+diff --git a/src/lib/notifications/__tests__/mail-dispatch-pool-capacity.test.ts b/src/lib/notifications/__tests__/mail-dispatch-pool-capacity.test.ts
+--- a/src/lib/notifications/__tests__/mail-dispatch-pool-capacity.test.ts
++++ b/src/lib/notifications/__tests__/mail-dispatch-pool-capacity.test.ts
+@@ -55,7 +55,7 @@ describe("dedicated mail pool capacity", () => {
+       createPool: (configuration) => new Pool({
+         ...configuration,
+         Client: InMemoryPgClient,
+-      } as PoolConfig),
++      } as unknown as PoolConfig),
+       createDatabase: () => ({ kind: "dedicated-mail-database" }) as never,
+     });

@@ -1,0 +1,55 @@
+diff --git a/src/lib/notifications/mail-dispatch-runtime-startup.ts b/src/lib/notifications/mail-dispatch-runtime-startup.ts
+--- a/src/lib/notifications/mail-dispatch-runtime-startup.ts
++++ b/src/lib/notifications/mail-dispatch-runtime-startup.ts
+@@ -196,21 +196,37 @@ export async function inspectMailDispatchRuntime(
+   let result: Readonly<{ rows: readonly unknown[] }>;
++  let timeout: ReturnType<typeof setTimeout> | undefined;
+   try {
+-    result = await pool.query(`
+-      select current_setting('max_connections') as max_connections,
+-             (
+-               current_setting('superuser_reserved_connections')::integer
+-               + coalesce(
+-                   nullif(
+-                     current_setting('reserved_connections', true),
+-                     ''
+-                   )::integer,
+-                   0
+-                 )
+-             )::text as admin_reserved_connections,
+-             current_setting('server_version_num') as server_version_num
+-    `);
++    result = await Promise.race([
++      pool.query({
++        text: `
++          select current_setting('max_connections') as max_connections,
++                 (
++                   current_setting('superuser_reserved_connections')::integer
++                   + coalesce(
++                       nullif(
++                         current_setting('reserved_connections', true),
++                         ''
++                       )::integer,
++                       0
++                     )
++                 )::text as admin_reserved_connections,
++                 current_setting('server_version_num') as server_version_num
++        `,
++        query_timeout: MAIL_DISPATCH_STARTUP_QUERY_TIMEOUT_MS,
++      }),
++      new Promise<never>((_, reject) => {
++        timeout = setTimeout(
++          () => reject(new Error("Mail dispatch startup query timed out.")),
++          MAIL_DISPATCH_STARTUP_QUERY_TIMEOUT_MS,
++        );
++      }),
++    ]);
+   } catch {
+     throw new Error(
+       "Mail dispatch startup database inspection failed.",
+     );
++  } finally {
++    if (timeout !== undefined) {
++      clearTimeout(timeout);
++    }
+   }

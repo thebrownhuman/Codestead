@@ -1,0 +1,8 @@
+diff --git a/scripts/lib/reviewed-migration-ledger.mjs b/scripts/lib/reviewed-migration-ledger.mjs
+--- a/scripts/lib/reviewed-migration-ledger.mjs
++++ b/scripts/lib/reviewed-migration-ledger.mjs
+@@ -210,0 +211 @@
++  Object.freeze({ idx: 65, version: "7", when: 1784936400000, tag: "0065_backup_status_mail_authority", breakpoints: true, sqlSha256: "d97e88fdb1819e9e4b186d13f07a13a2bc8004a01f9e80127633f99950519c2e" }),
+@@ -214 +215 @@
+-  "9e7d11aa21ee3813f7ac41c99a624ea918eaeab5e3e0e0b0f35cc96d5dc77b61";
++  "ff4f0930eef8a40ab316378078dcabe136f78d5957f3b6a7daaa0f0993976f3a";

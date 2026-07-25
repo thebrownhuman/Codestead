@@ -1,0 +1,19 @@
+diff --git a/scripts/backup/enqueue-backup-status.test.mjs b/scripts/backup/enqueue-backup-status.test.mjs
+--- a/scripts/backup/enqueue-backup-status.test.mjs
++++ b/scripts/backup/enqueue-backup-status.test.mjs
+@@ -48,10 +48,13 @@ function immediateDeadlineDependencies() {
+     delays,
+     setTimeout(callback, delay) {
+       delays.push(delay);
+-      return setImmediate(callback);
++      return {
++        immediate: setImmediate(callback),
++        unref() {},
++      };
+     },
+     clearTimeout(handle) {
+-      clearImmediate(handle);
++      clearImmediate(handle.immediate);
+     },
+   };
+ }

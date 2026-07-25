@@ -1,0 +1,38 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+index 7d1756d..a8f1e7c 100644
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -380,6 +380,26 @@ async function main() {
+       throw error;
+     }
+ 
++    const routineHashDump = await admin.query(`
++      SELECT
++        candidate.oid::pg_catalog.regprocedure::text AS signature,
++        pg_catalog.encode(
++          pg_catalog.sha256(pg_catalog.convert_to(candidate.prosrc, 'UTF8')),
++          'hex'
++        ) AS body_sha256,
++        pg_catalog.encode(
++          pg_catalog.sha256(
++            pg_catalog.convert_to(
++              pg_catalog.pg_get_functiondef(candidate.oid),
++              'UTF8'
++            )
++          ),
++          'hex'
++        ) AS definition_sha256
++      FROM pg_catalog.pg_proc AS candidate
++      WHERE candidate.oid = ANY($1::pg_catalog.regprocedure[])
++      ORDER BY signature
++    `, [[
++      "public.lock_backup_status_mail_admin_authority()",
++      "public.enqueue_backup_status_mail_authority(text,text)",
++      "public.backup_status_mail_authorized(uuid)",
++    ]]);
++    process.stdout.write(`HASH_DUMP=${JSON.stringify(routineHashDump.rows)}\n`);
++    throw new Error("HASH_DUMP_ONLY");
++
+     assert.equal(
+       await verifyBackupStatusAuthorityBeforeRepair(admin),
+       true,

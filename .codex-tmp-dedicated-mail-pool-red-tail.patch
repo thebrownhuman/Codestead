@@ -1,0 +1,9 @@
+diff --git a/src/lib/notifications/__tests__/mail-dispatch-pool.test.ts b/src/lib/notifications/__tests__/mail-dispatch-pool.test.ts
+--- a/src/lib/notifications/__tests__/mail-dispatch-pool.test.ts
++++ b/src/lib/notifications/__tests__/mail-dispatch-pool.test.ts
+@@ -81,3 +81,6 @@ describe("dedicated mail dispatch database resources", () => {
+     )).toThrow(/issued runtime plan/i);
+     expect(createPool).not.toHaveBeenCalled();
++    expect(createDatabase).not.toHaveBeenCalled();
++  });
++});

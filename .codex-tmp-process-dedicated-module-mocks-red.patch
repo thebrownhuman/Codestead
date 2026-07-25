@@ -1,0 +1,29 @@
+diff --git a/scripts/process-outbox.test.ts b/scripts/process-outbox.test.ts
+--- a/scripts/process-outbox.test.ts
++++ b/scripts/process-outbox.test.ts
+@@ -74,3 +74,8 @@ vi.mock("drizzle-orm", () => ({
+   lte: vi.fn(),
+ }));
+-vi.mock("../src/lib/db/client", () => ({ db: mocks.db, pool: mocks.pool }));
++vi.mock("../src/lib/db/client", () => {
++  throw new Error("Mail worker imported the application database client.");
++});
++vi.mock("../src/lib/notifications/mail-dispatch-pool", () => ({
++  createMailDispatchDatabaseResources:
++    mocks.createMailDispatchDatabaseResources,
++}));
+ vi.mock("../src/lib/db/schema", () => ({
+@@ -94,5 +99,5 @@ vi.mock("../src/lib/notifications/mailer", () => ({
+ }));
+ vi.mock("../src/lib/notifications/delivery-variables", () => ({
+-  materializeDeliveryVariables: mocks.materializeDeliveryVariables,
++  materializeDeliveryVariablesWithDatabase: mocks.materializeDeliveryVariables,
+ }));
+ vi.mock("../src/lib/notifications/inactivity", () => ({
+@@ -100,5 +105,5 @@ vi.mock("../src/lib/notifications/inactivity", () => ({
+ }));
+ vi.mock("../src/lib/notifications/smart-reminders", () => ({
+-  scheduleSmartReminders: mocks.scheduleSmartReminders,
++  scheduleSmartRemindersWithDatabase: mocks.scheduleSmartReminders,
+ }));
+ vi.mock("./lib/worker-health", () => ({

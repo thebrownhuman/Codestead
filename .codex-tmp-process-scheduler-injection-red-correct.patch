@@ -1,0 +1,18 @@
+diff --git a/scripts/process-outbox.test.ts b/scripts/process-outbox.test.ts
+--- a/scripts/process-outbox.test.ts
++++ b/scripts/process-outbox.test.ts
+@@ -566,6 +566,14 @@ describe("mail worker production composition", () => {
+   it("preserves one-shot scheduling, health reporting, and pool cleanup", async () => {
+     await loadWorkerOnce();
+ 
+     expect(mocks.scheduleInactivityReminders).toHaveBeenCalledTimes(1);
+     expect(mocks.scheduleSmartReminders).toHaveBeenCalledTimes(1);
++    expect(mocks.scheduleInactivityReminders).toHaveBeenCalledWith(
++      expect.any(Date),
++      mocks.pool,
++    );
++    expect(mocks.scheduleSmartReminders).toHaveBeenCalledWith(
++      mocks.db,
++      expect.any(Date),
++    );
+     expect(mocks.health.success).toHaveBeenCalledTimes(1);

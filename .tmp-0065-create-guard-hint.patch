@@ -1,0 +1,14 @@
+diff --git a/drizzle/0065_backup_status_mail_authority.sql b/drizzle/0065_backup_status_mail_authority.sql
+--- a/drizzle/0065_backup_status_mail_authority.sql
++++ b/drizzle/0065_backup_status_mail_authority.sql
+@@ -369,11 +369,10 @@
+   SELECT authority_guard.authority_epoch
+     INTO selected_authority_epoch
+     FROM public.backup_status_mail_admin_guard AS authority_guard
+-   WHERE authority_guard.singleton IS TRUE
+-   FOR SHARE OF authority_guard;
++   WHERE authority_guard.singleton IS TRUE;
+   IF NOT FOUND OR selected_authority_epoch IS NULL THEN
+     RAISE EXCEPTION 'backup status administrator authority guard is missing'
+       USING ERRCODE = '23514';
+   END IF;

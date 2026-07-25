@@ -1,0 +1,51 @@
+diff --git a/drizzle/0065_backup_status_mail_authority.sql b/drizzle/0065_backup_status_mail_authority.sql
+--- a/drizzle/0065_backup_status_mail_authority.sql
++++ b/drizzle/0065_backup_status_mail_authority.sql
+@@ -240,42 +240,40 @@
+   IF FOUND THEN
+     SELECT candidate.user_id
+       INTO selected_admin_id
+       FROM public.email_outbox AS candidate
+      WHERE candidate.id = existing_source.outbox_id
+        AND candidate.operation_id = existing_source.operation_id;
+     IF NOT FOUND OR selected_admin_id IS NULL THEN
+       RAISE EXCEPTION 'backup status mail replay conflicts with durable authority'
+         USING ERRCODE = '23514';
+     END IF;
+-
+-    PERFORM pg_catalog.pg_advisory_xact_lock(
+-      pg_catalog.hashtext(
+-        'user-authority:' || selected_admin_id
+-      )::pg_catalog.int8
+-    );
++    IF selected_admin_id IS DISTINCT FROM hinted_admin_id THEN
++      RAISE EXCEPTION 'backup status mail replay conflicts with durable authority'
++        USING ERRCODE = '23514';
++    END IF;
+ 
+     PERFORM locked_recipient.id
+       FROM public."user" AS locked_recipient
+-     WHERE locked_recipient.id = selected_admin_id
++     WHERE locked_recipient.id = hinted_admin_id
+      FOR SHARE OF locked_recipient;
+     IF NOT FOUND THEN
+       RAISE EXCEPTION 'backup status mail replay conflicts with durable authority'
+         USING ERRCODE = '23514';
+     END IF;
+ 
+     PERFORM locked_candidate.id
+       FROM public.email_outbox AS locked_candidate
+      WHERE locked_candidate.id = existing_source.outbox_id
+        AND locked_candidate.operation_id = existing_source.operation_id
+-       AND locked_candidate.user_id = selected_admin_id
++       AND locked_candidate.user_id = hinted_admin_id
+      FOR SHARE OF locked_candidate;
+@@ -305,8 +303,9 @@
+        AND source.outbox_id = candidate.id
+        AND source.operation_id = candidate.operation_id
+        AND source.authority_epoch = current_authority_epoch
+-       AND candidate.user_id = admin_recipient.id
++       AND candidate.user_id = hinted_admin_id
++       AND candidate.user_id = admin_recipient.id
+        AND candidate.delivery_scope_key =
+          'a:' || candidate.user_id

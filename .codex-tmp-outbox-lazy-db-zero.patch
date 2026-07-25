@@ -1,0 +1,15 @@
+diff --git a/src/lib/notifications/outbox.ts b/src/lib/notifications/outbox.ts
+--- a/src/lib/notifications/outbox.ts
++++ b/src/lib/notifications/outbox.ts
+@@ -3 +3 @@
+-import { db } from "@/lib/db/client";
++import type { Database } from "@/lib/db/client";
+@@ -65 +65,3 @@
+-type OutboxTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
++type OutboxTransaction = Parameters<
++  Parameters<Database["transaction"]>[0]
++>[0];
+@@ -142,2 +144,3 @@
+ export async function enqueueEmail(input: EnqueueEmailInput) {
++  const { db } = await import("@/lib/db/client");
+   const row = queuedEmail(input);

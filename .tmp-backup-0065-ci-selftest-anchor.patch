@@ -1,0 +1,18 @@
+diff --git a/infra/tests/mail-retention-redaction-0063-registration.test.mjs b/infra/tests/mail-retention-redaction-0063-registration.test.mjs
+--- a/infra/tests/mail-retention-redaction-0063-registration.test.mjs
++++ b/infra/tests/mail-retention-redaction-0063-registration.test.mjs
+@@ -374,12 +374,14 @@ if (!staticOnly) {
+       [
+         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063",
+         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17",
++        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:backup-status-mail-authority-0065",
+         "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
+       ].join("\n"),
+       [
+         "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
+         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063",
+         "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17",
++        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:backup-status-mail-authority-0065",
+       ].join("\n"),
+     ),
+     /PostgreSQL 17 harnesses must run before PostgreSQL 18/u,

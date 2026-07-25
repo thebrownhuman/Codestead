@@ -1,0 +1,25 @@
+diff --git a/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts b/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
+--- a/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
++++ b/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
+@@ -28,5 +28,8 @@ function pool(input: Readonly<{
+   return {
+     options: input.options ?? EXACT_POOL_OPTIONS,
+-    query: vi.fn(async (text: string) => {
+-      void text;
++    query: vi.fn(async (
++      query: string | Readonly<{ text: string; query_timeout?: number }>,
++    ) => {
++      void query;
+       return {
+         rows: input.rows ?? [{
+@@ -47,6 +50,10 @@ describe("mail dispatch runtime startup inspection", () => {
+     const inspection = await inspectMailDispatchRuntime(database);
+ 
+     expect(database.query).toHaveBeenCalledOnce();
+-    const sql = String(database.query.mock.calls[0]?.[0]);
++    const query = database.query.mock.calls[0]?.[0];
++    expect(query).toMatchObject({ query_timeout: 6_000 });
++    const sql = typeof query === "string"
++      ? query
++      : query?.text ?? "";
+     expect(sql).toContain("current_setting('max_connections')");

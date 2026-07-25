@@ -1,0 +1,17 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -1221,9 +1221,16 @@
+       await authorityWriter.query("BEGIN");
+       deletionTransactionOpen = true;
+       await authorityWriter.query("SET LOCAL ROLE learncoding_owner");
+       await authorityWriter.query("SET LOCAL statement_timeout = '5s'");
++      await authorityWriter.query(
++        `SELECT pg_catalog.pg_advisory_xact_lock(
++           pg_catalog.hashtext(
++             'user-authority:admin-1'
++           )::pg_catalog.int8
++         )`,
++      );
+       await authorityWriter.query(
+         `SELECT id

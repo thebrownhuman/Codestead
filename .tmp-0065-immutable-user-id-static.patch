@@ -1,0 +1,13 @@
+diff --git a/src/lib/notifications/__tests__/backup-status-authority-migration.test.ts b/src/lib/notifications/__tests__/backup-status-authority-migration.test.ts
+--- a/src/lib/notifications/__tests__/backup-status-authority-migration.test.ts
++++ b/src/lib/notifications/__tests__/backup-status-authority-migration.test.ts
+@@ -183,0 +184,9 @@
++    expect(migration).toContain(
++      'before update of id, email, role, status, banned on "public"."user"',
++    );
++    expect(migration).toContain(
++      "old.id is distinct from new.id",
++    );
++    expect(migration).toContain(
++      "raise exception 'user identifier is immutable'",
++    );

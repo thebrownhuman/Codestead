@@ -1,0 +1,26 @@
+diff --git a/src/lib/privacy/consent.ts b/src/lib/privacy/consent.ts
+--- a/src/lib/privacy/consent.ts
++++ b/src/lib/privacy/consent.ts
+@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
+ 
+ import { desc, eq } from "drizzle-orm";
+ 
+-import { db } from "@/lib/db/client";
++import type { Database } from "@/lib/db/client";
+ import { consentRecord } from "@/lib/db/schema";
+@@ -142,7 +142,7 @@ export type CurrentConsent = {
+   occurredAt: Date;
+ };
+ 
+-type ConsentReadDatabase = Pick<typeof db, "selectDistinctOn">;
++type ConsentReadDatabase = Pick<Database, "selectDistinctOn">;
+ export async function getCurrentConsentsFrom(
+   database: ConsentReadDatabase,
+   userId: string,
+@@ -181,6 +181,7 @@ export async function getCurrentConsentsFrom(
+ }
+ 
+ export async function getCurrentConsents(userId: string): Promise<Map<string, CurrentConsent>> {
++  const { db } = await import("@/lib/db/client");
+   return getCurrentConsentsFrom(db, userId);
+ }

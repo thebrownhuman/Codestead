@@ -1,0 +1,14 @@
+diff --git a/src/lib/notifications/mail-dispatch-pool.ts b/src/lib/notifications/mail-dispatch-pool.ts
+--- a/src/lib/notifications/mail-dispatch-pool.ts
++++ b/src/lib/notifications/mail-dispatch-pool.ts
+@@ -11,4 +11,8 @@
+-import {
+-  isMailDispatchRuntimePlan,
+-  type MailDispatchRuntimePlan,
+-} from "./mail-dispatch-runtime-policy";
++import { planMailDispatchRuntime } from "./mail-dispatch-runtime-policy";
++import {
++  inspectMailDispatchRuntime,
++  isMailDispatchRuntimeStartupInspectionForPool,
++  type MailDispatchRuntimeStartupInspection,
++} from "./mail-dispatch-runtime-startup";

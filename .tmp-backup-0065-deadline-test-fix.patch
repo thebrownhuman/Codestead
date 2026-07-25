@@ -1,0 +1,47 @@
+diff --git a/scripts/backup/enqueue-backup-status.mjs b/scripts/backup/enqueue-backup-status.mjs
+--- a/scripts/backup/enqueue-backup-status.mjs
++++ b/scripts/backup/enqueue-backup-status.mjs
+@@ -276,7 +276,7 @@ export async function enqueueBackupStatus(input, dependencies = {}) {
+     acknowledgement = row.acknowledgement;
+   } catch (error) {
+     primaryError = error;
+-    destroyClient = error?.message === QUERY_TIMEOUT;
++    destroyClient = client !== undefined;
+   } finally {
+     if (client) {
+       try {
+diff --git a/scripts/backup/enqueue-backup-status.test.mjs b/scripts/backup/enqueue-backup-status.test.mjs
+--- a/scripts/backup/enqueue-backup-status.test.mjs
++++ b/scripts/backup/enqueue-backup-status.test.mjs
+@@ -48,10 +48,10 @@ function immediateDeadlineDependencies() {
+     delays,
+     setTimeout(callback, delay) {
+       delays.push(delay);
+-      queueMicrotask(callback);
+-      return { unref() {} };
++      return setImmediate(callback);
++    },
++    clearTimeout(handle) {
++      clearImmediate(handle);
+     },
+-    clearTimeout() {},
+   };
+ }
+@@ -276,7 +276,7 @@ test("enqueue accepts exact replay and closes the pool on malformed acknowledgement", {
+               };
+             },
+             release(destroy) {
+-              assert.equal(destroy, false);
++              assert.equal(destroy, acknowledgement === "forged");
+               released += 1;
+             },
+           };
+@@ -379,7 +379,7 @@ test("shutdown failure cannot mask the primary query failure", {
+               throw primary;
+             },
+             release(destroy) {
+-              assert.equal(destroy, false);
++              assert.equal(destroy, true);
+             },
+           };
+         },

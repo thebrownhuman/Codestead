@@ -1,0 +1,23 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -174,16 +174,21 @@
+-function clientConfig(port, user, database = "backup_status_0065") {
++function clientConfig(
++  port,
++  user,
++  database = "backup_status_0065",
++  applicationName = "codestead-backup-status-0065-probe",
++) {
+   return {
+     host: "127.0.0.1",
+     port,
+     user,
+     database,
+     connectionTimeoutMillis: 5_000,
+     statement_timeout: 10_000,
+-    application_name: "codestead-backup-status-0065-proof",
++    application_name: applicationName,
+     ssl: false,
+   };
+ }

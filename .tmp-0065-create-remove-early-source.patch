@@ -1,0 +1,23 @@
+diff --git a/drizzle/0065_backup_status_mail_authority.sql b/drizzle/0065_backup_status_mail_authority.sql
+--- a/drizzle/0065_backup_status_mail_authority.sql
++++ b/drizzle/0065_backup_status_mail_authority.sql
+@@ -403,19 +403,2 @@
+   END;
+ 
+-  INSERT INTO public.backup_status_mail_authority (
+-    id,
+-    run_key,
+-    outcome,
+-    outbox_id,
+-    operation_id,
+-    authority_epoch
+-  ) VALUES (
+-    new_authority_id,
+-    p_run_key,
+-    requested_outcome,
+-    new_outbox_id,
+-    new_operation_id,
+-    selected_authority_epoch
+-  );
+-
+   INSERT INTO public.email_outbox (

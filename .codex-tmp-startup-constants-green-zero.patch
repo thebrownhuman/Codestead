@@ -1,0 +1,13 @@
+diff --git a/src/lib/notifications/mail-dispatch-runtime-startup.ts b/src/lib/notifications/mail-dispatch-runtime-startup.ts
+--- a/src/lib/notifications/mail-dispatch-runtime-startup.ts
++++ b/src/lib/notifications/mail-dispatch-runtime-startup.ts
+@@ -15,0 +16 @@
++export const MAIL_DISPATCH_STARTUP_QUERY_TIMEOUT_MS = 6_000;
+@@ -89 +90,4 @@
+-    text: string,
++    query: string | Readonly<{
++      text: string;
++      query_timeout: number;
++    }>,
+@@ -172,0 +177 @@
++    && hasExactPoolOptions(pool)

@@ -1,0 +1,48 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -1116,27 +1116,43 @@
+       await delay(25);
+       let writerWaitObserved = false;
+       let lastWriterActivity;
+       for (let attempt = 0; attempt < 40; attempt += 1) {
+         const writerActivity = await admin.query(
+-          `SELECT state, wait_event_type, wait_event,
+-                  pg_catalog.cardinality(
+-                    pg_catalog.pg_blocking_pids(pid)
+-                  ) blocking_count
++          `SELECT state, wait_event_type, wait_event, query, usename,
++                  application_name,
++                  pg_catalog.pg_blocking_pids(pid) blocker_pids
+              FROM pg_catalog.pg_stat_activity
+             WHERE pid = $1`,
+           [authorityWriterPid],
+         );
+         lastWriterActivity = writerActivity.rows[0];
+-        if (Number(lastWriterActivity?.blocking_count) > 0) {
++        if (
++          Array.isArray(lastWriterActivity?.blocker_pids)
++          && lastWriterActivity.blocker_pids.length > 0
++        ) {
+           writerWaitObserved = true;
+           break;
+         }
+         await delay(25);
+       }
+       assert.equal(
+         writerWaitObserved,
+         true,
+         `the canonical admin change must own A and U before waiting on G: ${JSON.stringify(lastWriterActivity)}`,
+       );
++      assert.deepEqual(
++        lastWriterActivity.blocker_pids.map(Number),
++        [Number(adminPid)],
++      );
++      assert.equal(
++        lastWriterActivity.application_name,
++        "codestead-backup-status-0065-authority-writer",
++      );
++      assert.equal(lastWriterActivity.usename, "postgres");
++      assert.match(lastWriterActivity.query, /UPDATE public\."user"/u);
+ 
+       boundaryOutcome = worker.query(

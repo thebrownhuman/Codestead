@@ -1,0 +1,43 @@
+diff --git a/scripts/process-outbox.test.ts b/scripts/process-outbox.test.ts
+--- a/scripts/process-outbox.test.ts
++++ b/scripts/process-outbox.test.ts
+@@ -25,11 +25,19 @@ const mocks = vi.hoisted(() => {
+     end: poolEnd,
+     query: poolQuery,
+   };
+-  const createMailDispatchDatabaseResources = vi.fn(() => ({
+-    pool,
+-    database,
+-    configurationPlan: { kind: "issued-mail-plan" },
+-  }));
++  const createMailDispatchDatabaseResources = vi.fn(async () => {
++    const startup = await vi.importActual(
++      "../src/lib/notifications/mail-dispatch-runtime-startup",
++    ) as {
++      inspectMailDispatchRuntime(candidatePool: unknown): Promise<unknown>;
++    };
++    try {
++      const inspection = await startup.inspectMailDispatchRuntime(pool);
++      return { pool, database, inspection };
++    } catch (error) {
++      await poolEnd();
++      throw error;
++    }
++  });
+@@ -263,14 +271,9 @@ describe("mail worker production composition", () => {
+     await loadWorkerOnce();
+ 
+     expect(mocks.createMailDispatchDatabaseResources).toHaveBeenCalledOnce();
+-    expect(
+-      mocks.createMailDispatchDatabaseResources.mock.calls[0]?.[0],
+-    ).toMatchObject({
+-      pool: { maximumConnections: 3 },
+-      timeouts: { poolAcquireMs: 2_000, poolIdleMs: 30_000 },
+-    });
++    expect(mocks.createMailDispatchDatabaseResources).toHaveBeenCalledWith();
+ 
+     expect(mocks.poolQuery).toHaveBeenCalledOnce();
+-    const startupSql = String(mocks.poolQuery.mock.calls[0]?.[0]);
++    const startupSql = String(
++      (mocks.poolQuery.mock.calls[0]?.[0] as { text?: unknown })?.text,
++    );

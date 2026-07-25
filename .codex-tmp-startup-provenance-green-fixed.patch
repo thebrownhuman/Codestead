@@ -1,0 +1,55 @@
+diff --git a/src/lib/notifications/mail-dispatch-runtime-startup.ts b/src/lib/notifications/mail-dispatch-runtime-startup.ts
+--- a/src/lib/notifications/mail-dispatch-runtime-startup.ts
++++ b/src/lib/notifications/mail-dispatch-runtime-startup.ts
+@@ -10,6 +10,6 @@ export const MAIL_DISPATCH_OTHER_PROCESS_POOL_MAXIMUM_CONNECTIONS = 80;
+ 
+ const MAIL_DISPATCH_POOL_MAXIMUM_CONNECTIONS = 3;
+-const MAIL_DISPATCH_POOL_ACQUIRE_TIMEOUT_MS = 5_000;
++const MAIL_DISPATCH_POOL_ACQUIRE_TIMEOUT_MS = 2_000;
+ const MAIL_DISPATCH_POOL_IDLE_TIMEOUT_MS = 30_000;
+ 
+ type RuntimeVersionRow = {
+@@ -96,6 +96,8 @@ export type MailDispatchRuntimeStartupInspection = Readonly<{
+ 
+ const issuedInspections = new WeakSet<object>();
+ const issuedPlanPostgresMajors = new WeakMap<object, number>();
++const issuedInspectionPools = new WeakMap<object, MailDispatchStartupPool>();
++const issuedPlanPools = new WeakMap<object, MailDispatchStartupPool>();
+ 
+ function integerText(
+   value: unknown,
+@@ -149,6 +151,25 @@ export function isMailDispatchRuntimeStartupInspection(
+   );
+ }
+ 
++/**
++ * Recognizes only an inspection and its plan issued for this exact pool
++ * identity. A capability issued after inspecting one pool cannot authorize
++ * another structurally equivalent pool.
++ */
++export function isMailDispatchRuntimeStartupInspectionForPool(
++  value: unknown,
++  pool: MailDispatchStartupPool,
++): value is MailDispatchRuntimeStartupInspection {
++  if (!isMailDispatchRuntimeStartupInspection(value)) {
++    return false;
++  }
++
++  return (
++    issuedInspectionPools.get(value) === pool
++    && issuedPlanPools.get(value.plan) === pool
++  );
++}
++
+ /**
+  * Inspects the exact production mail pool and one live PostgreSQL snapshot.
+  * The returned object is the runtime capability consumed by dispatch storage;
+@@ -231,6 +252,8 @@ export async function inspectMailDispatchRuntime(
+   });
+ 
+   issuedPlanPostgresMajors.set(plan, postgresRuntime.major);
++  issuedPlanPools.set(plan, pool);
+   issuedInspections.add(inspection);
++  issuedInspectionPools.set(inspection, pool);
+   return inspection;
+ }

@@ -1,0 +1,67 @@
+diff --git a/scripts/process-outbox.ts b/scripts/process-outbox.ts
+--- a/scripts/process-outbox.ts
++++ b/scripts/process-outbox.ts
+@@ -4,7 +4,10 @@
+-import { pool } from "../src/lib/db/client";
+-import { materializeDeliveryVariables } from "../src/lib/notifications/delivery-variables";
++import { materializeDeliveryVariablesWithDatabase } from "../src/lib/notifications/delivery-variables";
+ import { scheduleInactivityReminders } from "../src/lib/notifications/inactivity";
+ import {
+-  inspectMailDispatchRuntime,
++  createMailDispatchDatabaseResources,
++  type MailDispatchDatabase,
++  type MailDispatchDatabaseResources,
++} from "../src/lib/notifications/mail-dispatch-pool";
++import {
+   type MailDispatchRuntimeStartupInspection,
+ } from "../src/lib/notifications/mail-dispatch-runtime-startup";
+@@ -23 +26 @@
+-import { scheduleSmartReminders } from "../src/lib/notifications/smart-reminders";
++import { scheduleSmartRemindersWithDatabase } from "../src/lib/notifications/smart-reminders";
+@@ -70,0 +74 @@
++let databaseResources: MailDispatchDatabaseResources | undefined;
+@@ -116,0 +121,2 @@
++  const pool = databaseResources?.pool;
++  if (!pool) return;
+@@ -185,0 +193 @@
++  database: MailDispatchDatabase,
+@@ -198,5 +207,8 @@
+-      const variables = await materializeDeliveryVariables({
+-        template,
+-        variables: { ...claim.payload.variables },
+-        now: new Date(),
+-      });
++      const variables = await materializeDeliveryVariablesWithDatabase(
++        database,
++        {
++          template,
++          variables: { ...claim.payload.variables },
++          now: new Date(),
++        },
++      );
+@@ -255 +265 @@
+-        runtimeInspection.plan.providerLease.postCommitProviderLeaseMs,
++        runtimeInspection.plan.providerLease.providerLeaseStampMs,
+@@ -349,3 +359,7 @@
+   const adapter = configuredAdapter();
+-  const runtimeInspection = await inspectMailDispatchRuntime(pool);
++  const resources = await createMailDispatchDatabaseResources();
++  databaseResources = resources;
++  const {
++    pool, database, inspection: runtimeInspection,
++  } = resources;
+   const store = new PostgresOutboxStore(pool);
+@@ -363 +377,4 @@
+-      const schedule = await scheduleInactivityReminders(new Date(scheduleAt));
++      const schedule = await scheduleInactivityReminders(
++        new Date(scheduleAt),
++        pool,
++      );
+@@ -372 +389,4 @@
+-      const schedule = await scheduleSmartReminders(new Date(scheduleAt));
++      const schedule = await scheduleSmartRemindersWithDatabase(
++        database,
++        new Date(scheduleAt),
++      );
+@@ -382,0 +403 @@
++      database,

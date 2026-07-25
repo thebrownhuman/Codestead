@@ -1,0 +1,32 @@
+diff --git a/src/lib/notifications/__tests__/backup-status-authority-migration.test.ts b/src/lib/notifications/__tests__/backup-status-authority-migration.test.ts
+--- a/src/lib/notifications/__tests__/backup-status-authority-migration.test.ts
++++ b/src/lib/notifications/__tests__/backup-status-authority-migration.test.ts
+@@ -79,3 +79,3 @@ describe("backup-status mail authority migration", () => {
+     expect(
+       migration.match(/source\.authority_epoch = current_authority_epoch/gu),
+-    ).toHaveLength(2);
++    ).toHaveLength(3);
+@@ -144,8 +144,20 @@ describe("backup-status mail authority migration", () => {
+     expect(migration).toContain(
+       "candidate.delivery_scope_key =\n         'a:' || candidate.user_id",
+     );
+-    expect(migration).toContain("selected_admin_id,\n    'a:' || selected_admin_id");
++    expect(migration).toContain(
++      "hinted_admin_id,\n    'a:' || hinted_admin_id",
++    );
++    const enqueue = migration.slice(
++      migration.indexOf('create function "public"."enqueue_backup_status_mail_authority"'),
++      migration.indexOf('alter function "public"."enqueue_backup_status_mail_authority"'),
++    );
++    const authorityHintLock = enqueue.indexOf("'user-authority:' || hinted_admin_id");
++    const sameRunLock = enqueue.indexOf("'backup-status-authority:' || p_run_key");
++    const durableRecipientRevalidation = enqueue.indexOf(
++      "selected_admin_id is distinct from hinted_admin_id",
++    );
++    expect(authorityHintLock).toBeGreaterThanOrEqual(0);
++    expect(sameRunLock).toBeGreaterThan(authorityHintLock);
++    expect(durableRecipientRevalidation).toBeGreaterThan(sameRunLock);
+     expect(migration).not.toContain(
+       'drop constraint "email_outbox_delivery_scope_valid"',
+     );
+     expect(migration).not.toContain("'s:' || new_operation_id::text");

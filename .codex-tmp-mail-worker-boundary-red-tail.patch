@@ -1,0 +1,7 @@
+diff --git a/src/lib/notifications/__tests__/mail-worker-database-boundary.test.ts b/src/lib/notifications/__tests__/mail-worker-database-boundary.test.ts
+--- a/src/lib/notifications/__tests__/mail-worker-database-boundary.test.ts
++++ b/src/lib/notifications/__tests__/mail-worker-database-boundary.test.ts
+@@ -42,1 +42,3 @@
+     expect(applicationDatabaseClient.moduleLoads).toBe(0);
++  });
++});

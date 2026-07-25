@@ -1,0 +1,108 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -987,72 +987,98 @@
++    const adminPid = (
++      await admin.query("SELECT pg_backend_pid() pid")
++    ).rows[0].pid;
++    const authorityWriterPid = (
++      await authorityWriter.query("SELECT pg_backend_pid() pid")
++    ).rows[0].pid;
+     const workerPid = (
+       await worker.query("SELECT pg_backend_pid() pid")
+     ).rows[0].pid;
+     let userFirstTransactionOpen = false;
+     let advisoryFirstBoundaryOutcome;
+     try {
+       await authorityWriter.query("BEGIN");
+       userFirstTransactionOpen = true;
+       await authorityWriter.query("SET LOCAL ROLE learncoding_owner");
+       await authorityWriter.query("SET LOCAL statement_timeout = '5s'");
+       await authorityWriter.query(
+         `SELECT id
+            FROM public."user"
+           WHERE id = 'admin-1'
+           FOR UPDATE`,
+       );
+ 
+       advisoryFirstBoundaryOutcome = worker.query(
+         "SELECT public.backup_status_mail_authorized($1) authorized",
+         [outboxId],
+       ).then(
+         (value) => ({ value }),
+         (error) => ({ error }),
+       );
+ 
+       let boundaryWaitObserved = false;
+       let lastBoundaryActivity;
+       for (let attempt = 0; attempt < 40; attempt += 1) {
+         const boundaryActivity = await admin.query(
+-          `SELECT state, wait_event_type, wait_event,
+-                  pg_catalog.cardinality(
+-                    pg_catalog.pg_blocking_pids(pid)
+-                  ) blocking_count
++          `SELECT state, wait_event_type, wait_event, query, usename,
++                  application_name,
++                  pg_catalog.pg_blocking_pids(pid) blocker_pids
+              FROM pg_catalog.pg_stat_activity
+             WHERE pid = $1`,
+           [workerPid],
+         );
+         lastBoundaryActivity = boundaryActivity.rows[0];
+-        if (Number(lastBoundaryActivity?.blocking_count) > 0) {
++        if (
++          Array.isArray(lastBoundaryActivity?.blocker_pids)
++          && lastBoundaryActivity.blocker_pids.length > 0
++        ) {
+           boundaryWaitObserved = true;
+           break;
+         }
+         await delay(25);
+       }
+       assert.equal(
+         boundaryWaitObserved,
+         true,
+         `the boundary must own A before waiting on U: ${JSON.stringify(lastBoundaryActivity)}`,
+       );
++      assert.deepEqual(
++        lastBoundaryActivity.blocker_pids.map(Number),
++        [Number(authorityWriterPid)],
++      );
++      assert.equal(
++        lastBoundaryActivity.application_name,
++        "codestead-backup-status-0065-worker",
++      );
++      assert.equal(lastBoundaryActivity.usename, "learncoding_worker");
++      assert.match(
++        lastBoundaryActivity.query,
++        /backup_status_mail_authorized/iu,
++      );
+ 
+       await expectCode(
+         () => authorityWriter.query(
+           `UPDATE public."user"
+               SET email = 'must-not-commit@example.invalid'
+             WHERE id = 'admin-1'`,
+         ),
+         "55P03",
+         "a privileged U-first mutation must fail instead of waiting on A",
+       );
+       await authorityWriter.query("ROLLBACK");
+       userFirstTransactionOpen = false;
+ 
+       const boundary = await advisoryFirstBoundaryOutcome;
+       if (boundary.error) throw boundary.error;
+       assert.equal(
+         boundary.value.rows[0].authorized,
+         true,
+         "the rejected U-first mutation must not revoke valid authority",
+       );
+     } finally {
+       if (userFirstTransactionOpen) await authorityWriter.query("ROLLBACK");
+       if (advisoryFirstBoundaryOutcome) await advisoryFirstBoundaryOutcome;
+     }
+ 
+-    const authorityWriterPid = (
+-      await authorityWriter.query("SELECT pg_backend_pid() pid")
+-    ).rows[0].pid;
+     let guardTransactionOpen = false;

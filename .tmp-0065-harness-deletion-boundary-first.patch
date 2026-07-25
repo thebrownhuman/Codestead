@@ -1,0 +1,30 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -959,20 +959,21 @@
+       await authorityWriter.query("BEGIN");
+       try {
+         await authorityWriter.query("SET LOCAL ROLE learncoding_owner");
+-        await authorityWriter.query("SET LOCAL lock_timeout = '500ms'");
+-        await expectCode(
+-          () => authorityWriter.query(
+-            `SELECT id
+-               FROM public."user"
+-              WHERE id = 'admin-1'
+-              FOR UPDATE`,
+-          ),
+-          "55P03",
+-          "canonical deletion must stop at the boundary-held user row",
++        const deletionAccountLock = await authorityWriter.query(
++          `SELECT pg_catalog.pg_try_advisory_xact_lock(
++             pg_catalog.hashtext(
++               'user-authority:admin-1'
++             )::pg_catalog.int8
++           ) locked`,
++        );
++        assert.equal(
++          deletionAccountLock.rows[0].locked,
++          false,
++          "canonical deletion must stop at boundary-held A before U/O",
+         );
+       } finally {

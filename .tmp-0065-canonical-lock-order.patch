@@ -1,0 +1,213 @@
+diff --git a/drizzle/0065_backup_status_mail_authority.sql b/drizzle/0065_backup_status_mail_authority.sql
+index c4d530d..0000000 100644
+--- a/drizzle/0065_backup_status_mail_authority.sql
++++ b/drizzle/0065_backup_status_mail_authority.sql
+@@ -75,9 +75,11 @@ SET search_path = pg_catalog
+ AS $function$
+ DECLARE
+   authority_change boolean := false;
++  selected_user_id text;
+ BEGIN
+   IF TG_OP = 'INSERT' THEN
++    selected_user_id := NEW.id;
+     authority_change :=
+       NEW.role = 'admin'
+       AND NEW.status = 'active'
+       AND coalesce(NEW.banned, false) = false;
+   ELSIF TG_OP = 'DELETE' THEN
++    selected_user_id := OLD.id;
+     authority_change :=
+       OLD.role = 'admin'
+       AND OLD.status = 'active'
+       AND coalesce(OLD.banned, false) = false;
+   ELSE
++    selected_user_id := NEW.id;
+     authority_change := (
+       OLD.role = 'admin'
+       AND OLD.status = 'active'
+@@ -91,6 +93,18 @@ BEGIN
+   END IF;
+ 
+   IF authority_change THEN
++    IF selected_user_id IS NULL
++       OR NOT pg_catalog.pg_try_advisory_xact_lock(
++         pg_catalog.hashtext(
++           'user-authority:' || selected_user_id
++         )::pg_catalog.int8
++       ) THEN
++      RAISE EXCEPTION
++        'canonical user authority lock is not available'
++        USING ERRCODE = '55P03';
++    END IF;
++
+     UPDATE public.backup_status_mail_admin_guard
+        SET authority_epoch = pg_catalog.gen_random_uuid()
+      WHERE singleton IS TRUE;
+@@ -188,6 +202,14 @@ BEGIN
+         USING ERRCODE = '23514';
+     END IF;
+ 
++    PERFORM pg_catalog.pg_advisory_xact_lock(
++      pg_catalog.hashtext(
++        'user-authority:' || selected_admin_id
++      )::pg_catalog.int8
++    );
++
+     PERFORM locked_recipient.id
+       FROM public."user" AS locked_recipient
+      WHERE locked_recipient.id = selected_admin_id
+@@ -290,12 +312,32 @@ BEGIN
+       USING ERRCODE = '23514';
+   END IF;
+ 
++  SELECT admin_recipient.id
++    INTO selected_admin_id
++    FROM public."user" AS admin_recipient
++   WHERE admin_recipient.role = 'admin'
++     AND admin_recipient.status = 'active'
++     AND coalesce(admin_recipient.banned, false) = false;
++  IF NOT FOUND OR selected_admin_id IS NULL THEN
++    RAISE EXCEPTION
++      'backup status mail administrator changed during selection'
++      USING ERRCODE = '23514';
++  END IF;
++
++  PERFORM pg_catalog.pg_advisory_xact_lock(
++    pg_catalog.hashtext(
++      'user-authority:' || selected_admin_id
++    )::pg_catalog.int8
++  );
++
+   SELECT
+     admin_recipient.id,
+     pg_catalog.lower(pg_catalog.btrim(admin_recipient.email))
+     INTO selected_admin_id, selected_admin_email
+     FROM public."user" AS admin_recipient
+-   WHERE admin_recipient.role = 'admin'
++   WHERE admin_recipient.id = selected_admin_id
++     AND admin_recipient.role = 'admin'
+      AND admin_recipient.status = 'active'
+      AND coalesce(admin_recipient.banned, false) = false
+    FOR SHARE OF admin_recipient;
+@@ -446,6 +488,14 @@ BEGIN
+     RETURN false;
+   END IF;
+ 
++  PERFORM pg_catalog.pg_advisory_xact_lock(
++    pg_catalog.hashtext(
++      'user-authority:' || selected_admin_id
++    )::pg_catalog.int8
++  );
++
+   PERFORM locked_recipient.id
+     FROM public."user" AS locked_recipient
+    WHERE locked_recipient.id = selected_admin_id
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+index ad28002..0000000 100644
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -926,6 +926,79 @@ async function run() {
+     } finally {
+       await worker.query("ROLLBACK");
+     }
++
++    const workerPid = (
++      await worker.query("SELECT pg_backend_pid() pid")
++    ).rows[0].pid;
++    let userFirstTransactionOpen = false;
++    let advisoryFirstBoundaryOutcome;
++    try {
++      await authorityWriter.query("BEGIN");
++      userFirstTransactionOpen = true;
++      await authorityWriter.query("SET LOCAL ROLE learncoding_owner");
++      await authorityWriter.query("SET LOCAL statement_timeout = '5s'");
++      await authorityWriter.query(
++        `SELECT id
++           FROM public."user"
++          WHERE id = 'admin-1'
++          FOR UPDATE`,
++      );
++
++      advisoryFirstBoundaryOutcome = worker.query(
++        "SELECT public.backup_status_mail_authorized($1) authorized",
++        [outboxId],
++      ).then(
++        (value) => ({ value }),
++        (error) => ({ error }),
++      );
++
++      let boundaryWaitObserved = false;
++      let lastBoundaryActivity;
++      for (let attempt = 0; attempt < 40; attempt += 1) {
++        const boundaryActivity = await admin.query(
++          `SELECT state, wait_event_type, wait_event,
++                  pg_catalog.cardinality(
++                    pg_catalog.pg_blocking_pids(pid)
++                  ) blocking_count
++             FROM pg_catalog.pg_stat_activity
++            WHERE pid = $1`,
++          [workerPid],
++        );
++        lastBoundaryActivity = boundaryActivity.rows[0];
++        if (Number(lastBoundaryActivity?.blocking_count) > 0) {
++          boundaryWaitObserved = true;
++          break;
++        }
++        await delay(25);
++      }
++      assert.equal(
++        boundaryWaitObserved,
++        true,
++        `the boundary must own A before waiting on U: ${JSON.stringify(lastBoundaryActivity)}`,
++      );
++
++      await expectCode(
++        () => authorityWriter.query(
++          `UPDATE public."user"
++              SET email = 'must-not-commit@example.invalid'
++            WHERE id = 'admin-1'`,
++        ),
++        "55P03",
++        "a privileged U-first mutation must fail instead of waiting on A",
++      );
++      await authorityWriter.query("ROLLBACK");
++      userFirstTransactionOpen = false;
++
++      const boundary = await advisoryFirstBoundaryOutcome;
++      if (boundary.error) throw boundary.error;
++      assert.equal(
++        boundary.value.rows[0].authorized,
++        true,
++        "the rejected U-first mutation must not revoke valid authority",
++      );
++    } finally {
++      if (userFirstTransactionOpen) await authorityWriter.query("ROLLBACK");
++      if (advisoryFirstBoundaryOutcome) await advisoryFirstBoundaryOutcome;
++    }
+ 
+     const authorityWriterPid = (
+       await authorityWriter.query("SELECT pg_backend_pid() pid")
+@@ -1024,9 +1097,6 @@ async function run() {
+        WHERE id = 'admin-1'`,
+     );
+ 
+-    const workerPid = (
+-      await worker.query("SELECT pg_backend_pid() pid")
+-    ).rows[0].pid;
+     let deletionTransactionOpen = false;
+     let deletionBoundaryOutcome;
+     try {
+@@ -1035,6 +1105,11 @@ async function run() {
+       await authorityWriter.query("SET LOCAL ROLE learncoding_owner");
+       await authorityWriter.query("SET LOCAL statement_timeout = '5s'");
+       await authorityWriter.query(
++        `SELECT pg_catalog.pg_advisory_xact_lock(
++           pg_catalog.hashtext(
++             'user-authority:admin-1'
++           )::pg_catalog.int8
++         )`,
++      );
++      await authorityWriter.query(
+         `SELECT id
+            FROM public."user"
+           WHERE id = 'admin-1'

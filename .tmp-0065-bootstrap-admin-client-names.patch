@@ -1,0 +1,31 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -297,8 +297,15 @@
+     }
+     await waitForPostgres(port);
+ 
+-    bootstrap = await connected(clientConfig(port, "postgres", "postgres"));
++    bootstrap = await connected(
++      clientConfig(
++        port,
++        "postgres",
++        "postgres",
++        "codestead-backup-status-0065-bootstrap",
++      ),
++    );
+     const serverVersion = await bootstrap.query("SHOW server_version_num");
+@@ -308,7 +315,14 @@
+     await bootstrap.end();
+     bootstrap = undefined;
+ 
+-    admin = await connected(clientConfig(port, "postgres"));
++    admin = await connected(
++      clientConfig(
++        port,
++        "postgres",
++        "backup_status_0065",
++        "codestead-backup-status-0065-admin",
++      ),
++    );
+     await admin.query(`

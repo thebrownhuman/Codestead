@@ -1,0 +1,11 @@
+diff --git a/scripts/process-outbox.ts b/scripts/process-outbox.ts
+--- a/scripts/process-outbox.ts
++++ b/scripts/process-outbox.ts
+@@ -189,8 +189,8 @@ async function processBatch(
+   store: PostgresOutboxStore,
+   adapter: "console" | "gmail",
+   runtimeInspection: MailDispatchRuntimeStartupInspection,
+-) {
+   database: MailDispatchDatabase,
++) {
+   return processOutboxBatch<EmailOutboxPayload, OutgoingEmail>({

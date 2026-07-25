@@ -1,0 +1,12 @@
+diff --git a/src/lib/notifications/__tests__/backup-status-authority-migration.test.ts b/src/lib/notifications/__tests__/backup-status-authority-migration.test.ts
+--- a/src/lib/notifications/__tests__/backup-status-authority-migration.test.ts
++++ b/src/lib/notifications/__tests__/backup-status-authority-migration.test.ts
+@@ -85,4 +85,5 @@
+-    const outboxInsert = migration.slice(
+-      migration.indexOf("insert into public.email_outbox"),
+-      migration.indexOf("return query", migration.indexOf("insert into public.email_outbox")),
++    const outboxInsertStart = migration.indexOf("insert into public.email_outbox");
++    const outboxInsert = migration.slice(
++      outboxInsertStart,
++      migration.indexOf("insert into public.backup_status_mail_authority", outboxInsertStart),
+     );

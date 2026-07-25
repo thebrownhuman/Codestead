@@ -1,0 +1,7 @@
+diff --git a/src/lib/notifications/smart-reminders.ts b/src/lib/notifications/smart-reminders.ts
+--- a/src/lib/notifications/smart-reminders.ts
++++ b/src/lib/notifications/smart-reminders.ts
+@@ -374,2 +374,3 @@
+ export async function scheduleSmartReminders(now = new Date(), limit = 100) {
++  const { db } = await import("@/lib/db/client");
+   return scheduleSmartRemindersWithDatabase(db, now, limit);

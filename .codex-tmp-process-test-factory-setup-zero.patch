@@ -1,0 +1,39 @@
+diff --git a/scripts/process-outbox.test.ts b/scripts/process-outbox.test.ts
+--- a/scripts/process-outbox.test.ts
++++ b/scripts/process-outbox.test.ts
+@@ -28,14 +28 @@
+-  const createMailDispatchDatabaseResources = vi.fn(async () => {
+-    const startup = await vi.importActual(
+-      "../src/lib/notifications/mail-dispatch-runtime-startup",
+-    ) as {
+-      inspectMailDispatchRuntime(candidatePool: unknown): Promise<unknown>;
+-    };
+-    try {
+-      const inspection = await startup.inspectMailDispatchRuntime(pool);
+-      return { pool, database, inspection };
+-    } catch (error) {
+-      await poolEnd();
+-      throw error;
+-    }
+-  });
++  const createMailDispatchDatabaseResources = vi.fn();
+@@ -165 +152 @@
+-  beforeEach(() => {
++  beforeEach(async () => {
+@@ -167,0 +155,17 @@
++    const startup = await vi.importActual(
++      "../src/lib/notifications/mail-dispatch-runtime-startup",
++    ) as {
++      inspectMailDispatchRuntime(candidatePool: unknown): Promise<unknown>;
++    };
++    mocks.createMailDispatchDatabaseResources.mockImplementation(async () => {
++      try {
++        const inspection = await startup.inspectMailDispatchRuntime(
++          mocks.pool,
++        );
++        return { pool: mocks.pool, database: mocks.db, inspection };
++      } catch (error) {
++        await mocks.poolEnd();
++        throw error;
++      }
++    });

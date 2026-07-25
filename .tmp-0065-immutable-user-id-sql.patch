@@ -1,0 +1,18 @@
+diff --git a/drizzle/0065_backup_status_mail_authority.sql b/drizzle/0065_backup_status_mail_authority.sql
+--- a/drizzle/0065_backup_status_mail_authority.sql
++++ b/drizzle/0065_backup_status_mail_authority.sql
+@@ -83 +83,4 @@
+-  ELSIF TG_OP = 'DELETE' THEN
++  ELSIF TG_OP = 'UPDATE' AND OLD.id IS DISTINCT FROM NEW.id THEN
++    RAISE EXCEPTION 'user identifier is immutable'
++      USING ERRCODE = '23514';
++  ELSIF TG_OP = 'DELETE' THEN
+@@ -139 +142 @@
+-BEFORE UPDATE OF email, role, status, banned ON "public"."user"
++BEFORE UPDATE OF id, email, role, status, banned ON "public"."user"
+diff --git a/scripts/verify-backup-status-mail-authority.mjs b/scripts/verify-backup-status-mail-authority.mjs
+--- a/scripts/verify-backup-status-mail-authority.mjs
++++ b/scripts/verify-backup-status-mail-authority.mjs
+@@ -949 +949 @@
+-                 ARRAY['email', 'role', 'status', 'banned']::name[]
++                 ARRAY['id', 'email', 'role', 'status', 'banned']::name[]

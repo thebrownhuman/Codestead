@@ -1,0 +1,6 @@
+diff --git a/src/lib/notifications/__tests__/outbox-dispatch-binding-migration.test.ts b/src/lib/notifications/__tests__/outbox-dispatch-binding-migration.test.ts
+--- a/src/lib/notifications/__tests__/outbox-dispatch-binding-migration.test.ts
++++ b/src/lib/notifications/__tests__/outbox-dispatch-binding-migration.test.ts
+@@ -274 +274 @@
+-    expect(harness).toContain("POSTGRES_MAJOR");
++    expect(harness).toContain("POSTGRES_17_BIN");

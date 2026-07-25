@@ -1,0 +1,8 @@
+diff --git a/scripts/process-outbox.test.ts b/scripts/process-outbox.test.ts
+--- a/scripts/process-outbox.test.ts
++++ b/scripts/process-outbox.test.ts
+@@ -307 +307 @@
+-      providerLeaseMs: 95_000,
++      providerLeaseMs: 110_000,
+@@ -311,0 +312 @@
++    expect(dependencies.policy.providerLeaseMs - 15_000).toBe(95_000);

@@ -1,0 +1,58 @@
+diff --git a/docs/architecture.md b/docs/architecture.md
+--- a/docs/architecture.md
++++ b/docs/architecture.md
+@@ -270 +270 @@
+-Security events, new-device revocation, credential changes, appeal updates, and backup failures use separate templates and priorities. Backups are never attached to email; email reports only backup identifier, status, size, checksum, and recovery-point count.
++Security events, new-device revocation, credential changes, appeal updates, and backup failures use separate templates and priorities. Backup email contains only a generic success/failure outcome. It never attaches or identifies an archive and includes no path, size, checksum, recovery-point count, provider detail, operational log, key, or learner data.
+diff --git a/docs/threat-model.md b/docs/threat-model.md
+--- a/docs/threat-model.md
++++ b/docs/threat-model.md
+@@ -200 +200 @@
+-| TM-NOT-003 | Email backup attachment leaks the database (I) | 25 | Prohibit backup attachments; send status/checksum only; encrypted backup channels (`DAT-004`). | Template/job assertion. Residual Low. |
++| TM-NOT-003 | Email backup attachment or metadata leaks protected backup details (I) | 25 | Prohibit backup attachments and artifact metadata; send only a generic success/failure outcome with no identifier, path, size, checksum, recovery-point count, provider detail, log, key, or learner data; use encrypted backup channels (`DAT-004`). | Template/payload/job assertions and live authority tests. Residual Low. |
+diff --git a/docs/requirements-matrix.md b/docs/requirements-matrix.md
+--- a/docs/requirements-matrix.md
++++ b/docs/requirements-matrix.md
+@@ -147 +147 @@
+-| NOT-004 | M | Use transactional email with SPF/DKIM/DMARC and durable outbox; never email backup archives. | Retry/bounce/suppression works; backups only send status/checksum; no archive/key attachment. | DNS/provider check; outbox fault tests; template scan. | FND / Baseline; provider Open |
++| NOT-004 | M | Use transactional email with SPF/DKIM/DMARC and durable outbox; never email backup archives or artifact metadata. | Retry/bounce/suppression works; backup mail sends only a generic success/failure outcome and contains no archive identifier/path, size, checksum, recovery-point count, provider detail, log, key, or learner data. | DNS/provider check; outbox fault tests; exact payload scan and live authority tests. | FND / Baseline; provider Open |
+diff --git a/scripts/__tests__/backup-reporter-role-contract.test.ts b/scripts/__tests__/backup-reporter-role-contract.test.ts
+--- a/scripts/__tests__/backup-reporter-role-contract.test.ts
++++ b/scripts/__tests__/backup-reporter-role-contract.test.ts
+@@ -20,6 +20,9 @@ const backupCommon = read("scripts/backup/common.sh");
+ const secrets = read("infra/secrets/README.md");
+ const runtimeValidator = read("infra/ops/validate-runtime.sh");
+ const restoreCompose = read("infra/restore/restore-drill.compose.yaml");
++const migration0065 = read(
++  "drizzle/0065_backup_status_mail_authority.sql",
++);
+ 
+ describe("dedicated backup-status reporter role contract", () => {
+@@ -186,6 +189,26 @@ describe("dedicated backup-status reporter role contract", () => {
+     ]) expect(service).toContain(entry);
+   });
+ 
++  it("binds backup email to a generic outcome without artifact metadata", () => {
++    const outboxInsert = migration0065.match(
++      /INSERT INTO public\.email_outbox[\s\S]*?\n  \);/u,
++    )?.[0] ?? "";
++    expect(outboxInsert).toMatch(
++      /pg_catalog\.jsonb_build_object\(\s*'name', 'Administrator',\s*'summary', fixed_summary\s*\)/u,
++    );
++    expect(outboxInsert).not.toMatch(
++      /'(?:archive|archive_id|backup_id|checksum|size|recovery_point_count|provider|log|key|learner|run_key)'\s*,/u,
++    );
++    expect(migration0065).toContain(
++      "No archive is attached to this email.",
++    );
++    expect(migration0065).toContain(
++      "no archive or log is attached to this email.",
++    );
++    expect(backupCommon).not.toMatch(
++      /BACKUP_REPORT_(?:ARCHIVE|CHECKSUM|SIZE|RECOVERY|PROVIDER|LOG|KEY|LEARNER)/u,
++    );
++  });
++
+   it("admits the reporter only as a required operations one-shot service", () => {
+     const knownServices = runtimeValidator.match(
+       /is_known_service\(\) \{[\s\S]*?\n\}/u,

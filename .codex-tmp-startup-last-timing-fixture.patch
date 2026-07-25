@@ -1,0 +1,10 @@
+diff --git a/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts b/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
+--- a/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
++++ b/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
+@@ -260,5 +260,5 @@ describe("mail dispatch runtime startup inspection", () => {
+       otherProcessPoolMaximumConnections:
+         MAIL_DISPATCH_OTHER_PROCESS_POOL_MAXIMUM_CONNECTIONS,
+-      poolAcquireTimeoutMs: 5_000,
++      poolAcquireTimeoutMs: 2_000,
+       poolIdleTimeoutMs: 30_000,
+     });

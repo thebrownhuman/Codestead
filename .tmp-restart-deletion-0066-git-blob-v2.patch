@@ -1,0 +1,31 @@
+diff --git a/scripts/run-integration-tests.ts b/scripts/run-integration-tests.ts
+--- a/scripts/run-integration-tests.ts
++++ b/scripts/run-integration-tests.ts
+@@ -1,5 +1,5 @@
+ import { createHash, randomBytes } from "node:crypto";
+-import { spawn } from "node:child_process";
++import { execFileSync, spawn } from "node:child_process";
+ import { readFile } from "node:fs/promises";
+ import path from "node:path";
+ 
+@@ -393,10 +393,13 @@ async function applyProviderCorrelationFixture(
+   connectionString: string,
+ ): Promise<void> {
+-  const source = await readFile(
+-    path.resolve(
+-      process.cwd(),
+-      "drizzle/0066_mail_outbox_provider_correlation_evidence.sql",
+-    ),
+-    "utf8",
+-  );
++  const source = execFileSync("git", [
++    "show",
++    "23b022fd607887ebe669146947ddd3afea7c210b:"
++      + "drizzle/0066_mail_outbox_provider_correlation_evidence.sql",
++  ], {
++    cwd: process.cwd(),
++    encoding: "utf8",
++    maxBuffer: 1024 * 1024,
++    windowsHide: true,
++  });
+   const sha256 = createHash("sha256").update(source, "utf8").digest("hex");

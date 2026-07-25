@@ -1,0 +1,123 @@
+diff --git a/drizzle/0065_backup_status_mail_authority.sql b/drizzle/0065_backup_status_mail_authority.sql
+--- a/drizzle/0065_backup_status_mail_authority.sql
++++ b/drizzle/0065_backup_status_mail_authority.sql
+@@ -412,18 +412,117 @@
+   ) VALUES (
+     new_outbox_id,
+     new_operation_id,
+-    selected_admin_id,
+-    'a:' || selected_admin_id,
++    hinted_admin_id,
++    'a:' || hinted_admin_id,
+     selected_admin_email,
+     'backup-status',
+     '1',
+     pg_catalog.jsonb_build_object(
+       'name', 'Administrator',
+       'summary', fixed_summary
+     ),
+     'backup-status:v1:' || p_run_key
+   );
++
++  INSERT INTO public.backup_status_mail_authority (
++    id,
++    run_key,
++    outcome,
++    outbox_id,
++    operation_id,
++    authority_epoch
++  ) VALUES (
++    new_authority_id,
++    p_run_key,
++    requested_outcome,
++    new_outbox_id,
++    new_operation_id,
++    selected_authority_epoch
++  );
++
++  PERFORM locked_candidate.id
++    FROM public.email_outbox AS locked_candidate
++   WHERE locked_candidate.id = new_outbox_id
++     AND locked_candidate.operation_id = new_operation_id
++     AND locked_candidate.user_id = hinted_admin_id
++   FOR SHARE OF locked_candidate;
++  IF NOT FOUND THEN
++    RAISE EXCEPTION
++      'backup status mail authority changed during creation'
++      USING ERRCODE = '23514';
++  END IF;
++
++  PERFORM locked_source.id
++    FROM public.backup_status_mail_authority AS locked_source
++   WHERE locked_source.id = new_authority_id
++     AND locked_source.run_key = p_run_key
++     AND locked_source.outbox_id = new_outbox_id
++     AND locked_source.operation_id = new_operation_id
++   FOR SHARE OF locked_source;
++  IF NOT FOUND THEN
++    RAISE EXCEPTION
++      'backup status mail authority changed during creation'
++      USING ERRCODE = '23514';
++  END IF;
++
++  SELECT authority_guard.authority_epoch
++    INTO current_authority_epoch
++    FROM public.backup_status_mail_admin_guard AS authority_guard
++   WHERE authority_guard.singleton IS TRUE
++   FOR SHARE OF authority_guard;
++  IF NOT FOUND OR current_authority_epoch IS NULL THEN
++    RAISE EXCEPTION 'backup status administrator authority guard is missing'
++      USING ERRCODE = '23514';
++  END IF;
++  IF current_authority_epoch IS DISTINCT FROM selected_authority_epoch THEN
++    RAISE EXCEPTION
++      'backup status mail authority changed during creation'
++      USING ERRCODE = '23514';
++  END IF;
++
++  SELECT TRUE
++    INTO replay_authorized
++    FROM public.backup_status_mail_authority AS source
++    JOIN public.email_outbox AS candidate
++      ON candidate.id = source.outbox_id
++    JOIN public."user" AS admin_recipient
++      ON admin_recipient.id = candidate.user_id
++   WHERE source.id = new_authority_id
++     AND source.run_key = p_run_key
++     AND source.outcome = requested_outcome
++     AND source.outbox_id = new_outbox_id
++     AND source.operation_id = new_operation_id
++     AND source.authority_epoch = current_authority_epoch
++     AND candidate.operation_id = new_operation_id
++     AND candidate.user_id = hinted_admin_id
++     AND candidate.delivery_scope_key =
++       'a:' || candidate.user_id
++     AND candidate.to_email = selected_admin_email
++     AND candidate.template = 'backup-status'
++     AND candidate.template_version = '1'
++     AND candidate.idempotency_key =
++       'backup-status:v1:' || source.run_key
++     AND candidate.variables = pg_catalog.jsonb_build_object(
++       'name', 'Administrator',
++       'summary', fixed_summary
++     )
++     AND admin_recipient.id = hinted_admin_id
++     AND admin_recipient.role = 'admin'
++     AND admin_recipient.status = 'active'
++     AND coalesce(admin_recipient.banned, false) = false
++     AND pg_catalog.lower(pg_catalog.btrim(admin_recipient.email)) =
++       candidate.to_email
++     AND (
++       SELECT pg_catalog.count(*) = 1
++         FROM public."user" AS sole_admin
++        WHERE sole_admin.role = 'admin'
++          AND sole_admin.status = 'active'
++          AND coalesce(sole_admin.banned, false) = false
++     );
++  IF replay_authorized IS DISTINCT FROM TRUE THEN
++    RAISE EXCEPTION
++      'backup status mail authority changed during creation'
++      USING ERRCODE = '23514';
++  END IF;
+ 
+   RETURN QUERY

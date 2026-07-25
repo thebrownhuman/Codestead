@@ -1,0 +1,19 @@
+diff --git a/src/lib/notifications/__tests__/mail-worker-database-boundary.test.ts b/src/lib/notifications/__tests__/mail-worker-database-boundary.test.ts
+--- a/src/lib/notifications/__tests__/mail-worker-database-boundary.test.ts
++++ b/src/lib/notifications/__tests__/mail-worker-database-boundary.test.ts
+@@ -1,3 +1,4 @@
+ import { readFile } from "node:fs/promises";
++import { resolve } from "node:path";
+ 
+ import { beforeEach, describe, expect, it, vi } from "vitest";
+@@ -21,12 +22,7 @@ describe("mail worker database boundary", () => {
+ 
+   it("has no direct global-client import and loads its database graph without one", async () => {
+     const processSource = await readFile(
+-      new URL(
+-        "../../../../scripts/process-outbox.ts",
+-        import.meta.url,
+-      ),
++      resolve(process.cwd(), "scripts/process-outbox.ts"),
+       "utf8",
+     );

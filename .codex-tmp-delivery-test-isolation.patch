@@ -1,0 +1,12 @@
+diff --git a/src/lib/notifications/__tests__/delivery-variables.test.ts b/src/lib/notifications/__tests__/delivery-variables.test.ts
+--- a/src/lib/notifications/__tests__/delivery-variables.test.ts
++++ b/src/lib/notifications/__tests__/delivery-variables.test.ts
+@@ -90,6 +90,8 @@ describe("delivery-only email variables", () => {
+ });
+ 
+ describe("dedicated delivery materialization database", () => {
++  beforeEach(() => vi.clearAllMocks());
++
+   it("routes a valid lost-device proof through the injected database", async () => {
+     const database = { kind: "dedicated-mail-database" };
+     const requestId = "10000000-0000-4000-8000-000000000001";

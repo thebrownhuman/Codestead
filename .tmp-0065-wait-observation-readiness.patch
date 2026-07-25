@@ -1,0 +1,21 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -1085,0 +1086,2 @@
++          && lastBoundaryActivity.wait_event_type === "Lock"
++          && lastBoundaryActivity.wait_event === "transactionid"
+@@ -1187,0 +1190,2 @@
++          && lastWriterActivity.wait_event_type === "Lock"
++          && lastWriterActivity.wait_event === "transactionid"
+@@ -1234,0 +1239,2 @@
++          && lastBoundaryActivity.wait_event_type === "Lock"
++          && lastBoundaryActivity.wait_event === "advisory"
+@@ -1341,0 +1348,2 @@
++          && lastBoundaryActivity.wait_event_type === "Lock"
++          && lastBoundaryActivity.wait_event === "advisory"
+@@ -1760,0 +1769,2 @@
++          && lastPromotionActivity.wait_event_type === "Lock"
++          && lastPromotionActivity.wait_event === "transactionid"
+@@ -1865,0 +1876,2 @@
++          && lastEnqueueActivity.wait_event_type === "Lock"
++          && lastEnqueueActivity.wait_event === "transactionid"

@@ -1,0 +1,133 @@
+diff --git a/src/lib/notifications/__tests__/mail-dispatch-pool.test.ts b/src/lib/notifications/__tests__/mail-dispatch-pool.test.ts
+--- a/src/lib/notifications/__tests__/mail-dispatch-pool.test.ts
++++ b/src/lib/notifications/__tests__/mail-dispatch-pool.test.ts
+@@ -5,6 +5,27 @@ import {
+ import {
+   createMailDispatchDatabaseResources,
+ } from "../mail-dispatch-pool";
++import {
++  isMailDispatchRuntimeStartupInspectionForPool,
++} from "../mail-dispatch-runtime-startup";
++
++const STARTUP_ROW = Object.freeze({
++  max_connections: "87",
++  admin_reserved_connections: "3",
++  server_version_num: "170005",
++});
++
++function poolForPlan(plan = planMailDispatchRuntime()) {
++  return {
++    options: {
++      max: plan.pool.maximumConnections,
++      connectionTimeoutMillis: plan.timeouts.poolAcquireMs,
++      idleTimeoutMillis: plan.timeouts.poolIdleMs,
++    },
++    query: vi.fn(async () => ({
++      rows: [STARTUP_ROW],
++    })),
++    end: vi.fn(async () => undefined),
++  };
++}
+ 
+ describe("dedicated mail dispatch database resources", () => {
+@@ -12,43 +33,52 @@ describe("dedicated mail dispatch database resources", () => {
+     vi.unstubAllEnvs();
+   });
+ 
+-  it("constructs one pool and Drizzle database from an issued plan", () => {
++  it("constructs one inspected pool and Drizzle database from an internal issued plan", async () => {
+     vi.stubEnv(
+       "DATABASE_URL",
+       "postgresql://mail-worker:private@database.example/mail",
+     );
+     const plan = planMailDispatchRuntime();
+-    const createdPool = {
+-      options: {
+-        max: plan.pool.maximumConnections,
+-        connectionTimeoutMillis: plan.timeouts.poolAcquireMs,
+-        idleTimeoutMillis: plan.timeouts.poolIdleMs,
+-      },
+-    };
++    const createdPool = poolForPlan(plan);
+     const createdDatabase = { kind: "dedicated-mail-drizzle" };
+     const createPool = vi.fn(() => createdPool);
+     const createDatabase = vi.fn(() => createdDatabase);
+ 
+-    const resources = createMailDispatchDatabaseResources(
+-      plan,
+-      {
++    const resources = await createMailDispatchDatabaseResources({
+         createPool: createPool as never,
+         createDatabase: createDatabase as never,
+-      },
+-    );
++    });
+ 
+     expect(createPool).toHaveBeenCalledOnce();
+     expect(createPool).toHaveBeenCalledWith({
+       connectionString:
+         "postgresql://mail-worker:private@database.example/mail",
+       max: plan.pool.maximumConnections,
+       connectionTimeoutMillis: plan.timeouts.poolAcquireMs,
+       idleTimeoutMillis: plan.timeouts.poolIdleMs,
++      lock_timeout: plan.timeouts.lockMs,
++      statement_timeout: plan.timeouts.statementMs,
++      query_timeout: plan.timeouts.queryMs,
+     });
+     expect(plan.timeouts.poolAcquireMs).toBe(2_000);
+     expect(resources.pool).toBe(createdPool);
+     expect(resources.database).toBe(createdDatabase);
+-    expect(resources.configurationPlan).toBe(plan);
++    expect(resources.inspection.plan.pool.maximumConnections).toBe(3);
++    expect(resources.inspection.plan.timeouts.poolAcquireMs).toBe(2_000);
++    expect(
++      isMailDispatchRuntimeStartupInspectionForPool(
++        resources.inspection,
++        createdPool,
++      ),
++    ).toBe(true);
++    expect(Reflect.set(createdPool.options, "max", 99)).toBe(false);
+     expect(createDatabase).toHaveBeenCalledWith(createdPool);
+     expect(Object.isFrozen(resources)).toBe(true);
+   });
+ 
+-  it("uses the application development URL without importing its pool", () => {
+-    const plan = planMailDispatchRuntime();
+-    const createPool = vi.fn(() => ({}));
++  it("uses the application development URL without importing its pool", async () => {
++    const createdPool = poolForPlan();
++    const createPool = vi.fn(() => createdPool);
+ 
+-    createMailDispatchDatabaseResources(plan, {
++    await createMailDispatchDatabaseResources({
+       createPool: createPool as never,
+       createDatabase: vi.fn(() => ({})) as never,
+     });
+@@ -60,24 +90,19 @@ describe("dedicated mail dispatch database resources", () => {
+     }));
+   });
+ 
+-  it("rejects reconstructed plans before constructing database resources", () => {
+-    const issuedPlan = planMailDispatchRuntime();
+-    const createPool = vi.fn(() => ({}));
++  it("destroys the pool before returning an invalid startup snapshot", async () => {
++    const createdPool = poolForPlan();
++    createdPool.query.mockResolvedValueOnce({ rows: [] });
++    const createPool = vi.fn(() => createdPool);
+     const createDatabase = vi.fn(() => ({}));
+ 
+-    expect(() => createMailDispatchDatabaseResources(
+-      structuredClone(issuedPlan),
+-      {
++    await expect(createMailDispatchDatabaseResources({
+         createPool: createPool as never,
+         createDatabase: createDatabase as never,
+-      },
+-    )).toThrow(/issued runtime plan/i);
+-    expect(createPool).not.toHaveBeenCalled();
++    })).rejects.toThrow(/startup snapshot/i);
++    expect(createPool).toHaveBeenCalledOnce();
+     expect(createDatabase).not.toHaveBeenCalled();
++    expect(createdPool.end).toHaveBeenCalledOnce();
+   });
+ });

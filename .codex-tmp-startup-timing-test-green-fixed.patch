@@ -1,0 +1,68 @@
+diff --git a/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts b/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
+--- a/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
++++ b/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
+@@ -3,6 +3,7 @@ import { planMailDispatchRuntime } from "../mail-dispatch-runtime-policy";
+ import {
+   inspectMailDispatchRuntime,
+   isMailDispatchRuntimeStartupInspection,
++  isMailDispatchRuntimeStartupInspectionForPool,
+   MAIL_DISPATCH_OTHER_PROCESS_POOL_MAXIMUM_CONNECTIONS,
+   MAIL_DISPATCH_PRODUCTION_CONCURRENCY,
+   parsePostgresServerVersionNum,
+@@ -12,5 +13,5 @@ import {
+ const EXACT_POOL_OPTIONS = Object.freeze({
+   max: 3,
+-  connectionTimeoutMillis: 5_000,
++  connectionTimeoutMillis: 2_000,
+   idleTimeoutMillis: 30_000,
+ });
+@@ -75,5 +76,5 @@ describe("mail dispatch runtime startup inspection", () => {
+     });
+     expect(inspection.plan.timeouts).toMatchObject({
+-      poolAcquireMs: 5_000,
++      poolAcquireMs: 2_000,
+       poolIdleMs: 30_000,
+     });
+@@ -102,5 +103,5 @@ describe("mail dispatch runtime startup inspection", () => {
+           return configuredMaximum;
+         },
+-        connectionTimeoutMillis: 5_000,
++        connectionTimeoutMillis: 2_000,
+         idleTimeoutMillis: 30_000,
+       },
+@@ -132,18 +133,12 @@ describe("mail dispatch runtime startup inspection", () => {
+     const poolA = pool();
+     const poolB = pool();
+     const inspection = await inspectMailDispatchRuntime(poolA);
+-    const startupModule = await import(
+-      "../mail-dispatch-runtime-startup"
+-    );
+-    const poolAware = (startupModule as {
+-      readonly isMailDispatchRuntimeStartupInspectionForPool?: (
+-        value: unknown,
+-        pool: Parameters<typeof inspectMailDispatchRuntime>[0],
+-      ) => boolean;
+-    }).isMailDispatchRuntimeStartupInspectionForPool;
+ 
+-    expect(poolAware).toBeTypeOf("function");
+-    expect(poolAware?.(inspection, poolA)).toBe(true);
+-    expect(poolAware?.(inspection, poolB)).toBe(false);
++    expect(
++      isMailDispatchRuntimeStartupInspectionForPool(inspection, poolA),
++    ).toBe(true);
++    expect(
++      isMailDispatchRuntimeStartupInspectionForPool(inspection, poolB),
++    ).toBe(false);
+     expect(isMailDispatchRuntimeStartupInspection(inspection)).toBe(true);
+   });
+@@ -191,8 +181,8 @@ describe("mail dispatch runtime startup inspection", () => {
+     [
+       "acquire timeout",
+-      { ...EXACT_POOL_OPTIONS, connectionTimeoutMillis: 4_999 },
++      { ...EXACT_POOL_OPTIONS, connectionTimeoutMillis: 1_999 },
+     ],
+     [
+       "acquire timeout",
+-      { ...EXACT_POOL_OPTIONS, connectionTimeoutMillis: 5_001 },
++      { ...EXACT_POOL_OPTIONS, connectionTimeoutMillis: 2_001 },
+     ],

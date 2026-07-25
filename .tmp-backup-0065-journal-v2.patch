@@ -1,0 +1,21 @@
+diff --git a/drizzle/meta/_journal.json b/drizzle/meta/_journal.json
+--- a/drizzle/meta/_journal.json
++++ b/drizzle/meta/_journal.json
+@@ -453,9 +453,16 @@
+     {
+       "idx": 64,
+       "version": "7",
+       "when": 1784932800000,
+       "tag": "0064_mail_outbox_dispatch_binding",
+       "breakpoints": true
+-    }
++    },
++    {
++      "idx": 65,
++      "version": "7",
++      "when": 1784936400000,
++      "tag": "0065_backup_status_mail_authority",
++      "breakpoints": true
++    }
+   ]
+ }

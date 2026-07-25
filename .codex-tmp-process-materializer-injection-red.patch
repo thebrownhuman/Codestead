@@ -1,0 +1,17 @@
+diff --git a/scripts/process-outbox.test.ts b/scripts/process-outbox.test.ts
+--- a/scripts/process-outbox.test.ts
++++ b/scripts/process-outbox.test.ts
+@@ -334,5 +334,8 @@ describe("mail worker production composition", () => {
+-    expect(mocks.materializeDeliveryVariables).toHaveBeenCalledWith({
+-      template: "reset-password",
+-      variables: { recoveryRequestId: "not-persisted-in-the-message" },
+-      now: expect.any(Date),
+-    });
++    expect(mocks.materializeDeliveryVariables).toHaveBeenCalledWith(
++      mocks.db,
++      {
++        template: "reset-password",
++        variables: { recoveryRequestId: "not-persisted-in-the-message" },
++        now: expect.any(Date),
++      },
++    );

@@ -1,0 +1,260 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -1570,6 +1570,204 @@
+       "the durable source must reject truncation even by its owner",
+     );
++
++    const reporterPid = (
++      await reporter.query("SELECT pg_backend_pid() pid")
++    ).rows[0].pid;
++    const setAdmin2RoleWithCanonicalLock = async (role) => {
++      await authorityWriter.query("BEGIN");
++      try {
++        await authorityWriter.query("SET LOCAL ROLE learncoding_owner");
++        await authorityWriter.query(
++          `SELECT pg_catalog.pg_advisory_xact_lock(
++             pg_catalog.hashtext(
++               'user-authority:admin-2'
++             )::pg_catalog.int8
++           )`,
++        );
++        const changed = await authorityWriter.query(
++          `UPDATE public."user"
++              SET role = $1
++            WHERE id = 'admin-2'`,
++          [role],
++        );
++        assert.equal(changed.rowCount, 1);
++        await authorityWriter.query("COMMIT");
++      } catch (error) {
++        await authorityWriter.query("ROLLBACK");
++        throw error;
++      }
++    };
++
++    const enqueueFirstRunKey = "20260101T000007Z";
++    let enqueueFirstReporterOpen = false;
++    let enqueueFirstWriterOpen = false;
++    let enqueueFirstPromotionOutcome;
++    let enqueueFirst;
++    const enqueueFirstGuardBefore = (
++      await admin.query(
++        `SELECT authority_epoch
++           FROM public.backup_status_mail_admin_guard
++          WHERE singleton IS TRUE`,
++      )
++    ).rows[0].authority_epoch;
++    try {
++      await reporter.query("BEGIN");
++      enqueueFirstReporterOpen = true;
++      enqueueFirst = await reporter.query(
++        "SELECT * FROM public.enqueue_backup_status_mail_authority($1, $2)",
++        [enqueueFirstRunKey, "success"],
++      );
++
++      await authorityWriter.query("BEGIN");
++      enqueueFirstWriterOpen = true;
++      await authorityWriter.query("SET LOCAL ROLE learncoding_owner");
++      await authorityWriter.query("SET LOCAL statement_timeout = '5s'");
++      await authorityWriter.query(
++        `SELECT pg_catalog.pg_advisory_xact_lock(
++           pg_catalog.hashtext(
++             'user-authority:admin-2'
++           )::pg_catalog.int8
++         )`,
++      );
++      enqueueFirstPromotionOutcome = authorityWriter.query(
++        `UPDATE public."user"
++            SET role = 'admin'
++          WHERE id = 'admin-2'`,
++      ).then(
++        (value) => ({ value }),
++        (error) => ({ error }),
++      );
++
++      let promotionWaitObserved = false;
++      let lastPromotionActivity;
++      for (let attempt = 0; attempt < 40; attempt += 1) {
++        const promotionActivity = await admin.query(
++          `SELECT state, wait_event_type, wait_event, query, usename,
++                  application_name,
++                  pg_catalog.pg_blocking_pids(pid) blocker_pids
++             FROM pg_catalog.pg_stat_activity
++            WHERE pid = $1`,
++          [authorityWriterPid],
++        );
++        lastPromotionActivity = promotionActivity.rows[0];
++        if (
++          Array.isArray(lastPromotionActivity?.blocker_pids)
++          && lastPromotionActivity.blocker_pids.length > 0
++        ) {
++          promotionWaitObserved = true;
++          break;
++        }
++        await delay(25);
++      }
++      assert.equal(
++        promotionWaitObserved,
++        true,
++        `different-user A2/U2 promotion must wait on enqueue-held G: ${JSON.stringify(lastPromotionActivity)}`,
++      );
++      assert.deepEqual(
++        lastPromotionActivity.blocker_pids.map(Number),
++        [Number(reporterPid)],
++      );
++      assert.equal(
++        lastPromotionActivity.application_name,
++        "codestead-backup-status-0065-authority-writer",
++      );
++      assert.equal(lastPromotionActivity.usename, "postgres");
++      assert.match(lastPromotionActivity.query, /UPDATE public\."user"/u);
++
++      await reporter.query("COMMIT");
++      enqueueFirstReporterOpen = false;
++      const promotion = await enqueueFirstPromotionOutcome;
++      if (promotion.error) throw promotion.error;
++      assert.equal(promotion.value.rowCount, 1);
++      await authorityWriter.query("COMMIT");
++      enqueueFirstWriterOpen = false;
++    } finally {
++      if (enqueueFirstReporterOpen) await reporter.query("ROLLBACK");
++      if (enqueueFirstPromotionOutcome) await enqueueFirstPromotionOutcome;
++      if (enqueueFirstWriterOpen) await authorityWriter.query("ROLLBACK");
++    }
++    const enqueueFirstGuardAfter = (
++      await admin.query(
++        `SELECT authority_epoch
++           FROM public.backup_status_mail_admin_guard
++          WHERE singleton IS TRUE`,
++      )
++    ).rows[0].authority_epoch;
++    assert.notEqual(enqueueFirstGuardAfter, enqueueFirstGuardBefore);
++    assert.equal(
++      (await worker.query(
++        "SELECT public.backup_status_mail_authorized($1) authorized",
++        [enqueueFirst.rows[0].outbox_id],
++      )).rows[0].authorized,
++      false,
++      "post-commit different-user promotion must revoke the enqueued source",
++    );
++    await setAdmin2RoleWithCanonicalLock("learner");
++
++    const rotationFirstRunKey = "20260101T000008Z";
++    let rotationFirstWriterOpen = false;
++    let rotationFirstEnqueueOutcome;
++    const rotationFirstGuardBefore = (
++      await admin.query(
++        `SELECT authority_epoch
++           FROM public.backup_status_mail_admin_guard
++          WHERE singleton IS TRUE`,
++      )
++    ).rows[0].authority_epoch;
++    try {
++      await authorityWriter.query("BEGIN");
++      rotationFirstWriterOpen = true;
++      await authorityWriter.query("SET LOCAL ROLE learncoding_owner");
++      await authorityWriter.query(
++        `SELECT pg_catalog.pg_advisory_xact_lock(
++           pg_catalog.hashtext(
++             'user-authority:admin-2'
++           )::pg_catalog.int8
++         )`,
++      );
++      const promoted = await authorityWriter.query(
++        `UPDATE public."user"
++            SET role = 'admin'
++          WHERE id = 'admin-2'`,
++      );
++      assert.equal(promoted.rowCount, 1);
++
++      rotationFirstEnqueueOutcome = reporter.query(
++        "SELECT * FROM public.enqueue_backup_status_mail_authority($1, $2)",
++        [rotationFirstRunKey, "failure"],
++      ).then(
++        (value) => ({ value }),
++        (error) => ({ error }),
++      );
++
++      let enqueueWaitObserved = false;
++      let lastEnqueueActivity;
++      for (let attempt = 0; attempt < 40; attempt += 1) {
++        const enqueueActivity = await admin.query(
++          `SELECT state, wait_event_type, wait_event, query, usename,
++                  application_name,
++                  pg_catalog.pg_blocking_pids(pid) blocker_pids
++             FROM pg_catalog.pg_stat_activity
++            WHERE pid = $1`,
++          [reporterPid],
++        );
++        lastEnqueueActivity = enqueueActivity.rows[0];
++        if (
++          Array.isArray(lastEnqueueActivity?.blocker_pids)
++          && lastEnqueueActivity.blocker_pids.length > 0
++        ) {
++          enqueueWaitObserved = true;
++          break;
++        }
++        await delay(25);
++      }
++      assert.equal(
++        enqueueWaitObserved,
++        true,
++        `rotation-first enqueue must wait on the writer-held G: ${JSON.stringify(lastEnqueueActivity)}`,
++      );
++      assert.deepEqual(
++        lastEnqueueActivity.blocker_pids.map(Number),
++        [Number(authorityWriterPid)],
++      );
++      assert.equal(
++        lastEnqueueActivity.application_name,
++        "codestead-backup-status-0065-reporter",
++      );
++      assert.equal(
++        lastEnqueueActivity.usename,
++        "learncoding_backup_reporter",
++      );
++      assert.match(
++        lastEnqueueActivity.query,
++        /enqueue_backup_status_mail_authority/iu,
++      );
++
++      await authorityWriter.query("COMMIT");
++      rotationFirstWriterOpen = false;
++      const enqueue = await rotationFirstEnqueueOutcome;
++      assert.equal(enqueue.value, undefined);
++      assert.equal(enqueue.error?.code, "23514");
++      assert.notEqual(enqueue.error?.code, "40P01");
++    } finally {
++      if (rotationFirstWriterOpen) await authorityWriter.query("ROLLBACK");
++      if (rotationFirstEnqueueOutcome) await rotationFirstEnqueueOutcome;
++    }
++    const rotationFirstGuardAfter = (
++      await admin.query(
++        `SELECT authority_epoch
++           FROM public.backup_status_mail_admin_guard
++          WHERE singleton IS TRUE`,
++      )
++    ).rows[0].authority_epoch;
++    assert.notEqual(rotationFirstGuardAfter, rotationFirstGuardBefore);
++    const rolledBackRotation = await admin.query(
++      `SELECT
++         (
++           SELECT pg_catalog.count(*)
++             FROM public.backup_status_mail_authority
++            WHERE run_key = $1
++         ) source_count,
++         (
++           SELECT pg_catalog.count(*)
++             FROM public.email_outbox
++            WHERE idempotency_key = 'backup-status:v1:' || $1
++         ) outbox_count`,
++      [rotationFirstRunKey],
++    );
++    assert.deepEqual(rolledBackRotation.rows, [{
++      source_count: "0",
++      outbox_count: "0",
++    }]);
++    await setAdmin2RoleWithCanonicalLock("learner");
+ 
+     for (const [client, sql, label] of [

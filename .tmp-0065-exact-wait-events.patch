@@ -1,0 +1,58 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+index 472ca8f..7d1756d 100644
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -1049,6 +1049,8 @@ async function main() {
+         "codestead-backup-status-0065-worker",
+       );
+       assert.equal(lastBoundaryActivity.usename, "learncoding_worker");
++      assert.equal(lastBoundaryActivity.wait_event_type, "Lock");
++      assert.equal(lastBoundaryActivity.wait_event, "transactionid");
+       assert.match(
+         lastBoundaryActivity.query,
+         /backup_status_mail_authorized/iu,
+@@ -1143,6 +1145,8 @@ async function main() {
+         "codestead-backup-status-0065-authority-writer",
+       );
+       assert.equal(lastWriterActivity.usename, "postgres");
++      assert.equal(lastWriterActivity.wait_event_type, "Lock");
++      assert.equal(lastWriterActivity.wait_event, "transactionid");
+       assert.match(lastWriterActivity.query, /UPDATE public\."user"/u);
+ 
+       boundaryOutcome = worker.query(
+@@ -1188,6 +1192,8 @@ async function main() {
+         "codestead-backup-status-0065-worker",
+       );
+       assert.equal(lastBoundaryActivity.usename, "learncoding_worker");
++      assert.equal(lastBoundaryActivity.wait_event_type, "Lock");
++      assert.equal(lastBoundaryActivity.wait_event, "advisory");
+       assert.match(
+         lastBoundaryActivity.query,
+         /backup_status_mail_authorized/iu,
+@@ -1294,6 +1300,8 @@ async function main() {
+         "codestead-backup-status-0065-worker",
+       );
+       assert.equal(lastBoundaryActivity.usename, "learncoding_worker");
++      assert.equal(lastBoundaryActivity.wait_event_type, "Lock");
++      assert.equal(lastBoundaryActivity.wait_event, "advisory");
+       assert.match(
+         lastBoundaryActivity.query,
+         /backup_status_mail_authorized/iu,
+@@ -1711,6 +1719,8 @@ async function main() {
+         "codestead-backup-status-0065-authority-writer",
+       );
+       assert.equal(lastPromotionActivity.usename, "postgres");
++      assert.equal(lastPromotionActivity.wait_event_type, "Lock");
++      assert.equal(lastPromotionActivity.wait_event, "transactionid");
+       assert.match(lastPromotionActivity.query, /UPDATE public\."user"/u);
+ 
+       await reporter.query("COMMIT");
+@@ -1820,6 +1830,8 @@ async function main() {
+         lastEnqueueActivity.usename,
+         "learncoding_backup_reporter",
+       );
++      assert.equal(lastEnqueueActivity.wait_event_type, "Lock");
++      assert.equal(lastEnqueueActivity.wait_event, "transactionid");
+       assert.match(
+         lastEnqueueActivity.query,
+         /enqueue_backup_status_mail_authority/iu,

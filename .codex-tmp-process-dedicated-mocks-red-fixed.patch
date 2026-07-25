@@ -1,0 +1,41 @@
+diff --git a/scripts/process-outbox.test.ts b/scripts/process-outbox.test.ts
+--- a/scripts/process-outbox.test.ts
++++ b/scripts/process-outbox.test.ts
+@@ -11,7 +11,8 @@ const mocks = vi.hoisted(() => {
+   const selectWhere = vi.fn(() => ({ orderBy: selectOrderBy }));
+   const selectFrom = vi.fn(() => ({ where: selectWhere }));
+   const select = vi.fn(() => ({ from: selectFrom }));
+ 
++  const database = { update, select };
+   const poolEnd = vi.fn(async () => undefined);
+   const poolQuery = vi.fn();
+   const pool = {
+@@ -18,5 +19,5 @@ const mocks = vi.hoisted(() => {
+     options: {
+       max: 3,
+-      connectionTimeoutMillis: 5_000,
++      connectionTimeoutMillis: 2_000,
+       idleTimeoutMillis: 30_000,
+     },
+@@ -23,7 +24,12 @@ const mocks = vi.hoisted(() => {
+     connect: vi.fn(),
+     end: poolEnd,
+     query: poolQuery,
+   };
++  const createMailDispatchDatabaseResources = vi.fn(() => ({
++    pool,
++    database,
++    configurationPlan: { kind: "issued-mail-plan" },
++  }));
+   const store = { kind: "postgres-outbox-store" };
+   const PostgresOutboxStore = vi.fn(function PostgresOutboxStore() {
+     return store;
+@@ -49,6 +55,7 @@ const mocks = vi.hoisted(() => {
+ 
+   return {
+-    db: { update, select },
++    db: database,
++    createMailDispatchDatabaseResources,
+     pool,
+     poolEnd,
+     poolQuery,

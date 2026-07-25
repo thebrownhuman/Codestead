@@ -1,0 +1,15 @@
+diff --git a/src/lib/notifications/smart-reminders.ts b/src/lib/notifications/smart-reminders.ts
+--- a/src/lib/notifications/smart-reminders.ts
++++ b/src/lib/notifications/smart-reminders.ts
+@@ -3 +3 @@
+-import { db, type Database } from "@/lib/db/client";
++import type { Database } from "@/lib/db/client";
+@@ -229,2 +229,8 @@
+   return database.transaction(async (tx) => {
++    await tx.execute(sql`
++      select set_config('lock_timeout', ${"2000ms"}, true),
++             set_config('statement_timeout', ${"5000ms"}, true),
++             set_config('transaction_timeout', ${"15000ms"}, true)
++    `);
++
+     // The scan is only a hint. Lock account and preference in canonical order,

@@ -1,0 +1,49 @@
+diff --git a/scripts/process-outbox.test.ts b/scripts/process-outbox.test.ts
+--- a/scripts/process-outbox.test.ts
++++ b/scripts/process-outbox.test.ts
+@@ -25,20 +25,7 @@ const mocks = vi.hoisted(() => {
+     end: poolEnd,
+     query: poolQuery,
+   };
+-  const createMailDispatchDatabaseResources = vi.fn(async () => {
+-    const startup = await vi.importActual(
+-      "../src/lib/notifications/mail-dispatch-runtime-startup",
+-    ) as {
+-      inspectMailDispatchRuntime(candidatePool: unknown): Promise<unknown>;
+-    };
+-    try {
+-      const inspection = await startup.inspectMailDispatchRuntime(pool);
+-      return { pool, database, inspection };
+-    } catch (error) {
+-      await poolEnd();
+-      throw error;
+-    }
+-  });
++  const createMailDispatchDatabaseResources = vi.fn();
+@@ -157,9 +144,23 @@ async function flushWorkerMicrotasks() {
+ }
+ 
+ describe("mail worker production composition", () => {
+-  beforeEach(() => {
++  beforeEach(async () => {
+     vi.resetModules();
+     vi.clearAllMocks();
++    const startup = await vi.importActual(
++      "../src/lib/notifications/mail-dispatch-runtime-startup",
++    ) as {
++      inspectMailDispatchRuntime(candidatePool: unknown): Promise<unknown>;
++    };
++    mocks.createMailDispatchDatabaseResources.mockImplementation(async () => {
++      try {
++        const inspection = await startup.inspectMailDispatchRuntime(
++          mocks.pool,
++        );
++        return { pool: mocks.pool, database: mocks.db, inspection };
++      } catch (error) {
++        await mocks.poolEnd();
++        throw error;
++      }
++    });
+     Object.assign(mocks.pool.options, {
+       max: 3,
+       connectionTimeoutMillis: 2_000,

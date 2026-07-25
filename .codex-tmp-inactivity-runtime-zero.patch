@@ -1,0 +1,26 @@
+diff --git a/src/lib/notifications/inactivity.ts b/src/lib/notifications/inactivity.ts
+--- a/src/lib/notifications/inactivity.ts
++++ b/src/lib/notifications/inactivity.ts
+@@ -5 +4,0 @@
+-import { pool } from "@/lib/db/client";
+@@ -231 +230 @@
+-  schedulerPool: SchedulerPool = pool,
++  schedulerPool?: SchedulerPool,
+@@ -234 +233,2 @@
+-  const client = await schedulerPool.connect();
++  const resolvedPool = schedulerPool ?? (await import("@/lib/db/client")).pool;
++  const client = await resolvedPool.connect();
+@@ -252 +252,5 @@
+-    await client.query("select pg_advisory_lock($1::bigint)", [SCHEDULER_ADVISORY_LOCK]);
++    const schedulerLock = await client.query<{ locked: boolean }>(
++      "select pg_try_advisory_lock($1::bigint) as locked",
++      [SCHEDULER_ADVISORY_LOCK],
++    );
++    if (schedulerLock.rows[0]?.locked !== true) return result;
+@@ -262,0 +267,6 @@
++        await client.query(
++          `select set_config('lock_timeout', $1, true),
++                  set_config('statement_timeout', $2, true),
++                  set_config('transaction_timeout', $3, true)`,
++          ["2000ms", "5000ms", "15000ms"],
++        );

@@ -1,0 +1,23 @@
+diff --git a/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts b/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
+--- a/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
++++ b/src/lib/notifications/__tests__/mail-dispatch-runtime-startup.test.ts
+@@ -81,8 +81,19 @@ describe("mail dispatch runtime startup inspection", () => {
+     });
+     expect(Object.isFrozen(inspection)).toBe(true);
+     expect(Object.isFrozen(inspection.plan)).toBe(true);
+     expect(isMailDispatchRuntimeStartupInspection(inspection)).toBe(true);
+   });
+ 
++  it("issues an exact two-second production pool acquire budget", async () => {
++    const inspection = await inspectMailDispatchRuntime(pool({
++      options: {
++        ...EXACT_POOL_OPTIONS,
++        connectionTimeoutMillis: 2_000,
++      },
++    }));
++
++    expect(inspection.plan.timeouts.poolAcquireMs).toBe(2_000);
++  });
++
+   it("does not reread ambient pool capacity after the startup gate", async () => {
+     let configuredMaximum = 3;

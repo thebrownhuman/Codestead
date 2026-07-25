@@ -1,0 +1,56 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -917,0 +918,52 @@
++    const epochBeforeRejectedIdChange = await guardEpoch();
++    for (const [query, label] of [
++      [
++        `UPDATE public."user"
++            SET id = 'renamed-admin-1'
++          WHERE id = 'admin-1'`,
++        "id-only administrator update",
++      ],
++      [
++        `UPDATE public."user"
++            SET id = 'renamed-admin-1',
++                email = 'renamed-admin@example.invalid'
++          WHERE id = 'admin-1'`,
++        "id-plus-email administrator update",
++      ],
++    ]) {
++      await expectCode(
++        () => asOwner(admin, query),
++        "23514",
++        `${label} must fail closed`,
++      );
++      assert.equal(
++        await guardEpoch(),
++        epochBeforeRejectedIdChange,
++        `${label} must not rotate the authority epoch`,
++      );
++    }
++    const retainedIdentity = await admin.query(
++      `SELECT candidate.user_id,
++              admin_recipient.id AS authority_id
++         FROM public.backup_status_mail_authority AS source
++         JOIN public.email_outbox AS candidate
++           ON candidate.id = source.outbox_id
++         JOIN public."user" AS admin_recipient
++           ON admin_recipient.id = candidate.user_id
++        WHERE source.outbox_id = $1`,
++      [outboxId],
++    );
++    assert.deepEqual(
++      retainedIdentity.rows,
++      [{ user_id: "admin-1", authority_id: "admin-1" }],
++      "rejected identifier changes must retain the bound source identity",
++    );
++    assert.equal(
++      (await worker.query(
++        "SELECT public.backup_status_mail_authorized($1) authorized",
++        [outboxId],
++      )).rows[0].authorized,
++      true,
++      "rejected identifier changes must retain provider authority",
++    );
++

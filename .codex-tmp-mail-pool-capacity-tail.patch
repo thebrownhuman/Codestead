@@ -1,0 +1,18 @@
+diff --git a/src/lib/notifications/__tests__/mail-dispatch-pool-capacity.test.ts b/src/lib/notifications/__tests__/mail-dispatch-pool-capacity.test.ts
+--- a/src/lib/notifications/__tests__/mail-dispatch-pool-capacity.test.ts
++++ b/src/lib/notifications/__tests__/mail-dispatch-pool-capacity.test.ts
+@@ -101,4 +101,13 @@ describe("dedicated mail pool capacity", () => {
+       await vi.advanceTimersByTimeAsync(1_999);
+       expect(fourthSettled).toBe(false);
+       expect(pool.waitingCount).toBe(1);
+ 
++      await vi.advanceTimersByTimeAsync(1);
++      await rejection;
++      expect(fourthSettled).toBe(true);
++      expect(pool.waitingCount).toBe(0);
++    } finally {
++      for (const { client } of holders) client.release();
++      await pool.end();
++    }
++  });
++});

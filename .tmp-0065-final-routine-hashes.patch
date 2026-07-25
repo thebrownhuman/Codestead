@@ -1,0 +1,39 @@
+diff --git a/scripts/verify-backup-status-mail-authority.mjs b/scripts/verify-backup-status-mail-authority.mjs
+--- a/scripts/verify-backup-status-mail-authority.mjs
++++ b/scripts/verify-backup-status-mail-authority.mjs
+@@ -235,9 +235,9 @@ export const BACKUP_STATUS_AUTHORITY_ROUTINES = Object.freeze([
+     configuration: ["search_path=pg_catalog"],
+     allowedRoles: [],
+     bodySha256:
+-      "7a1fff52745e58ac45f1840e88c437a59a7d669d25a86fa5fcf259959024efef",
++      "a4845a0422b75e638e24df4d53e89c3f2e0474b99ef859b1c962900ba8b81773",
+     definitionSha256:
+-      "f942cdda522f28a0cc8f6446c7ea7ff0615743363c9182e71e12179e425d8eef",
++      "6120ce0dd47b9b350ecaa6f2b7c31667071c04f8190218c4540f6b6627b80366",
+     argumentNames: [],
+     argumentModes: [],
+     argumentTypes: [],
+@@ -252,9 +252,9 @@ export const BACKUP_STATUS_AUTHORITY_ROUTINES = Object.freeze([
+     configuration: ["search_path=pg_catalog"],
+     allowedRoles: ["learncoding_backup_reporter"],
+     bodySha256:
+-      "62f209f2ccfd469078900bf87ed920f04869629aa67dad224694f50ca3da67ba",
++      "e2d042d4948b883aa3ee307b360fc386367a496f672c37a3ba278e93cc6e2aae",
+     definitionSha256:
+-      "b33f672d6be288af17835f24b831154a6f85f46d555d2822e38217f0506ae835",
++      "25e91d413020f5ef0d6965b32079b38fa9f26cd5b75fc7eedfb131080dd705b9",
+     argumentNames: [
+       "p_run_key",
+       "p_outcome",
+@@ -276,9 +276,9 @@ export const BACKUP_STATUS_AUTHORITY_ROUTINES = Object.freeze([
+     configuration: ["search_path=pg_catalog"],
+     allowedRoles: ["learncoding_worker"],
+     bodySha256:
+-      "a8acb4f84b1e72fa78a69e5334bfa695dc8256c523271b54150172d69e8ac227",
++      "c947fcc0d019174fcb76c39d61fa736bd552dd6f2eeae6f46cfc772aa4dc95ae",
+     definitionSha256:
+-      "0eaa1f83e8e83c241421a510c6a5c6c887536a92e031aad05ed0cb34ba32f813",
++      "bb7765a31c1e9e2796e554cb1445ddeba3f8ff078e210312486b817db1da4180",
+     argumentNames: ["p_candidate_outbox_id"],
+     argumentModes: [],
+     argumentTypes: ["uuid"],

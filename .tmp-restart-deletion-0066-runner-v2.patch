@@ -1,0 +1,76 @@
+diff --git a/scripts/run-integration-tests.ts b/scripts/run-integration-tests.ts
+--- a/scripts/run-integration-tests.ts
++++ b/scripts/run-integration-tests.ts
+@@ -1,4 +1,4 @@
+-import { randomBytes } from "node:crypto";
++import { createHash, randomBytes } from "node:crypto";
+ import { spawn } from "node:child_process";
+ import { readFile } from "node:fs/promises";
+ import path from "node:path";
+@@ -386,6 +386,58 @@ async function runDisposableIntegrationMigration(connectionString: string) {
+   });
+ }
+ 
++const PROVIDER_CORRELATION_FIXTURE_SHA256 =
++  "3d4962ed82c0209245ca7e0a0e9ea667001eab7ae864f89120894cc1fa915ec9";
++
++async function applyProviderCorrelationFixture(
++  connectionString: string,
++): Promise<void> {
++  const source = await readFile(
++    path.resolve(
++      process.cwd(),
++      "drizzle/0066_mail_outbox_provider_correlation_evidence.sql",
++    ),
++    "utf8",
++  );
++  const sha256 = createHash("sha256").update(source, "utf8").digest("hex");
++  if (sha256 !== PROVIDER_CORRELATION_FIXTURE_SHA256) {
++    throw new Error("Disposable provider correlation fixture digest mismatch.");
++  }
++  const statements = source
++    .split("--> statement-breakpoint")
++    .map((statement) => statement.trim())
++    .filter((statement) => statement.length > 0);
++  if (statements.length !== 14) {
++    throw new Error("Disposable provider correlation fixture shape mismatch.");
++  }
++
++  const fixturePool = new Pool({ connectionString, max: 1 });
++  const client = await fixturePool.connect();
++  let transactionOpen = false;
++  try {
++    await client.query("begin");
++    transactionOpen = true;
++    for (const statement of statements) {
++      await client.query(statement);
++    }
++    await client.query("commit");
++    transactionOpen = false;
++    console.info(JSON.stringify({
++      event: "integration.fixture",
++      phase: "provider-correlation-0066",
++      sha256,
++    }));
++  } catch {
++    if (transactionOpen) {
++      await client.query("rollback").catch(() => undefined);
++    }
++    throw new Error("Disposable provider correlation fixture failed.");
++  } finally {
++    client.release();
++    await fixturePool.end();
++  }
++}
++
+ async function waitForPostgres(
+   connectionString: string,
+   expectedMajor: number,
+@@ -567,6 +619,7 @@ async function main() {
+         }));
+       },
+     });
++    await applyProviderCorrelationFixture(ownerDatabaseUrl);
+ 
+     await runNpm([
+       "run",

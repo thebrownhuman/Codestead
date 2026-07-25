@@ -1,0 +1,15 @@
+diff --git a/src/lib/security/audit-writer.ts b/src/lib/security/audit-writer.ts
+--- a/src/lib/security/audit-writer.ts
++++ b/src/lib/security/audit-writer.ts
+@@ -4 +4 @@
+-import { db } from "@/lib/db/client";
++import type { Database } from "@/lib/db/client";
+@@ -21 +21,3 @@
+-export type AuditTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
++export type AuditTransaction = Parameters<
++  Parameters<Database["transaction"]>[0]
++>[0];
+@@ -72,2 +74,3 @@
+ export async function writeAuditEvent(input: AuditEventInput) {
++  const { db } = await import("@/lib/db/client");
+   return db.transaction((tx) => writeAuditEventInTransaction(tx, input));

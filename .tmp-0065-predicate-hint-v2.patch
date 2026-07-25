@@ -1,0 +1,69 @@
+diff --git a/drizzle/0065_backup_status_mail_authority.sql b/drizzle/0065_backup_status_mail_authority.sql
+--- a/drizzle/0065_backup_status_mail_authority.sql
++++ b/drizzle/0065_backup_status_mail_authority.sql
+@@ -553,49 +553,49 @@
+ DECLARE
+   authorized boolean := false;
+-  selected_admin_id text;
++  hinted_admin_id text;
+   selected_operation_id uuid;
+   current_authority_epoch uuid;
+ BEGIN
+   IF session_user <> 'learncoding_worker'
+      OR current_user <> 'learncoding_owner' THEN
+     RAISE EXCEPTION 'backup status mail predicate caller is not authorized'
+       USING ERRCODE = '42501';
+   END IF;
+   IF p_candidate_outbox_id IS NULL THEN
+     RETURN false;
+   END IF;
+ 
+   SELECT candidate.user_id, candidate.operation_id
+-    INTO selected_admin_id, selected_operation_id
++    INTO hinted_admin_id, selected_operation_id
+     FROM public.backup_status_mail_authority AS source
+     JOIN public.email_outbox AS candidate
+       ON candidate.id = source.outbox_id
+    WHERE candidate.id = p_candidate_outbox_id
+      AND source.outbox_id = candidate.id
+      AND source.operation_id = candidate.operation_id;
+-  IF NOT FOUND OR selected_admin_id IS NULL THEN
++  IF NOT FOUND OR hinted_admin_id IS NULL THEN
+     RETURN false;
+   END IF;
+ 
+   PERFORM pg_catalog.pg_advisory_xact_lock(
+     pg_catalog.hashtext(
+-      'user-authority:' || selected_admin_id
++      'user-authority:' || hinted_admin_id
+     )::pg_catalog.int8
+   );
+ 
+   PERFORM locked_recipient.id
+     FROM public."user" AS locked_recipient
+-   WHERE locked_recipient.id = selected_admin_id
++   WHERE locked_recipient.id = hinted_admin_id
+    FOR SHARE OF locked_recipient;
+   IF NOT FOUND THEN
+     RETURN false;
+   END IF;
+ 
+   PERFORM locked_candidate.id
+     FROM public.email_outbox AS locked_candidate
+    WHERE locked_candidate.id = p_candidate_outbox_id
+      AND locked_candidate.operation_id = selected_operation_id
+-     AND locked_candidate.user_id = selected_admin_id
++     AND locked_candidate.user_id = hinted_admin_id
+    FOR SHARE OF locked_candidate;
+   IF NOT FOUND THEN
+     RETURN false;
+@@ -630,9 +630,10 @@
+    WHERE candidate.id = p_candidate_outbox_id
+      AND source.outbox_id = candidate.id
+      AND source.operation_id = candidate.operation_id
+      AND source.authority_epoch = current_authority_epoch
+-     AND candidate.user_id = admin_recipient.id
++     AND candidate.user_id = hinted_admin_id
++     AND candidate.user_id = admin_recipient.id
+      AND candidate.delivery_scope_key =
+        'a:' || candidate.user_id

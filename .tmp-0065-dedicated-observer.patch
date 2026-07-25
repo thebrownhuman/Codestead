@@ -1,0 +1,35 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -261,0 +262 @@
++  let observer;
+@@ -323,0 +325,8 @@
++    observer = await connected(
++      clientConfig(
++        port,
++        "postgres",
++        "backup_status_0065",
++        "codestead-backup-status-0065-observer",
++      ),
++    );
+@@ -1074 +1083 @@
+-        const boundaryActivity = await admin.query(
++        const boundaryActivity = await observer.query(
+@@ -1178 +1187 @@
+-        const writerActivity = await admin.query(
++        const writerActivity = await observer.query(
+@@ -1227 +1236 @@
+-        const boundaryActivity = await admin.query(
++        const boundaryActivity = await observer.query(
+@@ -1336 +1345 @@
+-        const boundaryActivity = await admin.query(
++        const boundaryActivity = await observer.query(
+@@ -1757 +1766 @@
+-        const promotionActivity = await admin.query(
++        const promotionActivity = await observer.query(
+@@ -1864 +1873 @@
+-        const enqueueActivity = await admin.query(
++        const enqueueActivity = await observer.query(
+@@ -2024 +2033 @@
+-      [authorityWriter, app, worker, reporter, admin, bootstrap]
++      [authorityWriter, app, worker, reporter, observer, admin, bootstrap]

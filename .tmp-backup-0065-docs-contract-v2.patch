@@ -1,0 +1,67 @@
+diff --git a/docs/architecture.md b/docs/architecture.md
+--- a/docs/architecture.md
++++ b/docs/architecture.md
+@@ -267,7 +267,7 @@ Notifications are written transactionally to an outbox and delivered asynchrono
+ 
+-Security events, new-device revocation, credential changes, appeal updates, and backup failures use separate templates and priorities. Backups are never attached to email; email reports only backup identifier, status, size, checksum, and recovery-point count.
++Security events, new-device revocation, credential changes, appeal updates, and backup failures use separate templates and priorities. Backup email contains only a generic success/failure outcome. It never attaches or identifies an archive and includes no path, size, checksum, recovery-point count, provider detail, operational log, key, or learner data.
+ 
+ ### 6.11 Storage and quota
+diff --git a/docs/threat-model.md b/docs/threat-model.md
+--- a/docs/threat-model.md
++++ b/docs/threat-model.md
+@@ -197,7 +197,7 @@ Static analysis is the default. Repository checkout happens in a controlled sand
+ | TM-NOT-001 | Inactivity learner/admin email discloses sensitive progress or becomes surveillance/spam (I) | 12 | Versioned enrollment disclosure; generic learner/admin notices at 24h, one final learner notice at 72h, then silence until reactivation; deterministic idempotency; learner-local quiet hours; fresh-MFA/reason/audit-protected pause; no scores/mistakes/code/chat/provider details/keys/raw hours (`NOT-001`, `NOT-002`). | Template/privacy/boundary/concurrency/reactivation/real-Postgres tests. Residual Low. |
+ | TM-NOT-002 | Forged/replayed email links change account/security state (S/E) | 16 | Random single-use hashed token, short expiry, bind purpose/user, HTTPS, consume atomically, recent MFA for highly sensitive completion. | Replay/race/link-scanner tests. Residual Low/Medium. |
+-| TM-NOT-003 | Email backup attachment leaks the database (I) | 25 | Prohibit backup attachments; send status/checksum only; encrypted backup channels (`DAT-004`). | Template/job assertion. Residual Low. |
++| TM-NOT-003 | Email backup attachment or metadata leaks protected backup details (I) | 25 | Prohibit backup attachments and artifact metadata; send only a generic success/failure outcome with no identifier, path, size, checksum, recovery-point count, provider detail, log, key, or learner data; use encrypted backup channels (`DAT-004`). | Template/payload/job assertions and live authority tests. Residual Low. |
+ | TM-PRV-001 | â€œComplete RAGâ€ retains raw learner history indefinitely and defeats deletion (I) | 20 | Structured memory and summaries; category retention; embedding inventory; deletion cascade/tombstone; no secret/hidden asset indexing; explicit provider context (`SES-003`, `DAT-001`). | Data-lineage/delete test. Residual Medium pending exact policy. |
+diff --git a/docs/requirements-matrix.md b/docs/requirements-matrix.md
+--- a/docs/requirements-matrix.md
++++ b/docs/requirements-matrix.md
+@@ -144,7 +144,7 @@ Static analysis is the default. Repository checkout happens in a controlled sand
+ | NOT-002 | M | Send one separate generic admin-mentor notice with the first learner notice under a disclosed cohort policy. | Enrollment records policy acknowledgment; the admin gets at most one notice/episode; no score, mistakes, code, chat, provider detail, key, or raw hours; an admin can temporarily pause reminders with fresh MFA, reason and audit. | Template/privacy/disclosure/episode/pause tests. | CB / Approved |
+ | NOT-003 | M | Send security, appeal, credential and operational notifications separately. | New device, credential change, recovery, appeal status, backup failure use appropriate non-sensitive templates and dedupe. | Template/event mapping tests. | FND/CB / Baseline |
+-| NOT-004 | M | Use transactional email with SPF/DKIM/DMARC and durable outbox; never email backup archives. | Retry/bounce/suppression works; backups only send status/checksum; no archive/key attachment. | DNS/provider check; outbox fault tests; template scan. | FND / Baseline; provider Open |
++| NOT-004 | M | Use transactional email with SPF/DKIM/DMARC and durable outbox; never email backup archives or artifact metadata. | Retry/bounce/suppression works; backup mail sends only a generic success/failure outcome and contains no archive identifier/path, size, checksum, recovery-point count, provider detail, log, key, or learner data. | DNS/provider check; outbox fault tests; exact payload scan and live authority tests. | FND / Baseline; provider Open |
+ | DAT-001 | M | Apply category-specific long retention, export, deletion and backup-expiry behavior. | Policy covers progress, raw chat/code, official evidence, AI metadata, security/exam events, audit, notifications, temp objects and backups. | Retention-policy version and job report. | FND / Approved long retention; exact durations partly Open |
+diff --git a/scripts/__tests__/backup-reporter-role-contract.test.ts b/scripts/__tests__/backup-reporter-role-contract.test.ts
+--- a/scripts/__tests__/backup-reporter-role-contract.test.ts
++++ b/scripts/__tests__/backup-reporter-role-contract.test.ts
+@@ -20,6 +20,9 @@ const backupCommon = read("scripts/backup/common.sh");
+ const secrets = read("infra/secrets/README.md");
+ const runtimeValidator = read("infra/ops/validate-runtime.sh");
+ const restoreCompose = read("infra/restore/restore-drill.compose.yaml");
++const migration0065 = read(
++  "drizzle/0065_backup_status_mail_authority.sql",
++);
+ 
+ describe("dedicated backup-status reporter role contract", () => {
+@@ -186,6 +189,26 @@ describe("dedicated backup-status reporter role contract", () => {
+     ]) expect(service).toContain(entry);
+   });
+ 
++  it("binds backup email to a generic outcome without artifact metadata", () => {
++    const outboxInsert = migration0065.match(
++      /INSERT INTO public\.email_outbox[\s\S]*?\n  \);/u,
++    )?.[0] ?? "";
++    expect(outboxInsert).toMatch(
++      /pg_catalog\.jsonb_build_object\(\s*'name', 'Administrator',\s*'summary', fixed_summary\s*\)/u,
++    );
++    expect(outboxInsert).not.toMatch(
++      /'(?:archive|archive_id|backup_id|checksum|size|recovery_point_count|provider|log|key|learner|run_key)'\s*,/u,
++    );
++    expect(migration0065).toContain(
++      "No archive is attached to this email.",
++    );
++    expect(migration0065).toContain(
++      "no archive or log is attached to this email.",
++    );
++    expect(backupCommon).not.toMatch(
++      /BACKUP_REPORT_(?:ARCHIVE|CHECKSUM|SIZE|RECOVERY|PROVIDER|LOG|KEY|LEARNER)/u,
++    );
++  });
++
+   it("admits the reporter only as a required operations one-shot service", () => {
+     const knownServices = runtimeValidator.match(
+       /is_known_service\(\) \{[\s\S]*?\n\}/u,

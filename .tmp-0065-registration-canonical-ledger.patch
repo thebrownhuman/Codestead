@@ -1,0 +1,35 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065-registration.test.mjs b/infra/tests/backup-status-mail-authority-0065-registration.test.mjs
+--- a/infra/tests/backup-status-mail-authority-0065-registration.test.mjs
++++ b/infra/tests/backup-status-mail-authority-0065-registration.test.mjs
+@@ -33 +33 @@
+-    "3aedb0c34774e187fd853808e78584c64b8828d346a94fc7b817cfc6235fb6a7",
++    "d97e88fdb1819e9e4b186d13f07a13a2bc8004a01f9e80127633f99950519c2e",
+@@ -34,0 +35,2 @@
++const reviewedMigrationLedgerBefore0065 =
++  REVIEWED_MIGRATION_LEDGER.slice(0, -1);
+@@ -37 +39 @@
+-    REVIEWED_MIGRATION_LEDGER,
++    reviewedMigrationLedgerBefore0065,
+@@ -81 +83 @@
+-  "the canonical through-0064 ledger digest must verify before append",
++  "the canonical through-0065 ledger digest must verify",
+@@ -83 +85 @@
+-assert.equal(REVIEWED_MIGRATION_LEDGER.at(-1)?.idx, 64);
++assert.equal(REVIEWED_MIGRATION_LEDGER.at(-1)?.idx, 65);
+@@ -88,8 +90,8 @@
+-assert.match(
+-  reviewedMigrationLedgerSha256(reviewedMigrationLedgerThrough0065),
+-  /^[0-9a-f]{64}$/u,
+-);
+-assert.notEqual(
+-  reviewedMigrationLedgerSha256(reviewedMigrationLedgerThrough0065),
+-  REVIEWED_MIGRATION_LEDGER_SHA256,
+-);
++assert.deepEqual(
++  reviewedMigrationLedgerThrough0065,
++  REVIEWED_MIGRATION_LEDGER,
++);
++assert.equal(
++  reviewedMigrationLedgerSha256(reviewedMigrationLedgerThrough0065),
++  REVIEWED_MIGRATION_LEDGER_SHA256,
++);

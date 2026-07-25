@@ -1,0 +1,16 @@
+diff --git a/scripts/process-outbox.test.ts b/scripts/process-outbox.test.ts
+--- a/scripts/process-outbox.test.ts
++++ b/scripts/process-outbox.test.ts
+@@ -263,4 +263,12 @@ describe("mail worker production composition", () => {
+   it("runs the fenced state machine with a PostgreSQL store and stable process authority", async () => {
+     await loadWorkerOnce();
+ 
++    expect(mocks.createMailDispatchDatabaseResources).toHaveBeenCalledOnce();
++    expect(
++      mocks.createMailDispatchDatabaseResources.mock.calls[0]?.[0],
++    ).toMatchObject({
++      pool: { maximumConnections: 3 },
++      timeouts: { poolAcquireMs: 2_000, poolIdleMs: 30_000 },
++    });
++
+     expect(mocks.poolQuery).toHaveBeenCalledOnce();

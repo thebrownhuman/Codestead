@@ -1,0 +1,145 @@
+diff --git a/scripts/backup/enqueue-backup-status.mjs b/scripts/backup/enqueue-backup-status.mjs
+--- a/scripts/backup/enqueue-backup-status.mjs
++++ b/scripts/backup/enqueue-backup-status.mjs
+@@ -181,7 +181,6 @@ function createDeadlineTimer(dependencies, callback, timeoutMillis) {
+   const schedule = dependencies.setTimeout ?? setTimeout;
+   const timer = schedule(callback, timeoutMillis);
+-  timer?.unref?.();
+   return timer;
+ }
+ 
+@@ -191,14 +190,30 @@ async function runWithinDeadline(
+   timeoutMillis,
+   timeoutMessage,
+   dependencies,
++  options = {},
+ ) {
+   let timer;
++  let deadlineWon = false;
+   const actionPromise = Promise.resolve().then(action);
++  void actionPromise.then(
++    (value) => {
++      if (deadlineWon && options.onLateResolve) {
++        try {
++          void Promise.resolve(options.onLateResolve(value)).catch(() => {});
++        } catch {
++          // A cleanup failure cannot restore authority to the timed-out caller.
++        }
++      }
++    },
++    () => {
++      // Promise.race observes the primary rejection; this handler also
++      // consumes a rejection that arrives after the deadline won.
++    },
++  );
+   const timeoutPromise = new Promise((resolve, reject) => {
+     timer = createDeadlineTimer(
+       dependencies,
+-      () => reject(new Error(timeoutMessage)),
++      () => {
++        deadlineWon = true;
++        reject(new Error(timeoutMessage));
++      },
+       timeoutMillis,
+     );
+   });
+@@ -246,6 +261,13 @@ export async function enqueueBackupStatus(input, dependencies = {}) {
+       policy.connectionTimeoutMillis,
+       CONNECTION_TIMEOUT,
+       dependencies,
++      {
++        onLateResolve(lateClient) {
++          if (lateClient?.release) {
++            lateClient.release(true);
++          }
++        },
++      },
+     );
+     const result = await runWithinDeadline(
+       () => client.query(
+diff --git a/scripts/backup/enqueue-backup-status.test.mjs b/scripts/backup/enqueue-backup-status.test.mjs
+--- a/scripts/backup/enqueue-backup-status.test.mjs
++++ b/scripts/backup/enqueue-backup-status.test.mjs
+@@ -48,13 +48,10 @@ function immediateDeadlineDependencies() {
+     delays,
+     setTimeout(callback, delay) {
+       delays.push(delay);
+-      return {
+-        immediate: setImmediate(callback),
+-        unref() {},
+-      };
++      return setImmediate(callback);
+     },
+     clearTimeout(handle) {
+-      clearImmediate(handle.immediate);
++      clearImmediate(handle);
+     },
+   };
+ }
+@@ -313,11 +310,42 @@ test("a hung connection fails with a fixed deadline and bounded pool shutdown", {
+   assert.deepEqual(deadline.delays, [5000, 2000]);
+ });
+ 
++test("a connection acquired after timeout is destroyed without becoming usable", {
++  skip: implementation === null,
++}, async () => {
++  const deadline = immediateDeadlineDependencies();
++  const releases = [];
++  let resolveConnection;
++  let queryCalls = 0;
++  const action = implementation.enqueueBackupStatus(reporterInput(), {
++    ...deadline,
++    createPool: () => ({
++      connect() {
++        return new Promise((resolve) => {
++          resolveConnection = resolve;
++        });
++      },
++      async end() {},
++    }),
++  });
++  await assert.rejects(action, {
++    message: "backup status reporter connection timed out",
++  });
++  resolveConnection({
++    query() {
++      queryCalls += 1;
++    },
++    release(destroy) {
++      releases.push(destroy);
++    },
++  });
++  await new Promise((resolve) => setImmediate(resolve));
++  assert.equal(queryCalls, 0);
++  assert.deepEqual(releases, [true]);
++});
++
+ test("a hung query destroys its connection and fails with a fixed deadline", {
+   skip: implementation === null,
+ }, async () => {
+   const deadline = immediateDeadlineDependencies();
+   const releases = [];
++  let resolveQuery;
+   await assert.rejects(
+     implementation.enqueueBackupStatus(reporterInput(), {
+       ...deadline,
+@@ -326,7 +354,9 @@ test("a hung query destroys its connection and fails with a fixed deadline", {
+         async connect() {
+           return {
+             query() {
+-              return new Promise(() => {});
++              return new Promise((resolve) => {
++                resolveQuery = resolve;
++              });
+             },
+             release(destroy) {
+               releases.push(destroy);
+@@ -337,6 +367,9 @@ test("a hung query destroys its connection and fails with a fixed deadline", {
+     }),
+     { message: "backup status reporter query timed out" },
+   );
++  resolveQuery({ rowCount: 1, rows: [authorityRow] });
++  await new Promise((resolve) => setImmediate(resolve));
+   assert.deepEqual(releases, [true]);
+   assert.deepEqual(deadline.delays, [5000, 6000, 2000]);
+ });

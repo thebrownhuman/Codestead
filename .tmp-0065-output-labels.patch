@@ -1,0 +1,16 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+index 4c3606a..472ca8f 100644
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -1933,7 +1933,10 @@ async function main() {
+       "backup_status_mail_authority_0065=both_order_admin_lock:pass\n",
+     );
+     process.stdout.write(
+-      "backup_status_mail_authority_0065=deletion_boundary_both_orders:pass\n",
++      "backup_status_mail_authority_0065=deletion_boundary_sql_lock_orders:pass\n",
++    );
++    process.stdout.write(
++      "backup_status_mail_authority_0065=different_user_guard_orders:pass\n",
+     );
+     process.stdout.write(
+       "backup_status_mail_authority_0065=epoch_incarnation_and_catalog_tamper:pass\n",

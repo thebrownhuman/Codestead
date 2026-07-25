@@ -1,0 +1,13 @@
+diff --git a/src/lib/notifications/__tests__/outbox-dispatch-binding-migration.test.ts b/src/lib/notifications/__tests__/outbox-dispatch-binding-migration.test.ts
+--- a/src/lib/notifications/__tests__/outbox-dispatch-binding-migration.test.ts
++++ b/src/lib/notifications/__tests__/outbox-dispatch-binding-migration.test.ts
+@@ -275 +275 @@
+-    expect(harness).toContain("POSTGRES_BIN");
++    expect(harness).toContain("POSTGRES_18_BIN");
+@@ -276 +276 @@
+-    expect(harness).toContain("/^18$/u");
++    expect(harness).toContain("/^(?:17|18)$/u");
+@@ -278 +278,2 @@
+-    expect(harness).toContain("/^18[0-9]{4}$/u");
++    expect(harness).toContain("escapedPostgresMajor");
++    expect(harness).toContain("[0-9]{4}");

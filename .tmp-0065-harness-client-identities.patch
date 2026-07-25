@@ -1,0 +1,75 @@
+diff --git a/infra/tests/backup-status-mail-authority-0065.integration.mjs b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+--- a/infra/tests/backup-status-mail-authority-0065.integration.mjs
++++ b/infra/tests/backup-status-mail-authority-0065.integration.mjs
+@@ -174,7 +174,12 @@
+-function clientConfig(port, user, database = "backup_status_0065") {
++function clientConfig(
++  port,
++  user,
++  database = "backup_status_0065",
++  applicationName = "codestead-backup-status-0065-probe",
++) {
+   return {
+@@ -182,7 +187,7 @@
+     connectionTimeoutMillis: 5_000,
+     statement_timeout: 10_000,
+-    application_name: "codestead-backup-status-0065-proof",
++    application_name: applicationName,
+     ssl: false,
+@@ -293,7 +298,14 @@
+-    bootstrap = await connected(clientConfig(port, "postgres", "postgres"));
++    bootstrap = await connected(
++      clientConfig(
++        port,
++        "postgres",
++        "postgres",
++        "codestead-backup-status-0065-bootstrap",
++      ),
++    );
+@@ -304,7 +316,14 @@
+-    admin = await connected(clientConfig(port, "postgres"));
++    admin = await connected(
++      clientConfig(
++        port,
++        "postgres",
++        "backup_status_0065",
++        "codestead-backup-status-0065-admin",
++      ),
++    );
+@@ -649,9 +668,35 @@
+     reporter = await connected(
+-      clientConfig(port, "learncoding_backup_reporter"),
++      clientConfig(
++        port,
++        "learncoding_backup_reporter",
++        "backup_status_0065",
++        "codestead-backup-status-0065-reporter",
++      ),
++    );
++    worker = await connected(
++      clientConfig(
++        port,
++        "learncoding_worker",
++        "backup_status_0065",
++        "codestead-backup-status-0065-worker",
++      ),
++    );
++    app = await connected(
++      clientConfig(
++        port,
++        "learncoding_app",
++        "backup_status_0065",
++        "codestead-backup-status-0065-app",
++      ),
++    );
++    authorityWriter = await connected(
++      clientConfig(
++        port,
++        "postgres",
++        "backup_status_0065",
++        "codestead-backup-status-0065-authority-writer",
++      ),
+     );
+-    worker = await connected(clientConfig(port, "learncoding_worker"));
+-    app = await connected(clientConfig(port, "learncoding_app"));
+-    authorityWriter = await connected(clientConfig(port, "postgres"));

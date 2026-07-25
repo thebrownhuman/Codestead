@@ -1,0 +1,15 @@
+diff --git a/infra/tests/mail-retention-redaction-0063-registration.test.mjs b/infra/tests/mail-retention-redaction-0063-registration.test.mjs
+--- a/infra/tests/mail-retention-redaction-0063-registration.test.mjs
++++ b/infra/tests/mail-retention-redaction-0063-registration.test.mjs
+@@ -441,9 +441,9 @@ if (!staticOnly) {
+         "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
+       ].join("\n"),
+     ),
+-    "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-dispatch-binding-0064:pg18",
++    "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:backup-status-mail-authority-0065",
+     [
+-      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-dispatch-binding-0064:pg18",
++      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:backup-status-mail-authority-0065",
+       "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-0064",
+       "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-0065",
+       "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-restore",

@@ -1,0 +1,193 @@
+diff --git a/Dockerfile b/Dockerfile
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -94,6 +94,7 @@ COPY --chown=node:node content ./content
+ COPY --chown=node:node scripts/bootstrap-admin.ts ./scripts/bootstrap-admin.ts
+ COPY --chown=node:node scripts/bootstrap-database-roles.mjs ./scripts/bootstrap-database-roles.mjs
+ COPY --chown=node:node scripts/verify-database-role-boundaries.mjs ./scripts/verify-database-role-boundaries.mjs
++COPY --chown=node:node scripts/verify-backup-status-mail-authority.mjs ./scripts/verify-backup-status-mail-authority.mjs
+ COPY --chown=node:node scripts/backup/create-credential-probe.ts ./scripts/backup/create-credential-probe.ts
+ COPY --chown=node:node scripts/backup/enqueue-backup-status.mjs ./scripts/backup/enqueue-backup-status.mjs
+ COPY --chown=node:node scripts/lib/runner-power-rehearsal-cli.ts ./scripts/lib/runner-power-rehearsal-cli.ts
+diff --git a/compose.yaml b/compose.yaml
+--- a/compose.yaml
++++ b/compose.yaml
+@@ -168,6 +168,13 @@ services:
+     environment:
+       POSTGRES_DB: ${POSTGRES_DB:-learncoding}
+       DATABASE_BACKUP_REPORTER_URL_FILE: /run/secrets/database_backup_reporter_url
++      BACKUP_STATUS_REPORTER_CONNECTION_TIMEOUT_MS: "5000"
++      BACKUP_STATUS_REPORTER_QUERY_TIMEOUT_MS: "6000"
++      BACKUP_STATUS_REPORTER_STATEMENT_TIMEOUT_MS: "5000"
++      BACKUP_STATUS_REPORTER_LOCK_TIMEOUT_MS: "3000"
++      BACKUP_STATUS_REPORTER_IDLE_IN_TRANSACTION_TIMEOUT_MS: "5000"
++      BACKUP_STATUS_REPORTER_POOL_IDLE_TIMEOUT_MS: "2000"
++      BACKUP_STATUS_REPORTER_POOL_SHUTDOWN_TIMEOUT_MS: "2000"
+     secrets:
+       - source: database_backup_reporter_url
+         target: database_backup_reporter_url
+diff --git a/scripts/backup/common.sh b/scripts/backup/common.sh
+--- a/scripts/backup/common.sh
++++ b/scripts/backup/common.sh
+@@ -3,6 +3,7 @@ set -Eeuo pipefail
+ umask 077
+ 
+ readonly FULL_BACKUP_MAGIC="LEARNCODING_BACKUP_V1"
+ readonly EMERGENCY_BACKUP_MAGIC="LEARNCODING_EMERGENCY_V1"
++readonly BACKUP_STATUS_REPORT_DEADLINE_SECONDS="45"
+ 
+ log() {
+   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >&2
+@@ -314,6 +315,17 @@ compose_cmd() {
+   "${args[@]}" "$@"
+ }
+ 
++run_compose_managed() {
++  local allotted_seconds="${1:-}"
++  shift || return 125
++  local args=(docker compose)
++  if [[ -f "$COMPOSE_ENV_FILE" ]]; then
++    args+=(--env-file "$COMPOSE_ENV_FILE")
++  fi
++  args+=(-f "$REPO_ROOT/compose.yaml")
++  run_managed_backup_command "$allotted_seconds" "${args[@]}" "$@"
++}
++
+ emit_alert() {
+   local severity="$1" event="$2" message="$3"
+   log "alert severity=$severity event=$event message=$message"
+@@ -336,7 +348,8 @@ enqueue_backup_status() {
+     return 1
+   }
+ 
+-  if ! result="$(compose_cmd --profile operations run --rm --no-deps -T \
++  if ! result="$(run_compose_managed "$BACKUP_STATUS_REPORT_DEADLINE_SECONDS" \
++    --profile operations run --rm --no-deps -T \
+     --pull never \
+     --env "BACKUP_REPORT_OUTCOME=$outcome" \
+     --env "BACKUP_REPORT_RUN_KEY=$seed" \
+diff --git a/infra/tests/backup-config.test.sh b/infra/tests/backup-config.test.sh
+--- a/infra/tests/backup-config.test.sh
++++ b/infra/tests/backup-config.test.sh
+@@ -314,8 +314,12 @@ fi
+ 
+ compose_calls="$work/compose-calls"
++compose_deadlines="$work/compose-deadlines"
+ compose_result=queued
+-compose_cmd() {
++run_compose_managed() {
++  local deadline="$1"
++  shift
++  printf '%s\n' "$deadline" >>"$compose_deadlines"
+   printf '%s\n' "$@" >>"$compose_calls"
+   printf '%s\n' "$compose_result"
+ }
+@@ -340,6 +344,11 @@ compose_result=existing
+ enqueue_backup_status failure 20260712T120001Z
+ grep -Fq "BACKUP_REPORT_OUTCOME=failure" "$compose_calls"
+ grep -Fq "BACKUP_REPORT_RUN_KEY=20260712T120001Z" "$compose_calls"
++if grep -Evqx '45' "$compose_deadlines" \
++  || [[ "$(wc -l <"$compose_deadlines")" -ne 2 ]]; then
++  echo "backup status reporting did not use its fixed managed deadline" >&2
++  exit 1
++fi
+ 
+ compose_result=forged
+ if enqueue_backup_status success 20260712T120002Z >/dev/null 2>&1; then
+@@ -355,6 +364,10 @@ if enqueue_backup_status success ../unsafe >/dev/null 2>&1; then
+   exit 1
+ fi
+ 
++grep -Fq 'run_compose_managed "$BACKUP_STATUS_REPORT_DEADLINE_SECONDS"' \
++  "$repo_root/scripts/backup/common.sh"
++grep -Fq 'run_managed_backup_command "$allotted_seconds" "${args[@]}" "$@"' \
++  "$repo_root/scripts/backup/common.sh"
+ grep -Fq 'enqueue_backup_status failure "$timestamp"' "$repo_root/scripts/backup/backup.sh"
+ grep -Fq 'enqueue_backup_status success "$timestamp"' "$repo_root/scripts/backup/backup.sh"
+ 
+diff --git a/scripts/__tests__/backup-reporter-role-contract.test.ts b/scripts/__tests__/backup-reporter-role-contract.test.ts
+--- a/scripts/__tests__/backup-reporter-role-contract.test.ts
++++ b/scripts/__tests__/backup-reporter-role-contract.test.ts
+@@ -122,6 +122,9 @@ describe("dedicated backup-status reporter role contract", () => {
+     expect(dockerfile).toContain(
+       "scripts/backup/enqueue-backup-status.mjs ./scripts/backup/enqueue-backup-status.mjs",
+     );
++    expect(dockerfile).toContain(
++      "scripts/verify-backup-status-mail-authority.mjs ./scripts/verify-backup-status-mail-authority.mjs",
++    );
+     expect(entrypoint).toMatch(/DATABASE_BACKUP_REPORTER_URL\s*\\/u);
+     for (const [manifest, preflightName] of [
+       [compose, "database-negative-probes"],
+@@ -145,6 +148,34 @@ describe("dedicated backup-status reporter role contract", () => {
+     );
+   });
+ 
++  it("ships the complete backup-authority verifier import closure", () => {
++    const operationsStage = dockerfile.match(
++      /FROM worker AS operations[\s\S]*?(?=\nFROM worker AS regrade-worker)/u,
++    )?.[0] ?? "";
++    expect(bootstrap).toContain(
++      'from "./verify-backup-status-mail-authority.mjs"',
++    );
++    expect(boundaryVerifier).toContain(
++      'from "./verify-backup-status-mail-authority.mjs"',
++    );
++    expect(operationsStage).toContain(
++      "scripts/bootstrap-database-roles.mjs ./scripts/bootstrap-database-roles.mjs",
++    );
++    expect(operationsStage).toContain(
++      "scripts/verify-database-role-boundaries.mjs ./scripts/verify-database-role-boundaries.mjs",
++    );
++    expect(operationsStage).toContain(
++      "scripts/verify-backup-status-mail-authority.mjs ./scripts/verify-backup-status-mail-authority.mjs",
++    );
++  });
++
++  it("pins a finite ordered reporter policy in the one-shot service", () => {
++    const service = compose.match(
++      /  backup-status-reporter:[\s\S]*?(?=\n  [a-z][a-z0-9-]*:)/u,
++    )?.[0] ?? "";
++    for (const entry of [
++      'BACKUP_STATUS_REPORTER_CONNECTION_TIMEOUT_MS: "5000"',
++      'BACKUP_STATUS_REPORTER_QUERY_TIMEOUT_MS: "6000"',
++      'BACKUP_STATUS_REPORTER_STATEMENT_TIMEOUT_MS: "5000"',
++      'BACKUP_STATUS_REPORTER_LOCK_TIMEOUT_MS: "3000"',
++      'BACKUP_STATUS_REPORTER_IDLE_IN_TRANSACTION_TIMEOUT_MS: "5000"',
++      'BACKUP_STATUS_REPORTER_POOL_IDLE_TIMEOUT_MS: "2000"',
++      'BACKUP_STATUS_REPORTER_POOL_SHUTDOWN_TIMEOUT_MS: "2000"',
++    ]) expect(service).toContain(entry);
++  });
++
+   it("admits the reporter only as a required operations one-shot service", () => {
+     const knownServices = runtimeValidator.match(
+       /is_known_service\(\) \{[\s\S]*?\n\}/u,
+@@ -171,6 +202,13 @@ describe("dedicated backup-status reporter role contract", () => {
+       /enqueue_backup_status\(\) \{[\s\S]*?\n\}/u,
+     )?.[0] ?? "";
+     expect(functionSource).toContain("backup-status-reporter");
++    expect(functionSource).toContain(
++      'run_compose_managed "$BACKUP_STATUS_REPORT_DEADLINE_SECONDS"',
++    );
++    expect(backupCommon).toContain(
++      'readonly BACKUP_STATUS_REPORT_DEADLINE_SECONDS="45"',
++    );
++    expect(backupCommon).toContain(
++      'run_managed_backup_command "$allotted_seconds" "${args[@]}" "$@"',
++    );
+     expect(functionSource).toContain("BACKUP_REPORT_RUN_KEY");
+     expect(functionSource).toContain("BACKUP_REPORT_OUTCOME");
+     expect(functionSource).not.toContain("POSTGRES_USER");
+diff --git a/infra/tests/validate-static.mjs b/infra/tests/validate-static.mjs
+--- a/infra/tests/validate-static.mjs
++++ b/infra/tests/validate-static.mjs
+@@ -582,6 +582,9 @@ expect(
+     /COPY --chown=node:node content \.\/content/.test(operationsStage) &&
+     /COPY --chown=node:node scripts\/bootstrap-admin\.ts \.\/scripts\/bootstrap-admin\.ts/.test(operationsStage) &&
+     /COPY --chown=node:node scripts\/seed-platform\.ts \.\/scripts\/seed-platform\.ts/.test(operationsStage) &&
++    /COPY --chown=node:node scripts\/bootstrap-database-roles\.mjs \.\/scripts\/bootstrap-database-roles\.mjs/.test(operationsStage) &&
++    /COPY --chown=node:node scripts\/verify-database-role-boundaries\.mjs \.\/scripts\/verify-database-role-boundaries\.mjs/.test(operationsStage) &&
++    /COPY --chown=node:node scripts\/verify-backup-status-mail-authority\.mjs \.\/scripts\/verify-backup-status-mail-authority\.mjs/.test(operationsStage) &&
+     /CMD \["node", "--import", "tsx", "\/app\/scripts\/seed-platform\.ts"\]/.test(operationsStage),
+-  "operations image must include curriculum content plus the bootstrap and seed scripts",
++  "operations image must include curriculum content plus the bootstrap, verifier import closure, and seed scripts",
+ );
