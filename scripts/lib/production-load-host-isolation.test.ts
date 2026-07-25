@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { buildProductionLoadSeedPlan } from "../../src/lib/performance/load-report";
 import {
+  USER_AUTHORITY_ADVISORY_LOCK_SQL,
+  userAuthorityLockKey,
+} from "../../src/lib/security/user-authority-lock";
+import {
   createGuardedProductionLoadSystemAdapter,
   createProductionLoadHost,
   type ProductionLoadDatabase,
@@ -129,9 +133,14 @@ describe("production load project isolation guard", () => {
 
 function collisionDatabase(existing: { id: string; email: string }[] = []) {
   const statements: string[] = [];
+  const calls: Array<Readonly<{
+    text: string;
+    values: readonly unknown[];
+  }>> = [];
   const session: ProductionLoadDatabaseSession = {
-    async query<T>(text: string) {
+    async query<T>(text: string, values: readonly unknown[] = []) {
       statements.push(text);
+      calls.push({ text, values });
       if (text.includes("production_load_namespace")) return { rows: existing as T[] };
       return { rows: [] as T[] };
     },
@@ -150,10 +159,59 @@ function collisionDatabase(existing: { id: string; email: string }[] = []) {
       }
     },
   };
-  return { database, statements };
+  return { calls, database, statements };
 }
 
 describe("production load seed namespace", () => {
+  it("locks every synthetic learner authority in code-point order before reading or mutating users", async () => {
+    const plan = buildProductionLoadSeedPlan();
+    const { calls, database } = collisionDatabase();
+    let tokenSequence = 0;
+    const host = createProductionLoadHost({
+      project: "learncoding",
+      runnerVmId: VM_ID,
+      database,
+      system: createGuardedProductionLoadSystemAdapter({
+        expectedProject: "learncoding",
+        expectedRunnerVmId: VM_ID,
+        expectedUnrelatedInventorySha256: INVENTORY,
+        backend: backend(),
+      }),
+      signSessionToken: async () => "signature",
+      randomSessionToken: () => {
+        tokenSequence += 1;
+        return String(tokenSequence).padStart(8, "0") + "x".repeat(64);
+      },
+    });
+
+    await expect(host.handle("seed", plan)).resolves.toMatchObject({
+      sessions: expect.any(Array),
+    });
+
+    const expectedLearnerIds = [...new Set(
+      plan.learners.map((learner) => learner.id),
+    )].sort();
+    expect(calls[0]).toEqual({
+      text: "select pg_advisory_xact_lock($1::bigint)",
+      values: ["6081241526994772101"],
+    });
+    expect(calls.slice(1, expectedLearnerIds.length + 1)).toEqual(
+      expectedLearnerIds.map((learnerId) => ({
+        text: USER_AUTHORITY_ADVISORY_LOCK_SQL,
+        values: [userAuthorityLockKey(learnerId)],
+      })),
+    );
+
+    const firstUserAccess = calls.findIndex(({ text }) =>
+      /(?:from|into)\s+"user"(?:\s|\()|delete\s+from\s+"user"(?:\s|\()/iu
+        .test(text),
+    );
+    expect(firstUserAccess).toBe(expectedLearnerIds.length + 1);
+    expect(calls.slice(firstUserAccess + 1)).not.toContainEqual(
+      expect.objectContaining({ text: USER_AUTHORITY_ADVISORY_LOCK_SQL }),
+    );
+  });
+
   it("refuses an existing identity whose id/email pair is outside the exact synthetic namespace before deletion", async () => {
     const plan = buildProductionLoadSeedPlan();
     const { database, statements } = collisionDatabase([{
