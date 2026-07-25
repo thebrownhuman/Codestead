@@ -5,7 +5,8 @@ import { pool } from "../src/lib/db/client";
 import { materializeDeliveryVariables } from "../src/lib/notifications/delivery-variables";
 import { scheduleInactivityReminders } from "../src/lib/notifications/inactivity";
 import {
-  requireMailDispatchPostgresRuntime,
+  inspectMailDispatchRuntime,
+  type MailDispatchRuntimeStartupInspection,
 } from "../src/lib/notifications/mail-dispatch-runtime-startup";
 import {
   classifyMailDeliveryError,
@@ -32,7 +33,6 @@ import { createWorkerHealthReporter } from "./lib/worker-health";
 
 const BATCH_SIZE = 10;
 const MATERIALIZE_LEASE_MS = 60_000;
-const PROVIDER_LEASE_MS = 300_000;
 const MAX_MATERIALIZE_ATTEMPTS = 8;
 const MAX_RETRY_DELAY_MS = 6 * 60 * 60_000;
 const TERMINAL_PERSISTENCE_ATTEMPTS = 3;
@@ -182,6 +182,7 @@ function retryMaterialization(input: {
 async function processBatch(
   store: PostgresOutboxStore,
   adapter: "console" | "gmail",
+  runtimeInspection: MailDispatchRuntimeStartupInspection,
 ) {
   return processOutboxBatch<EmailOutboxPayload, OutgoingEmail>({
     store,
@@ -250,7 +251,8 @@ async function processBatch(
     policy: {
       batchSize: BATCH_SIZE,
       materializeLeaseMs: MATERIALIZE_LEASE_MS,
-      providerLeaseMs: PROVIDER_LEASE_MS,
+      providerLeaseMs:
+        runtimeInspection.plan.providerLease.postCommitProviderLeaseMs,
       maxMaterializeAttempts: MAX_MATERIALIZE_ATTEMPTS,
       maxRetryDelayMs: MAX_RETRY_DELAY_MS,
       terminalPersistenceAttempts: TERMINAL_PERSISTENCE_ATTEMPTS,
@@ -345,7 +347,7 @@ async function main() {
     );
   }
   const adapter = configuredAdapter();
-  await requireMailDispatchPostgresRuntime(pool);
+  const runtimeInspection = await inspectMailDispatchRuntime(pool);
   const store = new PostgresOutboxStore(pool);
   const once = process.argv.includes("--once");
   healthReporter = createWorkerHealthReporter({ worker: "mail-worker" });
@@ -374,7 +376,11 @@ async function main() {
       );
     }
     if (stopping) break;
-    const result = await processBatch(store, adapter);
+    const result = await processBatch(
+      store,
+      adapter,
+      runtimeInspection,
+    );
     console.info(JSON.stringify(batchLog(result)));
     healthReporter.success();
     if (once || stopping) break;

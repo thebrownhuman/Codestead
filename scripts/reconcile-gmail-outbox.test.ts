@@ -12,7 +12,15 @@ const RAW_MIME_LOG_CANARY =
 
 
 const mocks = vi.hoisted(() => {
-  const pool = { connect: vi.fn(), end: vi.fn(async () => undefined) };
+  const pool = {
+    options: {
+      max: 1,
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 30_000,
+    },
+    connect: vi.fn(),
+    end: vi.fn(async () => undefined),
+  };
   const store = { kind: "gmail-reconciliation-store" };
   const PostgresOutboxStore = vi.fn(function PostgresOutboxStore() {
     return store;
@@ -45,6 +53,11 @@ describe("Gmail reconciliation operator command", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    Object.assign(mocks.pool.options, {
+      max: 1,
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 30_000,
+    });
     vi.stubEnv("MAIL_ADAPTER", "gmail");
     vi.stubEnv("GMAIL_RECONCILIATION_ENABLED", "true");
     vi.stubEnv("GMAIL_OAUTH_SCOPES", `${SEND_SCOPE} ${VALID_READ_SCOPE}`);
@@ -91,6 +104,38 @@ describe("Gmail reconciliation operator command", () => {
       if (scopes) expect(logs.join(" ")).not.toContain(scopes);
     },
   );
+
+  it.each([
+    ["maximum", { max: 2 }],
+    ["acquire timeout", { connectionTimeoutMillis: 4_999 }],
+    ["idle timeout", { idleTimeoutMillis: 29_999 }],
+  ])("fails closed before database or Gmail access when the pool %s drifts", async (
+    _label,
+    drift,
+  ) => {
+    Object.assign(mocks.pool.options, drift);
+    process.argv = [
+      originalArgv[0]!,
+      originalArgv[1]!,
+      "--operation-id",
+      OPERATION_ID,
+    ];
+
+    await import("./reconcile-gmail-outbox");
+    await vi.waitFor(() => expect(mocks.pool.end).toHaveBeenCalledOnce());
+
+    expect(mocks.PostgresOutboxStore).not.toHaveBeenCalled();
+    expect(mocks.reconcileGmailDelivery).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
+    const logs = vi.mocked(console.error).mock.calls
+      .map(([entry]) => String(entry));
+    expect(logs).toEqual([
+      JSON.stringify({
+        event: "email.gmail_reconciliation_failed",
+        code: "GMAIL_RECONCILIATION_POOL_INVALID",
+      }),
+    ]);
+  });
 
   it("never logs UUID, base64url, provider, recipient, or MIME fields from a failure", async () => {
     const failure = Object.assign(new Error(

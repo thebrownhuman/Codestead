@@ -9,6 +9,8 @@ sends mail.
 - Use the production database role and environment used by the mail worker.
 - Set `MAIL_ADAPTER=gmail` and explicitly set
   `GMAIL_RECONCILIATION_ENABLED=true` for the operator session.
+- Pin the isolated operator process to exactly one database connection with
+  `DATABASE_POOL_SIZE=1`; startup rejects every other pool configuration.
 - Set the non-secret `GMAIL_OAUTH_SCOPES` declaration to the exact comma- or
   space-separated scopes granted to the Gmail refresh token. Operator startup
   validates this contract before opening the database or calling Gmail.
@@ -28,7 +30,7 @@ sends mail.
 ## Inspect without mutation
 
 ```text
-docker compose run --rm --no-deps -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx /app/scripts/reconcile-gmail-outbox.ts --operation-id <operation-uuid>
+docker compose run --rm --no-deps -e DATABASE_POOL_SIZE=1 -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx /app/scripts/reconcile-gmail-outbox.ts --operation-id <operation-uuid>
 ```
 
 The command first verifies the exact quarantined database fence. It then runs
@@ -46,7 +48,7 @@ quarantined and must never trigger a resend.
 Repeat the same operation ID as an explicit mutation confirmation:
 
 ```text
-docker compose run --rm --no-deps -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx /app/scripts/reconcile-gmail-outbox.ts --operation-id <operation-uuid> --apply --confirm-operation-id <same-operation-uuid>
+docker compose run --rm --no-deps -e DATABASE_POOL_SIZE=1 -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx /app/scripts/reconcile-gmail-outbox.ts --operation-id <operation-uuid> --apply --confirm-operation-id <same-operation-uuid>
 ```
 
 The final update reacquires the same account/system delivery-scope advisory

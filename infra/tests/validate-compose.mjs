@@ -10,6 +10,14 @@ const mailDispatchRuntimePolicy = readFileSync(
   path.join(root, "src/lib/notifications/mail-dispatch-runtime-policy.ts"),
   "utf8",
 );
+const mailDispatchRuntimeStartup = readFileSync(
+  path.join(root, "src/lib/notifications/mail-dispatch-runtime-startup.ts"),
+  "utf8",
+);
+const gmailReconciliationCommand = readFileSync(
+  path.join(root, "scripts/reconcile-gmail-outbox.ts"),
+  "utf8",
+);
 const failures = [];
 
 const expect = (condition, message) => {
@@ -33,6 +41,16 @@ const policyInteger = (body, name) => {
   return source === undefined
     ? Number.NaN
     : Number(source.replaceAll("_", ""));
+};
+
+const sourceInteger = (source, name) => {
+  const matched = new RegExp(
+    `^(?:export\\s+)?const\\s+${name}\\s*=\\s*([0-9][0-9_]*);\\s*$`,
+    "mu",
+  ).exec(source)?.[1];
+  return matched === undefined
+    ? Number.NaN
+    : Number(matched.replaceAll("_", ""));
 };
 
 const pilotServices = [
@@ -73,6 +91,44 @@ const databaseMutatingServices = [
   "scan-worker",
   "file-erasure-worker",
 ];
+
+const otherProcessPoolServices = [
+  "app",
+  "exam-finalization-worker",
+  "file-erasure-worker",
+  "practice-runner-recovery-worker",
+  "project-review-correction-worker",
+  "regrade-worker",
+  "reward-worker",
+  "scan-worker",
+];
+const expectedOtherProcessPoolConnections = {
+  pilot: 70,
+  operations: 70,
+  uploads: 80,
+  combined: 80,
+};
+const runtimeDefaults = policyObjectBody("MAIL_DISPATCH_RUNTIME_DEFAULTS");
+const mailDispatchPoolMaximumConnections = sourceInteger(
+  mailDispatchRuntimeStartup,
+  "MAIL_DISPATCH_POOL_MAXIMUM_CONNECTIONS",
+);
+const gmailReconciliationPoolMaximumConnections = sourceInteger(
+  gmailReconciliationCommand,
+  "GMAIL_RECONCILIATION_POOL_MAXIMUM_CONNECTIONS",
+);
+const policyOtherProcessMaximumConnections = policyInteger(
+  runtimeDefaults,
+  "otherProcessPoolMaximumConnections",
+);
+const policyAdminReservedConnections = policyInteger(
+  runtimeDefaults,
+  "serverAdminReserveConnections",
+);
+const policyGmailReconciliationReserveConnections = policyInteger(
+  runtimeDefaults,
+  "gmailReconciliationServerReserveConnections",
+);
 
 const applicationImages = {
   APP_RUNTIME_IMAGE: `ghcr.io/thebrownhuman/compose-validator-runtime@sha256:${"1".repeat(64)}`,
@@ -166,6 +222,53 @@ for (const [modelName, config] of Object.entries(models)) {
     config.services?.["mail-worker"]?.environment?.OUTBOX_WORKER_MODE === "fenced-postgres-v1",
     `${modelName} mail worker must render the exact fenced claimant`,
   );
+  const mailPoolMaximumConnections = Number(
+    config.services?.["mail-worker"]?.environment?.DATABASE_POOL_SIZE,
+  );
+  expect(
+    mailPoolMaximumConnections === mailDispatchPoolMaximumConnections
+      && mailPoolMaximumConnections === 3,
+    `${modelName} mail worker pool maximum must be exactly three`,
+  );
+  let otherProcessPoolConnections = 0;
+  for (const name of otherProcessPoolServices) {
+    const service = config.services?.[name];
+    if (!service) continue;
+    const maximumConnections = Number(service.environment?.DATABASE_POOL_SIZE);
+    expect(
+      maximumConnections === 10,
+      `${modelName} ${name} pool maximum must be exactly ten`,
+    );
+    otherProcessPoolConnections += maximumConnections;
+  }
+  expect(
+    otherProcessPoolConnections
+      === expectedOtherProcessPoolConnections[modelName],
+    `${modelName} other-process pool projection drifted`,
+  );
+  expect(
+    otherProcessPoolConnections <= policyOtherProcessMaximumConnections,
+    `${modelName} other-process pool projection exceeds policy`,
+  );
+  if (modelName === "combined") {
+    const projectedRequiredServerConnections =
+      otherProcessPoolConnections
+      + mailPoolMaximumConnections
+      + gmailReconciliationPoolMaximumConnections
+      + policyAdminReservedConnections;
+    expect(
+      gmailReconciliationPoolMaximumConnections
+        === policyGmailReconciliationReserveConnections,
+      "Gmail reconciliation pool must exactly consume its one-connection reserve",
+    );
+    expect(
+      otherProcessPoolConnections === policyOtherProcessMaximumConnections
+        && projectedRequiredServerConnections === 87
+        && 87 - projectedRequiredServerConnections === 0
+        && 86 - projectedRequiredServerConnections < 0,
+      "combined profile must require exactly 87 connections and reject 86",
+    );
+  }
   for (const [name, service] of Object.entries(config.services ?? {})) {
     const consumesSecrets = (service.secrets?.length ?? 0) > 0;
     const expectedGroups = consumesSecrets ? ["2000"] : [];

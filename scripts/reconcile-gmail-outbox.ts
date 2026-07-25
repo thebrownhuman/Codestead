@@ -9,6 +9,8 @@ import {
   allowlistedOperationalErrorCode,
 } from "../src/lib/security/operational-code";
 
+export const GMAIL_RECONCILIATION_POOL_MAXIMUM_CONNECTIONS = 1;
+
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const GMAIL_RECONCILIATION_ERROR_CODE_VALUES = [
@@ -17,6 +19,7 @@ const GMAIL_RECONCILIATION_ERROR_CODE_VALUES = [
   "GMAIL_RECONCILIATION_FAILED",
   "GMAIL_RECONCILIATION_INPUT_INVALID",
   "GMAIL_RECONCILIATION_OAUTH_SCOPE_INVALID",
+  "GMAIL_RECONCILIATION_POOL_INVALID",
   "GMAIL_RECONCILIATION_POOL_CLOSE_FAILED",
 ] as const;
 type GmailReconciliationErrorCode =
@@ -44,6 +47,20 @@ function reconciliationErrorCode(error: unknown) {
     error,
     GMAIL_RECONCILIATION_ERROR_CODES,
   ) ?? "GMAIL_RECONCILIATION_FAILED";
+}
+
+function hasExactReconciliationPoolOptions(): boolean {
+  try {
+    const options = pool.options;
+    return (
+      options?.max
+        === GMAIL_RECONCILIATION_POOL_MAXIMUM_CONNECTIONS
+      && options.connectionTimeoutMillis === 5_000
+      && options.idleTimeoutMillis === 30_000
+    );
+  } catch {
+    return false;
+  }
 }
 
 function commandInput(args: readonly string[]) {
@@ -113,6 +130,9 @@ async function main() {
     failReconciliation("GMAIL_RECONCILIATION_OAUTH_SCOPE_INVALID");
   }
   const input = commandInput(process.argv.slice(2));
+  if (!hasExactReconciliationPoolOptions()) {
+    failReconciliation("GMAIL_RECONCILIATION_POOL_INVALID");
+  }
   const store = new PostgresOutboxStore(pool);
   const result = await reconcileGmailDelivery(input, {
     store,

@@ -245,6 +245,7 @@ services:
       NEXT_PUBLIC_APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
       SOURCE_CODE_URL: ${SOURCE_CODE_URL:?Set SOURCE_CODE_URL to this deployment's corresponding source}
       DATABASE_URL_FILE: /run/secrets/database_url
+      DATABASE_POOL_SIZE: "10"
       BETTER_AUTH_SECRET_FILE: /run/secrets/better_auth_secret
       LOST_DEVICE_PROOF_KEY_FILE: /run/secrets/lost_device_proof_key
       DELETION_TOMBSTONE_KEY_FILE: /run/secrets/deletion_tombstone_key
@@ -352,6 +353,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
+      DATABASE_POOL_SIZE: "3"
       DELETION_TOMBSTONE_KEY_FILE: /run/secrets/deletion_tombstone_key
       LOST_DEVICE_PROOF_KEY_FILE: /run/secrets/lost_device_proof_key
       REQUIRE_DELETION_TOMBSTONE_KEY: "1"
@@ -413,6 +415,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
+      DATABASE_POOL_SIZE: "10"
       REWARD_POLL_SECONDS: ${REWARD_POLL_SECONDS:-5}
       REWARD_BATCH_SIZE: ${REWARD_BATCH_SIZE:-20}
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -454,6 +457,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
+      DATABASE_POOL_SIZE: "10"
       APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
       RUNNER_BASE_URL: http://runner-egress-gateway:4100
       RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
@@ -503,6 +507,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
+      DATABASE_POOL_SIZE: "10"
       APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
       RUNNER_BASE_URL: http://runner-egress-gateway:4100
       RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
@@ -552,6 +557,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
+      DATABASE_POOL_SIZE: "10"
       RUNNER_BASE_URL: http://runner-egress-gateway:4100
       RUNNER_SHARED_SECRET_FILE: /run/secrets/runner_shared_secret
       PRACTICE_RECOVERY_POLL_SECONDS: ${PRACTICE_RECOVERY_POLL_SECONDS:-5}
@@ -599,6 +605,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
+      DATABASE_POOL_SIZE: "10"
       PROJECT_REVIEW_CORRECTION_POLL_SECONDS: ${PROJECT_REVIEW_CORRECTION_POLL_SECONDS:-10}
       PROJECT_REVIEW_CORRECTION_BATCH_SIZE: ${PROJECT_REVIEW_CORRECTION_BATCH_SIZE:-2}
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -688,6 +695,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
+      DATABASE_POOL_SIZE: "10"
       OBJECT_STORAGE_PATH: /var/lib/learncoding/objects
       UPLOADS_ENABLED: "true"
       CLAMD_HOST: clamav
@@ -749,6 +757,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL_FILE: /run/secrets/database_url
+      DATABASE_POOL_SIZE: "10"
       OBJECT_STORAGE_PATH: /var/lib/learncoding/objects
       FILE_ERASURE_POLL_SECONDS: ${FILE_ERASURE_POLL_SECONDS:-10}
       FILE_ERASURE_BATCH_SIZE: ${FILE_ERASURE_BATCH_SIZE:-25}

@@ -14,7 +14,16 @@ const mocks = vi.hoisted(() => {
 
   const poolEnd = vi.fn(async () => undefined);
   const poolQuery = vi.fn();
-  const pool = { connect: vi.fn(), end: poolEnd, query: poolQuery };
+  const pool = {
+    options: {
+      max: 3,
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 30_000,
+    },
+    connect: vi.fn(),
+    end: poolEnd,
+    query: poolQuery,
+  };
   const store = { kind: "postgres-outbox-store" };
   const PostgresOutboxStore = vi.fn(function PostgresOutboxStore() {
     return store;
@@ -130,6 +139,11 @@ describe("mail worker production composition", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    Object.assign(mocks.pool.options, {
+      max: 3,
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 30_000,
+    });
     vi.stubEnv("MAIL_ADAPTER", "console");
     vi.stubEnv("OUTBOX_WORKER_MODE", "fenced-postgres-v1");
     vi.stubEnv("OUTBOX_POLL_SECONDS", "10");
@@ -141,7 +155,11 @@ describe("mail worker production composition", () => {
       outcomes: [],
     } satisfies BatchResult);
     mocks.poolQuery.mockResolvedValue({
-      rows: [{ server_version_num: "170000" }],
+      rows: [{
+        max_connections: "87",
+        admin_reserved_connections: "3",
+        server_version_num: "170005",
+      }],
     });
     mocks.materializeDeliveryVariables.mockResolvedValue({});
     mocks.sendEmail.mockResolvedValue({ providerId: "console-provider-1" });
@@ -182,9 +200,28 @@ describe("mail worker production composition", () => {
     },
   );
 
+  it("refuses pool drift before the startup query, scheduling, or claims", async () => {
+    mocks.pool.options.max = 10;
+
+    await loadWorkerOnce();
+
+    expect(process.exitCode).toBe(1);
+    expect(mocks.poolQuery).not.toHaveBeenCalled();
+    expect(mocks.PostgresOutboxStore).not.toHaveBeenCalled();
+    expect(mocks.processOutboxBatch).not.toHaveBeenCalled();
+    expect(mocks.scheduleInactivityReminders).not.toHaveBeenCalled();
+    expect(mocks.scheduleSmartReminders).not.toHaveBeenCalled();
+    expect(mocks.createWorkerHealthReporter).not.toHaveBeenCalled();
+    expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
+  });
+
   it("fails closed before constructing the store on PostgreSQL 16", async () => {
     mocks.poolQuery.mockResolvedValueOnce({
-      rows: [{ server_version_num: "160011" }],
+      rows: [{
+        max_connections: "87",
+        admin_reserved_connections: "3",
+        server_version_num: "160011",
+      }],
     });
 
     await loadWorkerOnce();
@@ -208,9 +245,16 @@ describe("mail worker production composition", () => {
   it("runs the fenced state machine with a PostgreSQL store and stable process authority", async () => {
     await loadWorkerOnce();
 
-    expect(mocks.poolQuery).toHaveBeenCalledWith(
-      "select pg_catalog.current_setting('server_version_num') as server_version_num",
+    expect(mocks.poolQuery).toHaveBeenCalledOnce();
+    const startupSql = String(mocks.poolQuery.mock.calls[0]?.[0]);
+    expect(startupSql).toContain("current_setting('max_connections')");
+    expect(startupSql).toContain(
+      "current_setting('superuser_reserved_connections')",
     );
+    expect(startupSql).toContain(
+      "current_setting('reserved_connections', true)",
+    );
+    expect(startupSql).toContain("current_setting('server_version_num')");
     expect(mocks.PostgresOutboxStore).toHaveBeenCalledWith(mocks.pool);
     expect(mocks.poolQuery.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.PostgresOutboxStore.mock.invocationCallOrder[0]!,
@@ -234,7 +278,7 @@ describe("mail worker production composition", () => {
     expect(dependencies.policy).toEqual({
       batchSize: 10,
       materializeLeaseMs: 60_000,
-      providerLeaseMs: 300_000,
+      providerLeaseMs: 95_000,
       maxMaterializeAttempts: 8,
       maxRetryDelayMs: 6 * 60 * 60_000,
       terminalPersistenceAttempts: 3,
