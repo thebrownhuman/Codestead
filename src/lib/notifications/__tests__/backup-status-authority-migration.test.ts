@@ -78,14 +78,15 @@ describe("backup-status mail authority migration", () => {
     );
     expect(
       migration.match(/source\.authority_epoch = current_authority_epoch/gu),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
     expect(migration).toContain("selected_authority_epoch");
     expect(migration).toMatch(
       /insert into public\.backup_status_mail_authority \([\s\S]*authority_epoch[\s\S]*selected_authority_epoch/u,
     );
+    const outboxInsertStart = migration.indexOf("insert into public.email_outbox");
     const outboxInsert = migration.slice(
-      migration.indexOf("insert into public.email_outbox"),
-      migration.indexOf("return query", migration.indexOf("insert into public.email_outbox")),
+      outboxInsertStart,
+      migration.indexOf("insert into public.backup_status_mail_authority", outboxInsertStart),
     );
     expect(outboxInsert).not.toContain("authority_epoch");
     expect(outboxInsert).not.toContain("recipient_email");
@@ -144,7 +145,21 @@ describe("backup-status mail authority migration", () => {
     expect(migration).toContain(
       "candidate.delivery_scope_key =\n         'a:' || candidate.user_id",
     );
-    expect(migration).toContain("selected_admin_id,\n    'a:' || selected_admin_id");
+    expect(migration).toContain(
+      "hinted_admin_id,\n    'a:' || hinted_admin_id",
+    );
+    const enqueue = migration.slice(
+      migration.indexOf('create function "public"."enqueue_backup_status_mail_authority"'),
+      migration.indexOf('alter function "public"."enqueue_backup_status_mail_authority"'),
+    );
+    const authorityHintLock = enqueue.indexOf("'user-authority:' || hinted_admin_id");
+    const sameRunLock = enqueue.indexOf("'backup-status-authority:' || p_run_key");
+    const durableRecipientRevalidation = enqueue.indexOf(
+      "selected_admin_id is distinct from hinted_admin_id",
+    );
+    expect(authorityHintLock).toBeGreaterThanOrEqual(0);
+    expect(sameRunLock).toBeGreaterThan(authorityHintLock);
+    expect(durableRecipientRevalidation).toBeGreaterThan(sameRunLock);
     expect(migration).not.toContain(
       'drop constraint "email_outbox_delivery_scope_valid"',
     );
@@ -166,6 +181,15 @@ describe("backup-status mail authority migration", () => {
     ]) {
       expect(migration).toContain(`create trigger "${trigger}"`);
     }
+    expect(migration).toContain(
+      'before update of id, email, role, status, banned on "public"."user"',
+    );
+    expect(migration).toContain(
+      "old.id is distinct from new.id",
+    );
+    expect(migration).toContain(
+      "raise exception 'user identifier is immutable'",
+    );
     expect(migration).toContain(
       "set authority_epoch = pg_catalog.gen_random_uuid()",
     );
