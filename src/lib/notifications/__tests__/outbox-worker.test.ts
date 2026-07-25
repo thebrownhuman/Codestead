@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   processOutboxBatch,
+  type MaterializeResult,
   type OutboxClaim,
   type OutboxStore,
   type PreProviderExit,
@@ -64,7 +65,9 @@ function harness() {
       return { kind: "applied" as const };
     }),
   };
-  const materialize = vi.fn(async () => {
+  const materialize = vi.fn(async (): Promise<
+    MaterializeResult<{ readonly to: string }>
+  > => {
     events.push("materialize");
     return { kind: "ready" as const, message: { to: "learner@example.test" } };
   });
@@ -250,6 +253,26 @@ describe("fenced outbox worker", () => {
     );
     expect(input.store.beginProviderCall).not.toHaveBeenCalled();
     expect(input.send).not.toHaveBeenCalled();
+  });
+
+  it("settles explicit materialization suppression before boundary or provider work", async () => {
+    const input = harness();
+    input.materialize.mockResolvedValueOnce({
+      kind: "suppressed",
+      code: "TEMPLATE_POLICY_INVALID",
+    });
+    const { result } = run(input);
+
+    await expect(result).resolves.toMatchObject({
+      outcomes: [{ kind: "suppressed", code: "TEMPLATE_POLICY_INVALID" }],
+    });
+    expect(input.store.finishBeforeProvider).toHaveBeenCalledWith(
+      claim,
+      { kind: "suppressed", code: "TEMPLATE_POLICY_INVALID" },
+    );
+    expect(input.store.beginProviderCall).not.toHaveBeenCalled();
+    expect(input.send).not.toHaveBeenCalled();
+    expect(input.store.finishAfterProvider).not.toHaveBeenCalled();
   });
 
   it("quarantines every unexpected post-boundary provider error without retry", async () => {

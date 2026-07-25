@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DELETION_CAPABILITY_TEMPLATE_AUTHORITIES,
   evaluateTemplateAccountSnapshot,
+  requireDeletionCapabilityTemplateAuthority,
+  requireSystemEmailTemplateAuthority,
+  SYSTEM_EMAIL_TEMPLATE_AUTHORITIES,
   type AccountMailAuthoritySnapshot,
 } from "../template-authority-policy";
 
@@ -109,5 +113,51 @@ describe("account snapshot result contract", () => {
       deliveryAuthorityEstablished: false,
       code: "UNKNOWN_TEMPLATE",
     });
+  });
+});
+
+describe("canonical specialized template authority projections", () => {
+  it("projects every system producer with an exact non-empty version set", () => {
+    expect(SYSTEM_EMAIL_TEMPLATE_AUTHORITIES).toEqual([
+      {
+        template: "invitation",
+        versions: ["1"],
+        producer: "access-request-approved",
+      },
+      {
+        template: "access-request-admin",
+        versions: ["1"],
+        producer: "access-request-admin",
+      },
+      {
+        template: "access-rejected",
+        versions: ["1"],
+        producer: "access-request-rejected",
+      },
+    ]);
+    expect(SYSTEM_EMAIL_TEMPLATE_AUTHORITIES.every(
+      (authority) => authority.versions.length > 0,
+    )).toBe(true);
+    expect(new Set(
+      SYSTEM_EMAIL_TEMPLATE_AUTHORITIES.map((authority) => authority.producer),
+    ).size).toBe(SYSTEM_EMAIL_TEMPLATE_AUTHORITIES.length);
+    expect(requireSystemEmailTemplateAuthority("access-request-approved"))
+      .toEqual(SYSTEM_EMAIL_TEMPLATE_AUTHORITIES[0]);
+  });
+
+  it("projects every deletion capability with an exact non-empty version set", () => {
+    expect(DELETION_CAPABILITY_TEMPLATE_AUTHORITIES).toEqual([
+      {
+        template: "account-deleted",
+        versions: ["1"],
+        capability: "account-deletion-notice-v1",
+      },
+    ]);
+    expect(DELETION_CAPABILITY_TEMPLATE_AUTHORITIES.every(
+      (authority) => authority.versions.length > 0,
+    )).toBe(true);
+    expect(requireDeletionCapabilityTemplateAuthority(
+      "account-deletion-notice-v1",
+    )).toEqual(DELETION_CAPABILITY_TEMPLATE_AUTHORITIES[0]);
   });
 });
