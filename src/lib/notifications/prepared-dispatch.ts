@@ -63,6 +63,7 @@ export type PreparedConsoleEmail = Readonly<{
   authorityBindingVersion: "prepared-authority-v1";
   authorityBindingSha256: string;
   eventLine: string;
+  eventBytes: string;
   requestBody: string;
   providerId: string;
 }>;
@@ -166,11 +167,11 @@ type PreparedWithoutAuthorityBinding =
 function payloadBindingSha256(
   prepared:
     | Pick<PreparedGmailEmail, "adapter" | "rfc822">
-    | Pick<PreparedConsoleEmail, "adapter" | "eventLine">,
+    | Pick<PreparedConsoleEmail, "adapter" | "eventBytes">,
 ) {
   const bytes = prepared.adapter === "gmail"
     ? prepared.rfc822
-    : prepared.eventLine;
+    : prepared.eventBytes;
   return createHash("sha256").update(bytes, "utf8").digest("hex");
 }
 
@@ -201,6 +202,7 @@ function authorityBindingSha256(
     updateLengthFramed(hash, prepared.requestBody);
   } else {
     updateLengthFramed(hash, prepared.eventLine);
+    updateLengthFramed(hash, prepared.eventBytes);
     updateLengthFramed(hash, prepared.requestBody);
     updateLengthFramed(hash, prepared.providerId);
   }
@@ -282,11 +284,13 @@ export function prepareEmail(
   if (context.adapter === "console") {
     const eventLine =
       `{"event":"email.console_delivery","template":"${input.template}"}`;
+    const eventBytes = `${eventLine}\n`;
     const payload = Object.freeze({
       adapter: "console" as const,
       bindingVersion: "console-json-v1" as const,
       eventLine,
-      requestBody: eventLine,
+      eventBytes,
+      requestBody: eventBytes,
       providerId: `console-${crypto.randomUUID()}`,
     });
     const withoutAuthorityBinding = Object.freeze({
@@ -370,7 +374,9 @@ export function preparedEmailBindingMatches(
 
     if (
       prepared.bindingVersion !== "console-json-v1"
-      || prepared.requestBody !== prepared.eventLine
+      || /[\r\n]/.test(prepared.eventLine)
+      || prepared.eventBytes !== `${prepared.eventLine}\n`
+      || prepared.requestBody !== prepared.eventBytes
       || prepared.bindingSha256 !== payloadBindingSha256(prepared)
     ) {
       return false;
@@ -381,6 +387,7 @@ export function preparedEmailBindingMatches(
         bindingSha256: prepared.bindingSha256,
         authorityBindingVersion: prepared.authorityBindingVersion,
         eventLine: prepared.eventLine,
+        eventBytes: prepared.eventBytes,
         requestBody: prepared.requestBody,
         providerId: prepared.providerId,
     };

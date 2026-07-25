@@ -292,20 +292,26 @@ describe("fenced outbox worker", () => {
   });
 
 
-  it("fails stop without terminal persistence when the transport remains live after abort", async () => {
+  it.each([
+    "GMAIL_DELIVERY_TRANSPORT_UNSETTLED",
+    "GMAIL_OAUTH_TRANSPORT_UNSETTLED",
+  ])("fails stop without terminal persistence or retry for fatal %s", async (
+    fatalCode,
+  ) => {
     const input = harness();
     input.send.mockResolvedValueOnce({
       kind: "fatal",
-      code: "GMAIL_DELIVERY_TRANSPORT_UNSETTLED",
+      code: fatalCode,
     });
     const { result } = run(input);
 
     await expect(result).rejects.toThrow(
-      "Fatal provider transport failure (GMAIL_DELIVERY_TRANSPORT_UNSETTLED).",
+      `Fatal provider transport failure (${fatalCode}).`,
     );
     expect(input.send).toHaveBeenCalledOnce();
     expect(input.store.finishAfterProvider).not.toHaveBeenCalled();
     expect(input.store.claimNext).toHaveBeenCalledOnce();
+    expect(input.store.finishBeforeProvider).not.toHaveBeenCalled();
   });
   it("defensively quarantines an accepted response with a blank provider ID", async () => {
     const input = harness();

@@ -21,6 +21,12 @@ const mocks = vi.hoisted(() => {
   const processOutboxBatch = vi.fn();
   const materializeDeliveryVariables = vi.fn();
   const sendEmail = vi.fn();
+  class FatalProviderTransportError extends Error {
+    constructor(readonly code: string) {
+      super(`Fatal provider transport failure (${code}).`);
+      this.name = "FatalProviderTransportError";
+    }
+  }
   const classifyMailDeliveryError = vi.fn((): {
     kind: "definitely-rejected" | "ambiguous" | "fatal";
     code: string;
@@ -44,6 +50,7 @@ const mocks = vi.hoisted(() => {
     store,
     PostgresOutboxStore,
     processOutboxBatch,
+    FatalProviderTransportError,
     materializeDeliveryVariables,
     sendEmail,
     classifyMailDeliveryError,
@@ -76,6 +83,7 @@ vi.mock("../src/lib/notifications/postgres-outbox-store", () => ({
 }));
 vi.mock("../src/lib/notifications/outbox-worker", () => ({
   processOutboxBatch: mocks.processOutboxBatch,
+  FatalProviderTransportError: mocks.FatalProviderTransportError,
 }));
 vi.mock("../src/lib/notifications/mailer", () => ({
   sendEmail: mocks.sendEmail,
@@ -341,6 +349,35 @@ describe("mail worker production composition", () => {
       code: "GMAIL_DELIVERY_TRANSPORT_UNSETTLED",
     });
   });
+
+  it("hard-exits only after pool cleanup when provider transport cannot settle", async () => {
+    const exit = vi.spyOn(process, "exit").mockImplementation(
+      (() => undefined) as unknown as typeof process.exit,
+    );
+    const failure = new mocks.FatalProviderTransportError(
+      "GMAIL_OAUTH_TRANSPORT_UNSETTLED",
+    );
+    mocks.processOutboxBatch.mockRejectedValueOnce(failure);
+
+    await loadWorkerOnce();
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledExactlyOnceWith(1));
+
+    expect(process.exitCode).toBe(1);
+    expect(mocks.health.retry).toHaveBeenCalledExactlyOnceWith(failure);
+    expect(mocks.health.terminalFailure)
+      .toHaveBeenCalledExactlyOnceWith(failure);
+    expect(mocks.poolEnd.mock.invocationCallOrder[0]).toBeLessThan(
+      exit.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(console.info).not.toHaveBeenCalledWith(
+      expect.stringContaining('"event":"email.outbox_batch"'),
+    );
+    expect(console.error).toHaveBeenCalledWith(JSON.stringify({
+      event: "email.worker_failed",
+      code: "FatalProviderTransportError",
+    }));
+  });
+
   it("suppresses an unknown stored template before materialization or provider work", async () => {
     let materializeResult: unknown;
     mocks.processOutboxBatch.mockImplementation(async (dependencies: {
