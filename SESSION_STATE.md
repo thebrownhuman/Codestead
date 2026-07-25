@@ -87,12 +87,21 @@ pending_installations:
 pending_file_edits: []
 p3_2_database_role_risk:
   status: "OPEN / DEFERRED"
-  accountable_owner: "DB-ACL/P3-2 — Database & Release Security DRI"
-  exposure: "learncoding_app and learncoding_ops retain SELECT/INSERT/UPDATE/DELETE on every current and future public table; compromise permits arbitrary DML across all rows in 123 public tables"
+  accountable_owner: "@thebrownhuman / DB-ACL/P3-2 DRI"
+  expected_final_public_tables: 125
+  broad_crud_tables: 123
+  protected_authority_tables: 2
+  expected_final_columns: 1471
+  effective_select_insert_update_columns: 1462
+  protected_authority_columns: 9
+  exposure: "learncoding_app and learncoding_ops retain table-level SELECT/INSERT/UPDATE/DELETE on 123 of 125 expected final public tables and effective SELECT/INSERT/UPDATE on 1462 of 1471 columns"
+  email_outbox_provider_correlation_acl_denied: false
+  future_owner_table_default_grant_risk: true
   production_rls_mitigation: false
   target_milestone: "post-mail-authority database privilege-separation hardening, before production pilot or learner-facing release exposure"
   mail_specific_narrowing_closes_risk: false
-  release_condition: "Complete all ten acceptance gates in CONTINUATION.md, or obtain explicit written release-specific risk acceptance from the accountable owner; risk acceptance is not technical completion"
+  release_condition: "Complete all ten acceptance gates in CONTINUATION.md, or obtain explicit written, release-specific acceptance from @thebrownhuman / DB-ACL/P3-2 DRI naming the exact candidate SHA, expiry, compensating controls, and follow-up milestone"
+  risk_acceptance_is_technical_completion: false
   external_credential_deployment_proven: false
 current_blockers:
   - "Five tested isolated commits require independent review and integration"
