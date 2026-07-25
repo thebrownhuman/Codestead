@@ -1,0 +1,20 @@
+diff --git a/scripts/run-database-role-boundaries-tests.ts b/scripts/run-database-role-boundaries-tests.ts
+--- a/scripts/run-database-role-boundaries-tests.ts
++++ b/scripts/run-database-role-boundaries-tests.ts
+@@ -1,7 +1,7 @@
+ import { spawnSync as nodeSpawnSync } from "node:child_process";
+ import path from "node:path";
+ import process from "node:process";
+-import { fileURLToPath, pathToFileURL } from "node:url";
++import { pathToFileURL } from "node:url";
+ 
+ type EnvironmentSanitizer = (
+   environment: NodeJS.ProcessEnv,
+@@ -48,7 +48,7 @@ export async function runDatabaseRoleBoundaryTests(
+     process.execPath,
+     [
+       "--test",
+-      fileURLToPath(new URL("./database-role-boundaries.test.mjs", import.meta.url)),
++      path.resolve(process.cwd(), "scripts/database-role-boundaries.test.mjs"),
+     ],
+     {

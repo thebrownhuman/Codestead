@@ -1,0 +1,10 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -30,5 +30,6 @@
+     "test:coverage": "vitest run --coverage --maxWorkers=2",
+     "test:auth-boundary": "vitest run --config vitest.auth-boundary.config.ts",
+     "test:watch": "vitest",
++    "test:database-role-boundaries": "tsx scripts/run-database-role-boundaries-tests.ts",
+     "test:integration": "tsx scripts/run-integration-tests.ts",
+     "test:integration:vitest": "vitest run --config vitest.integration.config.ts",
