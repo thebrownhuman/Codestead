@@ -22,6 +22,7 @@ describe("disposable integration child launch", () => {
     })).toEqual({
       command: "/usr/bin/node",
       args: ["--test", "two words", 'a"b', "tail\\"],
+      detached: true,
       environment,
       treeSupervised: false,
     });

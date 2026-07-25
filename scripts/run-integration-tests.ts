@@ -116,7 +116,7 @@ function run(
       [...launch.args],
       {
         cwd: process.cwd(),
-        detached: true,
+        detached: launch.detached,
         env: launch.environment,
         stdio: options.quiet ? "ignore" : ["ignore", "pipe", "pipe"],
         windowsHide: true,

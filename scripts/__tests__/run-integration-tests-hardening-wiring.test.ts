@@ -19,8 +19,9 @@ describe("integration runner hardening wiring", () => {
     expect(source).not.toContain("sanitizedIntegrationEnvironment");
     expect(source).not.toContain("options.env ?? process.env");
     expect(source).toContain(
-      "detached: true",
+      "detached: launch.detached",
     );
+    expect(source).not.toContain("detached: true");
     expect(source).toContain("windowsHide: true");
     expect(source).toContain(
       "options.childController.spawnAndTrack(() => spawn",
