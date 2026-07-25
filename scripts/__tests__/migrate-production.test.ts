@@ -103,6 +103,91 @@ it("verifies the reviewed repository and applied ledger around the migration bou
   );
 });
 
+it.each(["160011", "180000"])(
+  "rejects PostgreSQL server_version_num %s before locking or migrating",
+  async (serverVersionNum) => {
+    const query = vi.fn(async (sql: string) => {
+      if (sql.includes("current_setting('server_version_num')")) {
+        return { rows: [{ server_version_num: serverVersionNum }] };
+      }
+      throw new Error("version rejection reached database mutation");
+    });
+    const client = { query, release: vi.fn() };
+    const pool = {
+      connect: vi.fn(async () => client),
+      end: vi.fn(async () => undefined),
+    };
+    const migrate = vi.fn(async () => undefined);
+
+    await expect(
+      runProductionMigration({
+        connectionString: "postgresql://learncoding_migrator:Fake@postgres/learncoding",
+        pool,
+        migrate,
+        drizzle: vi.fn(() => ({})),
+        requiredPostgresMajor: 17,
+      }),
+    ).rejects.toEqual(
+      expect.objectContaining({
+        name: "ProductionPostgresVersionError",
+        message: "Production migration requires PostgreSQL major 17.",
+      }),
+    );
+
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(migrate).not.toHaveBeenCalled();
+    expect(client.release).toHaveBeenCalledWith(true);
+    expect(pool.end).toHaveBeenCalledTimes(1);
+  },
+);
+
+it("accepts exact PostgreSQL 17 before acquiring the migration lock", async () => {
+  const query = roleAwareQuery();
+  query.mockImplementationOnce(async (sql: string) => {
+    expect(sql).toContain("current_setting('server_version_num')");
+    return { rows: [{ server_version_num: "170012" }] };
+  });
+  const client = { query, release: vi.fn() };
+  const pool = {
+    connect: vi.fn(async () => client),
+    end: vi.fn(async () => undefined),
+  };
+  const migrate = vi.fn(async () => undefined);
+
+  await runProductionMigration({
+    connectionString: "postgresql://learncoding_migrator:Fake@postgres/learncoding",
+    pool,
+    migrate,
+    drizzle: vi.fn(() => ({})),
+    requiredPostgresMajor: 17,
+  });
+
+  const statements = query.mock.calls.map(([sql]) => String(sql));
+  expect(statements[0]).toContain("current_setting('server_version_num')");
+  expect(statements[1]).toContain("pg_try_advisory_lock");
+  expect(migrate).toHaveBeenCalledTimes(1);
+});
+
+it("keeps imported targeted-PG18 harnesses version-neutral by default", async () => {
+  const query = roleAwareQuery();
+  const client = { query, release: vi.fn() };
+  const pool = {
+    connect: vi.fn(async () => client),
+    end: vi.fn(async () => undefined),
+  };
+
+  await runProductionMigration({
+    connectionString: "postgresql://learncoding_migrator:Fake@postgres/learncoding",
+    pool,
+    migrate: vi.fn(async () => undefined),
+    drizzle: vi.fn(() => ({})),
+  });
+
+  expect(query.mock.calls.map(([sql]) => String(sql))).not.toContain(
+    expect.stringContaining("server_version_num"),
+  );
+});
+
 
   it("uses the shared administration lock and migrates only as the owner role", async () => {
     const query = vi.fn(async (sql: string, parameters?: unknown[]) => {

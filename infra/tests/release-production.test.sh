@@ -441,6 +441,22 @@ fi
 
 if [[ "$1" == "exec" && " $* " == *" psql "* \
   && " $* " == *" --host=/run/learncoding-postgres "* \
+  && " $* " == *" codestead-production-pg-major-v1 "* ]]; then
+  [[ " $* " == *" --no-psqlrc "* && " $* " == *" --quiet "* \
+    && " $* " == *" --no-align "* && " $* " == *" --tuples-only "* \
+    && " $* " == *" --set ON_ERROR_STOP=1 "* ]] || die_unknown
+  case "${FAKE_SCENARIO:-}" in
+    postgres-major-16) printf '160011\n' ;;
+    postgres-major-18) printf '180000\n' ;;
+    postgres-major-malformed) printf '17.5\n' ;;
+    postgres-major-query-failure) exit 74 ;;
+    *) printf '170000\n' ;;
+  esac
+  exit 0
+fi
+
+if [[ "$1" == "exec" && " $* " == *" psql "* \
+  && " $* " == *" --host=/run/learncoding-postgres "* \
   && " $* " == *" mail-store-drain-gate-v1 "* ]]; then
   [[ " $* " == *" --no-psqlrc "* && " $* " == *" --quiet "* \
     && " $* " == *" --no-align "* && " $* " == *" --tuples-only "* ]] || die_unknown
@@ -1077,7 +1093,8 @@ full_validator_line="$(line_number $'validate\t--full' "$trace")"
 tunnel_stop_line="$(line_number $'\tstop\t--timeout\t30\tcloudflared' "$trace")"
 mutator_stop_line="$(line_number $'\tstop\t--timeout\t60\tapp\tmail-worker' "$trace")"
 postgres_line="$(line_number $'\tup\t-d\t--wait\t--wait-timeout\t5\t--no-build\t--pull\tnever\tpostgres' "$trace")"
-session_fence_line="$(line_number $'\texec\t-T\tpostgres\tpsql\t--host=/run/learncoding-postgres' "$trace")"
+postgres_major_line="$(line_number 'codestead-production-pg-major-v1' "$trace")"
+session_fence_line="$(line_number 'pg_stat_activity' "$trace")"
 role_lines=()
 mapfile -t role_lines < <(
   grep -n -F -- $'\t--exit-code-from\tdatabase-role-bootstrap\tdatabase-role-bootstrap' "$trace" |
@@ -1094,7 +1111,8 @@ internal_smoke_line="$(line_number $'smoke\t--phase internal' "$trace")"
 tunnel_start_line="$(line_number $'\tup\t-d\t--no-deps\t--no-build\t--pull\tnever\tcloudflared' "$trace")"
 [[ -n "$pre_validator_line" && -n "$postgres_prep_line" && -n "$object_prep_line" \
   && -n "$full_validator_line" && -n "$tunnel_stop_line" && -n "$mutator_stop_line" \
-  && -n "$postgres_line" && -n "$session_fence_line" && -n "$role_line" \
+  && -n "$postgres_line" && -n "$postgres_major_line" \
+  && -n "$session_fence_line" && -n "$role_line" \
   && "${#role_lines[@]}" -eq 2 && -n "$role_reconciliation_line" \
   && -n "$negative_line" && -n "$migrate_line" && -n "$seed_line" \
   && -n "$boundary_line" && -n "$pilot_line" && -n "$internal_smoke_line" \
@@ -1110,7 +1128,8 @@ tunnel_start_line="$(line_number $'\tup\t-d\t--no-deps\t--no-build\t--pull\tneve
   && object_prep_line < full_validator_line \
   && full_validator_line < mutator_stop_line \
   && mutator_stop_line < postgres_line \
-  && postgres_line < session_fence_line \
+  && postgres_line < postgres_major_line \
+  && postgres_major_line < session_fence_line \
   && session_fence_line < role_line \
   && role_line < negative_line \
   && negative_line < migrate_line \
@@ -1617,6 +1636,10 @@ for failure_case in \
   full-validation-failure \
   mutator-stop-failure \
   postgres-failure \
+  postgres-major-16 \
+  postgres-major-18 \
+  postgres-major-malformed \
+  postgres-major-query-failure \
   residual-session-failure \
   residual-current-user-session-failure \
   residual-session-noncanonical-failure \
@@ -1649,8 +1672,10 @@ for failure_case in \
   }
   assert_no_secret "$RELEASE_CASE_DIR"
   case "$failure_case" in
-    mutator-stop-failure|postgres-failure|residual-session-failure|residual-current-user-session-failure|\
-      residual-session-noncanonical-failure|role-bootstrap-failure|role-reconciliation-failure|\
+    mutator-stop-failure|postgres-failure|postgres-major-16|postgres-major-18|\
+      postgres-major-malformed|postgres-major-query-failure|residual-session-failure|\
+      residual-current-user-session-failure|residual-session-noncanonical-failure|\
+      role-bootstrap-failure|role-reconciliation-failure|\
       negative-probes-failure|migration-failure|seed-failure|bootstrap-failure|\
       boundary-verifier-failure|pilot-failure|internal-smoke-failure|\
       public-smoke-failure|tunnel-failure|smoke-failure)
@@ -1659,6 +1684,20 @@ for failure_case in \
     }
       ;;
   esac
+  if [[ "$failure_case" == postgres-major-* ]]; then
+    grep -Fq 'codestead-production-pg-major-v1' "$RELEASE_CASE_DIR/docker.log" || {
+      fail "$failure_case did not query the live PostgreSQL server version"
+    }
+    if grep -Fq \
+      $'\t--exit-code-from\tdatabase-role-bootstrap\tdatabase-role-bootstrap' \
+      "$RELEASE_CASE_DIR/docker.log"; then
+      fail "$failure_case reached database role bootstrap after the version gate"
+    fi
+    if grep -Fq $'\t--exit-code-from\tmigrate\tmigrate' \
+      "$RELEASE_CASE_DIR/docker.log"; then
+      fail "$failure_case reached migration after the version gate"
+    fi
+  fi
   if [[ "$failure_case" == residual-* ]]; then
     if grep -Fq $'\t--exit-code-from\tdatabase-role-bootstrap\tdatabase-role-bootstrap' "$RELEASE_CASE_DIR/docker.log"; then
       fail "$failure_case reached database role bootstrap after a failed session fence"

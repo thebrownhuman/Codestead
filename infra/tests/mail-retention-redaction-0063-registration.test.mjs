@@ -325,10 +325,65 @@ if (!staticOnly) {
     /timeout-minutes/u,
   );
   expectProjectionRejected(
+    "the live PostgreSQL 17 integration gate cannot be removed",
+    replaceProjectionExactly(
+      postgresJob,
+      "      - run: npm run test:integration\n",
+      "",
+    ),
+    /live PostgreSQL 17 integration gate must appear exactly once/u,
+  );
+  expectProjectionRejected(
+    "the live PostgreSQL 17 integration gate cannot become a PostgreSQL 18 run",
+    replaceProjectionExactly(
+      postgresJob,
+      "      - run: npm run test:integration",
+      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:integration",
+    ),
+    /live PostgreSQL 17 integration gate must appear exactly once/u,
+  );
+  expectProjectionRejected(
+    "the live PostgreSQL 17 integration gate must precede the pinned Docker pull",
+    replaceProjectionExactly(
+      postgresJob,
+      [
+        "      - run: npm run test:integration",
+        "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+      ].join("\n"),
+      [
+        "      - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394",
+        "      - run: npm run test:integration",
+      ].join("\n"),
+    ),
+    /live PostgreSQL 17 integration gate must precede the pinned Docker PostgreSQL 17 pull/u,
+  );
+  expectProjectionRejected(
     "PostgreSQL 16 cannot re-enter the matrix",
     `${postgresJob}      - run: POSTGRES_16_BIN=/usr/lib/postgresql/16/bin npm run test:future-mail-gate\n`,
     /PostgreSQL 16/u,
   );
+  expectProjectionRejected(
+    "an arbitrary PostgreSQL 16 Docker image invocation cannot re-enter the matrix",
+    `${postgresJob}      - run: docker run --rm postgres:16-bookworm\n`,
+    /PostgreSQL 16/u,
+  );
+  for (const bypassingPg16Image of ["postgres:16rc1", "postgres:16_rc1"]) {
+    expectProjectionRejected(
+      `${bypassingPg16Image} cannot bypass the PostgreSQL 16 image-major guard`,
+      `${postgresJob}      - run: docker run --rm ${bypassingPg16Image}\n`,
+      /PostgreSQL 16/u,
+    );
+  }
+  for (const differentMajorImage of ["postgres:160-bookworm", "postgres:161"]) {
+    assert.doesNotThrow(
+      () =>
+        postgresCiProjectionModule.assertPostgresCiProjectionContract(
+          `${postgresJob}      - run: docker run --rm ${differentMajorImage}\n`,
+          postgresCiProjectionThrough0064,
+        ),
+      `${differentMajorImage} must not be mistaken for PostgreSQL 16`,
+    );
+  }
   expectProjectionRejected(
     "the pinned Docker integration cannot regress from PostgreSQL 17 to 16",
     replaceProjectionExactly(

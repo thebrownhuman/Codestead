@@ -4,6 +4,7 @@ umask 077
 
 readonly FULL_BACKUP_MAGIC="LEARNCODING_BACKUP_V1"
 readonly EMERGENCY_BACKUP_MAGIC="LEARNCODING_EMERGENCY_V1"
+readonly PRODUCTION_POSTGRES_MAJOR=17
 
 log() {
   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >&2
@@ -16,6 +17,16 @@ die() {
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || die "required command is missing: $1"
+}
+
+production_postgres_version_num_is_reviewed() {
+  local version_num="${1:-}" major
+
+  (( $# == 1 )) || return 1
+  [[ "$version_num" =~ ^[1-9][0-9]{4,7}$ ]] || return 1
+  major="$((10#$version_num / 10000))"
+
+  [[ "$major" -eq "$PRODUCTION_POSTGRES_MAJOR" ]]
 }
 
 require_secure_regular_file() {

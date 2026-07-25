@@ -18,9 +18,24 @@ for interface in \
   require_secure_regular_file \
   path_is_within \
   write_success_marker \
-  read_success_marker; do
+  read_success_marker \
+  production_postgres_version_num_is_reviewed; do
   declare -F "$interface" >/dev/null || fail "required backup interface is missing: $interface"
 done
+
+for reviewed_version_num in 170000 170001 170999; do
+  production_postgres_version_num_is_reviewed "$reviewed_version_num" \
+    || fail "reviewed PostgreSQL 17 version number was rejected"
+done
+for rejected_version_num in \
+  160011 180000 17 17.5 0170000 ' 170000' '170000 ' not-a-version; do
+  if production_postgres_version_num_is_reviewed "$rejected_version_num"; then
+    fail "unreviewed PostgreSQL server version number was accepted"
+  fi
+done
+if production_postgres_version_num_is_reviewed; then
+  fail "missing PostgreSQL server version number was accepted"
+fi
 
 owner_uid="$(id -u)"
 secure_file="$work/secure-file"
@@ -288,6 +303,28 @@ restore="$repo_root/scripts/backup/restore.sh"
 verifier="$repo_root/scripts/backup/verify-archive.sh"
 grep -Fq '"$SCRIPT_DIR/verify-archive.sh"' "$restore" \
   || fail "restore entrypoint does not delegate archive inventory to verify-archive.sh"
+grep -Fq "pg_catalog.current_setting('server_version_num')" "$restore" \
+  || fail "restore does not query the live PostgreSQL server version"
+major_gate_line="$(
+  grep -n -m1 -F 'codestead-restore-pg-major-v1' "$restore" | cut -d: -f1
+)"
+exists_line="$(
+  grep -n -m1 -F 'SELECT 1 FROM pg_database' "$restore" | cut -d: -f1
+)"
+createdb_line="$(
+  grep -n -m1 -F 'createdb --host=/run/learncoding-postgres' "$restore" | cut -d: -f1
+)"
+pg_restore_line="$(
+  grep -n -m1 -F 'exec pg_restore' "$restore" | cut -d: -f1
+)"
+[[ "$major_gate_line" =~ ^[1-9][0-9]*$ \
+  && "$exists_line" =~ ^[1-9][0-9]*$ \
+  && "$createdb_line" =~ ^[1-9][0-9]*$ \
+  && "$pg_restore_line" =~ ^[1-9][0-9]*$ \
+  && "$major_gate_line" -lt "$exists_line" \
+  && "$exists_line" -lt "$createdb_line" \
+  && "$createdb_line" -lt "$pg_restore_line" ]] \
+  || fail "restore PostgreSQL major gate is missing or runs after mutation"
 
 protected="$work/protected"
 mkdir -m 0700 -p \

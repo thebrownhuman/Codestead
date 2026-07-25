@@ -5,6 +5,9 @@ import { pool } from "../src/lib/db/client";
 import { materializeDeliveryVariables } from "../src/lib/notifications/delivery-variables";
 import { scheduleInactivityReminders } from "../src/lib/notifications/inactivity";
 import {
+  requireMailDispatchPostgresRuntime,
+} from "../src/lib/notifications/mail-dispatch-runtime-startup";
+import {
   classifyMailDeliveryError,
   sendEmail,
   type OutgoingEmail,
@@ -39,6 +42,7 @@ const MAIL_WORKER_ERROR_CODES = new Set([
   "OUTBOX_WORKER_MODE_INVALID",
   "POOL_SHUTDOWN_FAILED",
   "POOL_SHUTDOWN_TIMEOUT",
+  "POSTGRES_RUNTIME_UNSUPPORTED",
 ] as const);
 
 function mailWorkerErrorCode(error: unknown) {
@@ -341,6 +345,7 @@ async function main() {
     );
   }
   const adapter = configuredAdapter();
+  await requireMailDispatchPostgresRuntime(pool);
   const store = new PostgresOutboxStore(pool);
   const once = process.argv.includes("--once");
   healthReporter = createWorkerHealthReporter({ worker: "mail-worker" });

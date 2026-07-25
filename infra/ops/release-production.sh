@@ -1038,6 +1038,7 @@ readonly -a managed_runtime_services=(
   runner-egress-gateway
 )
 readonly tunnel_service="cloudflared"
+readonly production_postgres_major=17
 
 
 run_one_shot() {
@@ -1054,6 +1055,27 @@ stop_database_mutators() {
   if [[ "$uploads_enabled" == true ]]; then
     run_bounded "${compose[@]}" --profile uploads stop --timeout 60 scan-worker
   fi
+}
+
+require_production_postgres_major() {
+  local version_num major
+
+  version_num="$(
+    run_bounded "${compose[@]}" exec -T postgres psql \
+      --host=/run/learncoding-postgres \
+      --username "$postgres_user" \
+      --dbname postgres \
+      --no-psqlrc --quiet --no-align --tuples-only \
+      --set ON_ERROR_STOP=1 \
+      --command \
+      "select pg_catalog.current_setting('server_version_num') /* codestead-production-pg-major-v1 */;"
+  )" || fatal "unable to query the live PostgreSQL server version"
+  version_num="${version_num//$'\r'/}"
+  [[ "$version_num" =~ ^[1-9][0-9]{4,7}$ ]] \
+    || fatal "live PostgreSQL server version is malformed"
+  major="$((10#$version_num / 10000))"
+  [[ "$major" -eq "$production_postgres_major" ]] \
+    || fatal "production PostgreSQL server major must be exactly 17"
 }
 
 reject_residual_database_sessions() {
@@ -2169,6 +2191,12 @@ write_status running 0
 record_event started
 run_bounded "${compose[@]}" up -d --wait --wait-timeout "$stage_timeout" \
   --no-build --pull never postgres
+record_event completed
+
+current_stage="postgres-version-authority"
+write_status running 0
+record_event started
+require_production_postgres_major
 record_event completed
 
 current_stage="reject-residual-database-sessions"

@@ -63,6 +63,8 @@ for (const expected of [
   "database-boundary-verifier",
   "--role=learncoding_owner",
   "--host=/run/learncoding-postgres",
+  "pg_catalog.current_setting('server_version_num')",
+  "codestead-restore-drill-pg-major-v1",
   "learncoding_app",
   "learncoding_migrator",
   "learncoding_worker",

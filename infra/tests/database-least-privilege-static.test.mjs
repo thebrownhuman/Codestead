@@ -167,6 +167,9 @@ test("mail worker outbox grants allow queue state changes but deny payload mutat
 test("release brackets migration with canonical role reconciliation", () => {
   const release = read("infra/ops/release-production.sh");
   const stop = release.indexOf('current_stage="stop-database-mutators"');
+  const postgresVersion = release.indexOf(
+    'current_stage="postgres-version-authority"',
+  );
   const sessions = release.indexOf('current_stage="reject-residual-database-sessions"');
   const roles = release.indexOf('current_stage="database-role-bootstrap"');
   const probes = release.indexOf('current_stage="database-negative-probes"');
@@ -180,12 +183,15 @@ test("release brackets migration with canonical role reconciliation", () => {
   );
   const seed = release.indexOf('current_stage="platform-seed"');
 
-  assert.ok(stop >= 0 && stop < sessions);
-  assert.ok(sessions < roles && roles < probes);
+  assert.ok(stop >= 0 && stop < postgresVersion);
+  assert.ok(postgresVersion < sessions && sessions < roles);
+  assert.ok(roles < probes);
   assert.ok(probes < migrate && migrate < reconciliation);
   assert.ok(reconciliation < reconciliationService);
   assert.ok(reconciliationService < seed);
   assert.match(release, /pg_stat_activity/u);
+  assert.match(release, /pg_catalog\.current_setting\('server_version_num'\)/u);
+  assert.match(release, /production_postgres_major=17/u);
 });
 
 test("post-migration reconciliation is an app-rollback-eligible stage", () => {
@@ -198,6 +204,9 @@ test("restore reconstructs owner and ACL topology and smokes restricted roles", 
   const restore = read("scripts/backup/restore-drill-isolated.sh");
   const restoreCompose = read("infra/restore/restore-drill.compose.yaml");
 
+  const restoreVersion = restore.indexOf(
+    "codestead-restore-drill-pg-major-v1",
+  );
   const firstBootstrap = restore.indexOf(
     "restore_one_shot database-role-bootstrap",
   );
@@ -216,7 +225,9 @@ test("restore reconstructs owner and ACL topology and smokes restricted roles", 
   assert.match(restore, /learncoding_worker/u);
   assert.match(restore, /learncoding_ops/u);
   assert.match(restore, /negative/u);
-  assert.ok(firstBootstrap >= 0 && firstBootstrap < restoreDatabase);
+  assert.match(restore, /pg_catalog\.current_setting\('server_version_num'\)/u);
+  assert.ok(restoreVersion >= 0 && restoreVersion < firstBootstrap);
+  assert.ok(firstBootstrap < restoreDatabase);
   assert.ok(restoreDatabase < secondBootstrap && secondBootstrap < verifier);
   assert.match(restoreCompose, /\/run\/learncoding-postgres/u);
   assert.match(restoreCompose, /cap_drop:\s*\r?\n\s+- ALL/u);

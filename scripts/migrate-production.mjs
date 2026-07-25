@@ -17,9 +17,17 @@ const DEFAULT_CLEANUP_TIMEOUT_MS = 5_000;
 const DEFAULT_UNLOCK_TIMEOUT_MS = 5_000;
 const TRY_LOCK_SQL = "select pg_try_advisory_lock(hashtextextended($1, 0)) acquired";
 const UNLOCK_SQL = "select pg_advisory_unlock(hashtextextended($1, 0)) released";
+const PRODUCTION_POSTGRES_MAJOR = 17;
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const monotonicNow = () => performance.now();
+
+class ProductionPostgresVersionError extends Error {
+  constructor() {
+    super("Production migration requires PostgreSQL major 17.");
+    this.name = "ProductionPostgresVersionError";
+  }
+}
 
 class MigrationLockTimeoutError extends Error {
   constructor() {
@@ -188,6 +196,31 @@ async function verifyMigrationIdentity(client, expectedCurrentUser, cleanupTimeo
   }
 }
 
+async function requireProductionPostgresMajor(client, requiredMajor) {
+  if (requiredMajor === undefined) return;
+  if (requiredMajor !== PRODUCTION_POSTGRES_MAJOR) {
+    throw new ProductionPostgresVersionError();
+  }
+
+  try {
+    const result = await client.query(
+      "select pg_catalog.current_setting('server_version_num') as server_version_num",
+    );
+    const versionNum = result?.rows?.length === 1
+      ? result.rows[0]?.server_version_num
+      : undefined;
+    if (
+      typeof versionNum !== "string"
+      || !/^[1-9][0-9]{4,7}$/u.test(versionNum)
+      || Math.floor(Number.parseInt(versionNum, 10) / 10_000) !== requiredMajor
+    ) {
+      throw new ProductionPostgresVersionError();
+    }
+  } catch {
+    throw new ProductionPostgresVersionError();
+  }
+}
+
 export async function acquireMigrationLock(
   client,
   {
@@ -249,6 +282,10 @@ export async function runProductionMigration(options) {
 
   try {
     client = await migrationPool.connect();
+    await requireProductionPostgresMajor(
+      client,
+      options.requiredPostgresMajor,
+    );
     try {
       await acquireMigrationLock(client, options.lockOptions);
       lockAcquired = true;
@@ -329,8 +366,14 @@ export async function runProductionMigration(options) {
 async function main() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is required");
+  if (process.env.REQUIRE_POSTGRES_MAJOR !== String(PRODUCTION_POSTGRES_MAJOR)) {
+    throw new ProductionPostgresVersionError();
+  }
 
-  await runProductionMigration({ connectionString });
+  await runProductionMigration({
+    connectionString,
+    requiredPostgresMajor: PRODUCTION_POSTGRES_MAJOR,
+  });
   console.info(JSON.stringify({ event: "database.migrated" }));
 }
 
