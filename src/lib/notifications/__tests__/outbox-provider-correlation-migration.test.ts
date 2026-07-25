@@ -197,11 +197,14 @@ describe("0066 email outbox provider correlation evidence", () => {
     expect(normalized).toContain(
       "cross join lateral pg_catalog.aclexplode( coalesce( routine.proacl, pg_catalog.acldefault('f', routine.proowner) ) )",
     );
-    expect(normalized).toContain(
+    expect(normalized).not.toContain(
       "expanded.grantee <> routine.proowner",
     );
     expect(normalized).toContain(
-      "'from %i', candidate_name",
+      "'from %i cascade', candidate_name",
+    );
+    expect(normalized).toContain(
+      "do $verify_provider_authority_acl$",
     );
     expect(normalized).toContain(
       'grant execute on function "public"."enforce_email_outbox_provider_correlation_evidence"() to learncoding_owner',
