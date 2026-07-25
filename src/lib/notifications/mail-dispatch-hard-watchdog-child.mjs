@@ -17,6 +17,7 @@ const TEST_FAULTS = new Set([
   "MALFORMED_DISARMED",
   "MALFORMED_READY",
   "SEND_CALLBACK_ERROR",
+  "SEND_SYNC_THROW",
   "UNCAUGHT_AFTER_ARMED",
   "UNHANDLED_REJECTION_AFTER_ARMED",
 ]);
@@ -180,6 +181,28 @@ function disconnect() {
 
 // A direct external SIGKILL of this sole watchdog is outside the single-child
 // fault model; covering it requires an independent redundant supervisor.
+process.on("exit", () => {
+  if (
+    !readySent
+    || phase === "closing"
+    || phase === "closed"
+    || phase === "fatal"
+    || !capturedParentMatches()
+    || (
+      (phase === "armed" || phase === "firing")
+      && !validGeneration(generation)
+    )
+  ) {
+    return;
+  }
+  try {
+    // The exit event is synchronous: no timer, promise, logging, or cleanup
+    // may run before this last-resort signal is sent.
+    process.kill(parentPid, "SIGKILL");
+  } catch {
+    // There is no safe asynchronous fallback once ordinary exit has begun.
+  }
+});
 process.on("uncaughtException", () => fail(72));
 process.on("unhandledRejection", () => fail(73));
 process.on("SIGHUP", () => fail(75));
@@ -195,6 +218,7 @@ process.on("disconnect", () => {
     && testFault
     && NONLETHAL_IN_PROCESS_TEST_DISCONNECTS.has(testFault)
   ) {
+    phase = "closed";
     clearWatchdogTimers();
     startupFail(0);
   }
@@ -228,18 +252,17 @@ process.on("message", (message) => {
       setTimeout(() => send({ type: "ARMED", generation }), 50);
       return;
     }
-    if (
-      testFault === "EXIT_AFTER_ARMED"
-      || testFault === "DISCONNECT_AFTER_ARMED"
-    ) {
+    if (testFault === "EXIT_AFTER_ARMED") {
       send(
         { type: "ARMED", generation },
-        () => setTimeout(
-          testFault === "EXIT_AFTER_ARMED"
-            ? () => fail(81)
-            : disconnect,
-          25,
-        ),
+        () => setTimeout(() => startupFail(81), 25),
+      );
+      return;
+    }
+    if (testFault === "DISCONNECT_AFTER_ARMED") {
+      send(
+        { type: "ARMED", generation },
+        () => setTimeout(disconnect, 25),
       );
       return;
     }

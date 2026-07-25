@@ -5,6 +5,9 @@ import {
 } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  terminateMailDispatchImmediately,
+} from "./mail-dispatch-fatal-termination";
 
 export const MAIL_DISPATCH_HARD_WATCHDOG_TIMEOUT_MS = 55_000;
 export const MAIL_DISPATCH_WATCHDOG_ARM_ACK_TIMEOUT_MS = 2_000;
@@ -28,6 +31,7 @@ const TEST_FAULT_NAME = "MAIL_DISPATCH_WATCHDOG_TEST_FAULT";
 const TEST_HANDSHAKE_NAME =
   "MAIL_DISPATCH_WATCHDOG_TEST_HANDSHAKE_TIMEOUT_MS";
 const TEST_FAULTS = new Set([
+  "CONTROLLER_FAIL_AFTER_ARMED",
   "DELAY_BOUNDARY_IPC",
   "DISCONNECT_AFTER_ARMED",
   "DISCONNECT_AFTER_READY",
@@ -41,6 +45,7 @@ const TEST_FAULTS = new Set([
   "MALFORMED_DISARMED",
   "MALFORMED_READY",
   "SEND_CALLBACK_ERROR",
+  "SEND_SYNC_THROW",
   "UNCAUGHT_AFTER_ARMED",
   "UNHANDLED_REJECTION_AFTER_ARMED",
 ]);
@@ -77,7 +82,6 @@ export type MailDispatchHardWatchdog = Readonly<{
   close(): Promise<void>;
 }>;
 
-type FatalExit = (error: MailDispatchHardWatchdogError) => never;
 type Phase =
   | "starting"
   | "idle"
@@ -96,7 +100,6 @@ type PendingHandshake = {
 };
 type ControllerState = {
   readonly child: ChildProcess;
-  readonly fatalExit: FatalExit;
   phase: Phase;
   generation: number;
   pending?: PendingHandshake;
@@ -230,7 +233,8 @@ function failController(
   error: MailDispatchHardWatchdogError,
 ) {
   if (state.phase === "closed" || state.phase === "failed") return;
-  const providerCouldRun = state.phase !== "starting";
+  const failedPhase = state.phase;
+  const providerCouldRun = failedPhase !== "starting";
   state.phase = "failed";
   if (state.capability) {
     ARMED_CAPABILITIES.delete(state.capability);
@@ -238,17 +242,10 @@ function failController(
   }
 
   if (providerCouldRun && !state.expectedClose) {
-    try {
-      state.fatalExit(error);
-    } catch (fatalSignal) {
-      clearPending(state, error);
-      destroyChildBestEffort(state);
-      throw fatalSignal;
-    }
+    terminateMailDispatchImmediately();
   }
 
-  // Production fatalExit never returns. These operations are startup cleanup
-  // or a defensive/test fallback after the direct fatal hook was invoked.
+  // Only pre-READY startup failure can reach this cleanup.
   clearPending(state, error);
   destroyChildBestEffort(state);
 }
@@ -299,11 +296,21 @@ function send(
       });
       return;
     }
-    state.child.send(message, (error) => {
-      if (error) {
-        failController(state, watchdogError("WATCHDOG_CHILD_FAILED"));
+    try {
+      if (
+        activeTestFault() === "SEND_SYNC_THROW"
+        && message.type === "ARM"
+      ) {
+        throw new Error("Injected synchronous watchdog send failure.");
       }
-    });
+      state.child.send(message, (error) => {
+        if (error) {
+          failController(state, watchdogError("WATCHDOG_CHILD_FAILED"));
+        }
+      });
+    } catch {
+      failController(state, watchdogError("WATCHDOG_CHILD_FAILED"));
+    }
   };
 
   if (
@@ -350,26 +357,29 @@ function installChildHandlers(state: ControllerState) {
 async function waitForChildExit(child: ChildProcess) {
   if (child.exitCode !== null || child.signalCode !== null) return;
   await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      child.off("exit", finish);
+      resolve();
+    };
     const timeout = setTimeout(() => {
       try {
         child.kill("SIGKILL");
       } catch {
-        resolve();
+        // A failed kill cannot make graceful close wait without a bound.
+      } finally {
+        finish();
       }
     }, WATCHDOG_READY_TIMEOUT_MS);
-    child.once("exit", () => {
-      clearTimeout(timeout);
-      resolve();
-    });
+    child.once("exit", finish);
   });
 }
 
 export async function startMailDispatchHardWatchdog(
-  input: Readonly<{ fatalExit: FatalExit }>,
 ): Promise<MailDispatchHardWatchdog> {
-  if (!input || typeof input.fatalExit !== "function") {
-    throw watchdogError("WATCHDOG_START_FAILED");
-  }
   if (!WATCHDOG_CHILD_PATH) {
     throw watchdogError("WATCHDOG_START_FAILED");
   }
@@ -394,7 +404,6 @@ export async function startMailDispatchHardWatchdog(
   }
   const state: ControllerState = {
     child,
-    fatalExit: input.fatalExit,
     phase: "starting",
     generation: 0,
     expectedClose: false,
@@ -430,6 +439,14 @@ export async function startMailDispatchHardWatchdog(
         generation,
         state: current,
       }));
+      if (activeTestFault() === "CONTROLLER_FAIL_AFTER_ARMED") {
+        setTimeout(() => {
+          failController(
+            current,
+            watchdogError("WATCHDOG_CHILD_FAILED"),
+          );
+        }, 25);
+      }
       return capability;
     },
     async close(): Promise<void> {

@@ -4,11 +4,7 @@ import {
   startMailDispatchHardWatchdog,
 } from "../../mail-dispatch-hard-watchdog.ts";
 
-const watchdog = await startMailDispatchHardWatchdog({
-  fatalExit() {
-    process.exit(71);
-  },
-});
+const watchdog = await startMailDispatchHardWatchdog();
 await watchdog.arm();
 
 process.once("exit", () => {
