@@ -63,6 +63,13 @@ function sqlLiteral(value) {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
+function reviewedApplicationRoutineOidExpressionsSql() {
+  return REVIEWED_APPLICATION_FUNCTIONS.map(
+    ({ signature }) =>
+      `pg_catalog.to_regprocedure(${sqlLiteral(signature)})::oid`,
+  ).join(",\n              ");
+}
+
 export function reviewedApplicationFunctionPrivilegesSql() {
   return REVIEWED_APPLICATION_FUNCTIONS.flatMap((routine, routineIndex) =>
     routine.allowedRoles.map((role, roleIndex) => {
@@ -739,6 +746,15 @@ async function transferApplicationOwnership(client) {
           from pg_proc p
           join pg_namespace n on n.oid = p.pronamespace
          where n.nspname in ('public', 'drizzle')
+           and not exists (
+             select 1
+               from pg_catalog.unnest(
+                 array[
+                   ${reviewedApplicationRoutineOidExpressionsSql()}
+                 ]::oid[]
+               ) reviewed_routine(routine_oid)
+              where reviewed_routine.routine_oid = p.oid
+           )
          order by n.nspname, p.proname, p.oid
       loop
         execute format(
@@ -1244,11 +1260,19 @@ export async function verifyDatabaseRoleBootstrapState(
                coalesce(p.proacl, acldefault('f', p.proowner))
              ) acl
             where n.nspname in ('public', 'drizzle')
-              and acl.grantee <> p.proowner
          ),
          expected(
            routine_oid, grantor, grantee, privilege_type, is_grantable
          ) as (
+           select p.oid,
+                  p.proowner,
+                  p.proowner,
+                  'EXECUTE'::text,
+                  false
+             from pg_catalog.pg_proc p
+             join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+            where n.nspname in ('public', 'drizzle')
+           union all
            select target.oid,
                   target.proowner,
                   grantee.oid,

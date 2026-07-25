@@ -20,6 +20,31 @@ type DatabaseRoleModule = {
     columns: readonly string[];
   }>;
   reviewedApplicationFunctionPrivilegesSql: () => string;
+  runDatabaseRoleBootstrap: (input: {
+    postgresUser: string;
+    postgresDatabase: string;
+    databaseBootstrapUrl: string;
+    databaseAppUrl: string;
+    databaseMigratorUrl: string;
+    databaseWorkerUrl: string;
+    databaseOpsUrl: string;
+    lockTimeoutMs?: number;
+    cleanupTimeoutMs?: number;
+    pool: {
+      connect: () => Promise<{
+        query: (sql: string, parameters?: unknown[]) => Promise<{ rows: Array<Record<string, unknown>> }>;
+        release: (destroy?: boolean) => void;
+      }>;
+      end: () => Promise<void>;
+    };
+  }) => Promise<unknown>;
+  verifyDatabaseRoleBootstrapState: (
+    client: {
+      query: (sql: string, parameters?: unknown[]) => Promise<{ rows: Array<Record<string, unknown>> }>;
+    },
+    postgresDatabase: string,
+    postgresUser: string,
+  ) => Promise<unknown>;
   validateDatabaseRoleUrls: (input: {
     postgresUser: string;
     postgresDatabase: string;
@@ -73,6 +98,154 @@ const urls = {
     "postgresql://learncoding_worker:worker-Fake-D-0000000000000000000@postgres:5432/learncoding",
   databaseOpsUrl: "postgresql://learncoding_ops:ops-Fake-E-000000000000000000000@postgres:5432/learncoding",
 };
+
+const bootstrapRoleRows = [
+  {
+    rolname: "learncoding_app",
+    rolcanlogin: true,
+    rolsuper: false,
+    rolcreatedb: false,
+    rolcreaterole: false,
+    rolinherit: false,
+    rolreplication: false,
+    rolbypassrls: false,
+    rolconnlimit: -1,
+    valid_until_infinity: true,
+    password_is_null: false,
+    password_is_scram: true,
+    role_settings_empty: true,
+  },
+  {
+    rolname: "learncoding_migrator",
+    rolcanlogin: true,
+    rolsuper: false,
+    rolcreatedb: false,
+    rolcreaterole: false,
+    rolinherit: false,
+    rolreplication: false,
+    rolbypassrls: false,
+    rolconnlimit: -1,
+    valid_until_infinity: true,
+    password_is_null: false,
+    password_is_scram: true,
+    role_settings_empty: true,
+  },
+  {
+    rolname: "learncoding_ops",
+    rolcanlogin: true,
+    rolsuper: false,
+    rolcreatedb: false,
+    rolcreaterole: false,
+    rolinherit: false,
+    rolreplication: false,
+    rolbypassrls: false,
+    rolconnlimit: -1,
+    valid_until_infinity: true,
+    password_is_null: false,
+    password_is_scram: true,
+    role_settings_empty: true,
+  },
+  {
+    rolname: "learncoding_owner",
+    rolcanlogin: false,
+    rolsuper: false,
+    rolcreatedb: false,
+    rolcreaterole: false,
+    rolinherit: false,
+    rolreplication: false,
+    rolbypassrls: false,
+    rolconnlimit: -1,
+    valid_until_infinity: true,
+    password_is_null: true,
+    password_is_scram: false,
+    role_settings_empty: true,
+  },
+  {
+    rolname: "learncoding_worker",
+    rolcanlogin: true,
+    rolsuper: false,
+    rolcreatedb: false,
+    rolcreaterole: false,
+    rolinherit: false,
+    rolreplication: false,
+    rolbypassrls: false,
+    rolconnlimit: -1,
+    valid_until_infinity: true,
+    password_is_null: false,
+    password_is_scram: true,
+    role_settings_empty: true,
+  },
+] as const;
+
+const bootstrapMembershipRows = [{
+  granted_role: "learncoding_owner",
+  member_role: "learncoding_migrator",
+  admin_option: false,
+  inherit_option: false,
+  set_option: true,
+  member_option: true,
+  usage_option: false,
+  role_set_option: true,
+}] as const;
+
+const bootstrapOwnershipExact = {
+  database_owned: true,
+  canonical_databases_unchanged: true,
+  no_unexpected_owned_database: true,
+  canonical_tablespaces_unchanged: true,
+  no_unexpected_owned_tablespace: true,
+  public_schema_owned: true,
+  drizzle_schema_owned: true,
+  relations_owned: true,
+  routines_owned: true,
+  types_owned: true,
+} as const;
+
+const bootstrapPrivilegesExact = {
+  public_connect_revoked: true,
+  public_temp_revoked: true,
+  public_create_revoked: true,
+  migrator_connect: true,
+  migrator_no_temp: true,
+  migrator_no_create: true,
+  migrator_no_schema_usage: true,
+  migrator_no_schema_create: true,
+  public_schema_usage_revoked: true,
+  public_schema_create_revoked: true,
+  runtime_database_schema_exact: true,
+  drizzle_restricted: true,
+  table_privileges_exact: true,
+  worker_other_table_privileges_exact: true,
+  worker_outbox_privileges_exact: true,
+  sequence_privileges_exact: true,
+  migrator_table_restricted: true,
+  migrator_sequence_restricted: true,
+  runtime_type_usage: true,
+  migrator_type_restricted: true,
+  routine_execute_exact: true,
+  routine_direct_acl_exact: true,
+  type_direct_acl_exact: true,
+} as const;
+
+function bootstrapDefaultAclRows() {
+  const privilegesByKind = {
+    r: ["DELETE", "INSERT", "SELECT", "UPDATE"],
+    S: ["SELECT", "UPDATE", "USAGE"],
+    T: ["USAGE"],
+  } as const;
+  return ["learncoding_app", "learncoding_worker", "learncoding_ops"].flatMap(
+    (grantee) => Object.entries(privilegesByKind).flatMap(
+      ([kind, privileges]) => privileges.map((privilege_type) => ({
+        schema: "public",
+        owner: "learncoding_owner",
+        grantee,
+        kind,
+        privilege_type,
+        is_grantable: false,
+      })),
+    ),
+  );
+}
 
 describe("database least-privilege bootstrap", () => {
   it("uses one shared database-administration advisory lock", async () => {
@@ -163,6 +336,207 @@ describe("database least-privilege bootstrap", () => {
     expect(source).toContain("'MEMBER'");
     expect(source).toContain("'USAGE'");
     expect(source).toContain("'SET'");
+  });
+
+  it("does not repair a wrong reviewed routine owner before bootstrap verification", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+
+    expect(databaseRoleBootstrap).not.toBeNull();
+    const queryLog: Array<{ sql: string; parameters?: unknown[] }> = [];
+    let reviewedRoutineOwner = urls.postgresUser;
+    let transferSql = "";
+    const client = {
+      query: vi.fn(async (sql: string, parameters?: unknown[]) => {
+        queryLog.push({ sql, parameters });
+        const normalized = sql.replaceAll(/\s+/gu, " ").trim().toLowerCase();
+        if (normalized.includes("select current_user, current_database(), rolsuper")) {
+          return { rows: [{
+            current_user: urls.postgresUser,
+            current_database: urls.postgresDatabase,
+            rolsuper: true,
+          }] };
+        }
+        if (normalized.includes("pg_try_advisory_lock")) {
+          return { rows: [{ acquired: true }] };
+        }
+        if (normalized === "begin" || normalized === "rollback") {
+          return { rows: [] };
+        }
+        if (normalized.includes("pg_advisory_unlock")) {
+          return { rows: [{ released: true }] };
+        }
+        if (normalized.startsWith("select d.datname name")) {
+          return { rows: [{ name: urls.postgresDatabase, owner: urls.postgresUser }] };
+        }
+        if (normalized.startsWith("select t.spcname name")) return { rows: [] };
+        if (normalized.startsWith("select n.nspname name")) {
+          return { rows: [{ name: "public", owner: "pg_database_owner" }] };
+        }
+        if (normalized.startsWith("select n.nspname schema, c.relname name")) {
+          return { rows: [] };
+        }
+        if (normalized.startsWith("select n.nspname schema, p.proname name")) {
+          return { rows: [{
+            schema: "public",
+            name: "classify_email_outbox_retention_redaction",
+            kind: "f",
+            owner: reviewedRoutineOwner,
+          }] };
+        }
+        if (normalized.startsWith("select n.nspname schema, t.typname name")) {
+          return { rows: [] };
+        }
+        if (normalized.startsWith("select coalesce(n.nspname, '*') schema")) {
+          return { rows: [] };
+        }
+        if (normalized.startsWith("select catalog, object_id")) return { rows: [] };
+        if (normalized.startsWith("select scope, grantee, privilege")) return { rows: [] };
+        if (normalized.includes("select count(*)::integer remaining")) {
+          return { rows: [{ remaining: 0 }] };
+        }
+        if (
+          normalized.includes("alter database %i owner to learncoding_owner") &&
+          normalized.includes("from pg_proc p")
+        ) {
+          transferSql = sql;
+          const resolvesEveryReviewedOid = databaseRoleBootstrap!
+            .REVIEWED_APPLICATION_FUNCTIONS.every(({ signature }) =>
+              sql.includes(`pg_catalog.to_regprocedure('${signature}')`));
+          const excludesResolvedOids = /and\s+not\s+exists\s*\(\s*select\s+1\s+from\s+pg_catalog\.unnest\([\s\S]+?\)\s+reviewed_routine\(routine_oid\)\s+where\s+reviewed_routine\.routine_oid\s*=\s*p\.oid\s*\)/iu.test(sql);
+          if (!resolvesEveryReviewedOid || !excludesResolvedOids) {
+            reviewedRoutineOwner = "learncoding_owner";
+          }
+          return { rows: [] };
+        }
+        if (normalized === "select to_regclass('public.email_outbox') is not null present") {
+          return { rows: [{ present: true }] };
+        }
+        if (normalized.startsWith("select exists(select 1 from pg_namespace")) {
+          return { rows: [{ present: false }] };
+        }
+        if (normalized.startsWith("select rolname, rolcanlogin")) {
+          return { rows: [...bootstrapRoleRows] };
+        }
+        if (normalized.startsWith("select granted.rolname granted_role")) {
+          return { rows: [...bootstrapMembershipRows] };
+        }
+        if (normalized.startsWith("select count(*)::integer count from pg_db_role_setting")) {
+          return { rows: [{ count: 0 }] };
+        }
+        if (normalized.startsWith("select (select pg_get_userbyid(datdba)")) {
+          return { rows: [{
+            ...bootstrapOwnershipExact,
+            routines_owned: reviewedRoutineOwner === "learncoding_owner",
+          }] };
+        }
+        if (normalized.includes("routine_direct_acl_exact")) {
+          throw new Error("reviewed routine owner was silently repaired");
+        }
+        return { rows: [] };
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      connect: vi.fn(async () => client),
+      end: vi.fn(async () => undefined),
+    };
+
+    await expect(databaseRoleBootstrap!.runDatabaseRoleBootstrap({
+      ...urls,
+      pool,
+      lockTimeoutMs: 100,
+      cleanupTimeoutMs: 100,
+    })).rejects.toThrow(
+      "database role bootstrap invariant verification failed [ownership: routines_owned]",
+    );
+
+    expect(reviewedRoutineOwner).toBe(urls.postgresUser);
+    expect(transferSql).not.toBe("");
+    const transferIndex = queryLog.findIndex(({ sql }) => sql === transferSql);
+    const reconcileIndex = queryLog.findIndex(({ sql }) =>
+      sql.includes("revoke all on database %I from public"));
+    const verificationIndex = queryLog.findIndex(({ sql }) =>
+      sql.includes("routines_owned"));
+    expect(transferIndex).toBeGreaterThanOrEqual(0);
+    expect(reconcileIndex).toBeGreaterThan(transferIndex);
+    expect(verificationIndex).toBeGreaterThan(reconcileIndex);
+    expect(queryLog.some(({ sql }) => sql.trim().toLowerCase() === "commit")).toBe(false);
+    expect(queryLog.some(({ sql }) => sql.trim().toLowerCase() === "rollback")).toBe(true);
+    expect(client.release).toHaveBeenCalledWith(true);
+    expect(pool.end).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    "missing owner EXECUTE ACL",
+    "owner EXECUTE grant option",
+    "extra routine ACL",
+  ])("fails bootstrap state for %s", async (tamper) => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+
+    expect(databaseRoleBootstrap).not.toBeNull();
+    let routineAclSql = "";
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        const normalized = sql.replaceAll(/\s+/gu, " ").trim().toLowerCase();
+        if (normalized.startsWith("select rolname, rolcanlogin")) {
+          return { rows: [...bootstrapRoleRows] };
+        }
+        if (normalized.startsWith("select granted.rolname granted_role")) {
+          return { rows: [...bootstrapMembershipRows] };
+        }
+        if (normalized.startsWith("select count(*)::integer count from pg_db_role_setting")) {
+          return { rows: [{ count: 0 }] };
+        }
+        if (normalized.startsWith("select (select pg_get_userbyid(datdba)")) {
+          return { rows: [{ ...bootstrapOwnershipExact }] };
+        }
+        if (normalized.includes("routine_direct_acl_exact")) {
+          routineAclSql = sql;
+          const marker = sql.indexOf(") routine_direct_acl_exact");
+          const routineAclStart = sql.lastIndexOf("with observed(", marker);
+          const routineAclContract = sql.slice(routineAclStart, marker);
+          const observesOwnerAcl = !/acl\.grantee\s*<>\s*p\.proowner/iu.test(
+            routineAclContract,
+          );
+          const expectsOwnerAcl = /select\s+p\.oid,\s*p\.proowner,\s*p\.proowner,\s*'EXECUTE'::text,\s*false\s+from\s+pg_catalog\.pg_proc\s+p\s+join\s+pg_catalog\.pg_namespace/iu.test(
+            routineAclContract,
+          );
+          const simulatedAclIsExact = !(observesOwnerAcl && expectsOwnerAcl && tamper);
+          return { rows: [{
+            ...bootstrapPrivilegesExact,
+            routine_direct_acl_exact: simulatedAclIsExact,
+          }] };
+        }
+        if (normalized.includes("where grantee not in")) {
+          return { rows: [{ count: 0 }] };
+        }
+        if (normalized.includes("from pg_default_acl a")) {
+          return { rows: bootstrapDefaultAclRows() };
+        }
+        if (normalized.startsWith("select count(*)::integer count from pg_stat_activity")) {
+          return { rows: [{ count: 0 }] };
+        }
+        throw new Error(`unexpected bootstrap-state query: ${normalized.slice(0, 80)}`);
+      }),
+    };
+
+    await expect(
+      databaseRoleBootstrap!.verifyDatabaseRoleBootstrapState(
+        client,
+        urls.postgresDatabase,
+        urls.postgresUser,
+      ),
+    ).rejects.toThrow(
+      "database role bootstrap invariant verification failed [privileges: routine_direct_acl_exact]",
+    );
+
+    const marker = routineAclSql.indexOf(") routine_direct_acl_exact");
+    const routineAclStart = routineAclSql.lastIndexOf("with observed(", marker);
+    const routineAclContract = routineAclSql.slice(routineAclStart, marker);
+    expect(routineAclContract).not.toMatch(/acl\.grantee\s*<>\s*p\.proowner/iu);
+    expect(routineAclContract).toMatch(
+      /select\s+p\.oid,\s*p\.proowner,\s*p\.proowner,\s*'EXECUTE'::text,\s*false\s+from\s+pg_catalog\.pg_proc\s+p\s+join\s+pg_catalog\.pg_namespace/iu,
+    );
   });
 
   it("wires the real role boundaries into the behavior-tested release cycles", async () => {
