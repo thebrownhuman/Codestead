@@ -1,19 +1,77 @@
-import { spawn, spawnSync } from "node:child_process";
+import {
+  spawn,
+  spawnSync,
+  type ChildProcess,
+} from "node:child_process";
 import {
   existsSync,
+  mkdirSync,
+  mkdtempSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import { buildDisposableIntegrationChildLaunch } from
   "../lib/disposable-integration-child-launch";
-import { createDisposableIntegrationTaskHome } from
-  "../lib/disposable-integration-task-home";
+import { createDisposableIntegrationChildController } from
+  "../lib/disposable-integration-child-controller";
 import { buildDisposableToolEnvironment } from
   "../lib/disposable-tool-environment";
+
+const CHILD_FIXTURE_DEADLINE_MS = 8_000;
+const CHILD_FIXTURE_GRACEFUL_CLEANUP_MS = 2_000;
+const CHILD_FIXTURE_FORCE_CLEANUP_MS = 2_000;
+
+type ChildResult = Readonly<{
+  code: number | null;
+  signal: NodeJS.Signals | null;
+}>;
+
+function waitForChildResult(
+  child: ChildProcess,
+  timeoutMs: number,
+): Promise<ChildResult> {
+  return new Promise((resolve, reject) => {
+    const cleanup = (): void => {
+      clearTimeout(timeout);
+      child.off("error", onError);
+      child.off("close", onClose);
+    };
+    const onError = (error: Error): void => {
+      cleanup();
+      reject(error);
+    };
+    const onClose = (
+      code: number | null,
+      signal: NodeJS.Signals | null,
+    ): void => {
+      cleanup();
+      resolve({ code, signal });
+    };
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("bounded child fixture deadline exceeded"));
+    }, timeoutMs);
+    timeout.unref();
+    child.once("error", onError);
+    child.once("close", onClose);
+  });
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ESRCH") return false;
+    throw error;
+  }
+}
 
 describe("disposable integration child launch", () => {
   it("keeps the direct detached process-group launch on POSIX", () => {
@@ -72,47 +130,74 @@ describe("disposable integration child launch", () => {
     ).toBe('--test "two words" "a\\"b" tail\\');
   });
 
+  it("keeps the executable proof bounded and independent of ambient npm", () => {
+    const source = readFileSync(
+      path.resolve(
+        process.cwd(),
+        "scripts",
+        "__tests__",
+        "disposable-integration-child-launch.test.ts",
+      ),
+      "utf8",
+    );
+    for (const forbidden of [
+      "npm_" + "execpath",
+      "npm-" + "cli.js",
+    ]) {
+      expect(source).not.toContain(forbidden);
+    }
+    for (const required of [
+      "createDisposableIntegration" + "ChildController",
+      "CHILD_FIXTURE_" + "DEADLINE_MS",
+      "hasActive" + "Child",
+    ]) {
+      expect(source).toContain(required);
+    }
+  });
+
   it.skipIf(process.platform !== "win32")(
-    "executes the exact npm target from the requested cwd and propagates its status",
+    "executes the exact npm-shaped target and reaps its process tree",
     async () => {
-      const home = createDisposableIntegrationTaskHome();
+      const fixtureRoot = mkdtempSync(
+        path.join(tmpdir(), "codestead-child-launch-fixture-"),
+      );
+      mkdirSync(path.join(fixtureRoot, "tmp"));
+      const controller = createDisposableIntegrationChildController({
+        gracefulTimeoutMs: CHILD_FIXTURE_GRACEFUL_CLEANUP_MS,
+        forceTimeoutMs: CHILD_FIXTURE_FORCE_CLEANUP_MS,
+      });
+
       try {
         const target = "integration/daily-review.integration.test.ts";
         const artifactPath = path.join(
-          home.path,
+          fixtureRoot,
           "runner result artifact.json",
         );
-        const packagePath = path.join(home.path, "package.json");
-        const canaryPath = path.join(home.path, "canary.cjs");
-        writeFileSync(packagePath, JSON.stringify({
-          private: true,
-          scripts: { canary: "node canary.cjs" },
-        }), "utf8");
-        writeFileSync(canaryPath, [
+        const fixturePath = path.join(fixtureRoot, "npm-shaped-fixture.cjs");
+        writeFileSync(fixturePath, [
           'const { writeFileSync } = require("node:fs");',
-          "const [artifactPath, target] = process.argv.slice(2);",
+          "const [verb, scriptName, separator, artifactPath, target] =",
+          "  process.argv.slice(2);",
           "writeFileSync(artifactPath, JSON.stringify({",
           "  argv: process.argv.slice(2),",
           "  cwd: process.cwd(),",
-          `  targetExecuted: target === ${JSON.stringify(target)},`,
+          "  pid: process.pid,",
+          "  targetExecuted:",
+          '    verb === "run"',
+          '    && scriptName === "canary"',
+          '    && separator === "--"',
+          `    && target === ${JSON.stringify(target)},`,
           '}), "utf8");',
           "process.exitCode = 37;",
         ].join("\n"), "utf8");
-        const npmCli = process.env.npm_execpath ?? path.join(
-          path.dirname(process.execPath),
-          "node_modules",
-          "npm",
-          "bin",
-          "npm-cli.js",
-        );
         const environment = buildDisposableToolEnvironment(
           process.env,
-          home.path,
+          fixtureRoot,
         );
         const launch = buildDisposableIntegrationChildLaunch({
           command: process.execPath,
           args: [
-            npmCli,
+            fixturePath,
             "run",
             "canary",
             "--",
@@ -122,41 +207,66 @@ describe("disposable integration child launch", () => {
           environment,
           platform: "win32",
         });
-        const result = await new Promise<{
-          code: number | null;
-          signal: NodeJS.Signals | null;
-        }>((resolve, reject) => {
-          const child = spawn(
+        const tracked = controller.spawnAndTrack(() => (
+          spawn(
             launch.command,
             [...launch.args],
             {
-              cwd: home.path,
+              cwd: fixtureRoot,
               detached: launch.detached,
               env: launch.environment,
               stdio: "ignore",
               windowsHide: true,
             },
-          );
-          child.once("error", reject);
-          child.once("close", (code, signal) => {
-            resolve({ code, signal });
-          });
-        });
+          )
+        ));
+        const supervisorPid = tracked.child.pid;
+        if (supervisorPid === undefined) {
+          throw new Error("child supervisor pid unavailable");
+        }
+        const result = await waitForChildResult(
+          tracked.child,
+          CHILD_FIXTURE_DEADLINE_MS,
+        );
+        await tracked.completeAndWait("SIGTERM");
 
         expect(result).toEqual({
           code: 37,
           signal: null,
         });
+        expect(controller.hasActiveChild()).toBe(false);
         expect(launch.detached).toBe(false);
         expect(existsSync(artifactPath)).toBe(true);
-        expect(JSON.parse(readFileSync(artifactPath, "utf8"))).toEqual({
-          argv: [artifactPath, target],
-          cwd: home.path,
+        const artifact = JSON.parse(readFileSync(
+          artifactPath,
+          "utf8",
+        )) as {
+          argv: string[];
+          cwd: string;
+          pid: number;
+          targetExecuted: boolean;
+        };
+        const fixturePid = artifact.pid;
+        expect(artifact).toEqual({
+          argv: ["run", "canary", "--", artifactPath, target],
+          cwd: fixtureRoot,
+          pid: expect.any(Number),
           targetExecuted: true,
         });
+        expect(supervisorPid).toEqual(expect.any(Number));
+        expect(isProcessAlive(supervisorPid)).toBe(false);
+        expect(isProcessAlive(fixturePid)).toBe(false);
       } finally {
-        home.cleanup();
+        if (controller.hasActiveChild()) {
+          await controller.terminateAndWait("SIGTERM");
+        }
+        rmSync(fixtureRoot, {
+          force: true,
+          maxRetries: 0,
+          recursive: true,
+        });
       }
+      expect(existsSync(fixtureRoot)).toBe(false);
     },
   );
 
