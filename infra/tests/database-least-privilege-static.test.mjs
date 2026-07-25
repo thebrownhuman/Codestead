@@ -51,20 +51,26 @@ test("Compose mounts the exact database credential matrix", () => {
     ],
     migrate: ["database_migrator_url:database_url"],
     app: ["database_url:database_url"],
-    "mail-worker": ["database_worker_url:database_url"],
-    "reward-worker": ["database_worker_url:database_url"],
-    "regrade-worker": ["database_worker_url:database_url"],
-    "exam-finalization-worker": ["database_worker_url:database_url"],
-    "practice-runner-recovery-worker": ["database_worker_url:database_url"],
-    "project-review-correction-worker": ["database_worker_url:database_url"],
-    "scan-worker": ["database_worker_url:database_url"],
-    lifecycle: ["database_ops_url:database_url"],
-    "platform-seed": ["database_ops_url:database_url"],
-    "admin-bootstrap": ["database_ops_url:database_url"],
+    "mail-worker": ["database_mail_worker_url:database_url"],
+    "reward-worker": ["database_reward_worker_url:database_url"],
+    "regrade-worker": ["database_regrade_worker_url:database_url"],
+    "exam-finalization-worker": ["database_exam_worker_url:database_url"],
+    "practice-runner-recovery-worker": ["database_practice_worker_url:database_url"],
+    "project-review-correction-worker": ["database_project_worker_url:database_url"],
+    "scan-worker": ["database_scan_worker_url:database_url"],
+    "file-erasure-worker": ["database_erasure_worker_url:database_url"],
+    lifecycle: ["database_lifecycle_url:database_url"],
+    "platform-seed": ["database_platform_seed_url:database_url"],
+    "admin-bootstrap": ["database_admin_bootstrap_url:database_url"],
   };
 
   for (const [service, mounts] of Object.entries(expected)) {
     assert.deepEqual(databaseSecretTargets(serviceBlock(compose, service)), mounts);
+  }
+
+  for (const service of Object.keys(expected).filter((name) => name.endsWith("worker") || name === "lifecycle")) {
+    const block = serviceBlock(compose, service);
+    assert.doesNotMatch(block, /source: database_worker_url|source: database_ops_url/u);
   }
 });
 
@@ -127,6 +133,7 @@ test("PostgreSQL is fixed-user, capability-free, and custom-socket-only", () => 
 test("bootstrap and migration share the administration lock without broad reassignment", () => {
   const bootstrap = read("scripts/bootstrap-database-roles.mjs");
   const migration = read("scripts/migrate-production.mjs");
+  const verifier = read("scripts/verify-database-role-boundaries.mjs");
 
   for (const source of [bootstrap, migration]) {
     assert.match(source, /codestead:database-administration:v1/u);
@@ -136,10 +143,46 @@ test("bootstrap and migration share the administration lock without broad reassi
   assert.match(bootstrap, /learncoding_owner/u);
   assert.match(bootstrap, /learncoding_migrator/u);
   assert.match(bootstrap, /ALTER DEFAULT PRIVILEGES/iu);
+  assert.match(bootstrap, /database-privilege-manifest\.mjs/u);
+  assert.match(verifier, /database-privilege-manifest\.mjs/u);
+  assert.match(migration, /reconcileDatabasePrivileges/u);
+  assert.doesNotMatch(bootstrap, /grant\s+select\s*,\s*insert\s*,\s*update\s*,\s*delete\s+on\s+all\s+tables/iu);
+  assert.doesNotMatch(bootstrap, /grant\s+usage\s*,\s*select\s*,\s*update\s+on\s+all\s+sequences/iu);
+  assert.doesNotMatch(bootstrap, /grant\s+usage\s+on\s+(?:all\s+)?types/iu);
+  assert.doesNotMatch(bootstrap, /alter\s+default\s+privileges[\s\S]{0,200}?\bgrant\b/iu);
   assert.match(migration, /SET ROLE learncoding_owner/u);
   assert.match(migration, /RESET ROLE/u);
   assert.match(migration, /current_user/u);
   assert.match(migration, /session_user/u);
+});
+
+test("owner-controlled mutations replace client-set database authority", () => {
+  const deletion = read("src/lib/data-lifecycle/deletion.ts");
+  const reviewRoute = read("src/app/api/projects/[id]/review/route.ts");
+  const correction = read("src/lib/projects/review-correction-service.ts");
+  const journal = JSON.parse(read("drizzle/meta/_journal.json"));
+  const latest = journal.entries.at(-1);
+
+  assert.doesNotMatch(deletion, /set_config\('app\.account_deletion_authorized'/u);
+  assert.doesNotMatch(reviewRoute, /set_config\('app\.project_review_projection_write'/u);
+  assert.doesNotMatch(correction, /set_config\('app\.project_review_projection_write'/u);
+  assert.equal(latest?.tag, "0057_database_privilege_authority_boundary");
+
+  const boundary = read("drizzle/0057_database_privilege_authority_boundary.sql");
+  assert.match(boundary, /SECURITY DEFINER/iu);
+  assert.match(boundary, /SET search_path = pg_catalog/iu);
+  assert.match(boundary, /REVOKE ALL ON FUNCTION[\s\S]+FROM PUBLIC/iu);
+  assert.match(boundary, /deletion_pending/iu);
+  assert.match(boundary, /project_review_effective/iu);
+});
+
+test("the standalone catalog-tamper verifier is registered in CI", () => {
+  const ci = read(".github/workflows/ci.yml");
+  const verifierTest = read("infra/tests/database-role-boundary-verifier.test.mjs");
+
+  assert.match(ci, /node --test infra\/tests\/database-role-boundary-verifier\.test\.mjs/u);
+  assert.match(verifierTest, /non-first object/u);
+  assert.match(verifierTest, /default ACL/u);
 });
 
 test("release stops mutators and rejects residual sessions before credential rotation", () => {

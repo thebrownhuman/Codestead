@@ -34,10 +34,30 @@ type DatabaseRoleModule = {
   }) => Promise<void>;
 };
 
+type DatabasePrivilegeManifestModule = {
+  DATABASE_PRIVILEGE_MANIFEST: {
+    version: string;
+    tables: Record<string, Partial<Record<"learncoding_app" | "learncoding_worker" | "learncoding_ops", readonly string[]>>>;
+    routines: Record<string, Partial<Record<"learncoding_app" | "learncoding_worker" | "learncoding_ops", readonly string[]>>>;
+    defaultPrivileges: Record<string, readonly string[]>;
+    services: Record<string, { role: string; secret: string }>;
+  };
+  validateDatabasePrivilegeManifest: (input: { tableNames: readonly string[] }) => void;
+};
+
 async function loadDatabaseRoleModule(): Promise<DatabaseRoleModule | null> {
   const modulePath = "../bootstrap-database-roles.mjs";
   try {
     return (await import(/* @vite-ignore */ modulePath)) as DatabaseRoleModule;
+  } catch {
+    return null;
+  }
+}
+
+async function loadDatabasePrivilegeManifest(): Promise<DatabasePrivilegeManifestModule | null> {
+  const modulePath = "../database-privilege-manifest.mjs";
+  try {
+    return (await import(/* @vite-ignore */ modulePath)) as DatabasePrivilegeManifestModule;
   } catch {
     return null;
   }
@@ -57,6 +77,100 @@ const urls = {
 };
 
 describe("database least-privilege bootstrap", () => {
+  it("publishes one versioned manifest covering every current public table", async () => {
+    const manifestModule = await loadDatabasePrivilegeManifest();
+    expect(manifestModule).not.toBeNull();
+
+    const [{ readFile }, { join }] = await Promise.all([
+      import("node:fs/promises"),
+      import("node:path"),
+    ]);
+    const snapshot = JSON.parse(
+      await readFile(join(process.cwd(), "drizzle", "meta", "0056_snapshot.json"), "utf8"),
+    ) as { tables: Record<string, unknown> };
+    const tableNames = Object.keys(snapshot.tables)
+      .filter((name) => name.startsWith("public."))
+      .map((name) => name.slice("public.".length))
+      .sort();
+
+    expect(manifestModule!.DATABASE_PRIVILEGE_MANIFEST.version).toBe("2026-07-22.v1");
+    expect(() => manifestModule!.validateDatabasePrivilegeManifest({ tableNames })).not.toThrow();
+    expect(Object.keys(manifestModule!.DATABASE_PRIVILEGE_MANIFEST.tables).sort()).toEqual(tableNames);
+  });
+
+  it("contains the reviewed worker/ops denial and routine boundaries", async () => {
+    const manifestModule = await loadDatabasePrivilegeManifest();
+    expect(manifestModule).not.toBeNull();
+    const manifest = manifestModule!.DATABASE_PRIVILEGE_MANIFEST;
+
+    for (const sensitive of ["account", "session", "auth_session_history", "provider_credential"]) {
+      expect(manifest.tables[sensitive]?.learncoding_worker ?? []).toEqual([]);
+    }
+    for (const grading of ["attempt", "response", "assessment_attempt_effective_result"]) {
+      expect(manifest.tables[grading]?.learncoding_ops ?? []).not.toContain("INSERT");
+      expect(manifest.tables[grading]?.learncoding_ops ?? []).not.toContain("UPDATE");
+      expect(manifest.tables[grading]?.learncoding_ops ?? []).not.toContain("DELETE");
+    }
+    expect(
+      Object.entries(manifest.routines)
+        .filter(([, grants]) => grants.learncoding_worker?.includes("EXECUTE"))
+        .map(([signature]) => signature)
+        .sort(),
+    ).toEqual([
+      "public.enqueue_reward_jobs_for_attempt_v1(uuid,text,timestamp with time zone)",
+      "public.enqueue_reward_jobs_for_mastery_scope_v1(uuid,text,timestamp with time zone)",
+    ]);
+    expect(manifest.defaultPrivileges).toEqual({
+      tables: [],
+      sequences: [],
+      types: [],
+      routines: [],
+    });
+  });
+
+  it("assigns every long-lived worker and operation a distinct login credential", async () => {
+    const manifestModule = await loadDatabasePrivilegeManifest();
+    expect(manifestModule).not.toBeNull();
+    const services = manifestModule!.DATABASE_PRIVILEGE_MANIFEST.services;
+    expect(Object.keys(services).sort()).toEqual([
+      "admin-bootstrap",
+      "app",
+      "exam-finalization-worker",
+      "file-erasure-worker",
+      "lifecycle",
+      "mail-worker",
+      "platform-seed",
+      "practice-runner-recovery-worker",
+      "project-review-correction-worker",
+      "regrade-worker",
+      "reward-worker",
+      "scan-worker",
+    ]);
+    const roles = Object.values(services).map((service) => service.role);
+    const secrets = Object.values(services).map((service) => service.secret);
+    expect(new Set(roles).size).toBe(roles.length);
+    expect(new Set(secrets).size).toBe(secrets.length);
+    expect(roles).not.toContain("learncoding_worker");
+    expect(roles).not.toContain("learncoding_ops");
+  });
+
+  it("removes direct destructive app access from append-only history and projections", async () => {
+    const manifestModule = await loadDatabasePrivilegeManifest();
+    expect(manifestModule).not.toBeNull();
+    const tables = manifestModule!.DATABASE_PRIVILEGE_MANIFEST.tables;
+
+    for (const table of [
+      "audit_event",
+      "auth_session_history",
+      "project_review",
+      "project_review_correction_event",
+      "reward_ledger",
+    ]) {
+      expect(tables[table]?.learncoding_app ?? []).not.toContain("DELETE");
+    }
+    expect(tables.project_review_effective?.learncoding_app ?? []).toEqual(["SELECT"]);
+  });
+
   it("uses one shared database-administration advisory lock", async () => {
     const databaseRoleBootstrap = await loadDatabaseRoleModule();
 

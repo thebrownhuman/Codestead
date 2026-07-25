@@ -187,7 +187,8 @@ describe("account deletion runtime orchestration", () => {
       .toBeLessThan(statements.findIndex((sql) => sql.includes("delete from stored_object")));
     expect(statements.findIndex((sql) => sql.includes("delete from project_revision revision")))
       .toBeLessThan(statements.findIndex((sql) => sql.includes("delete from project where")));
-    expect(statements).toContain("select set_config('app.account_deletion_authorized', '1', true)");
+    expect(statements.some((statement) => statement.includes("app.account_deletion_authorized"))).toBe(false);
+    expect(statements.some((statement) => statement.includes("delete_learner_protected_history_v1"))).toBe(true);
     expect(statements.findIndex((sql) => sql.includes("delete from project_review_correction")))
       .toBeLessThan(statements.findIndex((sql) => sql.includes("delete from appeal where")));
     expect(statements.findIndex((sql) => sql.includes("delete from appeal where")))
