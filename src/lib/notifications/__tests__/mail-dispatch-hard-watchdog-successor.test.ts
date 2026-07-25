@@ -118,7 +118,7 @@ describe("mail dispatch hard watchdog native-exit successor", () => {
   );
 
   it(
-    "lets the bounded parent ARM handshake fail before a dropped ACK can fire the child timer",
+    "arms the child timer before dropping ACK while the shorter parent bound parks",
     { timeout: 10_000 },
     async () => {
       const result = await runFixture({
@@ -129,17 +129,16 @@ describe("mail dispatch hard watchdog native-exit successor", () => {
         environment: testEnvironment({
           MAIL_DISPATCH_WATCHDOG_TEST_FAULT: "DROP_ARM_ACK",
           MAIL_DISPATCH_WATCHDOG_TEST_HANDSHAKE_TIMEOUT_MS: "1000",
-          MAIL_DISPATCH_WATCHDOG_TEST_TIMEOUT_MS: "250",
+          MAIL_DISPATCH_WATCHDOG_TEST_TIMEOUT_MS: "1500",
         }),
-        timeoutMs: 3_000,
+        timeoutMs: 4_000,
       });
 
-      expect(result.code).toBe(1);
-      expect(result.signal).toBeNull();
+      expectRawSigkill(result);
       expect(result.stdout).toBe("");
       expect(result.stderr).toBe("");
-      expect(result.elapsedMs).toBeGreaterThanOrEqual(900);
-      expect(result.elapsedMs).toBeLessThan(2_500);
+      expect(result.elapsedMs).toBeGreaterThanOrEqual(1_400);
+      expect(result.elapsedMs).toBeLessThan(3_500);
     },
   );
 
