@@ -1,29 +1,36 @@
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 
-import { materializeDeliveryVariablesWithDatabase } from "../src/lib/notifications/delivery-variables";
+import {
+  materializeDeliveryWithAuthorityEvidenceWithDatabase,
+} from "../src/lib/notifications/delivery-variables";
+import {
+  createConfiguredMaterializedDispatch,
+  type PreparedDispatchRuntimePlan,
+} from "../src/lib/notifications/guarded-prepared-dispatch";
 import { scheduleInactivityReminders } from "../src/lib/notifications/inactivity";
+import {
+  startMailDispatchHardWatchdog,
+  type MailDispatchHardWatchdog,
+} from "../src/lib/notifications/mail-dispatch-hard-watchdog";
 import {
   createMailDispatchDatabaseResources,
   type MailDispatchDatabase,
   type MailDispatchDatabaseResources,
 } from "../src/lib/notifications/mail-dispatch-pool";
 import {
-  type MailDispatchRuntimeStartupInspection,
-} from "../src/lib/notifications/mail-dispatch-runtime-startup";
-import {
-  classifyMailDeliveryError,
-  sendEmail,
-  type OutgoingEmail,
-} from "../src/lib/notifications/mailer";
-import {
-  resolveEmailTemplateAuthorityPolicy,
-} from "../src/lib/notifications/template-authority-policy";
-import {
+  authorizeCommittedPreparedDispatch,
+  discardCommittedPreparedDispatchReceipt,
+  discardGuardedPreparedDispatch,
+  mailDispatchPreparedRuntimePlan,
   PostgresOutboxStore,
   type EmailOutboxPayload,
 } from "../src/lib/notifications/postgres-outbox-store";
+import { outboxMessageId } from "../src/lib/notifications/provider-correlation";
 import { scheduleSmartRemindersWithDatabase } from "../src/lib/notifications/smart-reminders";
+import {
+  resolveEmailTemplateAuthorityPolicy,
+} from "../src/lib/notifications/template-authority-policy";
 import {
   processOutboxBatch,
   type ItemOutcome,
@@ -72,6 +79,7 @@ const claimOwner =
 
 let healthReporter: ReturnType<typeof createWorkerHealthReporter> | undefined;
 let databaseResources: MailDispatchDatabaseResources | undefined;
+let hardWatchdog: MailDispatchHardWatchdog | undefined;
 let stopping = false;
 let finishPollWait: (() => void) | undefined;
 
@@ -139,6 +147,15 @@ async function endPoolWithinDeadline() {
 async function cleanup() {
   removeTerminationHandlers();
   try {
+    await hardWatchdog?.close();
+  } catch {
+    process.exitCode = 1;
+    console.error(JSON.stringify({
+      event: "email.worker_cleanup_failed",
+      code: "WATCHDOG_SHUTDOWN_FAILED",
+    }));
+  }
+  try {
     await endPoolWithinDeadline();
   } catch (error) {
     process.exitCode = 1;
@@ -188,10 +205,13 @@ function retryMaterialization(input: {
 async function processBatch(
   store: PostgresOutboxStore,
   adapter: "console" | "gmail",
-  runtimeInspection: MailDispatchRuntimeStartupInspection,
   database: MailDispatchDatabase,
+  runtimePlan: PreparedDispatchRuntimePlan,
+  watchdog: MailDispatchHardWatchdog,
+  applicationUrl: string,
+  from: string,
 ) {
-  return processOutboxBatch<EmailOutboxPayload, OutgoingEmail>({
+  return processOutboxBatch<EmailOutboxPayload>({
     store,
     materialize: async (claim) => {
       const resolvedPolicy = resolveEmailTemplateAuthorityPolicy(
@@ -202,7 +222,7 @@ async function processBatch(
         return { kind: "suppressed", code: "TEMPLATE_POLICY_INVALID" };
       }
       const template = resolvedPolicy.template;
-      const variables = await materializeDeliveryVariablesWithDatabase(
+      const delivery = await materializeDeliveryWithAuthorityEvidenceWithDatabase(
         database,
         {
           template,
@@ -210,46 +230,48 @@ async function processBatch(
           now: new Date(),
         },
       );
-      if (!variables) {
+      if (!delivery) {
         return {
           kind: "suppressed",
           code: "DELIVERY_PROOF_UNAVAILABLE",
         };
       }
-      return {
-        kind: "ready",
-        message: {
-          to: claim.payload.to,
+      const materialized = createConfiguredMaterializedDispatch({
+        source: {
+          applicationUrl,
+          outboxId: claim.id,
+          operationId: claim.operationId,
+          claimToken: claim.claimToken,
+          claimOwner: claim.claimOwner,
+          claimVersion: claim.claimVersion,
+          deliveryScopeKey: claim.deliveryScopeKey,
+          recipient: claim.payload.to,
           template,
-          variables,
+          templateVersion: resolvedPolicy.templateVersion,
+          variables: { ...claim.payload.variables },
         },
-      };
+        adapter,
+        from,
+        messageId: outboxMessageId(claim.operationId),
+        runtimePlan,
+        ...(delivery.authorityEvidence === null
+          ? {}
+          : {
+              delivery: {
+                authorityEvidence: delivery.authorityEvidence,
+                variables: delivery.variables,
+              },
+            }),
+      });
+      return { kind: "ready", materialized };
     },
-    provider: {
-      adapter,
-      send: async (message, context) => {
-        try {
-          const receipt = await sendEmail(message, {
-            messageId: context.messageId,
-          });
-          return {
-            kind: "accepted" as const,
-            providerMessageId: receipt.providerId,
-          };
-        } catch (error) {
-          const failure = classifyMailDeliveryError(error);
-          return failure.kind === "definitely-rejected"
-            ? {
-                kind: "definitely-rejected" as const,
-                code: failure.code,
-              }
-            : {
-                kind: "ambiguous" as const,
-                code: failure.code,
-              };
-        }
-      },
-    },
+    adapter,
+    authorize: (receipt) => authorizeCommittedPreparedDispatch(store, receipt),
+    discardReceipt: (permit, receipt) =>
+      discardCommittedPreparedDispatchReceipt(store, permit, receipt),
+    discardGuard: (permit, guarded) =>
+      discardGuardedPreparedDispatch(store, permit, guarded),
+    watchdog,
     claimOwner,
     newClaimToken: randomUUID,
     shouldStop: () => stopping,
@@ -261,8 +283,6 @@ async function processBatch(
     policy: {
       batchSize: BATCH_SIZE,
       materializeLeaseMs: MATERIALIZE_LEASE_MS,
-      providerLeaseMs:
-        runtimeInspection.plan.providerLease.providerLeaseStampMs,
       maxMaterializeAttempts: MAX_MATERIALIZE_ATTEMPTS,
       maxRetryDelayMs: MAX_RETRY_DELAY_MS,
       terminalPersistenceAttempts: TERMINAL_PERSISTENCE_ATTEMPTS,
@@ -357,12 +377,18 @@ async function main() {
     );
   }
   const adapter = configuredAdapter();
+  const applicationUrl = process.env.APP_URL ?? "http://localhost:3000";
+  const from = process.env.MAIL_FROM ?? "Codestead <noreply@example.com>";
   const resources = await createMailDispatchDatabaseResources();
   databaseResources = resources;
   const {
     pool, database, inspection: runtimeInspection,
   } = resources;
-  const store = new PostgresOutboxStore(pool);
+  const store = new PostgresOutboxStore(pool, runtimeInspection);
+  const runtimePlan = mailDispatchPreparedRuntimePlan(store);
+  if (!runtimePlan) throw new Error("Mail dispatch runtime plan was not issued.");
+  const watchdog = await startMailDispatchHardWatchdog();
+  hardWatchdog = watchdog;
   const once = process.argv.includes("--once");
   healthReporter = createWorkerHealthReporter({ worker: "mail-worker" });
   let lastInactivityScheduleAt = 0;
@@ -399,8 +425,11 @@ async function main() {
     const result = await processBatch(
       store,
       adapter,
-      runtimeInspection,
       database,
+      runtimePlan,
+      watchdog,
+      applicationUrl,
+      from,
     );
     console.info(JSON.stringify(batchLog(result)));
     healthReporter.success();

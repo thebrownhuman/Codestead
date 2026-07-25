@@ -126,6 +126,19 @@ export function createLostDeviceAuthorityEvidence(input: Readonly<{
   return evidence;
 }
 
+export function issuedLostDeviceAuthorityEvidenceMatches(
+  evidence: LostDeviceAuthorityEvidence | undefined,
+  sourceId: string,
+): evidence is LostDeviceAuthorityEvidence {
+  return evidence !== undefined
+    && Object.isFrozen(evidence)
+    && ISSUED_LOST_DEVICE_EVIDENCE.has(evidence)
+    && UUID.test(sourceId)
+    && evidence.kind === "lost-device-proof"
+    && evidence.sourceId === sourceId
+    && SHA256.test(evidence.proofHash);
+}
+
 export class RevocableSourceAuthorityError extends Error {
   constructor(readonly code:
     | "MAIL_SOURCE_EVIDENCE_INVALID"
@@ -522,12 +535,7 @@ function lostDeviceAuthorityQuery(
   parsed: Extract<ParsedRevocableSource, { kind: "lost-device-proof" }>,
 ) {
   const evidence = input.authorityEvidence;
-  if (
-    !evidence
-    || !ISSUED_LOST_DEVICE_EVIDENCE.has(evidence)
-    || evidence.sourceId !== parsed.sourceId
-    || !SHA256.test(evidence.proofHash)
-  ) return null;
+  if (!issuedLostDeviceAuthorityEvidenceMatches(evidence, parsed.sourceId)) return null;
   return frozenQuery(parsed.kind, `
     select 1
       from public.lost_device_proof source_proof

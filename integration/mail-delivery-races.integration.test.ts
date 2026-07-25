@@ -297,7 +297,12 @@ async function truncateApplicationTables() {
   assertDisposableDatabase();
   const result = await pool.query<{ table_name: string }>(`
     select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
+     where table_schema = 'public'
+       and table_type = 'BASE TABLE'
+       and table_name not in (
+         'backup_status_mail_authority',
+         'backup_status_mail_admin_guard'
+       )
   `);
   if (!result.rows.length) return;
   const names = result.rows

@@ -56,7 +56,7 @@ vi.mock("../src/lib/notifications/mail-dispatch-pool", () => ({
 vi.mock("../src/lib/notifications/postgres-outbox-store", () => ({
   PostgresOutboxStore: mocks.PostgresOutboxStore,
 }));
-vi.mock("../src/lib/notifications/mailer", () => ({
+vi.mock("../src/lib/notifications/gmail-correlation-lookup", () => ({
   findGmailMessageByMessageId: mocks.findGmailMessageByMessageId,
 }));
 vi.mock("../src/lib/notifications/gmail-reconciliation", () => ({
@@ -283,7 +283,10 @@ describe("Gmail reconciliation operator command", () => {
     await vi.waitFor(() => expect(mocks.pool.end).toHaveBeenCalledOnce());
 
     expect(mocks.createMailDispatchDatabaseResources).toHaveBeenCalledWith();
-    expect(mocks.PostgresOutboxStore).toHaveBeenCalledWith(mocks.pool);
+    expect(mocks.PostgresOutboxStore).toHaveBeenCalledWith(
+      mocks.pool,
+      mocks.inspection,
+    );
     expect(mocks.reconcileGmailDelivery).toHaveBeenCalledWith({
       operationId: OPERATION_ID,
       apply: true,

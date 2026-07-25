@@ -6,7 +6,7 @@ import { assertGmailReconciliationOAuthScopes } from "../src/lib/notifications/g
 import {
   reconcileGmailDelivery,
 } from "../src/lib/notifications/gmail-reconciliation";
-import { findGmailMessageByMessageId } from "../src/lib/notifications/mailer";
+import { findGmailMessageByMessageId } from "../src/lib/notifications/gmail-correlation-lookup";
 import { PostgresOutboxStore } from "../src/lib/notifications/postgres-outbox-store";
 import {
   allowlistedOperationalErrorCode,
@@ -122,7 +122,10 @@ async function main() {
   const input = commandInput(process.argv.slice(2));
   const resources = await createMailDispatchDatabaseResources();
   databaseResources = resources;
-  const store = new PostgresOutboxStore(resources.pool);
+  const store = new PostgresOutboxStore(
+    resources.pool,
+    resources.inspection,
+  );
   const result = await reconcileGmailDelivery(input, {
     store,
     gmail: { findByMessageId: findGmailMessageByMessageId },

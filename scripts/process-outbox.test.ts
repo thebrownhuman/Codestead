@@ -26,20 +26,33 @@ const mocks = vi.hoisted(() => {
     query: poolQuery,
   };
   const createMailDispatchDatabaseResources = vi.fn();
-  const store = { kind: "postgres-outbox-store" };
+  const store = Object.freeze({ kind: "postgres-outbox-store" });
   const PostgresOutboxStore = vi.fn(function PostgresOutboxStore() {
     return store;
   });
+  const runtimePlan = Object.freeze({
+    timeouts: Object.freeze({
+      oauthDeadlineMs: 20_000,
+      guardedSendDeadlineMs: 20_000,
+      providerAbortSettlementMs: 5_000,
+    }),
+  });
+  const mailDispatchPreparedRuntimePlan = vi.fn(() => runtimePlan);
+  const authorizeCommittedPreparedDispatch = vi.fn(async () => Object.freeze({}));
+  const discardCommittedPreparedDispatchReceipt = vi.fn(() => true);
+  const discardGuardedPreparedDispatch = vi.fn(() => true);
   const processOutboxBatch = vi.fn();
-  const materializeDeliveryVariables = vi.fn();
-  const sendEmail = vi.fn();
-  const classifyMailDeliveryError = vi.fn((): {
-    kind: "definitely-rejected" | "ambiguous";
-    code: string;
-  } => ({
-    kind: "ambiguous" as const,
-    code: "PROVIDER_OUTCOME_AMBIGUOUS",
-  }));
+  const materializedDispatch = Object.freeze({});
+  const createConfiguredMaterializedDispatch = vi.fn((input: object) => {
+    void input;
+    return materializedDispatch;
+  });
+  const materializeDelivery = vi.fn();
+  const watchdog = Object.freeze({
+    arm: vi.fn(async () => Object.freeze({})),
+    close: vi.fn(async () => undefined),
+  });
+  const startMailDispatchHardWatchdog = vi.fn(async () => watchdog);
   const scheduleInactivityReminders = vi.fn();
   const scheduleSmartReminders = vi.fn();
   const health = {
@@ -57,10 +70,17 @@ const mocks = vi.hoisted(() => {
     poolQuery,
     store,
     PostgresOutboxStore,
+    runtimePlan,
+    mailDispatchPreparedRuntimePlan,
+    authorizeCommittedPreparedDispatch,
+    discardCommittedPreparedDispatchReceipt,
+    discardGuardedPreparedDispatch,
     processOutboxBatch,
-    materializeDeliveryVariables,
-    sendEmail,
-    classifyMailDeliveryError,
+    materializedDispatch,
+    createConfiguredMaterializedDispatch,
+    materializeDelivery,
+    watchdog,
+    startMailDispatchHardWatchdog,
     scheduleInactivityReminders,
     scheduleSmartReminders,
     health,
@@ -92,17 +112,26 @@ vi.mock("../src/lib/db/schema", () => ({
   },
 }));
 vi.mock("../src/lib/notifications/postgres-outbox-store", () => ({
+  authorizeCommittedPreparedDispatch: mocks.authorizeCommittedPreparedDispatch,
+  discardCommittedPreparedDispatchReceipt:
+    mocks.discardCommittedPreparedDispatchReceipt,
+  discardGuardedPreparedDispatch: mocks.discardGuardedPreparedDispatch,
+  mailDispatchPreparedRuntimePlan: mocks.mailDispatchPreparedRuntimePlan,
   PostgresOutboxStore: mocks.PostgresOutboxStore,
 }));
 vi.mock("../src/lib/notifications/outbox-worker", () => ({
   processOutboxBatch: mocks.processOutboxBatch,
 }));
-vi.mock("../src/lib/notifications/mailer", () => ({
-  sendEmail: mocks.sendEmail,
-  classifyMailDeliveryError: mocks.classifyMailDeliveryError,
+vi.mock("../src/lib/notifications/guarded-prepared-dispatch", () => ({
+  createConfiguredMaterializedDispatch:
+    mocks.createConfiguredMaterializedDispatch,
 }));
 vi.mock("../src/lib/notifications/delivery-variables", () => ({
-  materializeDeliveryVariablesWithDatabase: mocks.materializeDeliveryVariables,
+  materializeDeliveryWithAuthorityEvidenceWithDatabase:
+    mocks.materializeDelivery,
+}));
+vi.mock("../src/lib/notifications/mail-dispatch-hard-watchdog", () => ({
+  startMailDispatchHardWatchdog: mocks.startMailDispatchHardWatchdog,
 }));
 vi.mock("../src/lib/notifications/inactivity", () => ({
   scheduleInactivityReminders: mocks.scheduleInactivityReminders,
@@ -190,8 +219,10 @@ describe("mail worker production composition", () => {
         server_version_num: "170005",
       }],
     });
-    mocks.materializeDeliveryVariables.mockResolvedValue({});
-    mocks.sendEmail.mockResolvedValue({ providerId: "console-provider-1" });
+    mocks.materializeDelivery.mockResolvedValue({
+      authorityEvidence: null,
+      variables: {},
+    });
     mocks.scheduleInactivityReminders.mockResolvedValue({ scheduled: 0 });
     mocks.scheduleSmartReminders.mockResolvedValue({ scheduled: 0 });
     vi.spyOn(console, "info").mockImplementation(() => undefined);
@@ -272,12 +303,11 @@ describe("mail worker production composition", () => {
     );
   });
 
-  it("runs the fenced state machine with a PostgreSQL store and stable process authority", async () => {
+  it("runs only the guarded state machine with exact startup authority", async () => {
     await loadWorkerOnce();
 
     expect(mocks.createMailDispatchDatabaseResources).toHaveBeenCalledOnce();
     expect(mocks.createMailDispatchDatabaseResources).toHaveBeenCalledWith();
-
     expect(mocks.poolQuery).toHaveBeenCalledOnce();
     const startupSql = String(
       (mocks.poolQuery.mock.calls[0]?.[0] as { text?: unknown })?.text,
@@ -290,144 +320,195 @@ describe("mail worker production composition", () => {
       "current_setting('reserved_connections', true)",
     );
     expect(startupSql).toContain("current_setting('server_version_num')");
-    expect(mocks.PostgresOutboxStore).toHaveBeenCalledWith(mocks.pool);
+    expect(mocks.PostgresOutboxStore).toHaveBeenCalledWith(
+      mocks.pool,
+      expect.objectContaining({ postgresMajor: 17 }),
+    );
     expect(mocks.poolQuery.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.PostgresOutboxStore.mock.invocationCallOrder[0]!,
     );
+    expect(mocks.mailDispatchPreparedRuntimePlan).toHaveBeenCalledWith(
+      mocks.store,
+    );
+    expect(mocks.startMailDispatchHardWatchdog).toHaveBeenCalledOnce();
     expect(mocks.processOutboxBatch).toHaveBeenCalledTimes(1);
     const dependencies = mocks.processOutboxBatch.mock.calls[0]![0] as {
       store: unknown;
+      adapter: string;
+      authorize(receipt: unknown): Promise<unknown>;
+      discardReceipt(permit: unknown, receipt: unknown): boolean;
+      discardGuard(permit: unknown, guarded: unknown): boolean;
+      watchdog: unknown;
       claimOwner: string;
       newClaimToken(): string;
       shouldStop(): boolean;
-      provider: { adapter: string };
       policy: Record<string, number>;
+      provider?: unknown;
     };
     expect(dependencies.store).toBe(mocks.store);
+    expect(dependencies.adapter).toBe("console");
+    expect(dependencies.watchdog).toBe(mocks.watchdog);
+    expect(dependencies.provider).toBeUndefined();
     expect(dependencies.claimOwner).toMatch(/^mail-worker:/);
     expect(dependencies.newClaimToken()).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
     expect(dependencies.shouldStop()).toBe(false);
-    expect(dependencies.provider.adapter).toBe("console");
     expect(dependencies.policy).toEqual({
       batchSize: 10,
       materializeLeaseMs: 60_000,
-      providerLeaseMs: 110_000,
       maxMaterializeAttempts: 8,
       maxRetryDelayMs: 6 * 60 * 60_000,
       terminalPersistenceAttempts: 3,
     });
-    expect(dependencies.policy.providerLeaseMs - 15_000).toBe(95_000);
+
+    const receipt = Object.freeze({});
+    const permit = Object.freeze({});
+    const guarded = Object.freeze({});
+    await dependencies.authorize(receipt);
+    expect(dependencies.discardReceipt(permit, receipt)).toBe(true);
+    expect(dependencies.discardGuard(permit, guarded)).toBe(true);
+    expect(mocks.authorizeCommittedPreparedDispatch).toHaveBeenCalledWith(
+      mocks.store,
+      receipt,
+    );
+    expect(mocks.discardCommittedPreparedDispatchReceipt).toHaveBeenCalledWith(
+      mocks.store,
+      permit,
+      receipt,
+    );
+    expect(mocks.discardGuardedPreparedDispatch).toHaveBeenCalledWith(
+      mocks.store,
+      permit,
+      guarded,
+    );
     expect(mocks.db.select).not.toHaveBeenCalled();
     expect(mocks.db.update).not.toHaveBeenCalled();
   });
 
-  it("materializes delivery-only variables and converts a provider receipt for the state machine", async () => {
-    const materialized = {
-      name: "Learner",
-      url: "https://example.test/reset?token=delivery-only",
-    };
-    mocks.materializeDeliveryVariables.mockResolvedValue(materialized);
-    mocks.sendEmail.mockResolvedValue({ providerId: "gmail-message-1" });
+  it("materializes an exact configured dispatch and omits ordinary delivery overrides", async () => {
+    const variables = { name: "Learner", url: "https://example.test/invitation" };
+    mocks.materializeDelivery.mockResolvedValue({
+      authorityEvidence: null,
+      variables,
+    });
     let materializeResult: unknown;
-    let providerResult: unknown;
     mocks.processOutboxBatch.mockImplementation(async (dependencies: {
       materialize(claim: unknown): Promise<unknown>;
-      provider: {
-        send(message: unknown, context: unknown): Promise<unknown>;
-      };
     }) => {
-      const claim = {
+      materializeResult = await dependencies.materialize({
         phase: "pre-provider",
         id: "11111111-1111-4111-8111-111111111111",
         operationId: "22222222-2222-4222-8222-222222222222",
         claimToken: "33333333-3333-4333-8333-333333333333",
         claimOwner: "worker",
         claimVersion: 1,
+        userId: "learner-1",
+        deliveryScopeKey: "a:learner-1",
         attempt: 1,
         leaseExpiresAt: new Date("2026-07-23T00:01:00.000Z"),
         payload: {
           userId: "learner-1",
           to: "learner@example.test",
-          template: "reset-password",
+          template: "invitation",
           templateVersion: "1",
-          variables: { recoveryRequestId: "not-persisted-in-the-message" },
+          variables,
         },
-      };
-      materializeResult = await dependencies.materialize(claim);
-      const message = (materializeResult as { message: unknown }).message;
-      providerResult = await dependencies.provider.send(message, {
-        operationId: claim.operationId,
-        messageId: "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
-        permit: { phase: "post-provider" },
       });
       return { claimed: 1, swept: 0, outcomes: [] };
     });
 
     await loadWorkerOnce();
 
-    expect(mocks.materializeDeliveryVariables).toHaveBeenCalledWith(
-      mocks.db,
-      {
-        template: "reset-password",
-        variables: { recoveryRequestId: "not-persisted-in-the-message" },
-        now: expect.any(Date),
-      },
-    );
+    expect(mocks.materializeDelivery).toHaveBeenCalledWith(mocks.db, {
+      template: "invitation",
+      variables,
+      now: expect.any(Date),
+    });
     expect(materializeResult).toEqual({
       kind: "ready",
-      message: {
-        to: "learner@example.test",
-        template: "reset-password",
-        variables: materialized,
+      materialized: mocks.materializedDispatch,
+    });
+    const input = mocks.createConfiguredMaterializedDispatch.mock.calls[0]![0];
+    expect(input).toEqual({
+      source: {
+        applicationUrl: "http://localhost:3000",
+        outboxId: "11111111-1111-4111-8111-111111111111",
+        operationId: "22222222-2222-4222-8222-222222222222",
+        claimToken: "33333333-3333-4333-8333-333333333333",
+        claimOwner: "worker",
+        claimVersion: 1,
+        deliveryScopeKey: "a:learner-1",
+        recipient: "learner@example.test",
+        template: "invitation",
+        templateVersion: "1",
+        variables,
       },
+      adapter: "console",
+      from: "Codestead <noreply@example.com>",
+      messageId: expect.stringMatching(
+        /^<codestead\.outbox\.v1\.[A-Za-z0-9_-]{43}@mail\.codestead\.invalid>$/u,
+      ),
+      runtimePlan: mocks.runtimePlan,
     });
-    expect(mocks.sendEmail).toHaveBeenCalledWith({
-      to: "learner@example.test",
-      template: "reset-password",
-      variables: materialized,
-    }, {
-      messageId: "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
-    });
-    expect(providerResult).toEqual({
-      kind: "accepted",
-      providerMessageId: "gmail-message-1",
-    });
+    expect(input).not.toHaveProperty("delivery");
   });
 
-  it("maps a typed pre-request mail failure to definite rejection", async () => {
-    const failure = new Error("Gmail OAuth request timed out.");
-    mocks.sendEmail.mockRejectedValueOnce(failure);
-    mocks.classifyMailDeliveryError.mockReturnValueOnce({
-      kind: "definitely-rejected",
-      code: "GMAIL_OAUTH_FAILED",
+  it("passes issued lost-device authority evidence only as ephemeral delivery", async () => {
+    const recoveryRequestId = "44444444-4444-4444-8444-444444444444";
+    const sourceVariables = { name: "Learner", recoveryRequestId };
+    const authorityEvidence = Object.freeze({
+      kind: "lost-device-proof" as const,
+      sourceId: recoveryRequestId,
+      proofHash: "a".repeat(64),
     });
-    let providerResult: unknown;
+    const deliveryVariables = {
+      name: "Learner",
+      url: "http://localhost:3000/lost-device#proof=" + "A".repeat(43),
+    };
+    mocks.materializeDelivery.mockResolvedValue({
+      authorityEvidence,
+      variables: deliveryVariables,
+    });
     mocks.processOutboxBatch.mockImplementation(async (dependencies: {
-      provider: {
-        send(message: unknown, context: unknown): Promise<unknown>;
-      };
+      materialize(claim: unknown): Promise<unknown>;
     }) => {
-      providerResult = await dependencies.provider.send({
-        to: "learner@example.test",
-        template: "invitation",
-        variables: {},
-      }, {
+      await dependencies.materialize({
+        phase: "pre-provider",
+        id: "11111111-1111-4111-8111-111111111111",
         operationId: "22222222-2222-4222-8222-222222222222",
-        messageId: "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>",
-        permit: { phase: "post-provider" },
+        claimToken: "33333333-3333-4333-8333-333333333333",
+        claimOwner: "worker",
+        claimVersion: 1,
+        userId: "learner-1",
+        deliveryScopeKey: "a:learner-1",
+        attempt: 1,
+        leaseExpiresAt: new Date("2026-07-23T00:01:00.000Z"),
+        payload: {
+          userId: "learner-1",
+          to: "learner@example.test",
+          template: "lost-device-proof",
+          templateVersion: "1",
+          variables: sourceVariables,
+        },
       });
       return { claimed: 1, swept: 0, outcomes: [] };
     });
 
     await loadWorkerOnce();
 
-    expect(providerResult).toEqual({
-      kind: "definitely-rejected",
-      code: "GMAIL_OAUTH_FAILED",
+    const input = mocks.createConfiguredMaterializedDispatch.mock.calls[0]![0] as {
+      source: { variables: Record<string, string> };
+      delivery?: unknown;
+    };
+    expect(input.source.variables).toEqual(sourceVariables);
+    expect(input.source.variables).not.toHaveProperty("url");
+    expect(input.delivery).toEqual({
+      authorityEvidence,
+      variables: deliveryVariables,
     });
   });
+
   it("suppresses an unknown stored template before materialization or provider work", async () => {
     let materializeResult: unknown;
     mocks.processOutboxBatch.mockImplementation(async (dependencies: {
@@ -459,11 +540,11 @@ describe("mail worker production composition", () => {
       kind: "suppressed",
       code: "TEMPLATE_POLICY_INVALID",
     });
-    expect(mocks.materializeDeliveryVariables).not.toHaveBeenCalled();
-    expect(mocks.sendEmail).not.toHaveBeenCalled();
+    expect(mocks.materializeDelivery).not.toHaveBeenCalled();
+    expect(mocks.createConfiguredMaterializedDispatch).not.toHaveBeenCalled();
   });
   it("suppresses a row before provider delivery when delivery proof cannot be materialized", async () => {
-    mocks.materializeDeliveryVariables.mockResolvedValue(null);
+    mocks.materializeDelivery.mockResolvedValue(null);
     let materializeResult: unknown;
     mocks.processOutboxBatch.mockImplementation(async (dependencies: {
       materialize(claim: unknown): Promise<unknown>;
@@ -494,7 +575,7 @@ describe("mail worker production composition", () => {
       kind: "suppressed",
       code: "DELIVERY_PROOF_UNAVAILABLE",
     });
-    expect(mocks.sendEmail).not.toHaveBeenCalled();
+    expect(mocks.createConfiguredMaterializedDispatch).not.toHaveBeenCalled();
   });
 
   it("logs outcome counts without row, operation, recipient, or bearer data", async () => {
@@ -588,7 +669,11 @@ describe("mail worker production composition", () => {
     expect(mocks.health.success).toHaveBeenCalledTimes(1);
     expect(mocks.health.retry).not.toHaveBeenCalled();
     expect(mocks.health.terminalFailure).not.toHaveBeenCalled();
+    expect(mocks.watchdog.close).toHaveBeenCalledTimes(1);
     expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
+    expect(mocks.watchdog.close.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.poolEnd.mock.invocationCallOrder[0]!,
+    );
   });
 
   it.each(["SIGTERM", "SIGINT"] as const)(
