@@ -15,6 +15,8 @@ import {
   mailWorkerOutboxPrivilegesSql,
   reconcileDatabaseRolePrivileges,
   reviewedApplicationFunctionPrivilegesSql,
+  verifyBackupStatusAuthorityAfterRepair,
+  verifyBackupStatusAuthorityBeforeRepair,
   verifyPostMigrationReviewedContractsBeforeReconciliation,
 } from "./bootstrap-database-roles.mjs";
 import {
@@ -202,6 +204,15 @@ test("replays post-migration privilege reconciliation idempotently", async () =>
           ],
         };
       }
+      if (normalized.includes("backup_status_authority_present")) {
+        return {
+          rows: [
+            {
+              backup_status_authority_present: false,
+            },
+          ],
+        };
+      }
       if (normalized.includes("reviewed_routine_presence_exact")) {
         return {
           rows: [
@@ -332,6 +343,16 @@ function makeClient(role, database, options) {
   const queryParameters = [];
   let delegated = false;
   let grantCatalogVersion = 0;
+  const latestApplied =
+    options.appliedMigrationIndex === undefined
+      ? 65
+      : options.appliedMigrationIndex;
+  const backupAuthorityPresent =
+    options.backupAuthorityPresent ??
+    (options.journalPresent !== false &&
+      latestApplied !== null &&
+      latestApplied >= 65 &&
+      options.missingMigrationIndex !== 65);
   return {
     queries,
     queryParameters,
@@ -406,14 +427,27 @@ function makeClient(role, database, options) {
           ],
         };
       }
+      if (normalized.includes("backup_status_authority_present")) {
+        return {
+          rows: [
+            {
+              backup_status_authority_present: backupAuthorityPresent,
+            },
+          ],
+        };
+      }
+      if (
+        normalized.includes("'public.backup_status_mail_authorized(uuid)'") &&
+        normalized.endsWith(") present")
+      ) {
+        return {
+          rows: [{ present: backupAuthorityPresent }],
+        };
+      }
       if (
         normalized.includes("reviewed(migration_index, created_at)") &&
         normalized.includes("applied_hashes")
       ) {
-        const latestApplied =
-          options.appliedMigrationIndex === undefined
-            ? 64
-            : options.appliedMigrationIndex;
         return {
           rows: REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.map((phase) => {
             const applied =
@@ -453,6 +487,89 @@ function makeClient(role, database, options) {
               reviewed_routine_presence_exact: tamper !== "routine",
               reviewed_trigger_presence_exact: tamper !== "trigger",
               reviewed_constraint_presence_exact: tamper !== "constraint",
+            },
+          ],
+        };
+      }
+      if (normalized.includes("effective_table_acl_exact")) {
+        const targetRelation = parameters?.[0];
+        const targeted =
+          options.backupContractTamperRelation === undefined ||
+          options.backupContractTamperRelation === targetRelation;
+        const tamper = targeted ? options.backupContractTamper : undefined;
+        if (tamper === "relation-missing") return { rows: [] };
+        return {
+          rows: [
+            {
+              owner_exact: tamper !== "table-owner",
+              relation_kind_exact: true,
+              persistence_exact: true,
+              access_method_exact: true,
+              replica_identity_exact: true,
+              reloptions_exact: true,
+              tablespace_exact: true,
+              row_security_exact: true,
+              forced_row_security_exact: true,
+              columns_exact: tamper !== "table-columns",
+              column_definitions_exact: tamper !== "table-definitions",
+              constraints_exact: tamper !== "table-constraints",
+              indexes_exact: tamper !== "table-indexes",
+              effective_table_acl_exact: tamper !== "table-effective-acl",
+              effective_column_acl_exact: tamper !== "column-effective-acl",
+              direct_acl_exact: tamper !== "table-direct-acl",
+            },
+          ],
+        };
+      }
+      if (normalized.includes("routine_kind_exact")) {
+        const targetRoutine = parameters?.[0];
+        const targeted =
+          options.backupContractTamperSignature === undefined ||
+          options.backupContractTamperSignature === targetRoutine;
+        const tamper = targeted ? options.backupContractTamper : undefined;
+        if (tamper === "routine-missing") return { rows: [] };
+        return {
+          rows: [
+            {
+              body_sha256_exact: tamper !== "routine-body",
+              definition_sha256_exact: tamper !== "routine-definition",
+              owner_exact: tamper !== "routine-owner",
+              language_exact: true,
+              routine_kind_exact: true,
+              security_definer_exact: tamper !== "routine-security",
+              configuration_exact: tamper !== "routine-config",
+              volatility_exact: true,
+              strict_exact: true,
+              parallel_exact: true,
+              leakproof_exact: true,
+              argument_names_exact: true,
+              argument_modes_exact: true,
+              argument_types_exact: tamper !== "routine-arguments",
+              input_argument_count_exact: true,
+              argument_defaults_exact: true,
+              return_type_exact: true,
+              returns_set_exact: true,
+              variadic_exact: true,
+              cost_exact: tamper !== "routine-cost",
+              rows_exact: true,
+              support_exact: true,
+              transform_types_exact: true,
+              binary_exact: true,
+              sql_body_exact: true,
+              effective_execute_exact: tamper !== "routine-effective-acl",
+              direct_acl_exact: tamper !== "routine-direct-acl",
+            },
+          ],
+        };
+      }
+      if (normalized.includes("triggers_exact")) {
+        return {
+          rows: [
+            {
+              relations_present:
+                options.backupContractTamper !== "trigger-relation",
+              guard_state_exact: options.backupContractTamper !== "guard-state",
+              triggers_exact: options.backupContractTamper !== "triggers",
             },
           ],
         };
@@ -732,6 +849,81 @@ function makePoolHarness(options = {}) {
   };
 }
 
+const backupStatusAuthorityTamperCases = Object.freeze([
+  Object.freeze({
+    backupContractTamper: "table-owner",
+    backupContractTamperRelation: "public.backup_status_mail_authority",
+  }),
+  Object.freeze({
+    backupContractTamper: "table-constraints",
+    backupContractTamperRelation: "public.backup_status_mail_admin_guard",
+  }),
+  Object.freeze({
+    backupContractTamper: "table-direct-acl",
+    backupContractTamperRelation: "public.backup_status_mail_authority",
+  }),
+  Object.freeze({
+    backupContractTamper: "column-effective-acl",
+    backupContractTamperRelation: "public.backup_status_mail_admin_guard",
+  }),
+  Object.freeze({
+    backupContractTamper: "routine-owner",
+    backupContractTamperSignature:
+      "public.enqueue_backup_status_mail_authority(text,text)",
+  }),
+  Object.freeze({
+    backupContractTamper: "routine-security",
+    backupContractTamperSignature: "public.backup_status_mail_authorized(uuid)",
+  }),
+  Object.freeze({
+    backupContractTamper: "routine-config",
+    backupContractTamperSignature:
+      "public.lock_backup_status_mail_admin_authority()",
+  }),
+  Object.freeze({
+    backupContractTamper: "routine-body",
+    backupContractTamperSignature:
+      "public.reject_backup_status_mail_authority_mutation()",
+  }),
+  Object.freeze({
+    backupContractTamper: "routine-definition",
+    backupContractTamperSignature:
+      "public.enqueue_backup_status_mail_authority(text,text)",
+  }),
+  Object.freeze({
+    backupContractTamper: "routine-effective-acl",
+    backupContractTamperSignature: "public.backup_status_mail_authorized(uuid)",
+  }),
+  Object.freeze({
+    backupContractTamper: "routine-direct-acl",
+    backupContractTamperSignature:
+      "public.enqueue_backup_status_mail_authority(text,text)",
+  }),
+  Object.freeze({ backupContractTamper: "guard-state" }),
+  Object.freeze({ backupContractTamper: "triggers" }),
+]);
+
+test("fails closed on phase-65 authority tamper before and after repair", async () => {
+  const exact = makeClient("learncoding_ops", "learncoding", {});
+  assert.equal(await verifyBackupStatusAuthorityBeforeRepair(exact), true);
+  assert.equal(await verifyBackupStatusAuthorityAfterRepair(exact), true);
+
+  for (const options of backupStatusAuthorityTamperCases) {
+    await assert.rejects(
+      verifyBackupStatusAuthorityBeforeRepair(
+        makeClient("learncoding_ops", "learncoding", options),
+      ),
+      /backup-status-authority-pre-repair/u,
+    );
+    await assert.rejects(
+      verifyBackupStatusAuthorityAfterRepair(
+        makeClient("learncoding_ops", "learncoding", options),
+      ),
+      /backup-status-authority-post-repair/u,
+    );
+  }
+});
+
 test("rejects reviewed post-migration tamper before privilege repair", async () => {
   const preMigration = makeClient("learncoding_ops", "learncoding", {
     journalPresent: false,
@@ -748,6 +940,20 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
   const exact = makeClient("learncoding_ops", "learncoding", {});
   assert.equal(
     await verifyPostMigrationReviewedContractsBeforeReconciliation(exact),
+    1,
+  );
+  assert.equal(
+    exact.queries.filter((query) => query.includes("effective_table_acl_exact"))
+      .length,
+    2,
+  );
+  assert.equal(
+    exact.queries.filter((query) => query.includes("routine_kind_exact"))
+      .length,
+    4,
+  );
+  assert.equal(
+    exact.queries.filter((query) => query.includes("triggers_exact")).length,
     1,
   );
 
@@ -785,12 +991,38 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
     ]);
   }
 
+  const phase0064 = makeClient("learncoding_ops", "learncoding", {
+    appliedMigrationIndex: 64,
+    bindingColumnCount: 2,
+    bindingColumnExactCount: 2,
+  });
+  assert.equal(
+    await verifyPostMigrationReviewedContractsBeforeReconciliation(phase0064),
+    1,
+  );
+  assert.equal(
+    phase0064.queries.some((query) =>
+      query.includes("effective_table_acl_exact"),
+    ),
+    false,
+  );
+  assert.equal(
+    phase0064.queries.some((query) => query.includes("routine_kind_exact")),
+    false,
+  );
+
   for (const options of [
     { journalHashTamper: 62 },
+    { journalHashTamper: 65 },
     { missingMigrationIndex: 62 },
     { missingMigrationIndex: 63 },
     { appliedMigrationIndex: 63, bindingColumnCount: 2 },
-    { appliedMigrationIndex: 64, bindingColumnCount: 0 },
+    { appliedMigrationIndex: 65, bindingColumnCount: 0 },
+    {
+      appliedMigrationIndex: 64,
+      backupAuthorityPresent: true,
+    },
+    { backupAuthorityPresent: false },
     { journalPresent: false, bindingColumnCount: 2 },
     {
       journalPresent: false,
@@ -834,6 +1066,7 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
     { triggerContractTamper: "function" },
     { workerContractTamper: "owner" },
     { workerContractTamper: "one-column-grant" },
+    ...backupStatusAuthorityTamperCases,
   ]) {
     const tampered = makeClient("learncoding_ops", "learncoding", options);
     await assert.rejects(reconcileDatabaseRolePrivileges(tampered));
@@ -902,7 +1135,7 @@ test("proves application-object access without mutating application rows", async
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 48,
+    positiveChecks: 57,
     negativeChecks: 29,
   });
   for (const role of [
@@ -942,7 +1175,7 @@ test("requires the exact reviewed 0062 through 0064 routine contracts in applica
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 48,
+    positiveChecks: 57,
     negativeChecks: 29,
   });
   const routineQueries = verified.clients
@@ -1077,7 +1310,7 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
   });
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 48,
+    positiveChecks: 57,
     negativeChecks: 29,
   });
 
@@ -1233,7 +1466,7 @@ test("grounds PostgreSQL's successful no-op GRANT in unchanged effective and cat
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 48,
+    positiveChecks: 57,
     negativeChecks: 29,
   });
   for (const role of [

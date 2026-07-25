@@ -381,6 +381,7 @@ jobs:
       - run: npm run test:mail-payload-immutability-0060:registration
       - run: npm run test:mail-retention-redaction-0063:registration
       - run: npm run test:mail-dispatch-binding-0064:registration
+      - run: npm run test:backup-status-mail-authority-0065:registration
       - run: npm run test:mail-dispatch-binding-0064:roles
       - run: npm run test:integration
       - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394
@@ -413,10 +414,12 @@ jobs:
           sudo apt-get install --yes --no-install-recommends postgresql-17 postgresql-18
       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063
       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17
+      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:backup-status-mail-authority-0065
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-payload-immutability-0060
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-retention-redaction-0063
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-dispatch-binding-0064:pg18
+      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:backup-status-mail-authority-0065
 
   curriculum-runtime:
     runs-on: ubuntu-24.04

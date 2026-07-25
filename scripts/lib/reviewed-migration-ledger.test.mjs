@@ -21,7 +21,18 @@ import {
   verifyReviewedMigrationRepository,
 } from "./reviewed-migration-ledger.mjs";
 
-const repositoryDrizzleDirectory = path.resolve(import.meta.dirname, "../../drizzle");
+const repositoryDrizzleDirectory = path.resolve(
+  import.meta.dirname,
+  "../../drizzle",
+);
+const reviewedTail = REVIEWED_MIGRATION_LEDGER.at(-1);
+const nextMigrationIndex = reviewedTail.idx + 1;
+const nextMigrationPrefix = String(nextMigrationIndex).padStart(4, "0");
+const followingMigrationPrefix = String(nextMigrationIndex + 1).padStart(
+  4,
+  "0",
+);
+const nextMigrationWhen = reviewedTail.when + 3_600_000;
 
 function withDrizzleFixture(run) {
   const root = mkdtempSync(path.join(tmpdir(), "codestead-reviewed-ledger-"));
@@ -69,13 +80,13 @@ function appliedLedgerClient({ present = true, rows = appliedRows() } = {}) {
   };
 }
 
-test("binds the complete ordered repository ledger through 0064", () => {
-  assert.equal(REVIEWED_MIGRATION_LEDGER.length, 65);
+test("binds the complete ordered repository ledger through 0065", () => {
+  assert.equal(REVIEWED_MIGRATION_LEDGER.length, 66);
   assert.equal(REVIEWED_MIGRATION_LEDGER[0]?.idx, 0);
-  assert.equal(REVIEWED_MIGRATION_LEDGER.at(-1)?.idx, 64);
+  assert.equal(REVIEWED_MIGRATION_LEDGER.at(-1)?.idx, 65);
   assert.equal(
     REVIEWED_MIGRATION_LEDGER.at(-1)?.tag,
-    "0064_mail_outbox_dispatch_binding",
+    "0065_backup_status_mail_authority",
   );
   assert.match(REVIEWED_MIGRATION_LEDGER_SHA256, /^[0-9a-f]{64}$/u);
   assert.equal(
@@ -87,10 +98,10 @@ test("binds the complete ordered repository ledger through 0064", () => {
     drizzleDirectory: repositoryDrizzleDirectory,
   });
   assert.deepEqual(result, {
-    entryCount: 65,
+    entryCount: 66,
     ledgerSha256: REVIEWED_MIGRATION_LEDGER_SHA256,
-    tailIndex: 64,
-    tailTag: "0064_mail_outbox_dispatch_binding",
+    tailIndex: 65,
+    tailTag: "0065_backup_status_mail_authority",
   });
 });
 
@@ -203,7 +214,7 @@ test("rejects a missing SQL file", () => {
 test("rejects an extra unknown SQL file", () => {
   withDrizzleFixture((drizzleDirectory) => {
     writeFileSync(
-      path.join(drizzleDirectory, "0065_unreviewed.sql"),
+      path.join(drizzleDirectory, `${nextMigrationPrefix}_unreviewed.sql`),
       "-- unreviewed\n",
       "utf8",
     );
@@ -218,39 +229,40 @@ test("rejects an extra unknown SQL file", () => {
 });
 
 test("extends the reviewed ledger by exactly one deterministic append", () => {
-  const supplied0065SqlSha256 = createHash("sha256")
-    .update("test-only supplied 0065 bytes", "utf8")
+  const suppliedNextSqlSha256 = createHash("sha256")
+    .update("test-only supplied future migration bytes", "utf8")
     .digest("hex");
-  const reviewed0065 = {
-    idx: 65,
+  const reviewedNext = {
+    idx: nextMigrationIndex,
     version: "7",
-    when: 1_784_936_400_000,
-    tag: "0065_backup_status_mail_authority",
+    when: nextMigrationWhen,
+    tag: `${nextMigrationPrefix}_test_only_future_migration`,
     breakpoints: true,
-    sqlSha256: supplied0065SqlSha256,
+    sqlSha256: suppliedNextSqlSha256,
   };
-  const through0065 = appendReviewedMigrationLedgerEntry(
+  const throughNext = appendReviewedMigrationLedgerEntry(
     REVIEWED_MIGRATION_LEDGER,
-    reviewed0065,
+    reviewedNext,
   );
 
-  assert.equal(REVIEWED_MIGRATION_LEDGER.length, 65);
-  assert.equal(through0065.length, 66);
-  assert.deepEqual(through0065.at(-1), reviewed0065);
-  assert.match(reviewedMigrationLedgerSha256(through0065), /^[0-9a-f]{64}$/u);
+  assert.equal(REVIEWED_MIGRATION_LEDGER.length, 66);
+  assert.equal(throughNext.length, REVIEWED_MIGRATION_LEDGER.length + 1);
+  assert.deepEqual(throughNext.at(-1), reviewedNext);
+  assert.match(reviewedMigrationLedgerSha256(throughNext), /^[0-9a-f]{64}$/u);
   assert.notEqual(
-    reviewedMigrationLedgerSha256(through0065),
+    reviewedMigrationLedgerSha256(throughNext),
     REVIEWED_MIGRATION_LEDGER_SHA256,
   );
 
   for (const invalid of [
-    { ...reviewed0065, idx: 66 },
-    { ...reviewed0065, tag: "0066_backup_status_mail_authority" },
-    { ...reviewed0065, when: REVIEWED_MIGRATION_LEDGER.at(-1).when },
-    { ...reviewed0065, sqlSha256: "0".repeat(63) },
+    { ...reviewedNext, idx: nextMigrationIndex + 1 },
+    { ...reviewedNext, tag: `${followingMigrationPrefix}_future_migration` },
+    { ...reviewedNext, when: reviewedTail.when },
+    { ...reviewedNext, sqlSha256: "0".repeat(63) },
   ]) {
     assert.throws(
-      () => appendReviewedMigrationLedgerEntry(REVIEWED_MIGRATION_LEDGER, invalid),
+      () =>
+        appendReviewedMigrationLedgerEntry(REVIEWED_MIGRATION_LEDGER, invalid),
       {
         name: "ReviewedMigrationLedgerError",
         code: "CONTRACT_EXTENSION_INVALID",
@@ -259,45 +271,34 @@ test("extends the reviewed ledger by exactly one deterministic append", () => {
   }
 });
 
-test("accepts the fixed 0066 shape only when its reviewed SQL digest is supplied", () => {
-  const supplied0065SqlSha256 = createHash("sha256")
-    .update("test-only supplied 0065 bytes", "utf8")
+test("accepts the next migration shape only with a reviewed SQL digest", () => {
+  const suppliedSqlSha256 = createHash("sha256")
+    .update("test-only supplied next migration bytes", "utf8")
     .digest("hex");
-  const through0065 = appendReviewedMigrationLedgerEntry(
+  const throughNext = appendReviewedMigrationLedgerEntry(
     REVIEWED_MIGRATION_LEDGER,
     {
-      idx: 65,
+      idx: nextMigrationIndex,
       version: "7",
-      when: 1_784_936_400_000,
-      tag: "0065_backup_status_mail_authority",
+      when: nextMigrationWhen,
+      tag: `${nextMigrationPrefix}_test_only_next_migration`,
       breakpoints: true,
-      sqlSha256: supplied0065SqlSha256,
+      sqlSha256: suppliedSqlSha256,
     },
   );
-  const suppliedSqlSha256 = createHash("sha256")
-    .update("test-only supplied 0066 bytes", "utf8")
-    .digest("hex");
-  const through0066 = appendReviewedMigrationLedgerEntry(through0065, {
-    idx: 66,
-    version: "7",
-    when: 1_784_940_000_000,
-    tag: "0066_mail_outbox_provider_correlation_evidence",
-    breakpoints: true,
-    sqlSha256: suppliedSqlSha256,
-  });
 
-  assert.equal(through0066.length, 67);
-  assert.deepEqual(through0066.at(-1), {
-    idx: 66,
+  assert.equal(throughNext.length, REVIEWED_MIGRATION_LEDGER.length + 1);
+  assert.deepEqual(throughNext.at(-1), {
+    idx: nextMigrationIndex,
     version: "7",
-    when: 1_784_940_000_000,
-    tag: "0066_mail_outbox_provider_correlation_evidence",
+    when: nextMigrationWhen,
+    tag: `${nextMigrationPrefix}_test_only_next_migration`,
     breakpoints: true,
     sqlSha256: suppliedSqlSha256,
   });
   assert.notEqual(
-    reviewedMigrationLedgerSha256(through0066),
-    reviewedMigrationLedgerSha256(through0065),
+    reviewedMigrationLedgerSha256(throughNext),
+    REVIEWED_MIGRATION_LEDGER_SHA256,
   );
 });
 
@@ -307,7 +308,7 @@ test("accepts the exact applied full ledger", async () => {
     requireComplete: true,
   });
   assert.deepEqual(result, {
-    appliedCount: 65,
+    appliedCount: 66,
     complete: true,
     ledgerSha256: REVIEWED_MIGRATION_LEDGER_SHA256,
   });
@@ -397,9 +398,9 @@ for (const [label, mutate] of [
 test("rejects an extra unknown applied database row", async () => {
   const rows = appliedRows();
   rows.push({
-    id: "66",
+    id: String(REVIEWED_MIGRATION_LEDGER.length + 1),
     hash: "f".repeat(64),
-    created_at: "1784936400000",
+    created_at: String(nextMigrationWhen),
   });
   await assert.rejects(
     verifyAppliedMigrationLedger(appliedLedgerClient({ rows })),

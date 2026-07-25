@@ -24,8 +24,8 @@ const release = read("infra/ops/release-production.sh");
 const restore = read("scripts/backup/restore-drill-isolated.sh");
 const backupProductionE2e = read("infra/tests/backup-production-e2e.test.sh");
 
-assert.equal(REVIEWED_MIGRATION_LEDGER.length, 65);
-assert.equal(REVIEWED_MIGRATION_LEDGER.at(-1)?.idx, 64);
+assert.equal(REVIEWED_MIGRATION_LEDGER.length, 66);
+assert.equal(REVIEWED_MIGRATION_LEDGER.at(-1)?.idx, 65);
 assert.match(REVIEWED_MIGRATION_LEDGER_SHA256, /^[0-9a-f]{64}$/u);
 assert.equal(
   verifyReviewedMigrationRepository().ledgerSha256,
@@ -111,9 +111,7 @@ const bootstrapRun =
 const bootstrapAppliedIndex = bootstrapRun.indexOf(
   "verifyAppliedMigrationLedger(",
 );
-const bootstrapInventoryIndex = bootstrapRun.indexOf(
-  "loadOwnershipInventory(",
-);
+const bootstrapInventoryIndex = bootstrapRun.indexOf("loadOwnershipInventory(");
 const bootstrapRoleRepairIndex = bootstrapRun.indexOf("createAndResetRoles(");
 assert.doesNotMatch(
   bootstrapRun,
@@ -131,7 +129,7 @@ assert.ok(
   bootstrapRun.indexOf(
     "verifyPostMigrationReviewedContractsBeforeReconciliation(",
   ) > bootstrapAppliedIndex,
-  "the exact 0062–0064 phase verifier must remain after the full-ledger preflight",
+  "the exact 0062–0065 phase verifier must remain after the full-ledger preflight",
 );
 assert.ok(
   bootstrapRun.indexOf("reconcileDatabaseRolePrivileges(") >
@@ -152,9 +150,7 @@ const assumeOwnerIndex = migrationRun.indexOf(
   'client.query("SET ROLE learncoding_owner")',
 );
 const migrateIndex = migrationRun.indexOf("await migrate(");
-const migrationFullIndex = migrationRun.indexOf(
-  "requireComplete: true",
-);
+const migrationFullIndex = migrationRun.indexOf("requireComplete: true");
 assert.ok(migrationRepositoryIndex >= 0);
 assert.match(
   migrationRun,

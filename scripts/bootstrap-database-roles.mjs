@@ -4,8 +4,11 @@ import { pathToFileURL } from "node:url";
 
 import { Pool } from "pg";
 
-import { verifyBackupStatusMailAuthorityObjects }
-  from "./verify-backup-status-mail-authority.mjs";
+import {
+  BACKUP_STATUS_AUTHORITY_RELATIONS,
+  BACKUP_STATUS_AUTHORITY_ROUTINES,
+  verifyBackupStatusMailAuthorityObjects,
+} from "./verify-backup-status-mail-authority.mjs";
 import { verifyAppliedMigrationLedger as verifyAppliedMigrationLedgerContract } from "./lib/reviewed-migration-ledger.mjs";
 
 export const DATABASE_ADMIN_LOCK_NAME = "codestead:database-administration:v1";
@@ -199,7 +202,7 @@ const REVIEWED_0063_APPLICATION_FUNCTIONS = Object.freeze([
   }),
 ]);
 
-export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
+export const REVIEWED_0064_APPLICATION_FUNCTIONS = Object.freeze([
   ...REVIEWED_0063_APPLICATION_FUNCTIONS,
   reviewedRoutine({
     signature: "public.enforce_email_outbox_dispatch_binding()",
@@ -228,7 +231,13 @@ export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
       "b3ba15cae78eaf8e3535b28c0764e9715683e15ab85b0814089e3e54715f4676",
   }),
 ]);
-export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
+export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY_ROUTINES =
+  BACKUP_STATUS_AUTHORITY_ROUTINES;
+export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
+  ...REVIEWED_0064_APPLICATION_FUNCTIONS,
+  ...REVIEWED_0065_BACKUP_STATUS_AUTHORITY_ROUTINES,
+]);
+export const REVIEWED_0064_APPLICATION_TRIGGERS = Object.freeze([
   Object.freeze({
     relation: "public.email_outbox",
     name: "email_outbox_payload_immutable",
@@ -259,6 +268,75 @@ export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
     watchedColumns: Object.freeze([]),
   }),
 ]);
+export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY_TRIGGERS = Object.freeze([
+  Object.freeze({
+    relation: "public.backup_status_mail_authority",
+    name: "backup_status_mail_authority_immutable",
+    functionSignature: "public.reject_backup_status_mail_authority_mutation()",
+    enabled: "O",
+    type: 27,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: "public.backup_status_mail_authority",
+    name: "backup_status_mail_authority_no_truncate",
+    functionSignature: "public.reject_backup_status_mail_authority_mutation()",
+    enabled: "O",
+    type: 34,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: 'public."user"',
+    name: "backup_status_mail_admin_insert_lock",
+    functionSignature: "public.lock_backup_status_mail_admin_authority()",
+    enabled: "O",
+    type: 7,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: 'public."user"',
+    name: "backup_status_mail_admin_update_lock",
+    functionSignature: "public.lock_backup_status_mail_admin_authority()",
+    enabled: "O",
+    type: 19,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze(["id", "email", "role", "banned", "status"]),
+  }),
+  Object.freeze({
+    relation: 'public."user"',
+    name: "backup_status_mail_admin_delete_lock",
+    functionSignature: "public.lock_backup_status_mail_admin_authority()",
+    enabled: "O",
+    type: 11,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+]);
+export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
+  ...REVIEWED_0064_APPLICATION_TRIGGERS,
+  ...REVIEWED_0065_BACKUP_STATUS_AUTHORITY_TRIGGERS,
+]);
+export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY = Object.freeze({
+  relations: BACKUP_STATUS_AUTHORITY_RELATIONS,
+  routines: REVIEWED_0065_BACKUP_STATUS_AUTHORITY_ROUTINES,
+  triggers: REVIEWED_0065_BACKUP_STATUS_AUTHORITY_TRIGGERS,
+  guardState: Object.freeze({
+    relation: "public.backup_status_mail_admin_guard",
+    singletonColumn: "singleton",
+    authorityEpochColumn: "authority_epoch",
+    expectedRows: 1,
+    singletonValue: true,
+    requiresNonZeroAuthorityEpoch: true,
+  }),
+});
 const EMAIL_OUTBOX_DISPATCH_BINDING_CONSTRAINT_NORMALIZED_EXPRESSION = [
   "provider_call_startedISNULLANDadapterISNULLANDprovider_message_idISNULL",
   "ANDdispatch_binding_versionISNULLANDdispatch_binding_sha256ISNULLOR",
@@ -302,6 +380,7 @@ function reviewedCatalogPhase({
   routines,
   triggers,
   requiresWorkerContract,
+  backupStatusAuthority = null,
 }) {
   return Object.freeze({
     index,
@@ -311,6 +390,7 @@ function reviewedCatalogPhase({
     routines,
     triggers,
     requiresWorkerContract,
+    backupStatusAuthority,
   });
 }
 
@@ -322,7 +402,7 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     migrationSha256:
       "98cd8b0fd5b57822bab9a3793094e738d926d5dab8a2dc700f89037bd0cbc13b",
     routines: REVIEWED_0062_APPLICATION_FUNCTIONS,
-    triggers: Object.freeze([REVIEWED_APPLICATION_TRIGGERS[0]]),
+    triggers: Object.freeze([REVIEWED_0064_APPLICATION_TRIGGERS[0]]),
     requiresWorkerContract: false,
   }),
   reviewedCatalogPhase({
@@ -332,7 +412,7 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     migrationSha256:
       "b1ff8b57084dcaf6e677aa5eb73d3f0e1156dca406d50f547c8d2c5590260ea2",
     routines: REVIEWED_0063_APPLICATION_FUNCTIONS,
-    triggers: Object.freeze([REVIEWED_APPLICATION_TRIGGERS[0]]),
+    triggers: Object.freeze([REVIEWED_0064_APPLICATION_TRIGGERS[0]]),
     requiresWorkerContract: false,
   }),
   reviewedCatalogPhase({
@@ -341,9 +421,20 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     migrationFile: "0064_mail_outbox_dispatch_binding.sql",
     migrationSha256:
       "c6f057b8726602c3e6330c68a5a97e5698a1451b5b0d6ca2e3020db4f35975b9",
+    routines: REVIEWED_0064_APPLICATION_FUNCTIONS,
+    triggers: REVIEWED_0064_APPLICATION_TRIGGERS,
+    requiresWorkerContract: true,
+  }),
+  reviewedCatalogPhase({
+    index: 65,
+    createdAt: "1784936400000",
+    migrationFile: "0065_backup_status_mail_authority.sql",
+    migrationSha256:
+      "d97e88fdb1819e9e4b186d13f07a13a2bc8004a01f9e80127633f99950519c2e",
     routines: REVIEWED_APPLICATION_FUNCTIONS,
     triggers: REVIEWED_APPLICATION_TRIGGERS,
     requiresWorkerContract: true,
+    backupStatusAuthority: REVIEWED_0065_BACKUP_STATUS_AUTHORITY,
   }),
 ]);
 const REVIEWED_SECURITY_DEFINER_FUNCTIONS = Object.freeze(
@@ -359,7 +450,13 @@ function sqlLiteral(value) {
 export function reviewedApplicationFunctionPrivilegesSql() {
   return REVIEWED_APPLICATION_FUNCTIONS.map((routine, routineIndex) => {
     const blockTag = `codestead_reviewed_function_${routineIndex}`;
-    const restrictedRoles = [MIGRATOR_ROLE, APP_ROLE, WORKER_ROLE, OPS_ROLE];
+    const restrictedRoles = [
+      MIGRATOR_ROLE,
+      APP_ROLE,
+      WORKER_ROLE,
+      OPS_ROLE,
+      BACKUP_REPORTER_ROLE,
+    ];
     const requiredRoles = [
       ...new Set([routine.owner, ...restrictedRoles, ...routine.allowedRoles]),
     ];
@@ -1338,6 +1435,60 @@ async function reviewedMigrationJournalState(client) {
   return applied;
 }
 
+async function verifyBackupStatusAuthorityMigrationPhase(client, phase) {
+  const presence = await client.query(`
+    select (
+      pg_catalog.to_regclass(
+        'public.backup_status_mail_authority'
+      ) is not null
+      or pg_catalog.to_regclass(
+        'public.backup_status_mail_admin_guard'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.reject_backup_status_mail_authority_mutation()'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.lock_backup_status_mail_admin_authority()'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.enqueue_backup_status_mail_authority(text,text)'
+      ) is not null
+      or pg_catalog.to_regprocedure(
+        'public.backup_status_mail_authorized(uuid)'
+      ) is not null
+    ) backup_status_authority_present`);
+  const present = presence.rows[0]?.backup_status_authority_present;
+  const required =
+    phase?.backupStatusAuthority !== null &&
+    phase?.backupStatusAuthority !== undefined;
+  if (
+    presence.rows.length !== 1 ||
+    typeof present !== "boolean" ||
+    present !== required
+  ) {
+    throw databaseRoleBootstrapInvariantError(
+      "backup-status-authority-migration-lineage",
+    );
+  }
+  if (!required) return 0;
+  try {
+    await verifyBackupStatusMailAuthorityObjects(client, [
+      MIGRATOR_ROLE,
+      APP_ROLE,
+      WORKER_ROLE,
+      OPS_ROLE,
+      BACKUP_REPORTER_ROLE,
+    ]);
+  } catch (error) {
+    const invariant = databaseRoleBootstrapInvariantError(
+      "backup-status-authority-migration-contract",
+    );
+    invariant.cause = error;
+    throw invariant;
+  }
+  return 1;
+}
+
 export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
   client,
 ) {
@@ -1383,6 +1534,7 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
   const latestPhase = appliedPhases.at(-1);
   const verifier = await import("./verify-database-role-boundaries.mjs");
   if (latestPhase === undefined) {
+    await verifyBackupStatusAuthorityMigrationPhase(client, null);
     await verifier.verifyReviewedMailAuthorityObjectFootprint(client, null);
     if (row.post_migration_binding_column_count !== 0) {
       throw databaseRoleBootstrapInvariantError(
@@ -1401,26 +1553,22 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
       "reviewed-pre-reconciliation-lineage",
     );
   }
-
-  if (latestPhase.requiresWorkerContract) {
-    await verifier.verifyReviewedMailAuthorityCatalogContracts(client);
-  } else {
-    await verifier.verifyReviewedMailAuthorityObjectFootprint(
-      client,
-      latestPhase,
-    );
-    await verifier.verifyReviewedApplicationRoutines(
-      client,
-      latestPhase.routines,
-    );
-    await verifier.verifyReviewedApplicationTriggers(
-      client,
-      latestPhase.triggers,
-    );
-    await verifier.verifyMailWorkerOutboxContract(client, {
-      requiresDispatchBinding: false,
-    });
-  }
+  await verifyBackupStatusAuthorityMigrationPhase(client, latestPhase);
+  await verifier.verifyReviewedMailAuthorityObjectFootprint(
+    client,
+    latestPhase,
+  );
+  await verifier.verifyReviewedApplicationRoutines(
+    client,
+    latestPhase.routines,
+  );
+  await verifier.verifyReviewedApplicationTriggers(
+    client,
+    latestPhase.triggers,
+  );
+  await verifier.verifyMailWorkerOutboxContract(client, {
+    requiresDispatchBinding: latestPhase.requiresWorkerContract,
+  });
   return 1;
 }
 
@@ -2430,7 +2578,8 @@ export async function cleanupDatabaseBootstrapResources({
 export async function runDatabaseRoleBootstrap(options) {
   const parsed = validateDatabaseRoleUrls(options);
   const verifyAppliedMigrationLedger =
-    options.verifyAppliedMigrationLedger ?? verifyAppliedMigrationLedgerContract;
+    options.verifyAppliedMigrationLedger ??
+    verifyAppliedMigrationLedgerContract;
   const requireCompleteMigrationLedger =
     options.requireCompleteMigrationLedger ?? false;
   if (typeof requireCompleteMigrationLedger !== "boolean") {
