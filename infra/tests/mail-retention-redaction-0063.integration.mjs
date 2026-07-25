@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
   copyFileSync,
+  existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -208,7 +210,7 @@ function platformChildEnvironment(sourceEnvironment, platform) {
   );
 }
 
-function explicitPostgresChildEnvironment(explicitEnvironment) {
+function explicitPostgresChildEnvironment(explicitEnvironment, platform) {
   if (
     explicitEnvironment === null
     || typeof explicitEnvironment !== "object"
@@ -217,19 +219,23 @@ function explicitPostgresChildEnvironment(explicitEnvironment) {
     throw invalidChildEnvironmentInput();
   }
   const observed = new Map();
+  const pathImplementation = platformPathImplementation(platform);
   for (const [name, value] of Object.entries(explicitEnvironment)) {
-    const canonicalName = postgresChildEnvironmentByLowercase.get(
-      name.toLowerCase(),
-    );
+    const canonicalName = platform === "win32"
+      ? postgresChildEnvironmentByLowercase.get(name.toLowerCase())
+      : postgresChildEnvironmentNames.includes(name)
+        ? name
+        : undefined;
+    const normalizedValue = typeof value === "string" ? value.trim() : "";
     if (
       !canonicalName
       || observed.has(canonicalName)
-      || typeof value !== "string"
-      || value.trim().length === 0
+      || normalizedValue.length === 0
+      || !pathImplementation.isAbsolute(normalizedValue)
     ) {
       throw invalidChildEnvironmentInput();
     }
-    observed.set(canonicalName, value.trim());
+    observed.set(canonicalName, normalizedValue);
   }
   if (
     observed.has("POSTGRES_17_BIN")
@@ -244,12 +250,49 @@ function explicitPostgresChildEnvironment(explicitEnvironment) {
   );
 }
 
+function deterministicNativeChildPath(
+  platformEnvironment,
+  explicitPostgresEnvironment,
+  platform,
+) {
+  const entries = postgresChildEnvironmentNames
+    .filter((name) => Object.hasOwn(explicitPostgresEnvironment, name))
+    .map((name) => explicitPostgresEnvironment[name]);
+  if (platform === "win32") {
+    const systemRoot =
+      platformEnvironment.SystemRoot ?? platformEnvironment.WINDIR;
+    if (
+      typeof systemRoot !== "string"
+      || !path.win32.isAbsolute(systemRoot)
+    ) {
+      throw invalidChildEnvironmentInput();
+    }
+    entries.push(
+      path.win32.join(systemRoot, "System32"),
+      path.win32.resolve(systemRoot),
+      path.win32.join(systemRoot, "System32", "Wbem"),
+    );
+  } else {
+    entries.push("/usr/bin", "/bin");
+  }
+  const observed = new Set();
+  return entries
+    .filter((entry) => {
+      const key = platform === "win32" ? entry.toLowerCase() : entry;
+      if (observed.has(key)) return false;
+      observed.add(key);
+      return true;
+    })
+    .join(platform === "win32" ? ";" : ":");
+}
+
 function filesystemChildEnvironment(filesystem, platform) {
   if (platform !== "win32") {
     return {
       HOME: filesystem.profileDirectory,
       TEMP: filesystem.tempDirectory,
       TMP: filesystem.tempDirectory,
+      TMPDIR: filesystem.tempDirectory,
     };
   }
   const driveMatch = filesystem.profileDirectory.match(/^([a-zA-Z]:)\\/u);
@@ -278,10 +321,23 @@ export function buildNativeChildEnvironment(
   platform = process.platform,
 ) {
   const childFilesystem = validatedNativeChildFilesystem(filesystem, platform);
+  const platformEnvironment = platformChildEnvironment(
+    sourceEnvironment,
+    platform,
+  );
+  const explicitPostgresEnvironment = explicitPostgresChildEnvironment(
+    explicitEnvironment,
+    platform,
+  );
   return Object.freeze({
-    ...platformChildEnvironment(sourceEnvironment, platform),
+    ...platformEnvironment,
+    PATH: deterministicNativeChildPath(
+      platformEnvironment,
+      explicitPostgresEnvironment,
+      platform,
+    ),
     ...filesystemChildEnvironment(childFilesystem, platform),
-    ...explicitPostgresChildEnvironment(explicitEnvironment),
+    ...explicitPostgresEnvironment,
     PGCONNECT_TIMEOUT: String(pgConnectTimeoutSeconds),
     PSQL_HISTORY: nullDeviceFor(platform),
   });
@@ -309,6 +365,43 @@ export function buildNativeChildSpawnOptions(
     timeout: options.timeoutMs ?? commandTimeoutMs,
     windowsHide: true,
   };
+}
+
+function quotePostgresServerOption(value) {
+  if (
+    typeof value !== "string"
+    || value.length === 0
+    || /[\u0000\r\n]/u.test(value)
+  ) {
+    throw invalidChildEnvironmentInput();
+  }
+  return `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
+}
+
+export function buildPostgresServerOptions(
+  port,
+  filesystem = activeNativeChildFilesystem,
+  platform = process.platform,
+) {
+  if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) {
+    throw invalidChildEnvironmentInput();
+  }
+  const childFilesystem = validatedNativeChildFilesystem(filesystem, platform);
+  const options = [
+    `-p ${port}`,
+    "-h 127.0.0.1",
+    "-c max_connections=25",
+    "-c statement_timeout=30000",
+    "-c lock_timeout=5000",
+    "-c idle_in_transaction_session_timeout=30000",
+  ];
+  if (platform !== "win32") {
+    options.push(
+      "-c unix_socket_directories="
+        + quotePostgresServerOption(childFilesystem.tempDirectory),
+    );
+  }
+  return options.join(" ");
 }
 
 function childCommandLabel(label) {
@@ -2060,7 +2153,123 @@ function validateTemporaryRoot(temporaryRoot) {
   );
 }
 
-async function main() {
+const defaultHarnessControl = Object.freeze({
+  cleanupReportPath: undefined,
+  injectCleanupLeak: false,
+});
+
+function parseHarnessControlArguments(argumentsList) {
+  if (!Array.isArray(argumentsList)) {
+    throw nativeHarnessFailure("invalid_harness_arguments");
+  }
+  let cleanupReportPath;
+  let injectCleanupLeak = false;
+  for (const argument of argumentsList) {
+    if (
+      typeof argument === "string"
+      && argument.startsWith("--cleanup-report=")
+    ) {
+      if (cleanupReportPath !== undefined) {
+        throw nativeHarnessFailure("invalid_harness_arguments");
+      }
+      cleanupReportPath = argument.slice("--cleanup-report=".length);
+      if (cleanupReportPath.length === 0) {
+        throw nativeHarnessFailure("invalid_harness_arguments");
+      }
+    } else if (argument === "--inject-cleanup-leak") {
+      if (injectCleanupLeak) {
+        throw nativeHarnessFailure("invalid_harness_arguments");
+      }
+      injectCleanupLeak = true;
+    } else {
+      throw nativeHarnessFailure("invalid_harness_arguments");
+    }
+  }
+  if (injectCleanupLeak && cleanupReportPath === undefined) {
+    throw nativeHarnessFailure("invalid_harness_arguments");
+  }
+  return Object.freeze({ cleanupReportPath, injectCleanupLeak });
+}
+
+function filesystemEntryExists(entryPath) {
+  try {
+    lstatSync(entryPath);
+    return true;
+  } catch (error) {
+    if (error?.code === "ENOENT") return false;
+    throw nativeHarnessFailure("invalid_cleanup_report_path");
+  }
+}
+
+function validatedCleanupReportPath(reportPath, temporaryRoot) {
+  if (reportPath === undefined) return undefined;
+  if (typeof reportPath !== "string" || !path.isAbsolute(reportPath)) {
+    throw nativeHarnessFailure("invalid_cleanup_report_path");
+  }
+  const resolvedReportPath = path.resolve(reportPath);
+  const resolvedTemporaryRoot = path.resolve(temporaryRoot);
+  const childTempDirectory = path.resolve(os.tmpdir());
+  const outerCanaryRoot = path.dirname(childTempDirectory);
+  const hostTemporaryDirectory = path.dirname(outerCanaryRoot);
+  const reportParent = path.dirname(resolvedReportPath);
+  let reportParentStatus;
+  try {
+    reportParentStatus = lstatSync(reportParent);
+  } catch {
+    throw nativeHarnessFailure("invalid_cleanup_report_path");
+  }
+  if (
+    reportPath !== resolvedReportPath
+    || path.basename(childTempDirectory) !== "tmp"
+    || !/^codestead-mail-retention-0063-pg18-canary-/u.test(
+      path.basename(outerCanaryRoot),
+    )
+    || normalizedInvocationPath(path.dirname(reportParent))
+      !== normalizedInvocationPath(hostTemporaryDirectory)
+    || !/^codestead-mail-retention-0063-cleanup-reports-[a-zA-Z0-9_-]{6}$/u
+      .test(path.basename(reportParent))
+    || !new Set([
+      "success.json",
+      "injected-leak.json",
+      "existing.json",
+      "symlink.json",
+    ]).has(path.basename(resolvedReportPath))
+    || resolvedReportPath.startsWith(`${resolvedTemporaryRoot}${path.sep}`)
+    || !reportParentStatus.isDirectory()
+    || reportParentStatus.isSymbolicLink()
+    || filesystemEntryExists(resolvedReportPath)
+  ) {
+    throw nativeHarnessFailure("invalid_cleanup_report_path");
+  }
+  return resolvedReportPath;
+}
+
+function temporaryRootRemovalState(temporaryRoot) {
+  return Object.freeze({
+    taskRootRemoved: !existsSync(temporaryRoot),
+    profileDirectoryRemoved:
+      !existsSync(path.join(temporaryRoot, "profile")),
+    tempDirectoryRemoved:
+      !existsSync(path.join(temporaryRoot, "tmp")),
+  });
+}
+
+function removalStateVerified(state) {
+  return state.taskRootRemoved
+    && state.profileDirectoryRemoved
+    && state.tempDirectoryRemoved;
+}
+
+function writeCleanupReport(reportPath, report) {
+  if (reportPath === undefined) return;
+  writeFileSync(
+    reportPath,
+    `${JSON.stringify(report)}\n`,
+    { encoding: "utf8", flag: "wx", mode: 0o600 },
+  );
+}
+
+async function main(control = defaultHarnessControl) {
   assert.ok(
     !(requestedPg18Bin && requestedPg17Bin),
     "set only one of POSTGRES_17_BIN or POSTGRES_18_BIN",
@@ -2077,8 +2286,13 @@ async function main() {
   const database = "mail_retention_0063";
   let operationError;
   let startAttempted = false;
+  let cleanupReportPath;
 
   try {
+    cleanupReportPath = validatedCleanupReportPath(
+      control.cleanupReportPath,
+      temporaryRoot,
+    );
     activeNativeChildFilesystem =
       createNativeChildFilesystem(temporaryRoot);
     const migration0063 = migrationLedgerThrough0063();
@@ -2122,11 +2336,7 @@ async function main() {
         "-l",
         logFile,
         "-o",
-        `-p ${port} -h 127.0.0.1`
-          + " -c max_connections=25"
-          + " -c statement_timeout=30000"
-          + " -c lock_timeout=5000"
-          + " -c idle_in_transaction_session_timeout=30000",
+        buildPostgresServerOptions(port),
         "-w",
         "start",
       ],
@@ -2259,6 +2469,7 @@ async function main() {
     throw error;
   } finally {
     let cleanupFailed = false;
+    let stopFailed = false;
     try {
       if (startAttempted) {
         let stopped = run(
@@ -2283,14 +2494,41 @@ async function main() {
             },
           );
         }
-        cleanupFailed = stopped.status !== 0;
+        stopFailed = stopped.status !== 0;
+        cleanupFailed = stopFailed;
       }
     } catch {
+      stopFailed = true;
       cleanupFailed = true;
     } finally {
       activeNativeChildFilesystem = undefined;
     }
-    if (!cleanupFailed) {
+
+    if (!stopFailed) {
+      try {
+        validateTemporaryRoot(temporaryRoot);
+        if (!control.injectCleanupLeak) {
+          rmSync(temporaryRoot, {
+            recursive: true,
+            force: true,
+            maxRetries: 10,
+            retryDelay: 100,
+          });
+        }
+      } catch {
+        cleanupFailed = true;
+      }
+    }
+
+    const primaryRemovalState =
+      temporaryRootRemovalState(temporaryRoot);
+    const cleanupVerified =
+      !stopFailed && removalStateVerified(primaryRemovalState);
+    if (!cleanupVerified) cleanupFailed = true;
+    const injectedLeakDetected =
+      control.injectCleanupLeak && !cleanupVerified;
+
+    if (!stopFailed && !cleanupVerified) {
       try {
         validateTemporaryRoot(temporaryRoot);
         rmSync(temporaryRoot, {
@@ -2303,6 +2541,23 @@ async function main() {
         cleanupFailed = true;
       }
     }
+    const recoveryVerified = removalStateVerified(
+      temporaryRootRemovalState(temporaryRoot),
+    );
+    if (!recoveryVerified) cleanupFailed = true;
+
+    try {
+      writeCleanupReport(cleanupReportPath, {
+        schemaVersion: 1,
+        cleanupVerified,
+        ...primaryRemovalState,
+        injectedLeakDetected,
+        recoveryVerified,
+      });
+    } catch {
+      cleanupFailed = true;
+    }
+
     if (cleanupFailed) {
       if (operationError) {
         process.stderr.write(
@@ -2320,11 +2575,16 @@ function normalizedInvocationPath(value) {
   return process.platform === "win32" ? resolved.toLowerCase() : resolved;
 }
 
+async function runDirectHarness() {
+  const control = parseHarnessControlArguments(process.argv.slice(2));
+  await main(control);
+}
+
 const invokedDirectly = process.argv[1] !== undefined
   && normalizedInvocationPath(process.argv[1])
     === normalizedInvocationPath(fileURLToPath(import.meta.url));
 if (invokedDirectly) {
-  main().catch((error) => {
+  runDirectHarness().catch((error) => {
     const safeCode = outwardFailureCode(error);
     process.stderr.write(`mail_retention_0063=${safeCode}\n`);
     process.exitCode = 1;
