@@ -3212,6 +3212,8 @@ export const emailOutbox = pgTable(
     leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
     providerCallStarted: timestamp("provider_call_started", { withTimezone: true }),
     adapter: text("adapter"),
+    dispatchBindingVersion: text("dispatch_binding_version"),
+    dispatchBindingSha256: text("dispatch_binding_sha256"),
     providerMessageId: text("provider_message_id"),
     nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).defaultNow().notNull(),
     sentAt: timestamp("sent_at", { withTimezone: true }),
@@ -3233,6 +3235,34 @@ export const emailOutbox = pgTable(
     check(
       "email_outbox_provider_identity_valid",
       sql`${table.providerMessageId} IS NULL OR (${table.adapter} IS NOT NULL AND btrim(${table.adapter}) <> '' AND btrim(${table.providerMessageId}) <> '')`,
+    ),
+    check(
+      "email_outbox_dispatch_binding_valid",
+      sql`(
+        (${table.providerCallStarted} IS NULL
+          AND ${table.adapter} IS NULL
+          AND ${table.providerMessageId} IS NULL
+          AND ${table.dispatchBindingVersion} IS NULL
+          AND ${table.dispatchBindingSha256} IS NULL)
+        OR (${table.providerCallStarted} IS NOT NULL
+          AND ${table.status} IN ('sending', 'sent', 'failed', 'quarantined')
+          AND (
+            (${table.adapter} = 'gmail'
+              AND (
+                (${table.dispatchBindingVersion} IS NULL
+                  AND ${table.dispatchBindingSha256} IS NULL)
+                OR (${table.dispatchBindingVersion} = 'gmail-raw-v1'
+                  AND ${table.dispatchBindingSha256} ~ '^[0-9a-f]{64}$')
+              ))
+            OR (${table.adapter} = 'console'
+              AND (
+                (${table.dispatchBindingVersion} IS NULL
+                  AND ${table.dispatchBindingSha256} IS NULL)
+                OR (${table.dispatchBindingVersion} = 'console-json-v1'
+                  AND ${table.dispatchBindingSha256} ~ '^[0-9a-f]{64}$')
+              ))
+          ))
+      )`,
     ),
     check(
       "email_outbox_quarantine_evidence",
