@@ -449,6 +449,13 @@
       "when": 1784929200000,
       "tag": "0063_mail_outbox_redaction_fence_release",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1784932800000,
+      "tag": "0064_mail_outbox_dispatch_binding",
+      "breakpoints": true
     }
   ]
 }
