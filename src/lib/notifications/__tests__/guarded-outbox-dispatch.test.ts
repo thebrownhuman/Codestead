@@ -130,7 +130,7 @@ class ScriptedClient extends EventEmitter implements OutboxPgClient {
 class ScriptedPool implements OutboxPgPool {
   readonly options = Object.freeze({
     max: 3,
-    connectionTimeoutMillis: 5_000,
+    connectionTimeoutMillis: 2_000,
     idleTimeoutMillis: 30_000,
   });
   readonly connected: ScriptedClient[] = [];
@@ -532,6 +532,18 @@ afterEach(() => {
 });
 
 describe("guarded PostgreSQL outbox dispatch", () => {
+  it("rejects startup authority issued for an equivalent different pool", async () => {
+    const inspectedPool = new ScriptedPool([]);
+    const substitutedPool = new ScriptedPool([]);
+    const inspection = await inspectMailDispatchRuntime(inspectedPool);
+
+    expect(() => new PostgresOutboxStore(
+      substitutedPool,
+      inspection,
+    )).toThrow("Mail dispatch startup inspection is invalid.");
+    expect(inspectedPool.connected).toEqual([]);
+    expect(substitutedPool.connected).toEqual([]);
+  });
   it("retains one TX2 client and its scope lock through the provider promise and COMMIT ACK", async () => {
     vi.stubEnv("GMAIL_CLIENT_ID", "fixture-client");
     vi.stubEnv("GMAIL_CLIENT_SECRET", "fixture-secret");
@@ -737,7 +749,7 @@ describe("guarded PostgreSQL outbox dispatch", () => {
       await expect(
         fixture.store.finishGuardedDispatchUnknown(result.uncertainty),
       ).resolves.toEqual({
-        result: { kind: "applied" },
+        result: { kind: "already-applied" },
         exit: {
           kind: "sent",
           providerMessageId: "gmail-provider-id",
@@ -757,10 +769,13 @@ describe("guarded PostgreSQL outbox dispatch", () => {
     }
   });
 
-  it("rejects a tampered provider-authority tuple before any terminal write", async () => {
+  it("rejects unissued sent finalization and a tampered authority before any write", async () => {
     vi.stubEnv("GMAIL_CLIENT_ID", "fixture-client");
     vi.stubEnv("GMAIL_CLIENT_SECRET", "fixture-secret");
     vi.stubEnv("GMAIL_REFRESH_TOKEN", "fixture-refresh");
+    vi.stubGlobal("fetch", vi.fn<typeof globalThis.fetch>(async () => (
+      new Response('{"access_token":"fixture-access"}', { status: 200 })
+    )));
 
     let tuple: AuthorityTuple | undefined;
     const tx1 = boundaryClient((issued) => {
@@ -776,7 +791,15 @@ describe("guarded PostgreSQL outbox dispatch", () => {
 
     await expect(fixture.store.finishAfterProvider(
       fixture.boundary.permit,
-      { kind: "sent", providerMessageId: "gmail-provider-id" },
+      { kind: "sent", providerMessageId: "arbitrary-provider-id" },
+    )).rejects.toThrow(
+      "Sent finalization requires a module-issued guarded-dispatch uncertainty.",
+    );
+    expect(tamperedFinalizer.calls).toEqual([]);
+
+    await expect(fixture.store.finishAfterProvider(
+      fixture.boundary.permit,
+      { kind: "failed", code: "AUTHORIZATION_FAILED" },
     )).resolves.toEqual({ kind: "lost" });
     expect(tamperedFinalizer.calls.map(({ sql }) => sql)).toEqual([
       "begin",
