@@ -1,0 +1,1423 @@
+#!/usr/bin/env node
+
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { spawn, spawnSync } from "node:child_process";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+import { fileURLToPath } from "node:url";
+
+import { allocateDisposableLoopbackPort } from "../../scripts/lib/disposable-loopback-port.mjs";
+
+const testDirectory = path.dirname(fileURLToPath(import.meta.url));
+const repositoryRoot = path.resolve(testDirectory, "../..");
+const componentPath = path.join(
+  repositoryRoot,
+  "infra",
+  "sql",
+  "mail-outbox-durable-idempotency-authority.component.sql",
+);
+const expectedMajor = Number.parseInt(
+  process.env.EXPECTED_POSTGRES_MAJOR ?? "17",
+  10,
+);
+const requestedBin =
+  process.env.POSTGRES_18_BIN?.trim()
+  || process.env.POSTGRES_17_BIN?.trim()
+  || "";
+const requestedClientBin =
+  process.env.POSTGRES_CLIENT_BIN?.trim() || requestedBin;
+const externalPortText = process.env.EXTERNAL_POSTGRES_PORT?.trim() || "";
+const externalPort = externalPortText.length > 0
+  ? Number.parseInt(externalPortText, 10)
+  : null;
+const executableSuffix = process.platform === "win32" ? ".exe" : "";
+const commandTimeoutMs = 60_000;
+const childEnvironmentNames = process.platform === "win32"
+  ? [
+      "PATH",
+      "SystemRoot",
+      "WINDIR",
+      "ComSpec",
+      "PATHEXT",
+      "TEMP",
+      "TMP",
+      "LANG",
+      "LC_ALL",
+      "LC_CTYPE",
+    ]
+  : ["PATH", "LANG", "LC_ALL", "LC_CTYPE"];
+const childEnvironment = Object.fromEntries(
+  childEnvironmentNames.flatMap((name) => {
+    const value = process.env[name];
+    return typeof value === "string" && value.length > 0
+      ? [[name, value]]
+      : [];
+  }),
+);
+const separator = "\u001f";
+
+function digest(value) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+function accountEventKey(template, userId, eventId) {
+  return digest(["mail-event-v1", template, `a:${userId}`, eventId].join(separator));
+}
+
+function systemEventKey(template, producer, sourceId, audienceId, eventId) {
+  return digest([
+    "mail-event-v1",
+    template,
+    `s:${producer}:${sourceId}:${audienceId}`,
+    eventId,
+  ].join(separator));
+}
+
+function authorityDigest(eventKey) {
+  return eventKey;
+}
+
+function executable(name) {
+  const binaryDirectory = name === "psql" ? requestedClientBin : requestedBin;
+  return binaryDirectory
+    ? path.join(binaryDirectory, `${name}${executableSuffix}`)
+    : name;
+}
+
+function run(command, args, options = {}) {
+  const result = spawnSync(command, args, {
+    cwd: repositoryRoot,
+    encoding: "utf8",
+    env: childEnvironment,
+    input: options.input,
+    timeout: commandTimeoutMs,
+    windowsHide: true,
+    ...(options.stdio ? { stdio: options.stdio } : {}),
+  });
+  if (result.error) throw result.error;
+  if (!options.allowFailure && result.status !== 0) {
+    throw new Error(
+      `${path.basename(command)} failed (${String(result.status)}): ${
+        String(result.stderr ?? "").trim()
+      }`,
+    );
+  }
+  return result;
+}
+
+function psqlArgs(port, sql, options = {}) {
+  return [
+    "--host=127.0.0.1",
+    `--port=${String(port)}`,
+    "--username=postgres",
+    "--dbname=postgres",
+    "--no-psqlrc",
+    "--quiet",
+    "--set=ON_ERROR_STOP=1",
+    ...(options.scalar ? ["--tuples-only", "--no-align"] : []),
+    "--command",
+    sql,
+  ];
+}
+
+function psql(port, sql, options = {}) {
+  return run(executable("psql"), psqlArgs(port, sql, options), options);
+}
+
+function scalar(port, sql) {
+  return psql(port, sql, { scalar: true }).stdout.trim();
+}
+
+function expectSqlFailure(port, role, sql, pattern) {
+  const result = psql(port, `SET ROLE ${role};\n${sql}`, {
+    allowFailure: true,
+  });
+  assert.notEqual(result.status, 0, `${role} statement unexpectedly succeeded`);
+  assert.match(result.stderr, pattern);
+}
+
+function spawnPsql(port, sql) {
+  const child = spawn(executable("psql"), psqlArgs(port, sql), {
+    cwd: repositoryRoot,
+    env: childEnvironment,
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  let stderr = "";
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk;
+  });
+  return {
+    completed: new Promise((resolve, reject) => {
+      child.once("error", reject);
+      child.once("close", (code, signal) => {
+        resolve({ code, signal, stderr });
+      });
+    }),
+  };
+}
+
+async function waitForMarker(port, marker) {
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    const observed = scalar(
+      port,
+      `SELECT count(*)::text
+         FROM pg_catalog.pg_stat_activity
+        WHERE pid <> pg_catalog.pg_backend_pid()
+          AND state = 'active'
+          AND query LIKE '%${marker}%';`,
+    );
+    if (observed === "1") return;
+    await delay(25);
+  }
+  assert.fail(`timed out waiting for ${marker}`);
+}
+
+function setupSchema(port) {
+  psql(
+    port,
+    `
+CREATE ROLE learncoding_owner NOLOGIN NOINHERIT;
+CREATE ROLE learncoding_migrator LOGIN NOINHERIT;
+CREATE ROLE learncoding_app LOGIN NOINHERIT;
+CREATE ROLE learncoding_worker LOGIN NOINHERIT;
+CREATE ROLE learncoding_ops LOGIN NOINHERIT;
+CREATE ROLE unexpected_mail_grantee LOGIN NOINHERIT;
+CREATE ROLE mail_acl_grantor NOLOGIN NOINHERIT;
+CREATE ROLE mail_acl_leaf LOGIN NOINHERIT;
+GRANT learncoding_owner TO learncoding_migrator;
+GRANT CREATE, USAGE ON SCHEMA public TO learncoding_owner;
+ALTER DEFAULT PRIVILEGES FOR ROLE learncoding_owner IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE ON TABLES
+  TO learncoding_app, learncoding_worker, learncoding_ops,
+     learncoding_migrator, unexpected_mail_grantee;
+ALTER DEFAULT PRIVILEGES FOR ROLE learncoding_owner IN SCHEMA public
+  GRANT EXECUTE ON FUNCTIONS
+  TO PUBLIC, learncoding_app, learncoding_worker, learncoding_ops,
+     learncoding_migrator, unexpected_mail_grantee;
+SET ROLE learncoding_owner;
+CREATE TABLE public.email_outbox (
+  id uuid PRIMARY KEY,
+  operation_id uuid NOT NULL,
+  user_id text,
+  delivery_scope_key text NOT NULL,
+  to_email text NOT NULL,
+  template text NOT NULL,
+  template_version text NOT NULL,
+  variables jsonb NOT NULL,
+  idempotency_key text NOT NULL,
+  status text NOT NULL DEFAULT 'pending',
+  created_at timestamptz NOT NULL DEFAULT pg_catalog.now(),
+  CONSTRAINT email_outbox_idempotency_key_unique UNIQUE (idempotency_key)
+);
+REVOKE ALL ON TABLE public.email_outbox FROM learncoding_worker;
+GRANT SELECT ON TABLE public.email_outbox TO learncoding_worker;
+GRANT INSERT (
+  id, operation_id, user_id, delivery_scope_key, to_email, template,
+  template_version, variables, idempotency_key, status
+) ON TABLE public.email_outbox TO learncoding_worker;
+INSERT INTO public.email_outbox (
+  id, operation_id, user_id, delivery_scope_key, to_email,
+  template, template_version, variables, idempotency_key, status
+) VALUES
+  (
+    '10000000-0000-4000-8000-000000000001',
+    '20000000-0000-4000-8000-000000000001',
+    NULL,
+    's:20000000-0000-4000-8000-000000000001',
+    'legacy-system@example.invalid',
+    'access-rejected',
+    '1',
+    pg_catalog.jsonb_build_object(
+      '_mailOperationId', '20000000-0000-4000-8000-000000000001',
+      '_mailRecipient', 'legacy-system@example.invalid',
+      '_mailProducer', 'access-request-rejected',
+      '_mailSourceId', '30000000-0000-4000-8000-000000000001'
+    ),
+    pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+      'access-rejected:legacy-system@example.invalid:30000000-0000-4000-8000-000000000001',
+      'UTF8'
+    )), 'hex'),
+    'sent'
+  ),
+  (
+    '10000000-0000-4000-8000-000000000002',
+    '20000000-0000-4000-8000-000000000002',
+    'legacy-user',
+    'a:legacy-user',
+    'unmatched@example.invalid',
+    'storage-quota-changed',
+    '1',
+    '{}'::jsonb,
+    pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+      'storage-quota-changed:unmatched@example.invalid:unknown-request',
+      'UTF8'
+    )), 'hex'),
+    'sent'
+  ),
+  (
+    '10000000-0000-4000-8000-000000000003',
+    '20000000-0000-4000-8000-000000000003',
+    'deleted-user',
+    'a:deleted-user',
+    'deleted@example.invalid',
+    'account-deleted',
+    '1',
+    pg_catalog.jsonb_build_object(
+      'deletionRunId', '30000000-0000-4000-8000-000000000003'
+    ),
+    pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+      'account-deleted:deleted-user:30000000-0000-4000-8000-000000000003',
+      'UTF8'
+    )), 'hex'),
+    'sent'
+  ),
+  (
+    '10000000-0000-4000-8000-000000000004',
+    '20000000-0000-4000-8000-000000000004',
+    NULL,
+    's:20000000-0000-4000-8000-000000000004',
+    'forged@example.invalid',
+    'access-rejected',
+    '1',
+    pg_catalog.jsonb_build_object(
+      '_mailOperationId', '20000000-0000-4000-8000-000000000004',
+      '_mailRecipient', 'forged@example.invalid',
+      '_mailProducer', 'access-request-rejected',
+      '_mailSourceId', '30000000-0000-4000-8000-000000000004'
+    ),
+    'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+    'sent'
+  );
+RESET ROLE;
+`,
+  );
+}
+
+function applyComponent(port, temporaryRoot) {
+  assert.ok(
+    existsSync(componentPath),
+    "durable idempotency authority SQL component must exist",
+  );
+  const wrapperPath = path.join(temporaryRoot, "apply-component.sql");
+  const componentSource = readFileSync(componentPath, "utf8");
+  const aclNormalizationMarker =
+    "REVOKE ALL ON FUNCTION public.claim_email_outbox_idempotency_authority()";
+  assert.ok(
+    componentSource.includes(aclNormalizationMarker),
+    "component must expose the ACL normalization boundary",
+  );
+  const hostileDelegation = `
+GRANT ALL PRIVILEGES ON TABLE public.email_outbox_idempotency_authority
+  TO mail_acl_grantor WITH GRANT OPTION;
+GRANT EXECUTE ON FUNCTION public.email_outbox_original_payload_sha256(
+  text, text, text, text, jsonb
+) TO mail_acl_grantor WITH GRANT OPTION;
+GRANT EXECUTE ON FUNCTION public.claim_email_outbox_idempotency_authority()
+  TO mail_acl_grantor WITH GRANT OPTION;
+GRANT EXECUTE ON FUNCTION public.enforce_email_outbox_idempotency_metadata_immutable()
+  TO mail_acl_grantor WITH GRANT OPTION;
+GRANT EXECUTE ON FUNCTION public.enforce_email_outbox_idempotency_append_only()
+  TO mail_acl_grantor WITH GRANT OPTION;
+GRANT EXECUTE ON FUNCTION public.email_outbox_idempotency_coverage_authority(uuid[])
+  TO mail_acl_grantor WITH GRANT OPTION;
+GRANT INSERT (
+  idempotency_authority_version,
+  idempotency_authority_sha256,
+  idempotency_original_payload_sha256
+) ON TABLE public.email_outbox TO mail_acl_grantor WITH GRANT OPTION;
+RESET ROLE;
+SET ROLE mail_acl_grantor;
+GRANT ALL PRIVILEGES ON TABLE public.email_outbox_idempotency_authority
+  TO mail_acl_leaf;
+GRANT EXECUTE ON FUNCTION public.email_outbox_original_payload_sha256(
+  text, text, text, text, jsonb
+) TO mail_acl_leaf;
+GRANT EXECUTE ON FUNCTION public.claim_email_outbox_idempotency_authority()
+  TO mail_acl_leaf;
+GRANT EXECUTE ON FUNCTION public.enforce_email_outbox_idempotency_metadata_immutable()
+  TO mail_acl_leaf;
+GRANT EXECUTE ON FUNCTION public.enforce_email_outbox_idempotency_append_only()
+  TO mail_acl_leaf;
+GRANT EXECUTE ON FUNCTION public.email_outbox_idempotency_coverage_authority(uuid[])
+  TO mail_acl_leaf;
+GRANT INSERT (
+  idempotency_authority_version,
+  idempotency_authority_sha256,
+  idempotency_original_payload_sha256
+) ON TABLE public.email_outbox TO mail_acl_leaf;
+RESET ROLE;
+SET ROLE learncoding_owner;
+`;
+  const componentWithHostileDelegation = componentSource.replace(
+    aclNormalizationMarker,
+    `${hostileDelegation}\n${aclNormalizationMarker}`,
+  );
+  writeFileSync(
+    wrapperPath,
+    `BEGIN;\nSET ROLE learncoding_owner;\n${
+      componentWithHostileDelegation
+    }\nCOMMIT;\n`,
+    { encoding: "utf8", mode: 0o600 },
+  );
+  run(executable("psql"), [
+    "--host=127.0.0.1",
+    `--port=${String(port)}`,
+    "--username=postgres",
+    "--dbname=postgres",
+    "--no-psqlrc",
+    "--set=ON_ERROR_STOP=1",
+    "--file",
+    wrapperPath,
+  ]);
+}
+
+function insertAccountSql(input) {
+  return `INSERT INTO public.email_outbox (
+    id, operation_id, user_id, delivery_scope_key, to_email,
+    template, template_version, variables, idempotency_key,
+    idempotency_authority_version, status
+  ) VALUES (
+    '${input.id}', '${input.operationId}', '${input.userId}',
+    'a:${input.userId}', '${input.to}', '${input.template}', '1',
+    '{}'::jsonb, '${input.key}', 'event-v1', '${input.status ?? "pending"}'
+  ) ON CONFLICT (idempotency_key) DO NOTHING${
+    input.returning ? " RETURNING id" : ""
+  };`;
+}
+
+function proveCatalogAndAcl(port) {
+  assert.equal(
+    scalar(
+      port,
+      `SELECT pg_catalog.string_agg(
+                attribute.attname || ':' || type.typname,
+                ',' ORDER BY attribute.attnum
+              )
+         FROM pg_catalog.pg_attribute attribute
+         JOIN pg_catalog.pg_type type ON type.oid = attribute.atttypid
+        WHERE attribute.attrelid =
+              'public.email_outbox_idempotency_authority'::pg_catalog.regclass
+          AND attribute.attnum > 0
+          AND NOT attribute.attisdropped;`,
+    ),
+    "idempotency_sha256:text,original_payload_sha256:text",
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SELECT pg_catalog.string_agg(
+                attribute.attname || ':' || type.typname,
+                ',' ORDER BY attribute.attnum
+              )
+         FROM pg_catalog.pg_attribute attribute
+         JOIN pg_catalog.pg_type type ON type.oid = attribute.atttypid
+        WHERE attribute.attrelid = 'public.email_outbox'::pg_catalog.regclass
+          AND attribute.attname IN (
+            'idempotency_authority_version',
+            'idempotency_authority_sha256',
+            'idempotency_original_payload_sha256'
+          )
+          AND NOT attribute.attisdropped;`,
+    ),
+    "idempotency_authority_version:text,idempotency_authority_sha256:text,idempotency_original_payload_sha256:text",
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SELECT (
+         pg_catalog.pg_get_userbyid(relation.relowner) = 'learncoding_owner'
+         AND NOT EXISTS (
+           SELECT 1
+           FROM pg_catalog.aclexplode(coalesce(
+             relation.relacl,
+             pg_catalog.acldefault('r', relation.relowner)
+           )) privilege
+           WHERE privilege.grantee <> relation.relowner
+         )
+       )::text
+       FROM pg_catalog.pg_class relation
+       WHERE relation.oid =
+             'public.email_outbox_idempotency_authority'::pg_catalog.regclass;`,
+    ),
+    "true",
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SELECT pg_catalog.string_agg(
+                routine.proname || ':' ||
+                pg_catalog.pg_get_userbyid(routine.proowner) || ':' ||
+                routine.prosecdef::text || ':' ||
+                pg_catalog.array_to_string(routine.proconfig, ','),
+                '|' ORDER BY routine.proname
+              )
+         FROM pg_catalog.pg_proc routine
+         JOIN pg_catalog.pg_namespace namespace
+           ON namespace.oid = routine.pronamespace
+        WHERE namespace.nspname = 'public'
+          AND routine.proname IN (
+            'claim_email_outbox_idempotency_authority',
+            'email_outbox_original_payload_sha256',
+            'enforce_email_outbox_idempotency_append_only',
+            'enforce_email_outbox_idempotency_metadata_immutable',
+            'email_outbox_idempotency_coverage_authority'
+          );`,
+    ),
+    "claim_email_outbox_idempotency_authority:learncoding_owner:true:search_path=pg_catalog"
+      + "|email_outbox_idempotency_coverage_authority:learncoding_owner:true:search_path=pg_catalog"
+      + "|email_outbox_original_payload_sha256:learncoding_owner:true:search_path=pg_catalog"
+      + "|enforce_email_outbox_idempotency_append_only:learncoding_owner:true:search_path=pg_catalog"
+      + "|enforce_email_outbox_idempotency_metadata_immutable:learncoding_owner:true:search_path=pg_catalog",
+  );
+  assert.equal(
+    scalar(
+      port,
+      `WITH routines AS (
+         SELECT routine.oid, routine.proname, routine.proowner, routine.proacl
+         FROM pg_catalog.pg_proc routine
+         JOIN pg_catalog.pg_namespace namespace
+           ON namespace.oid = routine.pronamespace
+         WHERE namespace.nspname = 'public'
+           AND routine.proname IN (
+             'claim_email_outbox_idempotency_authority',
+             'email_outbox_original_payload_sha256',
+             'enforce_email_outbox_idempotency_append_only',
+             'enforce_email_outbox_idempotency_metadata_immutable',
+             'email_outbox_idempotency_coverage_authority'
+           )
+       )
+       SELECT coalesce(pg_catalog.string_agg(
+         routines.proname || ':' ||
+         CASE WHEN privilege.grantee = 0 THEN 'PUBLIC'
+              ELSE pg_catalog.pg_get_userbyid(privilege.grantee) END || ':' ||
+         privilege.privilege_type || ':' || privilege.is_grantable::text,
+         '|' ORDER BY routines.proname, privilege.grantee
+       ), '')
+       FROM routines
+       CROSS JOIN LATERAL pg_catalog.aclexplode(coalesce(
+         routines.proacl,
+         pg_catalog.acldefault('f', routines.proowner)
+       )) privilege
+       WHERE privilege.grantee <> routines.proowner;`,
+    ),
+    "email_outbox_idempotency_coverage_authority:learncoding_ops:EXECUTE:false",
+  );
+  for (const role of [
+    "learncoding_app",
+    "learncoding_worker",
+    "learncoding_ops",
+    "learncoding_migrator",
+    "unexpected_mail_grantee",
+    "mail_acl_grantor",
+    "mail_acl_leaf",
+  ]) {
+    assert.equal(
+      scalar(
+        port,
+        `SELECT (
+          pg_catalog.has_table_privilege(
+            '${role}', 'public.email_outbox_idempotency_authority',
+            'SELECT,INSERT,UPDATE,DELETE,TRUNCATE'
+          )
+        )::text;`,
+      ),
+      "false",
+      `${role} retained ledger access`,
+    );
+  }
+  assert.equal(
+    scalar(
+      port,
+      `SELECT (
+        pg_catalog.has_function_privilege(
+          'learncoding_ops',
+          'public.email_outbox_idempotency_coverage_authority(uuid[])',
+          'EXECUTE'
+        )
+        AND NOT pg_catalog.has_function_privilege(
+          'learncoding_app',
+          'public.email_outbox_idempotency_coverage_authority(uuid[])',
+          'EXECUTE'
+        )
+        AND pg_catalog.has_column_privilege(
+          'learncoding_worker', 'public.email_outbox',
+          'idempotency_authority_version', 'INSERT'
+        )
+        AND NOT pg_catalog.has_column_privilege(
+          'learncoding_worker', 'public.email_outbox',
+          'idempotency_authority_sha256', 'INSERT'
+        )
+        AND NOT pg_catalog.has_column_privilege(
+          'learncoding_worker', 'public.email_outbox',
+          'idempotency_original_payload_sha256', 'INSERT'
+        )
+        AND NOT pg_catalog.has_column_privilege(
+          'mail_acl_grantor', 'public.email_outbox',
+          'idempotency_authority_version', 'INSERT'
+        )
+        AND NOT pg_catalog.has_column_privilege(
+          'mail_acl_leaf', 'public.email_outbox',
+          'idempotency_authority_version', 'INSERT'
+        )
+      )::text;`,
+    ),
+    "true",
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SELECT coalesce(pg_catalog.string_agg(
+         attribute.attname || ':' ||
+         CASE WHEN privilege.grantee = 0 THEN 'PUBLIC'
+              ELSE pg_catalog.pg_get_userbyid(privilege.grantee) END || ':' ||
+         privilege.privilege_type || ':' || privilege.is_grantable::text,
+         '|' ORDER BY attribute.attnum, privilege.grantee
+       ), '')
+       FROM pg_catalog.pg_attribute AS attribute
+       CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS privilege
+       WHERE attribute.attrelid = 'public.email_outbox'::pg_catalog.regclass
+         AND attribute.attname IN (
+           'idempotency_authority_version',
+           'idempotency_authority_sha256',
+           'idempotency_original_payload_sha256'
+         );`,
+    ),
+    "idempotency_authority_version:learncoding_worker:INSERT:false",
+  );
+}
+
+function proveLegacyClassification(port) {
+  const systemKey = systemEventKey(
+    "access-rejected",
+    "access-request-rejected",
+    "30000000-0000-4000-8000-000000000001",
+    "requester:30000000-0000-4000-8000-000000000001",
+    "30000000-0000-4000-8000-000000000001",
+  );
+  const deletionKey = accountEventKey(
+    "account-deleted",
+    "deleted-user",
+    "30000000-0000-4000-8000-000000000003",
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SELECT pg_catalog.string_agg(
+         id::text || ':' || idempotency_authority_version || ':' ||
+         coalesce(idempotency_authority_sha256, 'NULL'),
+         '|' ORDER BY id
+       ) FROM public.email_outbox;`,
+    ),
+    `10000000-0000-4000-8000-000000000001:event-v1-alias:${authorityDigest(systemKey)}`
+      + "|10000000-0000-4000-8000-000000000002:legacy-recipient-v1:NULL"
+      + `|10000000-0000-4000-8000-000000000003:event-v1-alias:${authorityDigest(deletionKey)}`
+      + "|10000000-0000-4000-8000-000000000004:legacy-recipient-v1:NULL",
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SELECT (
+        (SELECT pg_catalog.count(*) FROM public.email_outbox_idempotency_authority) = 6
+        AND NOT EXISTS (
+          SELECT 1 FROM public.email_outbox_idempotency_authority
+          WHERE idempotency_sha256 !~ '^[0-9a-f]{64}$'
+             OR idempotency_sha256 LIKE '%example%'
+        )
+      )::text;`,
+    ),
+    "true",
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SET ROLE learncoding_ops;
+       SELECT (
+         public.email_outbox_idempotency_coverage_authority(
+           ARRAY['10000000-0000-4000-8000-000000000001'::uuid]
+         )
+         AND public.email_outbox_idempotency_coverage_authority(
+           ARRAY['10000000-0000-4000-8000-000000000003'::uuid]
+         )
+         AND NOT public.email_outbox_idempotency_coverage_authority(
+           ARRAY['10000000-0000-4000-8000-000000000002'::uuid]
+         )
+         AND NOT public.email_outbox_idempotency_coverage_authority(
+           ARRAY['10000000-0000-4000-8000-000000000004'::uuid]
+         )
+       )::text;`,
+    ),
+    "true",
+  );
+}
+
+function proveFirstInsertAndReplay(port) {
+  const key = accountEventKey("storage-quota-changed", "event-user", "request-1");
+  assert.equal(
+    scalar(
+      port,
+      `SET ROLE learncoding_app;
+       ${insertAccountSql({
+         id: "10000000-0000-4000-8000-000000000010",
+         operationId: "20000000-0000-4000-8000-000000000010",
+         userId: "event-user",
+         to: "old-address@example.invalid",
+         template: "storage-quota-changed",
+         key,
+         returning: true,
+       })}`,
+    ),
+    "10000000-0000-4000-8000-000000000010",
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SET ROLE learncoding_app;
+       ${insertAccountSql({
+         id: "10000000-0000-4000-8000-000000000011",
+         operationId: "20000000-0000-4000-8000-000000000011",
+         userId: "event-user",
+         to: "old-address@example.invalid",
+         template: "storage-quota-changed",
+         key,
+         returning: true,
+       })}`,
+    ),
+    "",
+  );
+  expectSqlFailure(
+    port,
+    "learncoding_app",
+    insertAccountSql({
+      id: "10000000-0000-4000-8000-000000000015",
+      operationId: "20000000-0000-4000-8000-000000000015",
+      userId: "event-user",
+      to: "changed-address@example.invalid",
+      template: "storage-quota-changed",
+      key,
+    }),
+    /idempotency event payload conflict/u,
+  );
+  const otherKey = accountEventKey(
+    "storage-quota-changed",
+    "other-user",
+    "request-1",
+  );
+  assert.notEqual(otherKey, key);
+  assert.equal(
+    scalar(
+      port,
+      `SET ROLE learncoding_worker;
+       ${insertAccountSql({
+         id: "10000000-0000-4000-8000-000000000012",
+         operationId: "20000000-0000-4000-8000-000000000012",
+         userId: "other-user",
+         to: "same-address@example.invalid",
+         template: "storage-quota-changed",
+         key: otherKey,
+         returning: true,
+       })}`,
+    ),
+    "10000000-0000-4000-8000-000000000012",
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SELECT (
+        (SELECT idempotency_authority_sha256
+           FROM public.email_outbox
+          WHERE id = '10000000-0000-4000-8000-000000000010') =
+          '${authorityDigest(key)}'
+        AND (SELECT idempotency_original_payload_sha256
+               FROM public.email_outbox
+              WHERE id = '10000000-0000-4000-8000-000000000010') =
+            (SELECT original_payload_sha256
+               FROM public.email_outbox_idempotency_authority
+              WHERE idempotency_sha256 = '${authorityDigest(key)}')
+        AND EXISTS (
+          SELECT 1 FROM public.email_outbox_idempotency_authority
+          WHERE idempotency_sha256 = '${authorityDigest(key)}'
+        )
+      )::text;`,
+    ),
+    "true",
+  );
+  expectSqlFailure(
+    port,
+    "learncoding_app",
+    insertAccountSql({
+      id: "10000000-0000-4000-8000-000000000013",
+      operationId: "20000000-0000-4000-8000-000000000013",
+      userId: "bad-version",
+      to: "bad@example.invalid",
+      template: "storage-quota-changed",
+      key: accountEventKey("storage-quota-changed", "bad-version", "bad"),
+    }).replace("'event-v1'", "'legacy-recipient-v1'"),
+    /new email outbox rows require event-v1 authority/u,
+  );
+  expectSqlFailure(
+    port,
+    "learncoding_app",
+    `INSERT INTO public.email_outbox (
+      id, operation_id, user_id, delivery_scope_key, to_email, template,
+      template_version, variables, idempotency_key,
+      idempotency_authority_version, idempotency_authority_sha256, status
+    ) VALUES (
+      '10000000-0000-4000-8000-000000000014',
+      '20000000-0000-4000-8000-000000000014',
+      'forged-user', 'a:forged-user', 'forged@example.invalid',
+      'storage-quota-changed', '1', '{}'::jsonb,
+      '${accountEventKey("storage-quota-changed", "forged-user", "forged")}',
+      'event-v1', '${"a".repeat(64)}', 'pending'
+    );`,
+    /idempotency authority digest is database-owned/u,
+  );
+}
+
+function proveRollbackAndLaterFailure(port) {
+  const rollbackKey = accountEventKey(
+    "storage-quota-changed",
+    "rollback-user",
+    "rollback-request",
+  );
+  psql(
+    port,
+    `BEGIN;
+     SET ROLE learncoding_app;
+     ${insertAccountSql({
+       id: "10000000-0000-4000-8000-000000000020",
+       operationId: "20000000-0000-4000-8000-000000000020",
+       userId: "rollback-user",
+       to: "rollback@example.invalid",
+       template: "storage-quota-changed",
+       key: rollbackKey,
+     })}
+     ROLLBACK;`,
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SELECT (
+        NOT EXISTS (SELECT 1 FROM public.email_outbox
+          WHERE idempotency_key = '${rollbackKey}')
+        AND NOT EXISTS (
+          SELECT 1 FROM public.email_outbox_idempotency_authority
+          WHERE idempotency_sha256 = '${authorityDigest(rollbackKey)}'
+        )
+      )::text;`,
+    ),
+    "true",
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SET ROLE learncoding_app;
+       ${insertAccountSql({
+         id: "10000000-0000-4000-8000-000000000021",
+         operationId: "20000000-0000-4000-8000-000000000021",
+         userId: "rollback-user",
+         to: "rollback@example.invalid",
+         template: "storage-quota-changed",
+         key: rollbackKey,
+         returning: true,
+       })}`,
+    ),
+    "10000000-0000-4000-8000-000000000021",
+  );
+
+  const failureKey = accountEventKey(
+    "storage-quota-changed",
+    "later-failure-user",
+    "later-failure",
+  );
+  psql(
+    port,
+    `SET ROLE learncoding_owner;
+     CREATE FUNCTION public.zzz_reject_test_outbox_insert()
+     RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog
+     AS $function$
+     BEGIN
+       IF NEW.idempotency_key = '${failureKey}' THEN
+         RAISE EXCEPTION 'expected later trigger rejection'
+           USING ERRCODE = '23514';
+       END IF;
+       RETURN NEW;
+     END
+     $function$;
+     CREATE TRIGGER zzz_reject_test_outbox_insert
+     BEFORE INSERT ON public.email_outbox
+     FOR EACH ROW EXECUTE FUNCTION public.zzz_reject_test_outbox_insert();`,
+  );
+  expectSqlFailure(
+    port,
+    "learncoding_app",
+    insertAccountSql({
+      id: "10000000-0000-4000-8000-000000000022",
+      operationId: "20000000-0000-4000-8000-000000000022",
+      userId: "later-failure-user",
+      to: "failure@example.invalid",
+      template: "storage-quota-changed",
+      key: failureKey,
+    }),
+    /expected later trigger rejection/u,
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SELECT count(*)::text
+       FROM public.email_outbox_idempotency_authority
+       WHERE idempotency_sha256 = '${authorityDigest(failureKey)}';`,
+    ),
+    "0",
+  );
+  psql(
+    port,
+    `SET ROLE learncoding_owner;
+     DROP TRIGGER zzz_reject_test_outbox_insert ON public.email_outbox;
+     DROP FUNCTION public.zzz_reject_test_outbox_insert();`,
+  );
+}
+
+async function proveConcurrentClaims(port) {
+  const commitKey = accountEventKey(
+    "storage-quota-changed",
+    "concurrent-user",
+    "commit-race",
+  );
+  const commitMarker = "mail_idempotency_commit_race";
+  const winner = spawnPsql(
+    port,
+    `/* ${commitMarker} */
+     BEGIN;
+     SET ROLE learncoding_app;
+     ${insertAccountSql({
+       id: "10000000-0000-4000-8000-000000000030",
+       operationId: "20000000-0000-4000-8000-000000000030",
+       userId: "concurrent-user",
+       to: "winner@example.invalid",
+       template: "storage-quota-changed",
+       key: commitKey,
+     })}
+     SELECT pg_catalog.pg_sleep(0.75);
+     COMMIT;`,
+  );
+  await waitForMarker(port, commitMarker);
+  const replay = spawnPsql(
+    port,
+    `SET ROLE learncoding_app;
+     ${insertAccountSql({
+       id: "10000000-0000-4000-8000-000000000031",
+       operationId: "20000000-0000-4000-8000-000000000031",
+       userId: "concurrent-user",
+       to: "winner@example.invalid",
+       template: "storage-quota-changed",
+       key: commitKey,
+     })}`,
+  );
+  const [winnerResult, replayResult] = await Promise.all([
+    winner.completed,
+    replay.completed,
+  ]);
+  assert.equal(winnerResult.code, 0, winnerResult.stderr);
+  assert.equal(replayResult.code, 0, replayResult.stderr);
+  assert.equal(
+    scalar(
+      port,
+      `SELECT (
+        (SELECT count(*) FROM public.email_outbox
+          WHERE idempotency_key = '${commitKey}') = 1
+        AND (SELECT count(*) FROM public.email_outbox_idempotency_authority
+          WHERE idempotency_sha256 = '${authorityDigest(commitKey)}') = 1
+      )::text;`,
+    ),
+    "true",
+  );
+
+  const rollbackKey = accountEventKey(
+    "storage-quota-changed",
+    "concurrent-user",
+    "rollback-race",
+  );
+  const rollbackMarker = "mail_idempotency_rollback_race";
+  const rolledBack = spawnPsql(
+    port,
+    `/* ${rollbackMarker} */
+     BEGIN;
+     SET ROLE learncoding_app;
+     ${insertAccountSql({
+       id: "10000000-0000-4000-8000-000000000040",
+       operationId: "20000000-0000-4000-8000-000000000040",
+       userId: "concurrent-user",
+       to: "rollback-winner@example.invalid",
+       template: "storage-quota-changed",
+       key: rollbackKey,
+     })}
+     SELECT pg_catalog.pg_sleep(0.75);
+     ROLLBACK;`,
+  );
+  await waitForMarker(port, rollbackMarker);
+  const retry = spawnPsql(
+    port,
+    `SET ROLE learncoding_app;
+     ${insertAccountSql({
+       id: "10000000-0000-4000-8000-000000000041",
+       operationId: "20000000-0000-4000-8000-000000000041",
+       userId: "concurrent-user",
+       to: "rollback-retry@example.invalid",
+       template: "storage-quota-changed",
+       key: rollbackKey,
+     })}`,
+  );
+  const [rollbackResult, retryResult] = await Promise.all([
+    rolledBack.completed,
+    retry.completed,
+  ]);
+  assert.equal(rollbackResult.code, 0, rollbackResult.stderr);
+  assert.equal(retryResult.code, 0, retryResult.stderr);
+  assert.equal(
+    scalar(
+      port,
+      `SELECT (
+        (SELECT id::text FROM public.email_outbox
+          WHERE idempotency_key = '${rollbackKey}') =
+          '10000000-0000-4000-8000-000000000041'
+        AND (SELECT count(*) FROM public.email_outbox_idempotency_authority
+          WHERE idempotency_sha256 = '${authorityDigest(rollbackKey)}') = 1
+      )::text;`,
+    ),
+    "true",
+  );
+}
+
+async function proveCoverageLockAndTerminalReplay(port) {
+  const id = "10000000-0000-4000-8000-000000000050";
+  const key = accountEventKey(
+    "storage-quota-changed",
+    "retention-user",
+    "retention-request",
+  );
+  psql(
+    port,
+    `SET ROLE learncoding_app;
+     ${insertAccountSql({
+       id,
+       operationId: "20000000-0000-4000-8000-000000000050",
+       userId: "retention-user",
+       to: "retention-old@example.invalid",
+       template: "storage-quota-changed",
+       key,
+       status: "sent",
+     })}`,
+  );
+  const originalPayloadDigest = scalar(
+    port,
+    `SELECT idempotency_original_payload_sha256
+       FROM public.email_outbox
+      WHERE id = '${id}'::uuid;`,
+  );
+  psql(
+    port,
+    `SET ROLE learncoding_owner;
+     UPDATE public.email_outbox
+        SET to_email = 'redacted@invalid.local',
+            variables = '{"redacted":true}'::jsonb
+      WHERE id = '${id}'::uuid;`,
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SET ROLE learncoding_owner;
+       SELECT (
+         public.email_outbox_idempotency_coverage_authority(ARRAY['${id}'::uuid])
+         AND idempotency_original_payload_sha256 = '${originalPayloadDigest}'
+       )::text FROM public.email_outbox WHERE id = '${id}'::uuid;`,
+    ),
+    "true",
+  );
+  const marker = "mail_idempotency_coverage_lock";
+  const lockHolder = spawnPsql(
+    port,
+    `/* ${marker} */
+     BEGIN;
+     SET ROLE learncoding_ops;
+     SELECT public.email_outbox_idempotency_coverage_authority(
+       ARRAY['${id}'::uuid]
+     );
+     SELECT pg_catalog.pg_sleep(0.75);
+     COMMIT;`,
+  );
+  await waitForMarker(port, marker);
+  const blocked = psql(
+    port,
+    `SET lock_timeout = '150ms';
+     SET ROLE learncoding_ops;
+     DELETE FROM public.email_outbox WHERE id = '${id}'::uuid;`,
+    { allowFailure: true },
+  );
+  assert.notEqual(blocked.status, 0);
+  assert.match(blocked.stderr, /lock timeout/u);
+  const lockResult = await lockHolder.completed;
+  assert.equal(lockResult.code, 0, lockResult.stderr);
+
+  assert.equal(
+    scalar(
+      port,
+      `BEGIN;
+       SET ROLE learncoding_ops;
+       SELECT public.email_outbox_idempotency_coverage_authority(
+         ARRAY['${id}'::uuid]
+       )::text;
+       DELETE FROM public.email_outbox
+       WHERE id = ANY(ARRAY['${id}'::uuid]) AND status = 'sent';
+       COMMIT;`,
+    ),
+    "true",
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SET ROLE learncoding_app;
+       ${insertAccountSql({
+         id: "10000000-0000-4000-8000-000000000051",
+         operationId: "20000000-0000-4000-8000-000000000051",
+         userId: "retention-user",
+         to: "retention-old@example.invalid",
+         template: "storage-quota-changed",
+         key,
+         returning: true,
+       })}`,
+    ),
+    "",
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SELECT (
+        NOT EXISTS (SELECT 1 FROM public.email_outbox
+          WHERE idempotency_key = '${key}')
+        AND EXISTS (
+          SELECT 1 FROM public.email_outbox_idempotency_authority
+          WHERE idempotency_sha256 = '${authorityDigest(key)}'
+        )
+      )::text;`,
+    ),
+    "true",
+  );
+
+  const legacyId = "10000000-0000-4000-8000-000000000001";
+  const sourceId = "30000000-0000-4000-8000-000000000001";
+  const stableSystemKey = systemEventKey(
+    "access-rejected",
+    "access-request-rejected",
+    sourceId,
+    `requester:${sourceId}`,
+    sourceId,
+  );
+  assert.equal(
+    scalar(
+      port,
+      `BEGIN;
+       SET ROLE learncoding_ops;
+       SELECT public.email_outbox_idempotency_coverage_authority(
+         ARRAY['${legacyId}'::uuid]
+       )::text;
+       DELETE FROM public.email_outbox WHERE id = '${legacyId}'::uuid;
+       COMMIT;`,
+    ),
+    "true",
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SET ROLE learncoding_app;
+       INSERT INTO public.email_outbox (
+         id, operation_id, user_id, delivery_scope_key, to_email,
+         template, template_version, variables, idempotency_key,
+         idempotency_authority_version, status
+       ) VALUES (
+         '10000000-0000-4000-8000-000000000052',
+         '20000000-0000-4000-8000-000000000052',
+         NULL, 's:20000000-0000-4000-8000-000000000052',
+         'legacy-system@example.invalid', 'access-rejected', '1',
+         pg_catalog.jsonb_build_object(
+           '_mailOperationId', '20000000-0000-4000-8000-000000000052',
+           '_mailRecipient', 'legacy-system@example.invalid',
+           '_mailProducer', 'access-request-rejected',
+           '_mailSourceId', '${sourceId}'
+         ),
+         '${stableSystemKey}', 'event-v1', 'pending'
+       )
+       ON CONFLICT (idempotency_key) DO NOTHING
+       RETURNING id;`,
+    ),
+    "",
+  );
+  expectSqlFailure(
+    port,
+    "learncoding_app",
+    `INSERT INTO public.email_outbox (
+       id, operation_id, user_id, delivery_scope_key, to_email,
+       template, template_version, variables, idempotency_key,
+       idempotency_authority_version, status
+     ) VALUES (
+       '10000000-0000-4000-8000-000000000053',
+       '20000000-0000-4000-8000-000000000053',
+       NULL, 's:20000000-0000-4000-8000-000000000053',
+       'changed-system@example.invalid', 'access-rejected', '1',
+       pg_catalog.jsonb_build_object(
+         '_mailOperationId', '20000000-0000-4000-8000-000000000053',
+         '_mailRecipient', 'changed-system@example.invalid',
+         '_mailProducer', 'access-request-rejected',
+         '_mailSourceId', '${sourceId}'
+       ),
+       '${stableSystemKey}', 'event-v1', 'pending'
+     );`,
+    /idempotency event payload conflict/u,
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SELECT (
+        EXISTS (
+          SELECT 1 FROM public.email_outbox_idempotency_authority
+          WHERE idempotency_sha256 = '${authorityDigest(stableSystemKey)}'
+        )
+        AND EXISTS (
+          SELECT 1 FROM public.email_outbox
+          WHERE id = '10000000-0000-4000-8000-000000000002'::uuid
+        )
+      )::text;`,
+    ),
+    "true",
+  );
+}
+
+function proveCoverageFailsClosed(port) {
+  const id = "10000000-0000-4000-8000-000000000021";
+  for (const invalidInput of [
+    "NULL::uuid[]",
+    "ARRAY[]::uuid[]",
+    `ARRAY['${id}'::uuid, '${id}'::uuid]`,
+    `ARRAY['${id}'::uuid, NULL::uuid]`,
+    `(
+      SELECT pg_catalog.array_agg(
+        ('30000000-0000-4000-8000-' || pg_catalog.lpad(i::text, 12, '0'))::uuid
+        ORDER BY i
+      )
+      FROM pg_catalog.generate_series(1, 5001) generated(i)
+    )`,
+  ]) {
+    expectSqlFailure(
+      port,
+      "learncoding_ops",
+      `SELECT public.email_outbox_idempotency_coverage_authority(
+         ${invalidInput}
+       );`,
+      /invalid email outbox idempotency coverage request/u,
+    );
+  }
+  assert.equal(
+    scalar(
+      port,
+      `SET ROLE learncoding_ops;
+       SELECT public.email_outbox_idempotency_coverage_authority(
+         ARRAY['40000000-0000-4000-8000-000000000001'::uuid]
+       )::text;`,
+    ),
+    "false",
+  );
+  const key = scalar(
+    port,
+    `SELECT idempotency_key FROM public.email_outbox
+     WHERE id = '${id}'::uuid;`,
+  );
+  const payloadDigest = scalar(
+    port,
+    `SELECT idempotency_original_payload_sha256 FROM public.email_outbox
+      WHERE id = '${id}'::uuid;`,
+  );
+  psql(
+    port,
+    `SET ROLE learncoding_owner;
+     ALTER TABLE public.email_outbox_idempotency_authority
+       DISABLE TRIGGER email_outbox_idempotency_append_only;
+     DELETE FROM public.email_outbox_idempotency_authority
+     WHERE idempotency_sha256 = '${authorityDigest(key)}';
+     ALTER TABLE public.email_outbox_idempotency_authority
+       ENABLE TRIGGER email_outbox_idempotency_append_only;`,
+  );
+  assert.equal(
+    scalar(
+      port,
+      `SET ROLE learncoding_ops;
+       SELECT public.email_outbox_idempotency_coverage_authority(
+         ARRAY['${id}'::uuid]
+       )::text;`,
+    ),
+    "false",
+  );
+  psql(
+    port,
+    `SET ROLE learncoding_owner;
+     INSERT INTO public.email_outbox_idempotency_authority (
+       idempotency_sha256, original_payload_sha256
+     ) VALUES ('${authorityDigest(key)}', '${payloadDigest}');`,
+  );
+}
+
+function proveMutationProtection(port) {
+  for (const role of [
+    "learncoding_app",
+    "learncoding_worker",
+    "learncoding_ops",
+    "learncoding_migrator",
+    "unexpected_mail_grantee",
+    "mail_acl_grantor",
+    "mail_acl_leaf",
+  ]) {
+    expectSqlFailure(
+      port,
+      role,
+      `INSERT INTO public.email_outbox_idempotency_authority (
+         idempotency_sha256
+       ) VALUES ('${"b".repeat(64)}');`,
+      /permission denied/u,
+    );
+    expectSqlFailure(
+      port,
+      role,
+      "DELETE FROM public.email_outbox_idempotency_authority;",
+      /permission denied/u,
+    );
+    expectSqlFailure(
+      port,
+      role,
+      "TRUNCATE TABLE public.email_outbox_idempotency_authority;",
+      /permission denied/u,
+    );
+  }
+  expectSqlFailure(
+    port,
+    "learncoding_owner",
+    `UPDATE public.email_outbox_idempotency_authority
+     SET idempotency_sha256 = '${"c".repeat(64)}';`,
+    /email outbox idempotency authority is append-only/u,
+  );
+  expectSqlFailure(
+    port,
+    "learncoding_owner",
+    "DELETE FROM public.email_outbox_idempotency_authority;",
+    /email outbox idempotency authority is append-only/u,
+  );
+  expectSqlFailure(
+    port,
+    "learncoding_owner",
+    "TRUNCATE TABLE public.email_outbox_idempotency_authority;",
+    /email outbox idempotency authority is append-only/u,
+  );
+  expectSqlFailure(
+    port,
+    "learncoding_app",
+    `UPDATE public.email_outbox
+     SET idempotency_authority_version = 'legacy-recipient-v1'
+     WHERE id = '10000000-0000-4000-8000-000000000010'::uuid;`,
+    /email outbox idempotency authority metadata is immutable/u,
+  );
+}
+
+async function main() {
+  assert.ok(
+    existsSync(componentPath),
+    "durable idempotency authority SQL component must exist",
+  );
+  assert.ok(
+    expectedMajor === 17 || expectedMajor === 18,
+    "EXPECTED_POSTGRES_MAJOR must be 17 or 18",
+  );
+  assert.ok(
+    externalPort === null
+      || (Number.isInteger(externalPort) && externalPort > 0 && externalPort < 65536),
+    "EXTERNAL_POSTGRES_PORT must be an integer loopback port",
+  );
+  const temporaryRoot = mkdtempSync(
+    path.join(
+      os.tmpdir(),
+      `codestead-mail-idempotency-pg${String(expectedMajor)}-`,
+    ),
+  );
+  const dataDirectory = path.join(temporaryRoot, "data");
+  const port = externalPort ?? await allocateDisposableLoopbackPort();
+  let started = false;
+  try {
+    if (externalPort === null) {
+    run(executable("initdb"), [
+      "--username=postgres",
+      "--encoding=UTF8",
+      "--locale=C",
+      "--auth-local=trust",
+      "--auth-host=trust",
+      "--no-instructions",
+      "--pgdata",
+      dataDirectory,
+    ]);
+    run(executable("pg_ctl"), [
+      "--pgdata",
+      dataDirectory,
+      "--log",
+      path.join(temporaryRoot, "postgres.log"),
+      "--options",
+      `-h 127.0.0.1 -p ${String(port)} -F`,
+      "--wait",
+      "start",
+    ], { stdio: "ignore" });
+    started = true;
+    }
+    assert.equal(
+      Number.parseInt(
+        scalar(port, "SHOW server_version_num;").slice(0, 2),
+        10,
+      ),
+      expectedMajor,
+    );
+    setupSchema(port);
+    applyComponent(port, temporaryRoot);
+    proveCatalogAndAcl(port);
+    proveLegacyClassification(port);
+    proveFirstInsertAndReplay(port);
+    proveRollbackAndLaterFailure(port);
+    await proveConcurrentClaims(port);
+    await proveCoverageLockAndTerminalReplay(port);
+    proveCoverageFailsClosed(port);
+    proveMutationProtection(port);
+    process.stdout.write(
+      `mail durable idempotency authority PG${String(expectedMajor)}: PASS\n`,
+    );
+  } finally {
+    if (started) {
+      run(
+        executable("pg_ctl"),
+        ["--pgdata", dataDirectory, "--mode=fast", "--wait", "stop"],
+        { allowFailure: true },
+      );
+    }
+    try {
+      rmSync(temporaryRoot, { force: true, recursive: true });
+    } catch (cleanupError) {
+      process.stderr.write(
+        `disposable cluster cleanup deferred: ${String(cleanupError)}\n`,
+      );
+    }
+  }
+}
+
+await main();

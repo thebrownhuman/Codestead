@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 
 import { validateProviderCredential } from "@/lib/ai/credential-validation";
@@ -10,6 +10,7 @@ import {
   providerCredential,
   user,
 } from "@/lib/db/schema";
+import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 import { consentPurposeForProvider, hasCurrentConsent } from "@/lib/privacy/consent";
 import {
   writeAuditEventInTransaction,
@@ -106,16 +107,6 @@ type CredentialTarget = Pick<
 
 function appUrl() {
   return process.env.APP_URL ?? "http://localhost:3000";
-}
-
-function outboxIdempotencyKey(input: {
-  template: string;
-  to: string;
-  seed: string;
-}) {
-  return createHash("sha256")
-    .update(`${input.template}:${input.to.toLowerCase()}:${input.seed}`)
-    .digest("hex");
 }
 
 function assertOperationInput(input: AdminCredentialOperation) {
@@ -308,11 +299,12 @@ async function appendCredentialNotice(
         action: input.actionText,
         url: `${appUrl()}/settings?section=ai`,
       },
-      idempotencyKey: outboxIdempotencyKey({
+      idempotencyKey: accountMailEventIdempotencyKey({
+        eventId: `${target.id}:${input.correlationId}:${input.stage}`,
         template: "credential-changed",
-        to: target.ownerEmail,
-        seed: `${target.id}:${input.correlationId}:${input.stage}`,
+        userId: target.userId,
       }),
+      idempotencyAuthorityVersion: "event-v1",
     })
     .onConflictDoNothing({ target: emailOutbox.idempotencyKey });
 }

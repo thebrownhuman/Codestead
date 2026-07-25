@@ -3,18 +3,19 @@ import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const onConflictDoNothing = vi.fn(async () => undefined);
+  const returning = vi.fn(async () => [{ id: "queued-id" }]);
+  const onConflictDoNothing = vi.fn(() => ({ returning }));
   const values = vi.fn((value: Record<string, unknown>) => {
     void value;
     return { onConflictDoNothing };
   });
   const insert = vi.fn(() => ({ values }));
-  return { insert, values, onConflictDoNothing };
+  return { insert, values, onConflictDoNothing, returning };
 });
 
 vi.mock("@/lib/db/client", () => ({ db: { insert: mocks.insert } }));
 vi.mock("@/lib/db/schema", () => ({
-  emailOutbox: { idempotencyKey: "idempotency_key" },
+  emailOutbox: { id: "id", idempotencyKey: "idempotency_key" },
 }));
 
 import { enqueueEmail } from "../outbox";
@@ -36,7 +37,12 @@ describe("email outbox", () => {
     await enqueueEmail(input);
 
     const expected = createHash("sha256")
-      .update("reset-password:learner@example.com:password-reset-1")
+      .update([
+        "mail-event-v1",
+        "reset-password",
+        "a:learner-1",
+        "password-reset-1",
+      ].join("\u001f"))
       .digest("hex");
     expect(mocks.values).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -59,6 +65,7 @@ describe("email outbox", () => {
       systemProducer: "access-request-approved",
       idempotencySeed: "event-0001",
       sourceId: "11111111-1111-4111-8111-111111111111",
+      audienceId: "requester:11111111-1111-4111-8111-111111111111",
     });
     await enqueueEmail({
       to: "a@example.com",
@@ -74,10 +81,25 @@ describe("email outbox", () => {
       systemProducer: "access-request-approved",
       idempotencySeed: "event-0002",
       sourceId: "22222222-2222-4222-8222-222222222222",
+      audienceId: "requester:22222222-2222-4222-8222-222222222222",
     });
     const keys = mocks.values.mock.calls.map(
       ([value]) => (value as { idempotencyKey: string }).idempotencyKey,
     );
     expect(new Set(keys).size).toBe(3);
+  });
+
+  it("reports whether the durable authority queued or suppressed the event", async () => {
+    const input = {
+      to: "learner@example.com",
+      template: "verify-email" as const,
+      variables: {},
+      userId: "learner-1",
+      idempotencySeed: "verify-1",
+    };
+    await expect(enqueueEmail(input)).resolves.toEqual({ kind: "queued" });
+
+    mocks.returning.mockResolvedValueOnce([]);
+    await expect(enqueueEmail(input)).resolves.toEqual({ kind: "suppressed" });
   });
 });

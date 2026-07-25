@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 import { db } from "@/lib/db/client";
 import { emailOutbox } from "@/lib/db/schema";
@@ -10,6 +10,11 @@ import {
   type EmailTemplate as AuthorityEmailTemplate,
   type SpecializedAccountEmailTemplate,
 } from "./template-authority-policy";
+import {
+  accountMailEventIdempotencyKey,
+  MAIL_IDEMPOTENCY_AUTHORITY_VERSION,
+  systemMailEventIdempotencyKey,
+} from "./idempotency-authority";
 
 export type EmailTemplate = AuthorityEmailTemplate;
 
@@ -40,6 +45,7 @@ type AccountEmailInput = EmailInput & {
 };
 
 type SystemEmailInput = EmailInput & {
+  audienceId: string;
   sourceId: string;
   userId?: never;
 } & (
@@ -59,6 +65,16 @@ type SystemEmailInput = EmailInput & {
 
 export type EnqueueEmailInput = AccountEmailInput | SystemEmailInput;
 
+export type EnqueueEmailOutcome =
+  | { kind: "queued" }
+  | { kind: "suppressed" };
+
+function isSystemEmailInput(
+  input: EnqueueEmailInput,
+): input is SystemEmailInput {
+  return "sourceId" in input;
+}
+
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -67,8 +83,8 @@ type OutboxTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 function queuedEmail(input: EnqueueEmailInput) {
   const recipient = input.to.toLowerCase();
   const operationId = randomUUID();
-  const systemInput = "sourceId" in input ? input : undefined;
-  const systemProducer = systemInput?.systemProducer;
+  const systemInput = isSystemEmailInput(input);
+  const systemProducer = systemInput ? input.systemProducer : undefined;
   if (!isProductionEmailTemplate(input.template)) {
     throw new Error("Email template is not registered for production delivery.");
   }
@@ -95,7 +111,7 @@ function queuedEmail(input: EnqueueEmailInput) {
       `Email template ${input.template} must resolve to exactly one production version.`,
     );
   }
-  if (systemInput && !UUID.test(systemInput.sourceId)) {
+  if (systemInput && !UUID.test(input.sourceId)) {
     throw new Error("System email source ID must be a UUID.");
   }
   if (
@@ -104,9 +120,19 @@ function queuedEmail(input: EnqueueEmailInput) {
   ) {
     throw new Error("Account email user ID must be nonblank and canonical.");
   }
-  const idempotencyKey = createHash("sha256")
-    .update(`${input.template}:${recipient}:${input.idempotencySeed}`)
-    .digest("hex");
+  const idempotencyKey = systemInput
+    ? systemMailEventIdempotencyKey({
+        eventId: input.idempotencySeed,
+        audienceId: input.audienceId,
+        producer: input.systemProducer,
+        sourceId: input.sourceId,
+        template: input.template,
+      })
+    : accountMailEventIdempotencyKey({
+        eventId: input.idempotencySeed,
+        template: input.template,
+        userId: input.userId,
+      });
 
   return {
     operationId,
@@ -121,10 +147,12 @@ function queuedEmail(input: EnqueueEmailInput) {
           _mailOperationId: operationId,
           _mailRecipient: recipient,
           _mailProducer: systemProducer,
-          _mailSourceId: systemInput!.sourceId,
+          _mailSourceId: input.sourceId,
+          _mailAudienceId: input.audienceId,
         }
       : input.variables,
     idempotencyKey,
+    idempotencyAuthorityVersion: MAIL_IDEMPOTENCY_AUTHORITY_VERSION,
   };
 }
 
@@ -133,16 +161,24 @@ export async function enqueueEmailInTransaction(
   input: EnqueueEmailInput,
 ) {
   const row = queuedEmail(input);
-  await tx
+  const inserted = await tx
     .insert(emailOutbox)
     .values(row)
-    .onConflictDoNothing({ target: emailOutbox.idempotencyKey });
+    .onConflictDoNothing({ target: emailOutbox.idempotencyKey })
+    .returning({ id: emailOutbox.id });
+  return inserted.length === 1
+    ? { kind: "queued" } as const
+    : { kind: "suppressed" } as const;
 }
 
 export async function enqueueEmail(input: EnqueueEmailInput) {
   const row = queuedEmail(input);
-  await db
+  const inserted = await db
     .insert(emailOutbox)
     .values(row)
-    .onConflictDoNothing({ target: emailOutbox.idempotencyKey });
+    .onConflictDoNothing({ target: emailOutbox.idempotencyKey })
+    .returning({ id: emailOutbox.id });
+  return inserted.length === 1
+    ? { kind: "queued" } as const
+    : { kind: "suppressed" } as const;
 }

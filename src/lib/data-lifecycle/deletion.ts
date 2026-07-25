@@ -10,6 +10,7 @@ import {
   deletionNoticeSecret,
   type AccountDeletionNoticeVariables,
 } from "@/lib/notifications/deletion-notice-capability";
+import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 import { lockUserAuthorityOnPgClient } from "@/lib/security/user-authority-lock";
 
 import {
@@ -955,15 +956,17 @@ export async function deleteLearnerAccount(input: {
          values ($1, $2, $3, $4, $5, $6, $7, 'awaiting_retention_expiry', $8::jsonb)`,
         [tombstoneId, id, identityHash, RETENTION_POLICY_VERSION, input.actorUserId, now, backupRetentionUntil, JSON.stringify(report)],
       );
-      const mailKey = createHash("sha256")
-        .update(`account-deleted:${id}:${claim.runId}`)
-        .digest("hex");
+      const mailKey = accountMailEventIdempotencyKey({
+        eventId: claim.runId,
+        template: "account-deleted",
+        userId: id,
+      });
       const insertedNotice = await client.query<DeletionNoticeOutboxRow>(
         `insert into email_outbox
           (id, operation_id, user_id, delivery_scope_key, to_email, template,
-           template_version, variables, idempotency_key, status)
+           template_version, variables, idempotency_key, idempotency_authority_version, status)
          values ($1, $2, $3, 'a:' || $3, lower(btrim($4)), 'account-deleted',
-                 '1', $5::jsonb, $6, 'pending')
+                  '1', $5::jsonb, $6, 'event-v1', 'pending')
          on conflict (idempotency_key) do nothing
          returning id::text, operation_id::text, user_id, delivery_scope_key,
                    to_email, template, template_version, variables, idempotency_key`,

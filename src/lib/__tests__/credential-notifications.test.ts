@@ -7,13 +7,15 @@ const mocks = vi.hoisted(() => {
   const select = vi.fn(() => ({ from }));
   const values = vi.fn();
   const insert = vi.fn(() => ({ values }));
-  return { limit, where, from, select, values, insert, enqueueEmail: vi.fn() };
+  const transactionClient = { select, insert };
+  const transaction = vi.fn(async (callback: (tx: typeof transactionClient) => unknown) => callback(transactionClient));
+  return { limit, where, from, select, values, insert, transaction, transactionClient, enqueueEmailInTransaction: vi.fn() };
 });
 
 vi.mock("@/lib/db/client", () => ({
-  db: { select: mocks.select, insert: mocks.insert },
+  db: { transaction: mocks.transaction },
 }));
-vi.mock("@/lib/notifications/outbox", () => ({ enqueueEmail: mocks.enqueueEmail }));
+vi.mock("@/lib/notifications/outbox", () => ({ enqueueEmailInTransaction: mocks.enqueueEmailInTransaction }));
 
 import { notifyCredentialChanged } from "../credential-notifications";
 
@@ -22,7 +24,7 @@ describe("credential security notifications", () => {
     vi.clearAllMocks();
     mocks.limit.mockReset().mockResolvedValue([{ email: "learner@example.test", name: "Aarav" }]);
     mocks.values.mockResolvedValue(undefined);
-    mocks.enqueueEmail.mockResolvedValue(undefined);
+    mocks.enqueueEmailInTransaction.mockResolvedValue(undefined);
   });
 
   it("sends in-app and email notices without including key material", async () => {
@@ -38,14 +40,16 @@ describe("credential security notifications", () => {
       type: "credential-changed",
       body: "Your nvidia nim credential was replaced.",
     }));
-    expect(mocks.enqueueEmail).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mocks.enqueueEmailInTransaction).toHaveBeenCalledWith(
+      mocks.transactionClient,
+      expect.objectContaining({
       to: "learner@example.test",
       template: "credential-changed",
       variables: expect.objectContaining({ provider: "nvidia nim", action: "replaced" }),
     }));
     const serialized = JSON.stringify([
       mocks.values.mock.calls,
-      mocks.enqueueEmail.mock.calls,
+      mocks.enqueueEmailInTransaction.mock.calls,
     ]);
     expect(serialized).not.toMatch(/nvapi-|api[_-]?key|secret/i);
   });
@@ -59,6 +63,6 @@ describe("credential security notifications", () => {
       idempotencySeed: "credential-2:delete:1",
     });
     expect(mocks.values).not.toHaveBeenCalled();
-    expect(mocks.enqueueEmail).not.toHaveBeenCalled();
+    expect(mocks.enqueueEmailInTransaction).not.toHaveBeenCalled();
   });
 });

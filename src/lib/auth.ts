@@ -9,6 +9,7 @@ import { admin, twoFactor } from "better-auth/plugins";
 
 import { db, pool } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
+import { verificationEmailSourceEventId } from "@/lib/notifications/idempotency-authority";
 import { enqueueEmail } from "@/lib/notifications/outbox";
 import {
   createResetPasswordSourceVariables,
@@ -97,13 +98,13 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     autoSignInAfterVerification: false,
     expiresIn: 60 * 60,
-    sendVerificationEmail: async ({ user: authUser, url }) => {
+    sendVerificationEmail: async ({ user: authUser, url, token }) => {
       await enqueueEmail({
         to: authUser.email,
         userId: authUser.id,
         template: "verify-email",
         variables: { name: authUser.name, url },
-        idempotencySeed: url,
+        idempotencySeed: verificationEmailSourceEventId(token),
       });
     },
   },

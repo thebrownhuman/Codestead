@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import type { PoolClient } from "pg";
 
 import {
@@ -10,6 +8,7 @@ import {
   type ExamResult,
 } from "@/lib/exams/contracts";
 import { pool } from "@/lib/db/client";
+import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 import { queueProjectReviewCorrectionWithClient } from "@/lib/projects/review-correction-service";
 
 import { hashAppealEvidence } from "./evidence";
@@ -671,13 +670,15 @@ export async function decideAppeal(input: {
       [row.user_id, copy.title, copy.body, actionPath, now],
     );
     const appUrl = process.env.APP_URL ?? "http://localhost:3000";
-    const mailKey = createHash("sha256")
-      .update(`appeal-updated:${row.learner_email.toLowerCase()}:${input.appealId}:${input.requestId}`)
-      .digest("hex");
+    const mailKey = accountMailEventIdempotencyKey({
+      eventId: `${input.appealId}:${input.requestId}`,
+      template: "appeal-updated",
+      userId: row.user_id,
+    });
     await client.query(
       `insert into email_outbox
-        (user_id, delivery_scope_key, to_email, template, template_version, variables, idempotency_key, status)
-       values ($1, 'a:' || $1, lower($2), 'appeal-updated', '1', $3::jsonb, $4, 'pending')
+        (user_id, delivery_scope_key, to_email, template, template_version, variables, idempotency_key, idempotency_authority_version, status)
+       values ($1, 'a:' || $1, lower($2), 'appeal-updated', '1', $3::jsonb, $4, 'event-v1', 'pending')
        on conflict (idempotency_key) do nothing`,
       [
         row.user_id,

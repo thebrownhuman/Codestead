@@ -3202,6 +3202,9 @@ export const emailOutbox = pgTable(
     templateVersion: text("template_version").notNull(),
     variables: jsonb("variables").$type<Record<string, string>>().notNull(),
     idempotencyKey: text("idempotency_key").notNull().unique(),
+    idempotencyAuthorityVersion: text("idempotency_authority_version").notNull(),
+    idempotencyAuthoritySha256: text("idempotency_authority_sha256"),
+    idempotencyOriginalPayloadSha256: text("idempotency_original_payload_sha256").default(sql`NULL`).notNull(),
     operationId: uuid("operation_id").defaultRandom().notNull().unique(),
     deliveryScopeKey: text("delivery_scope_key").notNull(),
     status: notificationStatusEnum("status").default("pending").notNull(),
@@ -3232,6 +3235,21 @@ export const emailOutbox = pgTable(
       .on(table.adapter, table.providerMessageId)
       .where(sql`${table.providerMessageId} IS NOT NULL`),
     check("email_outbox_claim_version_nonnegative", sql`${table.claimVersion} >= 0`),
+    check(
+      "email_outbox_idempotency_authority_valid",
+      sql`(
+        ${table.idempotencyOriginalPayloadSha256} ~ '^[0-9a-f]{64}$'
+        AND (
+          (${table.idempotencyAuthorityVersion} = 'event-v1'
+            AND ${table.idempotencyKey} ~ '^[0-9a-f]{64}$'
+            AND ${table.idempotencyAuthoritySha256} = ${table.idempotencyKey})
+          OR (${table.idempotencyAuthorityVersion} = 'event-v1-alias'
+            AND ${table.idempotencyAuthoritySha256} ~ '^[0-9a-f]{64}$')
+          OR (${table.idempotencyAuthorityVersion} = 'legacy-recipient-v1'
+            AND ${table.idempotencyAuthoritySha256} IS NULL)
+        )
+      )`,
+    ),
     check(
       "email_outbox_provider_identity_valid",
       sql`${table.providerMessageId} IS NULL OR (${table.adapter} IS NOT NULL AND btrim(${table.adapter}) <> '' AND btrim(${table.providerMessageId}) <> '')`,

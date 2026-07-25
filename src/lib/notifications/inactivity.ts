@@ -1,8 +1,7 @@
-import { createHash } from "node:crypto";
-
 import type { Pool, PoolClient } from "pg";
 
 import { pool } from "@/lib/db/client";
+import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
 import type { EmailTemplate } from "./outbox";
 import {
@@ -120,12 +119,6 @@ function applicationUrl(path: string) {
   return url.toString();
 }
 
-function emailIdempotencyKey(template: EmailTemplate, to: string, seed: string) {
-  return createHash("sha256")
-    .update(`${template}:${to.toLowerCase()}:${seed}`)
-    .digest("hex");
-}
-
 async function persistEmail(
   client: PoolClient,
   input: {
@@ -137,11 +130,15 @@ async function persistEmail(
   },
 ) {
   const to = input.to.trim().toLowerCase();
-  const idempotencyKey = emailIdempotencyKey(input.template, to, input.seed);
+  const idempotencyKey = accountMailEventIdempotencyKey({
+    eventId: `${INACTIVITY_MAIL_POLICY_VERSION}:${input.seed}`,
+    template: input.template,
+    userId: input.userId,
+  });
   const inserted = await client.query(
     `insert into email_outbox
-      (user_id,delivery_scope_key,to_email,template,template_version,variables,idempotency_key,status,next_attempt_at)
-     values ($1,'a:' || $1,$2,$3,'2',$4::jsonb,$5,'pending',now())
+      (user_id,delivery_scope_key,to_email,template,template_version,variables,idempotency_key,idempotency_authority_version,status,next_attempt_at)
+     values ($1,'a:' || $1,$2,$3,'2',$4::jsonb,$5,'event-v1','pending',now())
      on conflict (idempotency_key) do nothing
      returning id`,
     [input.userId, to, input.template, JSON.stringify(input.variables), idempotencyKey],

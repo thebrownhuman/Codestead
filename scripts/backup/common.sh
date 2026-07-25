@@ -334,7 +334,7 @@ emit_alert() {
 }
 
 enqueue_backup_status() {
-  local outcome="$1" seed="$2" key result
+  local outcome="$1" seed="$2" result
   case "$outcome" in
     success|failure) ;;
     *)
@@ -347,8 +347,6 @@ enqueue_backup_status() {
     return 1
   }
 
-  key="$(printf '%s' "backup-status:$outcome:$seed" | sha256sum)"
-  key="${key%% *}"
   if ! result="$({
     cat <<'SQL'
 WITH administrator AS MATERIALIZED (
@@ -357,6 +355,14 @@ WITH administrator AS MATERIALIZED (
   WHERE role = 'admin'
     AND status = 'active'
     AND coalesce(banned, false) = false
+), mail_event AS MATERIALIZED (
+  SELECT id, email,
+    encode(
+      pg_catalog.sha256(pg_catalog.convert_to(
+        'mail-event-v1' || chr(31) || 'backup-status' || chr(31) || 'a:' || id || chr(31) || :'report_outcome' || ':' || :'report_seed',
+        'UTF8'
+      )), 'hex') AS idempotency_key
+  FROM administrator
 ), inserted AS (
   INSERT INTO email_outbox (
     operation_id,
@@ -366,7 +372,7 @@ WITH administrator AS MATERIALIZED (
     template,
     template_version,
     variables,
-    idempotency_key
+    idempotency_key, idempotency_authority_version
   )
   SELECT
     gen_random_uuid(),
@@ -382,25 +388,26 @@ WITH administrator AS MATERIALIZED (
         WHEN 'failure' THEN 'The nightly encrypted backup did not complete. Review the protected operations logs; no archive or log is attached to this email.'
       END
     ),
-    :'report_key'
-  FROM administrator
+    idempotency_key, 'event-v1'
+  FROM mail_event
   ON CONFLICT (idempotency_key) DO NOTHING
   RETURNING id
 )
 SELECT CASE
   WHEN EXISTS (SELECT 1 FROM inserted) THEN 'queued'
   WHEN EXISTS (
-    SELECT 1 FROM email_outbox WHERE idempotency_key = :'report_key'
+    SELECT 1 FROM mail_event event
+    WHERE EXISTS (SELECT 1 FROM email_outbox outbox WHERE outbox.idempotency_key = event.idempotency_key)
   ) THEN 'existing'
   WHEN NOT EXISTS (SELECT 1 FROM administrator) THEN 'no-admin'
   ELSE 'not-queued'
 END;
 SQL
   } | compose_cmd exec -T \
-    --env "BACKUP_REPORT_KEY=$key" \
+    --env "BACKUP_REPORT_SEED=$seed" \
     --env "BACKUP_REPORT_OUTCOME=$outcome" \
     postgres sh -ceu \
-      'exec psql --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --no-psqlrc --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 --set=report_key="$BACKUP_REPORT_KEY" --set=report_outcome="$BACKUP_REPORT_OUTCOME"')"; then
+      'exec psql --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --no-psqlrc --quiet --tuples-only --no-align --set=ON_ERROR_STOP=1 --set=report_seed="$BACKUP_REPORT_SEED" --set=report_outcome="$BACKUP_REPORT_OUTCOME"')"; then
     log "backup status report could not reach the application outbox"
     return 1
   fi

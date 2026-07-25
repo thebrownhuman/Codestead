@@ -1,18 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const onConflictDoNothing = vi.fn(async () => undefined);
+  const returning = vi.fn(async () => [{ id: "queued-id" }]);
+  const onConflictDoNothing = vi.fn(() => ({ returning }));
   const values = vi.fn((value: unknown) => {
     void value;
     return { onConflictDoNothing };
   });
   const insert = vi.fn(() => ({ values }));
-  return { insert, values, onConflictDoNothing };
+  return { insert, values, onConflictDoNothing, returning };
 });
 
 vi.mock("@/lib/db/client", () => ({ db: { insert: mocks.insert } }));
 vi.mock("@/lib/db/schema", () => ({
-  emailOutbox: { idempotencyKey: "idempotency_key" },
+  emailOutbox: { id: "id", idempotencyKey: "idempotency_key" },
 }));
 
 import { enqueueEmail } from "../outbox";
@@ -51,6 +52,7 @@ describe("email outbox delivery scope", () => {
       },
       systemProducer: "access-request-rejected",
       sourceId: "22222222-2222-4222-8222-222222222222",
+      audienceId: "requester:22222222-2222-4222-8222-222222222222",
       idempotencySeed: "request-1",
     });
 
@@ -69,6 +71,8 @@ describe("email outbox delivery scope", () => {
         _mailRecipient: "candidate@example.com",
         _mailProducer: "access-request-rejected",
         _mailSourceId: "22222222-2222-4222-8222-222222222222",
+        _mailAudienceId:
+          "requester:22222222-2222-4222-8222-222222222222",
       }),
     );
   });
@@ -95,6 +99,7 @@ describe("email outbox delivery scope", () => {
         variables: {},
         systemProducer: "access-request-rejected",
         sourceId: "request-2",
+        audienceId: "requester:request-2",
         idempotencySeed: "request-2",
       }),
     ).rejects.toThrow("System email source ID must be a UUID");

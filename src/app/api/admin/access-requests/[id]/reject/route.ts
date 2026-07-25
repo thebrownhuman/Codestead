@@ -68,6 +68,7 @@ export async function POST(
       template: "access-rejected",
       variables: { name: pending.name },
       systemProducer: "access-request-rejected",
+      audienceId: `requester:${pending.id}`,
       sourceId: pending.id,
       idempotencySeed: pending.id,
     });
