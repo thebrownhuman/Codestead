@@ -121,6 +121,7 @@ readonly rm_bin=/usr/bin/rm
 readonly sha256sum_bin=/usr/bin/sha256sum
 readonly stat_bin=/usr/bin/stat
 readonly timeout_bin=/usr/bin/timeout
+readonly mail_outbox_contract_required_commit=abe2a67ad20215bff64317182cc306b3329e5bed
 readonly mail_outbox_retention_boundary_commit=18b2366db1347d7328d1ae85d7ee285c0fae4e5d
 
 if [[ -n "$test_harness_root" ]]; then
@@ -838,18 +839,24 @@ git_commit_is_ancestor() {
   return 1
 }
 
-git_commit_is_strictly_before_mail_retention_boundary() {
-  local commit="$1"
-  [[ "$commit" != "$mail_outbox_retention_boundary_commit" ]] || return 1
-  git_commit_is_ancestor "$commit" "$mail_outbox_retention_boundary_commit"
+git_commit_is_strictly_before_boundary() {
+  local commit="$1" boundary_commit="$2"
+  [[ "$commit" != "$boundary_commit" ]] || return 1
+  git_commit_is_ancestor "$commit" "$boundary_commit"
 }
 
 verify_legacy_mail_outbox_contract_lineage() {
-  local commit record_tree_from_git previous_tree_from_git
+  local boundary_commit commit record_tree_from_git previous_tree_from_git
   local record_predates_boundary=false previous_predates_boundary=false
   [[ "$mail_outbox_contract_schema" != SCHEMA_VERSION=2 ]] || return 0
 
-  for commit in "$mail_outbox_retention_boundary_commit" "$record_git_commit" "$previous_git_commit"; do
+  case "$mail_outbox_contract_schema" in
+    absent) boundary_commit="$mail_outbox_contract_required_commit" ;;
+    SCHEMA_VERSION=1) boundary_commit="$mail_outbox_retention_boundary_commit" ;;
+    *) fatal "unable to verify trusted mail outbox migration lineage" ;;
+  esac
+
+  for commit in "$boundary_commit" "$record_git_commit" "$previous_git_commit"; do
     run_local_evidence_git cat-file -e "${commit}^{commit}" \
       >/dev/null 2>&1 || fatal "unable to verify trusted mail outbox migration lineage"
   done
@@ -870,10 +877,10 @@ verify_legacy_mail_outbox_contract_lineage() {
     fatal "trusted release Git tree evidence does not match repository objects"
   }
 
-  if git_commit_is_strictly_before_mail_retention_boundary "$record_git_commit"; then
+  if git_commit_is_strictly_before_boundary "$record_git_commit" "$boundary_commit"; then
     record_predates_boundary=true
   fi
-  if git_commit_is_strictly_before_mail_retention_boundary "$previous_git_commit"; then
+  if git_commit_is_strictly_before_boundary "$previous_git_commit" "$boundary_commit"; then
     previous_predates_boundary=true
   fi
   if [[ "$record_predates_boundary" == true && "$previous_predates_boundary" == true ]] \
@@ -882,13 +889,14 @@ verify_legacy_mail_outbox_contract_lineage() {
   fi
 
   if [[ "$mail_outbox_contract_schema" == absent ]]; then
-    fatal "mail outbox contract evidence is absent; exact trusted release evidence does not prove the rollback is wholly before 0062_mail_outbox_retention_redaction"
+    fatal "mail outbox contract evidence is absent; exact trusted release evidence must prove the rollback is wholly before SCHEMA_VERSION=1 became mandatory and before 0062_mail_outbox_retention_redaction could exist"
   fi
   fatal "SCHEMA_VERSION=1 mail outbox contract evidence is insufficient unless exact trusted release evidence proves the rollback is wholly before 0062_mail_outbox_retention_redaction"
 }
 
 run_local_evidence_git() {
-  run_bounded "$env_bin" GIT_NO_LAZY_FETCH=1 GIT_NO_REPLACE_OBJECTS=1 \
+  run_bounded "$env_bin" GIT_GRAFT_FILE=/dev/null GIT_NO_LAZY_FETCH=1 \
+    GIT_NO_REPLACE_OBJECTS=1 \
     "$git_bin" -C "$repo_root" "$@"
 }
 
