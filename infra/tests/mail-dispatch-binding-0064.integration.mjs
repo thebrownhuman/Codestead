@@ -1339,6 +1339,208 @@ async function proveExtendedTransitionMatrix(port, database) {
   );
 }
 
+function installHostilePre0064CatalogState(port, database) {
+  psql(
+    port,
+    database,
+    `
+CREATE ROLE mail_dispatch_hostile_default NOLOGIN;
+CREATE ROLE mail_dispatch_hostile_grantor NOLOGIN;
+CREATE ROLE mail_dispatch_hostile_leaf NOLOGIN;
+
+SET ROLE learncoding_owner;
+GRANT USAGE ON SCHEMA public
+  TO mail_dispatch_hostile_default,
+     mail_dispatch_hostile_grantor,
+     mail_dispatch_hostile_leaf;
+ALTER DEFAULT PRIVILEGES FOR ROLE learncoding_owner IN SCHEMA public
+  GRANT EXECUTE ON FUNCTIONS
+  TO mail_dispatch_hostile_default WITH GRANT OPTION;
+CREATE FUNCTION public.enforce_email_outbox_dispatch_binding()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $hostile_dispatch_guard$
+BEGIN
+  RETURN NEW;
+END
+$hostile_dispatch_guard$;
+GRANT EXECUTE ON FUNCTION
+  public.enforce_email_outbox_dispatch_binding()
+  TO mail_dispatch_hostile_grantor WITH GRANT OPTION;
+RESET ROLE;
+
+SET ROLE mail_dispatch_hostile_default;
+GRANT EXECUTE ON FUNCTION
+  public.enforce_email_outbox_dispatch_binding()
+  TO mail_dispatch_hostile_leaf;
+RESET ROLE;
+
+SET ROLE mail_dispatch_hostile_grantor;
+GRANT EXECUTE ON FUNCTION
+  public.enforce_email_outbox_dispatch_binding()
+  TO mail_dispatch_hostile_leaf;
+RESET ROLE;
+
+SET ROLE learncoding_owner;
+REVOKE USAGE ON SCHEMA public
+  FROM mail_dispatch_hostile_default,
+       mail_dispatch_hostile_grantor,
+       mail_dispatch_hostile_leaf;
+RESET ROLE;`,
+  );
+}
+
+function assertHostilePre0064CatalogState(port, database) {
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.count(*)::text
+         FROM pg_catalog.pg_default_acl AS default_acl
+         JOIN pg_catalog.pg_namespace AS namespace
+           ON namespace.oid = default_acl.defaclnamespace
+         CROSS JOIN LATERAL pg_catalog.aclexplode(
+           default_acl.defaclacl
+         ) AS access
+         JOIN pg_catalog.pg_roles AS owner_role
+           ON owner_role.oid = default_acl.defaclrole
+         JOIN pg_catalog.pg_roles AS grantee
+           ON grantee.oid = access.grantee
+        WHERE owner_role.rolname = 'learncoding_owner'
+          AND namespace.nspname = 'public'
+          AND default_acl.defaclobjtype = 'f'
+          AND grantee.rolname = 'mail_dispatch_hostile_default'
+          AND access.privilege_type = 'EXECUTE'
+          AND access.is_grantable;`,
+    ),
+    "1",
+    "hostile owner default ACL fixture was not installed",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.count(*)::text
+         FROM pg_catalog.pg_proc AS routine
+         CROSS JOIN LATERAL pg_catalog.aclexplode(
+           coalesce(
+             routine.proacl,
+             pg_catalog.acldefault('f', routine.proowner)
+           )
+         ) AS access
+         JOIN pg_catalog.pg_roles AS grantee
+           ON grantee.oid = access.grantee
+        WHERE routine.oid =
+          'public.enforce_email_outbox_dispatch_binding()'::pg_catalog.regprocedure
+          AND grantee.rolname IN (
+            'mail_dispatch_hostile_default',
+            'mail_dispatch_hostile_grantor',
+            'mail_dispatch_hostile_leaf'
+          );`,
+    ),
+    "4",
+    "hostile direct/default/delegated function ACL fixture was incomplete",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.count(*)::text
+         FROM pg_catalog.pg_proc AS routine
+         CROSS JOIN LATERAL pg_catalog.aclexplode(
+           coalesce(
+             routine.proacl,
+             pg_catalog.acldefault('f', routine.proowner)
+           )
+         ) AS access
+         JOIN pg_catalog.pg_roles AS grantor
+           ON grantor.oid = access.grantor
+         JOIN pg_catalog.pg_roles AS grantee
+           ON grantee.oid = access.grantee
+        WHERE routine.oid =
+          'public.enforce_email_outbox_dispatch_binding()'::pg_catalog.regprocedure
+          AND grantor.rolname IN (
+            'mail_dispatch_hostile_default',
+            'mail_dispatch_hostile_grantor'
+          )
+          AND grantee.rolname = 'mail_dispatch_hostile_leaf'
+          AND NOT access.is_grantable;`,
+    ),
+    "2",
+    "hostile grantor-to-leaf delegation fixture was incomplete",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT routine.prosecdef::text || '|' ||
+              pg_catalog.array_to_string(routine.proconfig, ',')
+         FROM pg_catalog.pg_proc AS routine
+        WHERE routine.oid =
+          'public.enforce_email_outbox_dispatch_binding()'::pg_catalog.regprocedure;`,
+    ),
+    "true|search_path=public",
+    "hostile function-shape fixture was incomplete",
+  );
+}
+
+function assertHostilePost0064FunctionAclsRemoved(port, database) {
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.count(*)::text
+         FROM pg_catalog.pg_proc AS routine
+         CROSS JOIN LATERAL pg_catalog.aclexplode(
+           coalesce(
+             routine.proacl,
+             pg_catalog.acldefault('f', routine.proowner)
+           )
+         ) AS access
+         LEFT JOIN pg_catalog.pg_roles AS grantor
+           ON grantor.oid = access.grantor
+         LEFT JOIN pg_catalog.pg_roles AS grantee
+           ON grantee.oid = access.grantee
+        WHERE routine.oid =
+          'public.enforce_email_outbox_dispatch_binding()'::pg_catalog.regprocedure
+          AND (
+            grantor.rolname LIKE 'mail_dispatch_hostile_%'
+            OR grantee.rolname LIKE 'mail_dispatch_hostile_%'
+          );`,
+    ),
+    "0",
+    "0064 left a hostile direct or delegated function ACL",
+  );
+}
+
+function removeHostilePost0064CatalogState(port, database) {
+  psql(
+    port,
+    database,
+    `
+SET ROLE learncoding_owner;
+ALTER DEFAULT PRIVILEGES FOR ROLE learncoding_owner IN SCHEMA public
+  REVOKE EXECUTE ON FUNCTIONS FROM mail_dispatch_hostile_default;
+RESET ROLE;
+DROP ROLE mail_dispatch_hostile_leaf;
+DROP ROLE mail_dispatch_hostile_grantor;
+DROP ROLE mail_dispatch_hostile_default;`,
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.count(*)::text
+         FROM pg_catalog.pg_roles
+        WHERE rolname LIKE 'mail_dispatch_hostile_%';`,
+    ),
+    "0",
+    "hostile ACL fixture roles remained after exact convergence",
+  );
+}
+
 async function main() {
   assertMigrationLineage();
   const version = run(executable("postgres"), ["--version"]).stdout.trim();
@@ -1471,6 +1673,8 @@ GRANT learncoding_owner TO learncoding_migrator
     );
     await verifyRawReviewedPhase(adminConnectionString);
     await proveRawPhaseTamperDetection(port, database, adminConnectionString);
+    installHostilePre0064CatalogState(port, database);
+    assertHostilePre0064CatalogState(port, database);
 
     ownerSql(
       port,
@@ -1594,6 +1798,8 @@ INSERT INTO public.email_outbox (
       migrationsFolder: migrationDirectory,
     });
     await verifyRawReviewedPhase(adminConnectionString);
+    assertHostilePost0064FunctionAclsRemoved(port, database);
+    removeHostilePost0064CatalogState(port, database);
     assert.equal(
       scalar(
         port,

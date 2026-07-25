@@ -193,16 +193,34 @@ describe("0064 email outbox dispatch binding", () => {
       'alter function "public"."enforce_email_outbox_dispatch_binding"() owner to learncoding_owner',
     );
     expect(normalizedMigration).toContain(
-      'revoke all on function "public"."enforce_email_outbox_dispatch_binding"() from public, learncoding_app, learncoding_worker, learncoding_migrator, learncoding_ops, learncoding_owner',
+      "do $codestead_dispatch_binding_acl_scrub$",
+    );
+    expect(normalizedMigration).toContain(
+      "cross join lateral pg_catalog.aclexplode(",
+    );
+    expect(normalizedMigration).toContain(
+      "pg_catalog.acldefault('f', routine.proowner)",
+    );
+    expect(normalizedMigration).toContain(
+      "'revoke all privileges on function %s from %s cascade'",
+    );
+    expect(normalizedMigration).toContain(
+      "'revoke all privileges (%i) on table %s from %s cascade'",
     );
     expect(normalizedMigration).toContain(
       'grant execute on function "public"."enforce_email_outbox_dispatch_binding"() to learncoding_owner',
     );
     expect(normalizedMigration).toContain(
-      "revoke all ( dispatch_binding_version, dispatch_binding_sha256 ) on table public.email_outbox from public, learncoding_app, learncoding_worker, learncoding_migrator, learncoding_ops",
+      "array['learncoding_owner|execute|false']::text[]",
     );
     expect(normalizedMigration).toContain(
       "grant update ( dispatch_binding_version, dispatch_binding_sha256 ) on table public.email_outbox to learncoding_worker",
+    );
+    expect(normalizedMigration).toContain(
+      "array['learncoding_worker|update|false']::text[]",
+    );
+    expect(normalizedMigration).toContain(
+      "'e03d2be2455d53f9ddd0c0b7a8029efd07186a4d6804b86c2206b29031da7fdf'",
     );
     expect(normalizedMigration).not.toMatch(
       /grant insert \([^)]*dispatch_binding_/u,
