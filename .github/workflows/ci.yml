@@ -53,6 +53,7 @@ jobs:
       - run: node infra/tests/validate-static.mjs
       - run: node --test infra/tests/database-secret-ceremony.test.mjs
       - run: node --test infra/tests/database-least-privilege-static.test.mjs
+      - run: npm run test:database-role-boundaries
       - run: node --test infra/tests/runtime-validator-ingress-policy.test.mjs
       - run: node --test infra/tests/production-load-peer-preflight.test.mjs infra/tests/production-load-postgres-socket.test.mjs infra/tests/production-load-systemd.test.mjs
       - run: node --test infra/tests/runner-power-rehearsal-control.test.mjs
