@@ -11,14 +11,51 @@ const APP_ROLE = "learncoding_app";
 const WORKER_ROLE = "learncoding_worker";
 const OPS_ROLE = "learncoding_ops";
 const LOGIN_ROLES = [MIGRATOR_ROLE, APP_ROLE, WORKER_ROLE, OPS_ROLE];
+const REVIEWED_ROUTINE_CONFIGURATION = Object.freeze(["search_path=pg_catalog"]);
 export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
+  Object.freeze({
+    signature:
+      "public.classify_email_outbox_retention_redaction(public.email_outbox,timestamp with time zone)",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: REVIEWED_ROUTINE_CONFIGURATION,
+    allowedRoles: Object.freeze([]),
+  }),
+  Object.freeze({
+    signature: "public.enforce_email_outbox_payload_immutable()",
+    owner: OWNER_ROLE,
+    securityDefiner: false,
+    configuration: REVIEWED_ROUTINE_CONFIGURATION,
+    allowedRoles: Object.freeze([]),
+  }),
   Object.freeze({
     signature:
       "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
     owner: OWNER_ROLE,
     securityDefiner: true,
-    configuration: Object.freeze(["search_path=pg_catalog"]),
+    configuration: REVIEWED_ROUTINE_CONFIGURATION,
     allowedRoles: Object.freeze([OPS_ROLE]),
+  }),
+]);
+export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_payload_immutable",
+    functionSignature: "public.enforce_email_outbox_payload_immutable()",
+    enabled: "O",
+    type: 19,
+    qualifier: null,
+    arguments: 0,
+    columns: Object.freeze([
+      "delivery_scope_key",
+      "idempotency_key",
+      "operation_id",
+      "template",
+      "template_version",
+      "to_email",
+      "user_id",
+      "variables",
+    ]),
   }),
 ]);
 

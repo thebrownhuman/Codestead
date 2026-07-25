@@ -3,7 +3,10 @@ import { performance } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
 
 import { Pool } from "pg";
-import { REVIEWED_APPLICATION_FUNCTIONS } from "./bootstrap-database-roles.mjs";
+import {
+  REVIEWED_APPLICATION_FUNCTIONS,
+  REVIEWED_APPLICATION_TRIGGERS,
+} from "./bootstrap-database-roles.mjs";
 
 export const DATABASE_ADMIN_LOCK_NAME = "codestead:database-administration:v1";
 const MIN_PASSWORD_BYTES = 32;
@@ -291,11 +294,15 @@ export async function verifyReviewedApplicationRoutines(
                        pg_catalog.acldefault('f', p.proowner)
                      )
                    ) acl
-                  where acl.grantee <> p.proowner
                ),
                expected(
                  grantor, grantee, privilege_type, is_grantable
                ) as (
+                 select p.proowner,
+                        p.proowner,
+                        'EXECUTE'::text,
+                        false
+                 union all
                  select p.proowner,
                         grantee.oid,
                         'EXECUTE'::text,
@@ -338,6 +345,66 @@ export async function verifyReviewedApplicationRoutines(
       configuration_exact: true,
       effective_execute_exact: true,
       routine_direct_acl_exact: true,
+    })) fail();
+    verified += 1;
+  }
+  return verified;
+}
+
+async function verifyReviewedApplicationTriggers(client) {
+  let verified = 0;
+  for (const reviewedTrigger of REVIEWED_APPLICATION_TRIGGERS) {
+    const result = await client.query(`
+      select catalog_trigger.tgenabled::text is not distinct from
+               $4::text trigger_enabled_exact,
+             catalog_trigger.tgfoid is not distinct from
+               pg_catalog.to_regprocedure($3::text)::oid trigger_function_exact,
+             catalog_trigger.tgtype is not distinct from
+               $5::smallint trigger_type_exact,
+             pg_catalog.pg_get_expr(
+               catalog_trigger.tgqual,
+               catalog_trigger.tgrelid
+             )
+               is not distinct from $6::text trigger_qualifier_exact,
+             catalog_trigger.tgnargs is not distinct from
+               $7::smallint trigger_arguments_exact,
+             (
+               select coalesce(
+                 pg_catalog.array_agg(
+                   attribute.attname::text
+                   order by attribute.attname
+                 ),
+                 array[]::text[]
+               )
+                 from pg_catalog.unnest(
+                   catalog_trigger.tgattr::smallint[]
+                 ) watched_column(attnum)
+                 join pg_catalog.pg_attribute attribute
+                   on attribute.attrelid = catalog_trigger.tgrelid
+                  and attribute.attnum = watched_column.attnum
+             ) is not distinct from $8::text[] trigger_columns_exact
+        from pg_catalog.pg_trigger catalog_trigger
+       where catalog_trigger.tgrelid = pg_catalog.to_regclass($1::text)::oid
+         and catalog_trigger.tgname::text = $2::text
+         and not catalog_trigger.tgisinternal`,
+      [
+        reviewedTrigger.relation,
+        reviewedTrigger.name,
+        reviewedTrigger.functionSignature,
+        reviewedTrigger.enabled,
+        reviewedTrigger.type,
+        reviewedTrigger.qualifier,
+        reviewedTrigger.arguments,
+        reviewedTrigger.columns,
+      ],
+    );
+    if (result.rows.length !== 1 || !exactRow(result.rows[0], {
+      trigger_enabled_exact: true,
+      trigger_function_exact: true,
+      trigger_type_exact: true,
+      trigger_qualifier_exact: true,
+      trigger_arguments_exact: true,
+      trigger_columns_exact: true,
     })) fail();
     verified += 1;
   }
@@ -482,6 +549,7 @@ export async function verifyDatabaseRoleBoundaries(options) {
     if (requireApplicationObjects) {
       objects = await discoverApplicationObjects(lockClient);
       positiveChecks += await verifyReviewedApplicationRoutines(lockClient);
+      positiveChecks += await verifyReviewedApplicationTriggers(lockClient);
     }
     for (const [name] of ROLE_SPECS) {
       const role = parsed[name];
