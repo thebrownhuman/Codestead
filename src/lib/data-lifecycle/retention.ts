@@ -86,6 +86,7 @@ type RedactionCapabilityResult =
       transitioned: number;
       blocked: number;
       malformed: number;
+      malformedTransitioned: number;
     }>
   | Readonly<{
       outcome: "failed";
@@ -178,7 +179,7 @@ async function queryRedactionCapability(
 ) {
   const result = await client.query<RedactionSummaryRow>(
     `select disposition, eligible::text as eligible, transitioned::text as transitioned
-       from public.redact_unresolved_email_outbox_authority(
+       from public.redact_quarantined_email_outbox_authority_v2(
          $1::timestamptz, $2::integer
        )`,
     [cutoff, batchLimit],
@@ -199,16 +200,26 @@ async function queryRedactionCapability(
   const eligible = summaries.get("eligible")!;
   const blocked = summaries.get("blocked")!;
   const malformed = summaries.get("malformed")!;
-  if (parseRedactionCount(blocked.transitioned) !== 0
-      || parseRedactionCount(malformed.transitioned) !== 0) {
+  const eligibleCount = parseRedactionCount(eligible.eligible);
+  const eligibleTransitioned = parseRedactionCount(eligible.transitioned);
+  const blockedCount = parseRedactionCount(blocked.eligible);
+  const blockedTransitioned = parseRedactionCount(blocked.transitioned);
+  const malformedCount = parseRedactionCount(malformed.eligible);
+  const malformedTransitioned = parseRedactionCount(malformed.transitioned);
+  if (
+    blockedTransitioned !== 0
+    || eligibleTransitioned > eligibleCount
+    || malformedTransitioned > malformedCount
+  ) {
     throw new Error("Email outbox redaction summary is invalid.");
   }
   return {
     outcome: "succeeded" as const,
-    eligible: parseRedactionCount(eligible.eligible),
-    transitioned: parseRedactionCount(eligible.transitioned),
-    blocked: parseRedactionCount(blocked.eligible),
-    malformed: parseRedactionCount(malformed.eligible),
+    eligible: eligibleCount,
+    transitioned: eligibleTransitioned,
+    blocked: blockedCount,
+    malformed: malformedCount,
+    malformedTransitioned,
   };
 }
 
@@ -357,17 +368,23 @@ function setRedactionCategories(
   );
   categories.unresolvedEmailDeliveryAuthorityMalformed = transitionedCategory(
     result.malformed,
-    0,
-    "Malformed recipient PII is retained under retry-required health until operator repair or the 0067 redaction authority.",
+    dryRun ? 0 : result.malformedTransitioned,
+    dryRun
+      ? "dry-run; malformed recipient payload would be redacted while retaining non-PII authority state"
+      : "Malformed recipient payload redacted; non-PII authority state retained for reconciliation.",
   );
 }
 
-function hasEmailPrivacyFailure(categories: Readonly<Record<string, RetentionCategoryReport>>) {
+function hasEmailPrivacyFailure(
+  categories: Readonly<Record<string, RetentionCategoryReport>>,
+  dryRun: boolean,
+) {
   return categories.terminalEmailDeliveryRecords?.outcome === "failed"
     || categories.nonExternalConsoleDeliveryQuarantines?.outcome === "failed"
     || categories.unresolvedEmailDeliveryAuthority?.outcome === "failed"
-    || (categories.unresolvedEmailDeliveryAuthorityBlocked?.eligible ?? 0) > 0
-    || (categories.unresolvedEmailDeliveryAuthorityMalformed?.eligible ?? 0) > 0
+    || (!dryRun && categories.unresolvedEmailDeliveryAuthority?.hasMore === true)
+    || categories.unresolvedEmailDeliveryAuthorityBlocked?.hasMore === true
+    || (!dryRun && categories.unresolvedEmailDeliveryAuthorityMalformed?.hasMore === true)
     || (categories.unclassifiedEmailDeliveryAuthorityBlocked?.eligible ?? 0) > 0
     || (
       categories.unclassifiedEmailDeliveryAuthorityRepairRequired?.eligible
@@ -786,8 +803,11 @@ async function commitObjectRetentionCheckpoint(
   }
 }
 
-function reportOutcome(categories: Readonly<Record<string, RetentionCategoryReport>>) {
-  if (hasEmailPrivacyFailure(categories)) {
+function reportOutcome(
+  categories: Readonly<Record<string, RetentionCategoryReport>>,
+  dryRun: boolean,
+) {
+  if (hasEmailPrivacyFailure(categories, dryRun)) {
     return { outcome: "completed_with_errors" as const, requiresRetry: true as const };
   }
   return { outcome: "succeeded" as const, requiresRetry: false as const };
@@ -865,7 +885,7 @@ export async function runRetention(input: {
         lifecycleRunId: runId,
         objectStorageRoot: objectRoot,
       });
-      const outcome = reportOutcome(fileCheckpoint.categories);
+      const outcome = reportOutcome(fileCheckpoint.categories, false);
       const report: RetentionReport = {
         runId,
         policyVersion: RETENTION_POLICY.version,
@@ -1548,7 +1568,7 @@ export async function runRetention(input: {
       objectFiles.failed = fileSummary.failed;
     }
     setDurableCategories(categories, durableCounts);
-    const outcome = reportOutcome(categories);
+    const outcome = reportOutcome(categories, input.dryRun);
 
     const report: RetentionReport = {
       runId,
