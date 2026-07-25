@@ -4,6 +4,7 @@ import type { Pool, PoolClient } from "pg";
 
 import { pool } from "@/lib/db/client";
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
+import { lockUserAuthorityOnPgClient } from "@/lib/security/user-authority-lock";
 import type { EmailTemplate } from "./outbox";
 import {
   createInactivitySourceVariables,
@@ -40,7 +41,16 @@ type Candidate = {
   learner_second_queued_at: Date | null;
 };
 
-type Administrator = { id: string; email: string };
+type AuthorityUser = {
+  id: string;
+  email: string;
+  email_verified: boolean;
+  role: string | null;
+  status: string;
+  banned: boolean;
+};
+
+type AdministratorHint = { id: string };
 
 export type InactivityScheduleResult = {
   opened: number;
@@ -154,6 +164,63 @@ async function persistEmail(
   return Boolean(durable.rowCount);
 }
 
+function sortedUniqueUserIds(userIds: readonly (string | null)[]) {
+  return [...new Set(
+    userIds.filter((userId): userId is string => userId !== null),
+  )].sort();
+}
+
+async function lockAndLoadAuthorityUsers(
+  client: PoolClient,
+  userIds: readonly (string | null)[],
+) {
+  const sortedUserIds = sortedUniqueUserIds(userIds);
+  for (const userId of sortedUserIds) {
+    await lockUserAuthorityOnPgClient(client, userId);
+  }
+  const users = new Map<string, AuthorityUser>();
+  for (const userId of sortedUserIds) {
+    const result = await client.query<AuthorityUser>(
+      `select id, email, email_verified, role, status, banned
+         from "user"
+        where id = $1
+        for update`,
+      [userId],
+    );
+    const authorityUser = result.rows[0];
+    if (authorityUser) users.set(authorityUser.id, authorityUser);
+  }
+  return users;
+}
+
+function isActiveLearner(
+  user: AuthorityUser | undefined,
+): user is AuthorityUser {
+  return user?.role === "learner"
+    && user.status === "active"
+    && user.banned === false
+    && user.email_verified === true;
+}
+
+function isActiveAdministrator(
+  user: AuthorityUser | undefined,
+): user is AuthorityUser {
+  return user?.role === "admin"
+    && user.status === "active"
+    && user.banned === false
+    && user.email_verified === true;
+}
+
+async function lockActiveEpisode(client: PoolClient, userId: string) {
+  await client.query(
+    `select id from inactivity_episode
+      where user_id = $1 and closed_at is null
+      order by id
+      for update`,
+    [userId],
+  );
+}
+
 async function loadCandidateIds(client: PoolClient) {
   return client.query<{ user_id: string }>(
     `select u.id as user_id
@@ -188,7 +255,7 @@ async function loadCandidate(client: PoolClient, userId: string) {
        limit 1
      ) consent on true
      where u.id = $1 and u.role = 'learner' and u.status = 'active' and u.banned = false
-     for update of u`,
+       and u.email_verified = true`,
     [userId],
   );
 }
@@ -251,9 +318,10 @@ export async function scheduleInactivityReminders(
     // session from retaining it after this run.
     await client.query("select pg_advisory_lock($1::bigint)", [SCHEDULER_ADVISORY_LOCK]);
     schedulerLockHeld = true;
-    const administrator = (await client.query<Administrator>(
-      `select id, email from "user"
+    const administratorHint = (await client.query<AdministratorHint>(
+      `select id from "user"
         where role = 'admin' and status = 'active' and banned = false
+          and email_verified = true
         order by created_at, id limit 1`,
     )).rows[0] ?? null;
     const candidateIds = (await loadCandidateIds(client)).rows;
@@ -261,8 +329,25 @@ export async function scheduleInactivityReminders(
       await client.query("begin");
       try {
         // READ COMMITTED gives this statement a fresh snapshot after the row
-        // lock is acquired. Activity committed while we were waiting is
-        // therefore observed before eligibility or outbox decisions.
+        // locks are acquired. Candidate and administrator IDs are hints only:
+        // both exact account authorities and user rows are revalidated before
+        // lower source rows or idempotent outbox rows can be touched.
+        const authorityUsers = await lockAndLoadAuthorityUsers(client, [
+          userId,
+          administratorHint?.id ?? null,
+        ]);
+        const learnerAuthority = authorityUsers.get(userId);
+        if (!isActiveLearner(learnerAuthority)) {
+          await client.query("commit");
+          continue;
+        }
+        const administratorAuthority = administratorHint
+          ? authorityUsers.get(administratorHint.id)
+          : undefined;
+        const administrator = isActiveAdministrator(administratorAuthority)
+          ? administratorAuthority
+          : null;
+        await lockActiveEpisode(client, userId);
         const candidate = (await loadCandidate(client, userId)).rows[0];
         if (!candidate) {
           await client.query("commit");

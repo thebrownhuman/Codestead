@@ -35,6 +35,15 @@ type SchedulerCandidate = {
   learner_second_queued_at: Date | null;
 };
 
+type AuthorityUser = {
+  id: string;
+  email: string;
+  email_verified: boolean;
+  role: "admin" | "learner";
+  status: string;
+  banned: boolean;
+};
+
 function candidate(id: string, overrides: Partial<SchedulerCandidate> = {}): SchedulerCandidate {
   const baseline = new Date(NOW.getTime() - FIRST_REMINDER_AFTER_MS);
   return {
@@ -63,6 +72,7 @@ function candidate(id: string, overrides: Partial<SchedulerCandidate> = {}): Sch
 function fakeScheduler(input: {
   candidates: SchedulerCandidate[];
   administrator?: { id: string; email: string } | null;
+  authorityUsers?: AuthorityUser[];
   episodeInsertConflicts?: string[];
   emailInsertConflicts?: string[];
   durableEmailConflict?: boolean;
@@ -74,7 +84,8 @@ function fakeScheduler(input: {
     calls.push({ statement, values });
     if (
       statement === "begin" || statement === "commit" || statement === "rollback" ||
-      statement.includes("pg_advisory_lock") || statement.includes("pg_advisory_unlock")
+      statement.includes("pg_advisory_lock") || statement.includes("pg_advisory_unlock") ||
+      statement.includes("pg_advisory_xact_lock")
     ) {
       return { rows: [], rowCount: 0 };
     }
@@ -83,6 +94,54 @@ function fakeScheduler(input: {
         ? { id: "admin-1", email: "admin@example.test" }
         : input.administrator;
       return { rows: administrator ? [administrator] : [], rowCount: administrator ? 1 : 0 };
+    }
+    if (
+      statement.includes("select id from \"user\"")
+      && statement.includes("role = 'admin'")
+    ) {
+      const administrator = input.administrator === undefined
+        ? { id: "admin-1", email: "admin@example.test" }
+        : input.administrator;
+      return {
+        rows: administrator ? [{ id: administrator.id }] : [],
+        rowCount: administrator ? 1 : 0,
+      };
+    }
+    if (
+      statement.includes("from \"user\"")
+      && statement.includes("where id = $1")
+      && statement.endsWith("for update")
+    ) {
+      const userId = String(values[0]);
+      const explicit = input.authorityUsers?.find((row) => row.id === userId);
+      const learner = input.candidates.find((row) => row.user_id === userId);
+      const administrator = input.administrator === undefined
+        ? { id: "admin-1", email: "admin@example.test" }
+        : input.administrator;
+      const derived: AuthorityUser | undefined = learner
+        ? {
+            id: learner.user_id,
+            email: learner.email,
+            email_verified: true,
+            role: "learner",
+            status: "active",
+            banned: false,
+          }
+        : administrator?.id === userId
+          ? {
+              id: administrator.id,
+              email: administrator.email,
+              email_verified: true,
+              role: "admin",
+              status: "active",
+              banned: false,
+            }
+          : undefined;
+      const authorityUser = explicit ?? derived;
+      return {
+        rows: authorityUser ? [authorityUser] : [],
+        rowCount: authorityUser ? 1 : 0,
+      };
     }
     if (
       statement.startsWith("select u.id as user_id") && statement.includes("join learner_profile") &&
@@ -99,6 +158,13 @@ function fakeScheduler(input: {
     ) {
       const selected = input.candidates.find((row) => row.user_id === values[0]);
       return { rows: selected ? [selected] : [], rowCount: selected ? 1 : 0 };
+    }
+    if (
+      statement.startsWith("select id from inactivity_episode")
+      && statement.includes("for update")
+    ) {
+      const selected = input.candidates.find((row) => row.user_id === values[0]);
+      return { rows: selected?.episode_id ? [{ id: selected.episode_id }] : [], rowCount: selected?.episode_id ? 1 : 0 };
     }
     if (statement.includes("from \"user\" u") && statement.includes("join learner_profile")) {
       return { rows: input.candidates, rowCount: input.candidates.length };
@@ -195,6 +261,74 @@ describe("inactivity policy boundaries", () => {
 });
 
 describe("inactivity scheduler transaction branches", () => {
+  it("locks every learner/admin account authority in sorted order before exact users, source, and outbox", async () => {
+    const fake = fakeScheduler({
+      candidates: [candidate("learner-z")],
+      administrator: { id: "admin-a", email: "admin-a@example.test" },
+    });
+
+    await scheduleInactivityReminders(NOW, fake.pool as never);
+
+    const accountLocks = fake.calls.filter((call) =>
+      call.statement.includes("pg_advisory_xact_lock")
+      && call.values[0] !== undefined,
+    );
+    expect(accountLocks.map((call) => call.values[0])).toEqual([
+      "user-authority:admin-a",
+      "user-authority:learner-z",
+    ]);
+    const exactUserLocks = fake.calls.filter((call) =>
+      call.statement.includes("from \"user\"")
+      && call.statement.includes("where id = $1")
+      && call.statement.endsWith("for update"),
+    );
+    expect(exactUserLocks.map((call) => call.values[0])).toEqual([
+      "admin-a",
+      "learner-z",
+    ]);
+    const finalAccountLock = fake.calls.lastIndexOf(accountLocks.at(-1)!);
+    const firstExactUserLock = fake.calls.indexOf(exactUserLocks[0]!);
+    const sourceRead = fake.calls.findIndex((call) =>
+      call.statement.includes("join learner_profile")
+      && call.statement.includes("where u.id = $1"),
+    );
+    const firstOutboxWrite = fake.calls.findIndex((call) =>
+      call.statement.startsWith("insert into email_outbox"),
+    );
+    expect(finalAccountLock).toBeGreaterThan(-1);
+    expect(firstExactUserLock).toBeGreaterThan(finalAccountLock);
+    expect(sourceRead).toBeGreaterThan(firstExactUserLock);
+    expect(firstOutboxWrite).toBeGreaterThan(sourceRead);
+  });
+
+  it("treats an administrator id as a hint and refuses a stale recipient after exact row revalidation", async () => {
+    const fake = fakeScheduler({
+      candidates: [candidate("learner-stale-admin")],
+      administrator: {
+        id: "admin-stale",
+        email: "stale-admin@example.test",
+      },
+      authorityUsers: [{
+        id: "admin-stale",
+        email: "stale-admin@example.test",
+        email_verified: true,
+        role: "admin",
+        status: "disabled",
+        banned: false,
+      }],
+    });
+
+    await expect(scheduleInactivityReminders(NOW, fake.pool as never)).resolves.toMatchObject({
+      learnerFirst: 1,
+      adminNotices: 0,
+      adminUnavailable: 1,
+    });
+    expect(fake.calls.filter((call) =>
+      call.statement.startsWith("insert into email_outbox")
+      && call.values[2] === "inactivity-admin-notice",
+    )).toHaveLength(0);
+  });
+
   it("uses a session scheduler lock but commits each learner decision separately", async () => {
     const fake = fakeScheduler({
       candidates: [
@@ -209,10 +343,16 @@ describe("inactivity scheduler transaction branches", () => {
     expect(fake.calls.filter((call) => call.statement.includes("pg_advisory_unlock"))).toHaveLength(1);
     expect(fake.calls.filter((call) => call.statement === "begin")).toHaveLength(2);
     expect(fake.calls.filter((call) => call.statement === "commit")).toHaveLength(2);
-    const lockedReads = fake.calls.filter((call) =>
-      call.statement.includes("where u.id = $1") && call.statement.includes("for update of u"),
+    const learnerLocks = fake.calls.filter((call) =>
+      call.statement.includes("from \"user\"")
+      && call.statement.includes("where id = $1")
+      && call.statement.endsWith("for update")
+      && String(call.values[0]).startsWith("future-"),
     );
-    expect(lockedReads.map((call) => call.values[0])).toEqual(["future-a", "future-b"]);
+    expect(learnerLocks.map((call) => call.values[0])).toEqual([
+      "future-a",
+      "future-b",
+    ]);
   });
 
   it("opens an exact-boundary episode and atomically queues separate learner/admin messages", async () => {
