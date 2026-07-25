@@ -164,6 +164,12 @@ describe("smart reminder policy", () => {
       quiet_hours_enabled: false,
       last_meaningful_activity_at: new Date("2026-07-14T04:00:00.000Z"),
     }, now)).toEqual([]);
+    expect(dueKinds({
+      ...base,
+      quiet_hours_enabled: false,
+      // Drizzle raw SQL returns PostgreSQL timestamptz values as strings.
+      last_meaningful_activity_at: "2026-07-14 13:59:00+00",
+    }, now)).toEqual([]);
   });
 
   it("keeps every evidence-backed due kind available so prior receipts cannot starve lower-priority reminders", () => {

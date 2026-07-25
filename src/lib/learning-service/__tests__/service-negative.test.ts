@@ -16,6 +16,7 @@ const USER_ID = "learner-1";
 const SERIALIZATION_METHODS = new Set([
   "lockPlanInitialization",
   "lockSessionStart",
+  "lockMeaningfulActivityUser",
   "lockAttemptCreation",
   "lockDsaLanguageSwitch",
 ]);
@@ -258,10 +259,12 @@ describe("learning session negative and idempotent paths", () => {
       id: input.id, sessionId: session().id, userId: USER_ID, clientEventId: input.clientEventId,
       type: "heartbeat" as const, meaningful: input.meaningful, authority: null, occurredAt: NOW,
     }));
+    const lockMeaningfulActivityUser = vi.fn();
     const touch = vi.fn();
     const service = serviceWith({
       getSessionEvent: vi.fn(async () => null), getSession: vi.fn(async () => session()),
       updateSession: vi.fn(async () => updated), insertSessionEvent: insertSessionEvent as LearningTransaction["insertSessionEvent"],
+      lockMeaningfulActivityUser,
       touchMeaningfulActivity: touch,
     });
     const result = await service.recordSessionEvent({
@@ -272,6 +275,7 @@ describe("learning session negative and idempotent paths", () => {
     expect(insertSessionEvent).toHaveBeenCalledWith(expect.objectContaining({
       meaningful: false, subjectType: "t".repeat(80), subjectId: "i".repeat(160),
     }));
+    expect(lockMeaningfulActivityUser).not.toHaveBeenCalled();
     expect(touch).not.toHaveBeenCalled();
   });
 
@@ -316,18 +320,40 @@ describe("learning session negative and idempotent paths", () => {
     expect(touch).not.toHaveBeenCalled();
   });
 
-  it("touches meaningful activity only after a meaningful event is committed", async () => {
-    const touch = vi.fn(async () => undefined);
+  it("locks the exact user before writing a meaningful session event", async () => {
+    const order: string[] = [];
+    const lockMeaningfulActivityUser = vi.fn(async () => {
+      order.push("lock-user");
+    });
+    const touch = vi.fn(async () => {
+      order.push("touch-user");
+    });
     const service = serviceWith({
-      getSessionEvent: vi.fn(async () => null),
-      getSession: vi.fn(async () => session({ enrollmentId: "40000000-0000-4000-8000-000000000001" })),
-      isLessonCompletionAuthorized: vi.fn(async () => true),
-      updateSession: vi.fn(async () => session({ rowVersion: 2 })),
-      insertSessionEvent: vi.fn(async (input) => ({
-        id: input.id, sessionId: input.sessionId, userId: input.userId,
-        clientEventId: input.clientEventId, type: input.type, meaningful: input.meaningful,
-        authority: input.authority, occurredAt: NOW,
-      })),
+      getSessionEvent: vi.fn(async () => {
+        order.push("get-event");
+        return null;
+      }),
+      getSession: vi.fn(async () => {
+        order.push("get-session");
+        return session({ enrollmentId: "40000000-0000-4000-8000-000000000001" });
+      }),
+      isLessonCompletionAuthorized: vi.fn(async () => {
+        order.push("authorize");
+        return true;
+      }),
+      lockMeaningfulActivityUser,
+      updateSession: vi.fn(async () => {
+        order.push("update-session");
+        return session({ rowVersion: 2 });
+      }),
+      insertSessionEvent: vi.fn(async (input) => {
+        order.push("insert-event");
+        return {
+          id: input.id, sessionId: input.sessionId, userId: input.userId,
+          clientEventId: input.clientEventId, type: input.type, meaningful: input.meaningful,
+          authority: input.authority, occurredAt: NOW,
+        };
+      }),
       touchMeaningfulActivity: touch,
     });
     await service.recordSessionEvent({
@@ -335,6 +361,16 @@ describe("learning session negative and idempotent paths", () => {
       expectedRowVersion: 1, type: "lesson_completed", subjectType: "lesson",
       subjectId: "50000000-0000-4000-8000-000000000001",
     });
+    expect(lockMeaningfulActivityUser).toHaveBeenCalledWith(USER_ID);
+    expect(order).toEqual([
+      "lock-user",
+      "get-event",
+      "get-session",
+      "authorize",
+      "update-session",
+      "insert-event",
+      "touch-user",
+    ]);
     expect(touch).toHaveBeenCalledWith(USER_ID, NOW);
     expect(touch).toHaveBeenCalledTimes(1);
   });

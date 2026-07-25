@@ -65,6 +65,7 @@ function linkedFile(overrides: Record<string, unknown> = {}) {
 }
 
 type CreateScenario = {
+  userExists?: boolean;
   owned?: boolean;
   prior?: { id: string; input_hash: string } | null;
   latest?: number;
@@ -97,6 +98,9 @@ function createHarness(scenario: CreateScenario = {}) {
     if (statement === "rollback") {
       if (scenario.rollbackFails) throw new Error("rollback failed");
       return { rows: [] };
+    }
+    if (statement.startsWith("select id from \"user\" where")) {
+      return { rows: scenario.userExists === false ? [] : [{ id: userId }] };
     }
     if (statement.startsWith("select id from project where")) {
       return { rows: scenario.owned === false ? [] : [{ id: projectId }] };
@@ -294,6 +298,16 @@ describe("createProjectRevision transaction", () => {
       JSON.stringify({ meaningful: true, policyVersion: "project-revision-meaningful-v1" }),
       now,
     ]);
+    const userLockIndex = harness.calls.findIndex(
+      (call) => call.statement.startsWith("select id from \"user\" where")
+        && call.statement.endsWith("for update"),
+    );
+    const projectLockIndex = harness.calls.findIndex(
+      (call) => call.statement.startsWith("select id from project where")
+        && call.statement.endsWith("for update"),
+    );
+    expect(userLockIndex).toBe(1);
+    expect(projectLockIndex).toBeGreaterThan(userLockIndex);
     expect(harness.calls.at(-1)?.statement).toBe("commit");
     expect(harness.released()).toBe(true);
   });
@@ -340,6 +354,18 @@ describe("createProjectRevision transaction", () => {
     expect(harness.calls.some((call) => call.statement.startsWith("select coalesce(max(sequence)"))).toBe(false);
     expect(harness.calls.some((call) => call.statement.startsWith("select id from learning_session"))).toBe(false);
     expect(harness.calls.at(-1)?.statement).toBe("commit");
+  });
+
+  it("fails closed before touching project state when the account authority row is gone", async () => {
+    const harness = createHarness({ userExists: false });
+
+    await expect(createProjectRevision(baseInput())).rejects.toMatchObject({ code: "PROJECT_NOT_FOUND" });
+    expect(harness.calls.map((call) => call.statement)).toEqual([
+      "begin",
+      "select id from \"user\" where id = $1 for update",
+      "rollback",
+    ]);
+    expect(harness.client.release).toHaveBeenCalledOnce();
   });
 
   it("rejects a missing project and rolls back the acquired client", async () => {

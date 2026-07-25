@@ -138,6 +138,12 @@ export interface LearningTransaction {
   getActiveSession(userId: string): Promise<LearningSessionRecord | null>;
   getSession(userId: string, sessionId: string): Promise<LearningSessionRecord | null>;
   insertSession(input: SessionStartInput): Promise<LearningSessionRecord>;
+  /**
+   * Lock the account authority row before any transaction that will persist
+   * meaningful-activity source evidence. This preserves the canonical
+   * user-before-source order shared with reminder dispatch and deletion.
+   */
+  lockMeaningfulActivityUser(userId: string): Promise<void>;
   updateSession(
     userId: string,
     sessionId: string,

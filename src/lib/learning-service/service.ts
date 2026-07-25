@@ -292,6 +292,12 @@ export class LearningService {
     }
     const now = this.now();
     return this.store.transaction(async (transaction) => {
+      if (input.type === "lesson_completed") {
+        // Reminder dispatch and deletion both start at the account authority
+        // row. Take that same row first, before reading or mutating any
+        // session/event source state, so every path has one canonical order.
+        await transaction.lockMeaningfulActivityUser(input.userId);
+      }
       const duplicate = await transaction.getSessionEvent(input.userId, input.clientEventId);
       if (duplicate) {
         const session = await transaction.getSession(input.userId, duplicate.sessionId);
