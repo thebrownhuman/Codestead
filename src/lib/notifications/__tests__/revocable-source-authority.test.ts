@@ -180,7 +180,7 @@ describe("revocable mail source authority SQL", () => {
     [exactCases[0], ["public.verification source_verification", "source_verification.identifier = $3", "source_verification.value = mail.user_id", "source_verification.expires_at > $4", "mail.variables ->> 'name' = recipient_user.name", "for share of recipient_user, source_verification"]],
     [exactCases[1], ["public.lost_device_proof source_proof", "source_proof.proof_hash = $3", "source_session.revoked_at is null", "source_session.expires_at > $4", "mail.variables ->> 'name' = recipient_user.name", "for share of recipient_user, source_proof, source_session"]],
     [exactCases[2], ["public.session_revocation_request source_request", "source_request.status = 'pending'", "recipient_user.role = 'admin'", "recipient_user.banned = false", "mail.variables ->> 'device' = $4", "for share of recipient_user, source_request"]],
-    [exactCases[3], ["public.inactivity_episode source_episode", "source_episode.closed_at is null", "latest_consent.decision = 'accepted'", "inactivity_paused_until", "learner_first_queued_at between source_episode.eligible_at and $3", "learner_second_queued_at between source_episode.second_eligible_at and $3", "for share of recipient_user, learner_user, source_episode"]],
+    [exactCases[3], ["public.inactivity_episode source_episode", "source_episode.closed_at is null", "latest_consent.decision = 'accepted'", "inactivity_paused_until", "learner_first_queued_at between source_episode.eligible_at and $3", "learner_second_queued_at between source_episode.second_eligible_at and $3", "learner_second_queued_at >= source_episode.learner_first_queued_at + interval '48 hours'", "for share of recipient_user, learner_user, source_episode"]],
     [exactCases[5], ["public.smart_reminder_dispatch source_dispatch", "pg_catalog.pg_timezone_names source_timezone", "source_dispatch.timezone = recipient_preference.timezone", "source_dispatch.local_period_key = $4", "source_dispatch.scheduled_for <= $8", "source_dispatch.dispatched_at >= source_dispatch.scheduled_for", "recipient_preference.learning_email_enabled = true", "recipient_preference.revision_enabled = true", "for share of recipient_user, recipient_preference, source_dispatch"]],
   ])("builds a parameterized authority query plan for %s", async ([template, templateVersion, variables], fragments) => {
     const authority = await subject();
@@ -252,6 +252,7 @@ describe("revocable mail source authority SQL", () => {
     expect(text).toContain("mail.template = $7");
     expect(text).toContain("learner_first_queued_at between source_episode.eligible_at and $3");
     expect(text).toContain("learner_second_queued_at between source_episode.second_eligible_at and $3");
+    expect(text).toContain("learner_second_queued_at >= source_episode.learner_first_queued_at + interval '48 hours'");
     expect(query!.values.at(-1)).toBe("inactivity-reminder");
     expect(query!.values[3]).toBe(ENROLLMENT_DISCLOSURE_VERSION);
     const admin = authority.buildRevocableSourceAuthorityQuery({
