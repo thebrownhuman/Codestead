@@ -18,6 +18,8 @@ const MIN_PASSWORD_BYTES = 32;
 const MAX_PASSWORD_BYTES = 1_024;
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const BACKUP_RUN_RECEIPT_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 
 const POLICY_KEYS = Object.freeze({
   connectionTimeoutMillis:
@@ -93,14 +95,14 @@ export function validateBackupStatusRequest(input) {
   if (
     !input
     || !["success", "failure"].includes(input.outcome)
-    || typeof input.runKey !== "string"
-    || !/^[0-9]{8}T[0-9]{6}Z$/u.test(input.runKey)
+    || typeof input.runReceiptId !== "string"
+    || !BACKUP_RUN_RECEIPT_UUID.test(input.runReceiptId)
   ) {
     throw invalidInput();
   }
   return Object.freeze({
     outcome: input.outcome,
-    runKey: input.runKey,
+    runReceiptId: input.runReceiptId,
   });
 }
 
@@ -287,21 +289,28 @@ export async function enqueueBackupStatus(input, dependencies = {}) {
     const result = await runWithinDeadline(
       () => client.query(
         `select acknowledgement, authority_id::text, outbox_id::text, operation_id::text
-           from public.enqueue_backup_status_mail_authority($1::text, $2::text)`,
-        [request.runKey, request.outcome],
+           from public.enqueue_backup_status_mail_authority($1::uuid, $2::text)`,
+        [request.runReceiptId, request.outcome],
       ),
       policy.queryTimeoutMillis,
       QUERY_TIMEOUT,
       dependencies,
     );
     const row = result.rows?.[0];
+    const durableAuthorityAcknowledged =
+      ["queued", "existing"].includes(row?.acknowledgement)
+      && UUID.test(row?.authority_id ?? "")
+      && UUID.test(row?.outbox_id ?? "")
+      && UUID.test(row?.operation_id ?? "");
+    const terminalReplaySuppressed =
+      row?.acknowledgement === "suppressed"
+      && row.authority_id === null
+      && row.outbox_id === null
+      && row.operation_id === null;
     if (
       result.rowCount !== 1
       || result.rows?.length !== 1
-      || !["queued", "existing"].includes(row?.acknowledgement)
-      || !UUID.test(row?.authority_id ?? "")
-      || !UUID.test(row?.outbox_id ?? "")
-      || !UUID.test(row?.operation_id ?? "")
+      || (!durableAuthorityAcknowledged && !terminalReplaySuppressed)
     ) {
       throw new Error(INVALID_ACKNOWLEDGEMENT);
     }
@@ -356,7 +365,7 @@ export async function runBackupStatusReporter(
     databaseName,
     environment,
     outcome: environment.BACKUP_REPORT_OUTCOME,
-    runKey: environment.BACKUP_REPORT_RUN_KEY,
+    runReceiptId: environment.BACKUP_REPORT_RUN_ID,
   }, dependencies);
   process.stdout.write(`${acknowledgement}\n`);
 }

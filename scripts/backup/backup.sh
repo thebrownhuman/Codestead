@@ -231,9 +231,21 @@ if path_is_within "$BACKUP_STAGE_ROOT" "$BACKUP_EPHEMERAL_ROOT" \
 fi
 secure_directory "$full_dir" 0700 || die "full backup directory is unsafe"
 secure_directory "$state_dir" 0700 || die "backup state directory is unsafe"
+receipt_dir="$state_dir/backup-status-receipts"
+secure_directory "$receipt_dir" 0700 \
+  || die "backup status receipt directory is unsafe"
 secure_directory "$BACKUP_STAGE_ROOT" 0700 || die "backup staging root is unsafe"
 secure_ephemeral_parent "$BACKUP_EPHEMERAL_ROOT" || die "ephemeral-key root is unsafe"
 acquire_backup_lock
+if ! replay_pending_backup_status_receipts "$receipt_dir"; then
+  emit_alert warning backup_report_retry_pending \
+    "one or more durable backup status receipts remain pending"
+fi
+begin_backup_status_receipt "$receipt_dir" \
+  || die "durable backup run receipt creation failed"
+current_backup_receipt_id="$BACKUP_STATUS_RECEIPT_ID"
+current_backup_receipt_path="$BACKUP_STATUS_RECEIPT_PATH"
+current_backup_receipt_delivered=0
 
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 filename="learncoding-full-${timestamp}.tar.gz.age"
@@ -328,6 +340,17 @@ remove_ephemeral_material() {
 
 unlink_ephemeral_identity() {
   rm -f -- "$identity" "$ephemeral_recipient" "$combined_recipients" 2>/dev/null
+}
+
+report_current_backup_status() {
+  local outcome="${1:-}"
+
+  ((current_backup_receipt_delivered == 0)) || return 0
+  finalize_backup_status_receipt \
+    "$current_backup_receipt_path" "$current_backup_receipt_id" "$outcome" \
+    || return 1
+  deliver_backup_status_receipt "$current_backup_receipt_path" || return 1
+  current_backup_receipt_delivered=1
 }
 
 resume_captured() {
@@ -446,12 +469,21 @@ cleanup() {
   safe_remove_tree "$verify_dir" || cleanup_failed=1
   safe_remove_tree "$stage" || cleanup_failed=1
 
+  if ((marker_committed == 1 && current_backup_receipt_delivered == 0)); then
+    if ! report_current_backup_status success; then
+      emit_alert warning backup_report_not_queued \
+        "backup success status could not be queued; its durable receipt remains pending"
+    fi
+  elif ((original_status != 0 && marker_committed == 0 \
+    && publication_commit_uncertain == 0)); then
+    if ! report_current_backup_status failure; then
+      emit_alert warning backup_report_not_queued \
+        "backup failure status could not be queued; its durable receipt remains pending"
+    fi
+  fi
+
   if ((original_status != 0)); then
     if ((marker_committed == 0)); then
-      if ! enqueue_backup_status failure "$timestamp"; then
-        emit_alert warning backup_report_not_queued \
-          "backup failure status could not be queued; inspect protected operations logs"
-      fi
       emit_alert critical backup_failed \
         "nightly encrypted backup failed; inspect protected operations logs"
     elif ((resume_failed == 0)); then
@@ -1834,6 +1866,9 @@ close_event_monitor \
 marker_validation_pending=0
 marker_committed=1
 publication_commit_uncertain=0
+finalize_backup_status_receipt \
+  "$current_backup_receipt_path" "$current_backup_receipt_id" success \
+  || die "durable backup success receipt finalization failed"
 phase=marker_committed
 deadline_log "backup phase=marker_committed" || die
 
@@ -1843,9 +1878,9 @@ run_deadline env BACKUP_LOCK_HELD=1 \
   bash "$SCRIPT_DIR/prune.sh"
 
 resume_captured
-if ! enqueue_backup_status success "$timestamp"; then
+if ! report_current_backup_status success; then
   emit_alert warning backup_report_not_queued \
-    "backup success status could not be queued; inspect protected operations logs"
+    "backup success status could not be queued; its durable receipt remains pending"
 fi
 emit_alert info backup_complete \
   "nightly encrypted backup completed and passed decrypt verification"

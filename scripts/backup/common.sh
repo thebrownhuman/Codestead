@@ -345,8 +345,188 @@ emit_alert() {
   fi
 }
 
+valid_backup_run_receipt_id() {
+  local receipt_id="${1:-}"
+
+  [[ "$receipt_id" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$ ]]
+}
+
+generate_backup_run_receipt_id() {
+  local receipt_id=""
+
+  [[ -r /proc/sys/kernel/random/uuid ]] || return 1
+  IFS= read -r receipt_id </proc/sys/kernel/random/uuid || return 1
+  valid_backup_run_receipt_id "$receipt_id" || return 1
+  printf '%s\n' "$receipt_id"
+}
+
+_backup_status_receipt_directory_is_secure() {
+  local directory="${1:-}" mode owner
+
+  [[ -n "$directory" && -d "$directory" && ! -L "$directory" ]] || return 1
+  mode="$(stat -c '%a' -- "$directory" 2>/dev/null)" || return 1
+  owner="$(stat -c '%u' -- "$directory" 2>/dev/null)" || return 1
+  [[ "$mode" == 700 && "$owner" == "$(id -u)" ]]
+}
+
+_persist_backup_status_receipt() {
+  local path="${1:-}" receipt_id="${2:-}" outcome="${3:-}"
+  local directory base temporary=""
+
+  valid_backup_run_receipt_id "$receipt_id" || return 1
+  case "$outcome" in
+    running|success|failure) ;;
+    *) return 1 ;;
+  esac
+  directory="$(dirname -- "$path" 2>/dev/null)" || return 1
+  base="$(basename -- "$path" 2>/dev/null)" || return 1
+  [[ "$base" == "$receipt_id.receipt" ]] || return 1
+  _backup_status_receipt_directory_is_secure "$directory" || return 1
+  if [[ -e "$path" || -L "$path" ]]; then
+    require_secure_regular_file "$path" 600 "$(id -u)" || return 1
+  fi
+
+  (
+    cleanup_backup_status_receipt_temporary() {
+      [[ -z "$temporary" ]] || rm -f -- "$temporary"
+    }
+    trap cleanup_backup_status_receipt_temporary EXIT
+
+    temporary="$(mktemp -- "$directory/.${receipt_id}.receipt.tmp.XXXXXX")" \
+      || exit 1
+    printf '%s\n%s\n' \
+      "BACKUP_RUN_RECEIPT_ID=$receipt_id" \
+      "BACKUP_RUN_RECEIPT_OUTCOME=$outcome" >"$temporary" || exit 1
+    chmod 0600 -- "$temporary" || exit 1
+    sync -f -- "$temporary" || exit 1
+    mv -fT -- "$temporary" "$path" || exit 1
+    temporary=""
+    sync -f -- "$directory" || exit 1
+  )
+}
+
+read_backup_status_receipt() {
+  local path="${1:-}" line_id="" line_outcome="" extra=""
+  local receipt_id="" outcome="" directory base
+
+  BACKUP_STATUS_RECEIPT_ID=""
+  BACKUP_STATUS_RECEIPT_OUTCOME=""
+  require_secure_regular_file "$path" 600 "$(id -u)" || return 1
+  directory="$(dirname -- "$path" 2>/dev/null)" || return 1
+  base="$(basename -- "$path" 2>/dev/null)" || return 1
+  _backup_status_receipt_directory_is_secure "$directory" || return 1
+  if ! {
+    IFS= read -r line_id \
+      && IFS= read -r line_outcome \
+      && ! IFS= read -r extra
+  } <"$path"; then
+    return 1
+  fi
+  [[ "$line_id" == BACKUP_RUN_RECEIPT_ID=* \
+    && "$line_outcome" == BACKUP_RUN_RECEIPT_OUTCOME=* ]] || return 1
+  receipt_id="${line_id#BACKUP_RUN_RECEIPT_ID=}"
+  outcome="${line_outcome#BACKUP_RUN_RECEIPT_OUTCOME=}"
+  valid_backup_run_receipt_id "$receipt_id" || return 1
+  [[ "$base" == "$receipt_id.receipt" ]] || return 1
+  case "$outcome" in
+    running|success|failure) ;;
+    *) return 1 ;;
+  esac
+
+  BACKUP_STATUS_RECEIPT_ID="$receipt_id"
+  BACKUP_STATUS_RECEIPT_OUTCOME="$outcome"
+}
+
+begin_backup_status_receipt() {
+  local directory="${1:-}" receipt_id path
+
+  BACKUP_STATUS_RECEIPT_ID=""
+  BACKUP_STATUS_RECEIPT_OUTCOME=""
+  BACKUP_STATUS_RECEIPT_PATH=""
+  _backup_status_receipt_directory_is_secure "$directory" || return 1
+  receipt_id="$(generate_backup_run_receipt_id)" || return 1
+  valid_backup_run_receipt_id "$receipt_id" || return 1
+  path="$directory/$receipt_id.receipt"
+  [[ ! -e "$path" && ! -L "$path" ]] || return 1
+  _persist_backup_status_receipt "$path" "$receipt_id" running || return 1
+
+  BACKUP_STATUS_RECEIPT_ID="$receipt_id"
+  BACKUP_STATUS_RECEIPT_OUTCOME=running
+  BACKUP_STATUS_RECEIPT_PATH="$path"
+}
+
+finalize_backup_status_receipt() {
+  local path="${1:-}" expected_id="${2:-}" outcome="${3:-}"
+  local current_id current_outcome
+
+  valid_backup_run_receipt_id "$expected_id" || return 1
+  case "$outcome" in
+    success|failure) ;;
+    *) return 1 ;;
+  esac
+  read_backup_status_receipt "$path" || return 1
+  current_id="$BACKUP_STATUS_RECEIPT_ID"
+  current_outcome="$BACKUP_STATUS_RECEIPT_OUTCOME"
+  [[ "$current_id" == "$expected_id" ]] || return 1
+  [[ "$current_outcome" == running || "$current_outcome" == "$outcome" ]] \
+    || return 1
+  if [[ "$current_outcome" == running ]]; then
+    _persist_backup_status_receipt "$path" "$expected_id" "$outcome" \
+      || return 1
+  fi
+  BACKUP_STATUS_RECEIPT_ID="$expected_id"
+  BACKUP_STATUS_RECEIPT_OUTCOME="$outcome"
+  BACKUP_STATUS_RECEIPT_PATH="$path"
+}
+
+deliver_backup_status_receipt() {
+  local path="${1:-}" receipt_id outcome directory
+
+  read_backup_status_receipt "$path" || return 1
+  receipt_id="$BACKUP_STATUS_RECEIPT_ID"
+  outcome="$BACKUP_STATUS_RECEIPT_OUTCOME"
+  case "$outcome" in
+    success|failure) ;;
+    *) return 1 ;;
+  esac
+  enqueue_backup_status "$outcome" "$receipt_id" || return 1
+  read_backup_status_receipt "$path" || return 1
+  [[ "$BACKUP_STATUS_RECEIPT_ID" == "$receipt_id" \
+    && "$BACKUP_STATUS_RECEIPT_OUTCOME" == "$outcome" ]] || return 1
+  directory="$(dirname -- "$path" 2>/dev/null)" || return 1
+  rm -f -- "$path" || return 1
+  sync -f -- "$directory" || return 1
+  [[ ! -e "$path" && ! -L "$path" ]]
+}
+
+replay_pending_backup_status_receipts() {
+  local directory="${1:-}" path receipt_id outcome failed=0
+  local -a receipt_paths=()
+
+  _backup_status_receipt_directory_is_secure "$directory" || return 1
+  shopt -s nullglob
+  receipt_paths=("$directory"/*.receipt)
+  shopt -u nullglob
+  for path in "${receipt_paths[@]}"; do
+    if ! read_backup_status_receipt "$path"; then
+      failed=1
+      continue
+    fi
+    receipt_id="$BACKUP_STATUS_RECEIPT_ID"
+    outcome="$BACKUP_STATUS_RECEIPT_OUTCOME"
+    if [[ "$outcome" == running ]]; then
+      if ! finalize_backup_status_receipt "$path" "$receipt_id" failure; then
+        failed=1
+        continue
+      fi
+    fi
+    deliver_backup_status_receipt "$path" || failed=1
+  done
+  ((failed == 0))
+}
+
 enqueue_backup_status() {
-  local outcome="$1" seed="$2" result
+  local outcome="$1" receipt_id="$2" result
   case "$outcome" in
     success|failure) ;;
     *)
@@ -354,8 +534,8 @@ enqueue_backup_status() {
       return 1
       ;;
   esac
-  [[ "$seed" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || {
-    log "backup status report rejected an invalid idempotency seed"
+  valid_backup_run_receipt_id "$receipt_id" || {
+    log "backup status report rejected an invalid run receipt"
     return 1
   }
 
@@ -363,7 +543,7 @@ enqueue_backup_status() {
     --profile operations run --rm --no-deps -T \
     --pull never \
     --env "BACKUP_REPORT_OUTCOME=$outcome" \
-    --env "BACKUP_REPORT_RUN_KEY=$seed" \
+    --env "BACKUP_REPORT_RUN_ID=$receipt_id" \
     backup-status-reporter)"; then
     log "backup status report could not reach the application outbox"
     return 1
@@ -376,6 +556,9 @@ enqueue_backup_status() {
       ;;
     existing)
       log "backup status report was already queued"
+      ;;
+    suppressed)
+      log "backup status report was already terminally recorded"
       ;;
     *)
       log "backup status report returned an invalid acknowledgement"

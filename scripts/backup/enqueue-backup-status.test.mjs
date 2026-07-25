@@ -38,7 +38,7 @@ function reporterInput(overrides = {}) {
     databaseName: "learncoding",
     environment: reporterEnvironment,
     outcome: "success",
-    runKey: "20260725T051500Z",
+    runReceiptId: "44444444-4444-4444-8444-444444444444",
     ...overrides,
   };
 }
@@ -75,28 +75,29 @@ test("the dedicated backup-status reporter implementation exists", () => {
   assert.notEqual(implementation, null);
 });
 
-test("request validation accepts only the fixed outcome and run-key grammar", {
+test("request validation accepts only the fixed outcome and durable run receipt UUID", {
   skip: implementation === null,
 }, () => {
   assert.deepEqual(
     implementation.validateBackupStatusRequest({
       outcome: "success",
-      runKey: "20260725T051500Z",
+      runReceiptId: "44444444-4444-4444-8444-444444444444",
     }),
-    { outcome: "success", runKey: "20260725T051500Z" },
+    { outcome: "success", runReceiptId: "44444444-4444-4444-8444-444444444444" },
   );
   assert.deepEqual(
     implementation.validateBackupStatusRequest({
       outcome: "failure",
-      runKey: "20260725T051501Z",
+      runReceiptId: "55555555-5555-4555-8555-555555555555",
     }),
-    { outcome: "failure", runKey: "20260725T051501Z" },
+    { outcome: "failure", runReceiptId: "55555555-5555-4555-8555-555555555555" },
   );
   for (const input of [
-    { outcome: "SUCCESS", runKey: "20260725T051500Z" },
-    { outcome: "success", runKey: "../unsafe" },
-    { outcome: "success", runKey: "20260725t051500z" },
-    { outcome: "success", runKey: "20260725T051500Z\n" },
+    { outcome: "SUCCESS", runReceiptId: "44444444-4444-4444-8444-444444444444" },
+    { outcome: "success", runReceiptId: "../unsafe" },
+    { outcome: "success", runReceiptId: "20260725T051500Z" },
+    { outcome: "success", runReceiptId: "44444444-4444-4444-8444-444444444444\n" },
+    { outcome: "success", runReceiptId: "44444444-4444-1444-8444-444444444444" },
   ]) {
     assert.throws(
       () => implementation.validateBackupStatusRequest(input),
@@ -239,21 +240,21 @@ test("enqueue uses one private bounded connection and only the owner routine", {
   assert.equal(calls.length, 1);
   assert.match(
     calls[0].sql,
-    /^select acknowledgement, authority_id::text, outbox_id::text, operation_id::text\s+from public\.enqueue_backup_status_mail_authority\(\$1::text, \$2::text\)$/u,
+    /^select acknowledgement, authority_id::text, outbox_id::text, operation_id::text\s+from public\.enqueue_backup_status_mail_authority\(\$1::uuid, \$2::text\)$/u,
   );
-  assert.deepEqual(calls[0].values, ["20260725T051500Z", "success"]);
+  assert.deepEqual(calls[0].values, ["44444444-4444-4444-8444-444444444444", "success"]);
   assert.doesNotMatch(calls[0].sql, /postgresql:|learncoding_backup_reporter|a{32}/u);
 });
 
-test("enqueue accepts exact replay and closes the pool on malformed acknowledgement", {
+test("enqueue accepts exact and terminal-ledger replay acknowledgements", {
   skip: implementation === null,
 }, async () => {
-  for (const acknowledgement of ["existing", "forged"]) {
+  for (const acknowledgement of ["existing", "suppressed", "forged"]) {
     let ended = 0;
     let released = 0;
     const action = implementation.enqueueBackupStatus(reporterInput({
       outcome: "failure",
-      runKey: "20260725T051501Z",
+      runReceiptId: "55555555-5555-4555-8555-555555555555",
     }), {
       createPool: () => ({
         async connect() {
@@ -261,7 +262,14 @@ test("enqueue accepts exact replay and closes the pool on malformed acknowledgem
             async query() {
               return {
                 rowCount: 1,
-                rows: [{ ...authorityRow, acknowledgement }],
+                rows: acknowledgement === "suppressed"
+                  ? [{
+                      acknowledgement,
+                      authority_id: null,
+                      outbox_id: null,
+                      operation_id: null,
+                    }]
+                  : [{ ...authorityRow, acknowledgement }],
               };
             },
             release(destroy) {
@@ -276,8 +284,8 @@ test("enqueue accepts exact replay and closes the pool on malformed acknowledgem
       }),
     });
 
-    if (acknowledgement === "existing") {
-      assert.equal(await action, "existing");
+    if (["existing", "suppressed"].includes(acknowledgement)) {
+      assert.equal(await action, acknowledgement);
     } else {
       await assert.rejects(action, {
         message: "backup status reporter acknowledgement is invalid",
@@ -285,6 +293,37 @@ test("enqueue accepts exact replay and closes the pool on malformed acknowledgem
     }
     assert.equal(released, 1);
     assert.equal(ended, 1);
+  }
+});
+
+test("terminal-ledger suppression requires the explicit null identifier shape", {
+  skip: implementation === null,
+}, async () => {
+  for (const row of [
+    { ...authorityRow, acknowledgement: "suppressed" },
+    {
+      acknowledgement: "existing",
+      authority_id: null,
+      outbox_id: null,
+      operation_id: null,
+    },
+  ]) {
+    await assert.rejects(
+      implementation.enqueueBackupStatus(reporterInput(), {
+        createPool: () => ({
+          async connect() {
+            return {
+              async query() {
+                return { rowCount: 1, rows: [row] };
+              },
+              release() {},
+            };
+          },
+          async end() {},
+        }),
+      }),
+      { message: "backup status reporter acknowledgement is invalid" },
+    );
   }
 });
 
@@ -428,7 +467,7 @@ test("the one-shot process remains alive until its hard shutdown deadline fires"
       databaseName: "learncoding",
       environment,
       outcome: "success",
-      runKey: "20260725T051500Z",
+      runReceiptId: "44444444-4444-4444-8444-444444444444",
     };
     const row = {
       acknowledgement: "queued",
