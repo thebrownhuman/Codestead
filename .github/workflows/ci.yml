@@ -31,6 +31,7 @@ jobs:
       - run: CODESTEAD_DISPOSABLE_HOST=1 npm run production-load:disposable-sandbox
       - run: npm run lint
       - run: npm run typecheck
+      - run: npm run test:mail-writer-inventory
       - run: npm run security:dependencies:known
       - run: npm run security:secrets
       - run: npm run security:encoding
