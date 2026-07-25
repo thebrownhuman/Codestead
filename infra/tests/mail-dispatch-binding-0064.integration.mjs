@@ -174,6 +174,33 @@ function stagedMigrationsThrough(temporaryRoot, maximumIndex) {
   return staged;
 }
 
+async function applyMigrationsWithFramework(
+  port,
+  database,
+  migrationsFolder,
+) {
+  const [{ drizzle }, { migrate }] = await Promise.all([
+    import("drizzle-orm/node-postgres"),
+    import("drizzle-orm/node-postgres/migrator"),
+  ]);
+  const client = new Client({
+    host: "127.0.0.1",
+    port,
+    user: "learncoding_migrator",
+    database,
+    connectionTimeoutMillis: 5_000,
+  });
+  await client.connect();
+  try {
+    await client.query("set statement_timeout = '30s'");
+    await client.query("set lock_timeout = '5s'");
+    await client.query("set role learncoding_owner");
+    await migrate(drizzle(client), { migrationsFolder });
+  } finally {
+    await client.end();
+  }
+}
+
 function ownerSql(port, database, sql) {
   return psql(port, database, `SET ROLE learncoding_owner;\n${sql}`, {
     username: "learncoding_migrator",
@@ -1341,6 +1368,11 @@ async function proveExtendedTransitionMatrix(port, database) {
 
 async function main() {
   assertMigrationLineage();
+  const fullReviewedMigrationCount = String(
+    JSON.parse(
+      readFileSync(path.join(migrationDirectory, "meta", "_journal.json"), "utf8"),
+    ).entries.length,
+  );
   const version = run(executable("postgres"), ["--version"]).stdout.trim();
   assert.match(
     version,
@@ -1428,6 +1460,7 @@ CREATE ROLE learncoding_migrator LOGIN NOINHERIT;
 CREATE ROLE learncoding_app LOGIN NOINHERIT;
 CREATE ROLE learncoding_worker LOGIN NOINHERIT;
 CREATE ROLE learncoding_ops LOGIN NOINHERIT;
+CREATE ROLE learncoding_backup_reporter LOGIN NOINHERIT;
 GRANT learncoding_owner TO learncoding_migrator
   WITH ADMIN FALSE, INHERIT FALSE, SET TRUE;`,
     );
@@ -1443,10 +1476,11 @@ GRANT learncoding_owner TO learncoding_migrator
       await import("../../scripts/migrate-production.mjs");
     const connectionString = `postgresql://learncoding_migrator@127.0.0.1:${port}/${database}`;
     const adminConnectionString = `postgresql://postgres@127.0.0.1:${port}/${database}`;
-    await runProductionMigration({
-      connectionString,
-      migrationsFolder: stagedMigrations0062,
-    });
+    await applyMigrationsWithFramework(
+      port,
+      database,
+      stagedMigrations0062,
+    );
     assert.equal(
       scalar(
         port,
@@ -1457,10 +1491,11 @@ GRANT learncoding_owner TO learncoding_migrator
     );
     await verifyRawReviewedPhase(adminConnectionString);
 
-    await runProductionMigration({
-      connectionString,
-      migrationsFolder: stagedMigrations0063,
-    });
+    await applyMigrationsWithFramework(
+      port,
+      database,
+      stagedMigrations0063,
+    );
     assert.equal(
       scalar(
         port,
@@ -1600,7 +1635,7 @@ INSERT INTO public.email_outbox (
         database,
         "SELECT pg_catalog.count(*)::text FROM drizzle.__drizzle_migrations;",
       ),
-      "65",
+      fullReviewedMigrationCount,
     );
     assert.equal(
       scalar(
@@ -1668,7 +1703,7 @@ INSERT INTO public.email_outbox (
         database,
         "SELECT pg_catalog.count(*)::text FROM drizzle.__drizzle_migrations;",
       ),
-      "65",
+      fullReviewedMigrationCount,
     );
 
     process.stdout.write(
