@@ -1,6 +1,6 @@
 # Data lifecycle, export, and account deletion
 
-Policy version `2026-07-14.v4` is authoritative in `src/lib/data-lifecycle/policy.ts`. All cutoffs are calculated from one injected UTC timestamp. Changing a duration requires a new policy version, review of this runbook, a migration if storage classification changes, and updated tests. Version v4 adds account-lifetime certificate and public-portfolio records; version v3 added account-lifetime append-only project revision history and file metadata snapshots; version v2 added authoritative learner drafts and their idempotency receipts. Browser session cache remains outside retention authority and is never a backup.
+Policy version `2026-07-25.v5` is authoritative in `src/lib/data-lifecycle/policy.ts`. All cutoffs are calculated from one injected UTC timestamp. Changing a duration requires a new policy version, review of this runbook, a migration if storage classification changes, and updated tests. Version v5 adds independent 30-day terminal-email, unresolved-delivery-authority, and non-external-console cutoffs with the 0068 redaction authority; version v4 added account-lifetime certificate and public-portfolio records; version v3 added account-lifetime append-only project revision history and file metadata snapshots; version v2 added authoritative learner drafts and their idempotency receipts. Browser session cache remains outside retention authority and is never a backup.
 
 ## Retention categories
 
@@ -15,8 +15,12 @@ Policy version `2026-07-14.v4` is authoritative in `src/lib/data-lifecycle/polic
 | Administrator audit chain | At least 24 months | No automatic purge at launch; reports the older population as retained |
 | `temporary` objects | 24 hours | Remove file, quota rows, and metadata |
 | Quarantined, terminal scanner-error, or user-soft-deleted objects | 7 days | Remove file, quota rows, and metadata |
-| Terminal sent/suppressed/failed/quarantined email delivery records | 30 days | Delete delivery record |
+| Terminal sent/suppressed/failed and safely terminal quarantined email delivery records | 30 days | Delete exact candidate IDs only after strict `TRUE` durable replay-authority coverage in the same transaction |
+| Unresolved external quarantined email delivery authority | 30 days | Redact deterministic recipient PII while preserving replay, correlation, dispatch-fence, operation, claim, hold, and terminal evidence |
+| Non-external console delivery quarantines | 30 days | Delete exact candidate IDs only after strict `TRUE` durable replay-authority coverage in the same transaction |
 | Mastery state and official evidence | Until administrator account deletion | Never touched by scheduled retention |
+
+For unresolved external quarantines, only a complete unexpired claim blocks redaction. Absent, partial, or expired claims are redacted; partial or otherwise malformed authority is counted separately while its recipient PII is redacted. Report-only and lifecycle dry-run paths never mutate rows. Apply runs the 0068 ops-only redactor inside a savepoint before exact-ID deletion coverage; any invalid summary, missing/false coverage, or capability error fails closed and remains retry-required.
 
 User uploads classified `user_upload` remain until user deletion or administrator account deletion. Future AI attachment writers must set `retention_class=ai_request_attachment`; temporary writers must set `temporary`. The database rejects unknown classes.
 
@@ -29,7 +33,7 @@ cd /opt/learncoding
 docker compose --env-file /etc/learncoding/compose.env \
   -f /opt/learncoding/compose.yaml --profile operations run --rm --no-deps lifecycle \
   node --import tsx /app/scripts/data-lifecycle.ts retention --dry-run \
-  --idempotency-key retention:2026-07-14.v4:YYYY-MM-DD:dry-run
+  --idempotency-key retention:2026-07-25.v5:YYYY-MM-DD:dry-run
 ```
 
 Apply requires the exact reviewed policy version:
@@ -38,8 +42,8 @@ Apply requires the exact reviewed policy version:
 docker compose --env-file /etc/learncoding/compose.env \
   -f /opt/learncoding/compose.yaml --profile operations run --rm --no-deps lifecycle \
   node --import tsx /app/scripts/data-lifecycle.ts retention --apply \
-  --confirm 2026-07-14.v4 \
-  --idempotency-key retention:2026-07-14.v4:YYYY-MM-DD:apply
+  --confirm 2026-07-25.v5 \
+  --idempotency-key retention:2026-07-25.v5:YYYY-MM-DD:apply
 ```
 
 The default key is policy/version/date/mode. Reusing a successful key returns the recorded report without deleting again. A running key fails closed; a failed key requires a new reviewed key. Every category reports eligible, physically deleted, retained, and `hasMore`; state-only changes such as expiring a request or marking a backup tombstone eligible for operator review use `transitioned` and keep `deleted=0`. Rerun with a new key when a bounded batch reports more. Failed object-file removal leaves metadata in place for retry.

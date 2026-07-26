@@ -210,7 +210,7 @@ const routineContracts = new Map([
 test("0067 migration bytes and bootstrap column contracts are frozen", () => {
   assert.equal(
     sha256(migration),
-    "4dca7bc11ae7ad6edefc3314545823a0013e4aef0242b74802bdb4ba8b759319",
+    "ccb3e093847fb875ded41ec0c36d0ff8405c04d1546ba9dd21696e86a73a6817",
   );
   for (const column of authorityColumns) {
     assert.ok(MAIL_WORKER_OUTBOX_COLUMNS.includes(column));
@@ -868,7 +868,7 @@ test("0067 phase and replay authority reconciliation are exact and contiguous", 
       createdAt: "1785002172253",
       migrationFile: "0067_mail_outbox_durable_replay_authority.sql",
       migrationSha256:
-        "4dca7bc11ae7ad6edefc3314545823a0013e4aef0242b74802bdb4ba8b759319",
+        "ccb3e093847fb875ded41ec0c36d0ff8405c04d1546ba9dd21696e86a73a6817",
       requiresWorkerContract: true,
       requiresProviderEvidence: true,
       requiresReplayAuthority: true,
@@ -2354,7 +2354,7 @@ test("C bootstraps 0065 then 0066 and rolls back a callback-only 0067 marker", (
     /phaseIndex:\s*66/u,
     /beforeCommit:\s*async \(client\) =>/u,
     /INSERT INTO drizzle[.]__drizzle_migrations/u,
-    /4dca7bc11ae7ad6edefc3314545823a0013e4aef0242b74802bdb4ba8b759319/u,
+    /ccb3e093847fb875ded41ec0c36d0ff8405c04d1546ba9dd21696e86a73a6817/u,
     /failed post-callback phase verification must roll back the journal marker/u,
     /failed post-callback phase verification must roll back catalog and ACL state/u,
     /phase:\s*"0066-after-journal-mutation-rollback"/u,

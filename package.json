@@ -124,7 +124,7 @@
     "worker:scan": "tsx scripts/scan-uploads.ts",
     "storage:reconcile": "tsx scripts/reconcile-storage.ts",
     "lifecycle": "tsx scripts/data-lifecycle.ts",
-    "worker:retention": "tsx scripts/data-lifecycle.ts retention --apply --confirm 2026-07-14.v4",
+    "worker:retention": "tsx scripts/data-lifecycle.ts retention --apply --confirm 2026-07-25.v5",
     "sync:monaco": "tsx scripts/sync-monaco-assets.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

@@ -21,30 +21,42 @@ const mocks = vi.hoisted(() => {
       | "resume_degraded_file"
       | "resume_degraded_relational"
       | "resume_oldest"
-      | "resume_oldest_relational",
+      | "resume_oldest_relational"
+      | "replay_with_unrelated_checkpoint",
     failCount: false,
     failRedaction: false,
+    failDedupCoverage: false,
+    dedupCovered: true,
     failRollbackTo: false,
     failReleaseSavepoint: false,
     deletedObjectCount: 2,
+    redactionEligibleTransitioned: 2,
+    redactionBlockedCount: 0,
+    redactionBlockedTransitioned: 0,
+    redactionMalformedCount: 0,
+    redactionMalformedTransitioned: 0,
+    unclassifiedBlockedCount: 0,
+    unclassifiedRepairCount: 0,
   };
   const objects = [
     { id: "d2000000-0000-4000-8000-000000000001", storage_key: "owner/object-1" },
     { id: "d2000000-0000-4000-8000-000000000002", storage_key: "owner/object-2" },
   ];
   const query = vi.fn(async (statement: string, parameters?: unknown[]) => {
-    void parameters;
     const sql = statement.replace(/\s+/g, " ").trim().toLowerCase();
     if (sql.startsWith("insert into data_lifecycle_run")) {
       return state.claim === "new" ? { rows: [{ id: "retention-run-1" }], rowCount: 1 } : { rows: [], rowCount: 0 };
     }
     if (sql.includes("from data_lifecycle_run where idempotency_key")) {
-      if (state.claim === "resume_oldest" || state.claim === "resume_oldest_relational") {
+      if (state.claim === "new"
+          || state.claim === "resume_oldest"
+          || state.claim === "resume_oldest_relational") {
         return { rows: [], rowCount: 0 };
       }
       const replay = state.claim === "replay"
         || state.claim === "replay_degraded"
-        || state.claim === "cutoff_mismatch";
+        || state.claim === "cutoff_mismatch"
+        || state.claim === "replay_with_unrelated_checkpoint";
       const status = replay ? "succeeded" : state.claim === "running" ? "running" : "failed";
       const resumeFile = state.claim === "resume_failed"
         || state.claim === "resume_running"
@@ -59,8 +71,10 @@ const mocks = vi.hoisted(() => {
         rows: [{
           id: "existing-run",
           operation: state.claim === "mismatch" ? "export" : "retention",
-          policy_version: "2026-07-14.v4",
-          dry_run: resume || state.claim === "replay_degraded" ? false : true,
+          policy_version: "2026-07-25.v5",
+          dry_run: resume
+            || state.claim === "replay_degraded"
+            || state.claim === "replay_with_unrelated_checkpoint" ? false : true,
           cutoff_manifest: { rawChat: "2025-07-12T00:00:00.000Z" },
           cutoff_matches: state.claim !== "mismatch"
             && state.claim !== "cutoff_mismatch"
@@ -100,8 +114,10 @@ const mocks = vi.hoisted(() => {
             },
           } : {
             runId: "existing-run",
-            policyVersion: "2026-07-14.v4",
-            dryRun: state.claim === "replay_degraded" ? false : true,
+            policyVersion: "2026-07-25.v5",
+            dryRun: state.claim === "replay_degraded"
+              || state.claim === "replay_with_unrelated_checkpoint"
+              ? false : true,
             evaluatedAt: "2026-07-12T00:00:00.000Z",
             cutoffs: {},
             categories: state.claim === "replay_degraded" ? {
@@ -126,11 +142,13 @@ const mocks = vi.hoisted(() => {
     }
     if (sql.includes("from data_lifecycle_run") && sql.includes("order by created_at asc")) {
       const relational = state.claim === "resume_oldest_relational";
-      return state.claim === "resume_oldest" || relational ? {
+      const recoverable = state.claim === "resume_oldest"
+        || state.claim === "replay_with_unrelated_checkpoint";
+      return recoverable || relational ? {
         rows: [{
           id: "existing-run",
           operation: "retention",
-          policy_version: "2026-07-14.v4",
+          policy_version: "2026-07-25.v5",
           dry_run: false,
           cutoff_manifest: { rawChat: "2025-07-11T00:00:00.000Z" },
           status: "failed",
@@ -159,17 +177,50 @@ const mocks = vi.hoisted(() => {
     if (sql === "release savepoint retention_email_redaction" && state.failReleaseSavepoint) {
       throw new Error("synthetic savepoint release failure");
     }
-    if (sql.includes("from public.redact_unresolved_email_outbox_authority(")) {
+    if (sql.includes("public.email_outbox_idempotency_coverage_authority(")) {
+      if (state.failDedupCoverage) {
+        throw new Error("synthetic no-replay coverage unavailable");
+      }
+      return {
+        rows: [{ covered: state.dedupCovered }],
+        rowCount: 1,
+      };
+    }
+    if (sql.includes("from public.redact_quarantined_email_outbox_authority_v2(")) {
       if (state.failRedaction) {
         throw new Error("synthetic postgres detail learner@example.test");
       }
       return {
         rows: [
-          { disposition: "eligible", eligible: "2", transitioned: "1" },
-          { disposition: "blocked", eligible: "3", transitioned: "0" },
-          { disposition: "malformed", eligible: "1", transitioned: "0" },
+          {
+            disposition: "eligible",
+            eligible: "2",
+            transitioned: String(parameters?.[1] === 0
+              ? 0
+              : state.redactionEligibleTransitioned),
+          },
+          {
+            disposition: "blocked",
+            eligible: String(state.redactionBlockedCount),
+            transitioned: String(state.redactionBlockedTransitioned),
+          },
+          {
+            disposition: "malformed",
+            eligible: String(state.redactionMalformedCount),
+            transitioned: String(state.redactionMalformedTransitioned),
+          },
         ],
         rowCount: 3,
+      };
+    }
+    if (sql.includes("unclassified_email_authority_blocked")) {
+      return {
+        rows: [{ count: String(state.unclassifiedBlockedCount) }], rowCount: 1,
+      };
+    }
+    if (sql.includes("unclassified_email_authority_repair_required")) {
+      return {
+        rows: [{ count: String(state.unclassifiedRepairCount) }], rowCount: 1,
       };
     }
     if (sql.startsWith("select count(*)")) {
@@ -224,9 +275,18 @@ describe("retention runtime orchestration", () => {
     mocks.state.claim = "new";
     mocks.state.failCount = false;
     mocks.state.failRedaction = false;
+    mocks.state.failDedupCoverage = false;
+    mocks.state.dedupCovered = true;
     mocks.state.failRollbackTo = false;
     mocks.state.failReleaseSavepoint = false;
     mocks.state.deletedObjectCount = 2;
+    mocks.state.redactionEligibleTransitioned = 2;
+    mocks.state.redactionBlockedCount = 0;
+    mocks.state.redactionBlockedTransitioned = 0;
+    mocks.state.redactionMalformedCount = 0;
+    mocks.state.redactionMalformedTransitioned = 0;
+    mocks.state.unclassifiedRepairCount = 0;
+    mocks.state.unclassifiedBlockedCount = 0;
     mocks.unlink.mockResolvedValue(undefined);
     mocks.enqueueFileErasures.mockResolvedValue(2);
     mocks.processFileErasures.mockResolvedValue({ total: 2, removed: 1, alreadyAbsent: 1, failed: 0, pending: 0, complete: true });
@@ -241,7 +301,7 @@ describe("retention runtime orchestration", () => {
       now,
     });
     expect(report).toMatchObject({
-      runId: "retention-run-1",
+      runId: expect.stringMatching(/^dry-run-[0-9a-f]{24}$/u),
       dryRun: true,
       outcome: "succeeded",
       requiresRetry: false,
@@ -266,24 +326,45 @@ describe("retention runtime orchestration", () => {
       hasMore: true,
     });
     expect(report.categories.unresolvedEmailDeliveryAuthorityBlocked).toMatchObject({
-      eligible: 3,
+      eligible: 0,
       transitioned: 0,
-      retained: 3,
-      hasMore: true,
+      retained: 0,
+      hasMore: false,
     });
     expect(report.categories.unresolvedEmailDeliveryAuthorityMalformed).toMatchObject({
-      eligible: 1,
+      eligible: 0,
       transitioned: 0,
-      retained: 1,
+      retained: 0,
+      hasMore: false,
+    });
+    expect(report.categories.nonExternalConsoleDeliveryQuarantines).toMatchObject({
+      eligible: 2,
+      deleted: 0,
+      retained: 2,
       hasMore: true,
+    });
+    expect(report.categories.unclassifiedEmailDeliveryAuthorityBlocked).toMatchObject({
+      eligible: 0,
+      deleted: 0,
+      retained: 0,
+      hasMore: false,
+    });
+    expect(report.categories.unclassifiedEmailDeliveryAuthorityRepairRequired).toMatchObject({
+      eligible: 0,
+      deleted: 0,
+      retained: 0,
+      hasMore: false,
     });
     const statements = mocks.query.mock.calls.map(([sql]) => (
       String(sql).replace(/\s+/g, " ").trim().toLowerCase()
     ));
     const redaction = statements.findIndex((sql) => (
-      sql.includes("from public.redact_unresolved_email_outbox_authority(")
+      sql.includes("from public.redact_quarantined_email_outbox_authority_v2(")
     ));
     expect(redaction).toBeGreaterThan(-1);
+    expect(statements.some((sql) => (
+      sql.includes("from public.redact_unresolved_email_outbox_authority(")
+    ))).toBe(false);
     expect(statements).not.toContain("savepoint retention_email_redaction");
     expect(statements).not.toContain("rollback to savepoint retention_email_redaction");
     expect(statements).not.toContain("release savepoint retention_email_redaction");
@@ -291,6 +372,9 @@ describe("retention runtime orchestration", () => {
       mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>
     )[redaction];
     expect(redactionCall?.[1]?.[1]).toBe(0);
+    expect(
+      statements.filter((sql) => /^(?:insert|update|delete|merge|truncate|alter|create|drop)\b/u.test(sql)),
+    ).toEqual([]);
     expect(mocks.unlink).not.toHaveBeenCalled();
     expect(mocks.query).toHaveBeenCalledWith("select pg_advisory_unlock(hashtext('learncoding:data-lifecycle-retention'))");
     expect(mocks.client.release).toHaveBeenCalledTimes(1);
@@ -367,16 +451,30 @@ describe("retention runtime orchestration", () => {
     const savepoint = statements.indexOf("savepoint retention_email_redaction");
     const redaction = statements.findIndex((sql) => (
       sql.startsWith("select disposition, eligible::text as eligible, transitioned::text as transitioned")
-      && sql.includes("from public.redact_unresolved_email_outbox_authority(")
+      && sql.includes("from public.redact_quarantined_email_outbox_authority_v2(")
     ));
     const release = statements.indexOf("release savepoint retention_email_redaction");
-    const deleted = statements.findIndex((sql) => (
-      sql.startsWith("delete from email_outbox where id in")
-    ));
+    const coverage = statements
+      .map((sql, index) => (
+        sql.includes("public.email_outbox_idempotency_coverage_authority(")
+          ? index
+          : -1
+      ))
+      .filter((index) => index >= 0);
+    const deleted = statements
+      .map((sql, index) => (
+        sql.startsWith("delete from email_outbox where id in") ? index : -1
+      ))
+      .filter((index) => index >= 0);
     expect(savepoint).toBeGreaterThan(-1);
     expect(redaction).toBeGreaterThan(savepoint);
     expect(release).toBeGreaterThan(redaction);
-    expect(deleted).toBeGreaterThan(release);
+    expect(coverage).toHaveLength(2);
+    expect(deleted).toHaveLength(2);
+    expect(coverage[0]).toBeGreaterThan(release);
+    expect(deleted[0]).toBeGreaterThan(coverage[0]!);
+    expect(coverage[1]).toBeGreaterThan(deleted[0]!);
+    expect(deleted[1]).toBeGreaterThan(coverage[1]!);
     expect(statements).not.toContain("rollback to savepoint retention_email_redaction");
     expect(statements[redaction]).toContain("$1::timestamptz, $2::integer");
     expect(statements[redaction]).not.toContain("update email_outbox");
@@ -385,22 +483,246 @@ describe("retention runtime orchestration", () => {
       eligible: 2,
       deleted: 0,
       retained: 2,
-      transitioned: 1,
-      hasMore: true,
+      transitioned: 2,
+      hasMore: false,
     });
     expect(report.categories.unresolvedEmailDeliveryAuthorityBlocked).toMatchObject({
-      eligible: 3,
+      eligible: 0,
       deleted: 0,
-      retained: 3,
+      retained: 0,
       transitioned: 0,
-      hasMore: true,
+      hasMore: false,
     });
     expect(report.categories.unresolvedEmailDeliveryAuthorityMalformed).toMatchObject({
-      eligible: 1,
+      eligible: 0,
       deleted: 0,
-      retained: 1,
+      retained: 0,
       transitioned: 0,
+      hasMore: false,
+    });
+    expect(report.categories.nonExternalConsoleDeliveryQuarantines).toMatchObject({
+      eligible: 2,
+      deleted: 1,
+      retained: 1,
       hasMore: true,
+    });
+    expect(report.categories.unclassifiedEmailDeliveryAuthorityBlocked).toMatchObject({
+      eligible: 0,
+      deleted: 0,
+      retained: 0,
+      hasMore: false,
+    });
+    expect(report.categories.unclassifiedEmailDeliveryAuthorityRepairRequired).toMatchObject({
+      eligible: 0,
+      deleted: 0,
+      retained: 0,
+      hasMore: false,
+    });
+  });
+
+  it("keeps a bounded redaction backlog retry-required until a later reviewed run", async () => {
+    mocks.state.redactionEligibleTransitioned = 1;
+
+    const report = await runRetention({
+      idempotencyKey: "retention:test:quarantined-email-bounded-backlog",
+      dryRun: false,
+      batchSize: 2,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    });
+
+    expect(report).toMatchObject({
+      outcome: "completed_with_errors",
+      requiresRetry: true,
+      categories: {
+        unresolvedEmailDeliveryAuthority: {
+          eligible: 2,
+          transitioned: 1,
+          retained: 2,
+          hasMore: true,
+        },
+      },
+    });
+  });
+  it("makes malformed or unclassified recipient PII monitorably repair-required", async () => {
+    mocks.state.redactionEligibleTransitioned = 1;
+    mocks.state.redactionMalformedCount = 1;
+    mocks.state.redactionMalformedTransitioned = 1;
+    mocks.state.unclassifiedRepairCount = 2;
+
+    const report = await runRetention({
+      idempotencyKey: "retention:test:mail-authority-repair-required",
+      dryRun: false,
+      batchSize: 2,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    });
+
+    expect(report).toMatchObject({
+      outcome: "completed_with_errors",
+      requiresRetry: true,
+      categories: {
+        unresolvedEmailDeliveryAuthorityMalformed: {
+          eligible: 1,
+          transitioned: 1,
+          retained: 1,
+          hasMore: false,
+        },
+        unclassifiedEmailDeliveryAuthorityRepairRequired: { eligible: 2, retained: 2 },
+      },
+    });
+  });
+
+  it("accepts fully redacted malformed authority without inventing repair backlog", async () => {
+    mocks.state.redactionMalformedCount = 1;
+    mocks.state.redactionMalformedTransitioned = 1;
+
+    const report = await runRetention({
+      idempotencyKey: "retention:test:mail-authority-malformed-redacted",
+      dryRun: false,
+      batchSize: 3,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    });
+
+    expect(report).toMatchObject({
+      outcome: "succeeded",
+      requiresRetry: false,
+      categories: {
+        unresolvedEmailDeliveryAuthorityMalformed: {
+          eligible: 1,
+          transitioned: 1,
+          retained: 1,
+          hasMore: false,
+        },
+      },
+    });
+  });
+
+  it("fails closed when the authority reports impossible transition counts", async () => {
+    mocks.state.redactionMalformedCount = 1;
+    mocks.state.redactionMalformedTransitioned = 2;
+
+    const report = await runRetention({
+      idempotencyKey: "retention:test:mail-authority-invalid-summary",
+      dryRun: false,
+      batchSize: 2,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    });
+
+    expect(report).toMatchObject({
+      outcome: "completed_with_errors",
+      requiresRetry: true,
+      categories: {
+        unresolvedEmailDeliveryAuthority: {
+          outcome: "failed",
+          failureCode: "EMAIL_OUTBOX_REDACTION_RETRYABLE",
+        },
+      },
+    });
+  });
+  it("fails closed when redaction transitions exceed the bounded batch", async () => {
+    mocks.state.redactionEligibleTransitioned = 2;
+    mocks.state.redactionMalformedCount = 1;
+    mocks.state.redactionMalformedTransitioned = 1;
+
+    const report = await runRetention({
+      idempotencyKey: "retention:test:mail-authority-over-batch-summary",
+      dryRun: false,
+      batchSize: 2,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    });
+
+    expect(report).toMatchObject({
+      outcome: "completed_with_errors",
+      requiresRetry: true,
+      categories: {
+        unresolvedEmailDeliveryAuthority: {
+          outcome: "failed",
+          failureCode: "EMAIL_OUTBOX_REDACTION_RETRYABLE",
+        },
+      },
+    });
+  });
+  it("keeps every over-cutoff blocked recipient-PII category retry-required", async () => {
+    mocks.state.redactionBlockedCount = 1;
+    mocks.state.unclassifiedBlockedCount = 2;
+
+    const report = await runRetention({
+      idempotencyKey: "retention:test:mail-authority-blocked",
+      dryRun: false,
+      batchSize: 2,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    });
+
+    expect(report).toMatchObject({
+      outcome: "completed_with_errors",
+      requiresRetry: true,
+      categories: {
+        unresolvedEmailDeliveryAuthorityBlocked: { eligible: 1, retained: 1 },
+        unclassifiedEmailDeliveryAuthorityBlocked: { eligible: 2, retained: 2 },
+      },
+    });
+  });
+
+  it("retains terminal mail when durable no-replay coverage is unavailable", async () => {
+    mocks.state.failDedupCoverage = true;
+
+    const report = await runRetention({
+      idempotencyKey: "retention:test:mail-no-replay-authority",
+      dryRun: false,
+      batchSize: 2,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    });
+
+    expect(report).toMatchObject({
+      outcome: "completed_with_errors",
+      requiresRetry: true,
+      categories: {
+        terminalEmailDeliveryRecords: {
+          eligible: 2,
+          deleted: 0,
+          retained: 2,
+          outcome: "failed",
+        },
+        nonExternalConsoleDeliveryQuarantines: {
+          eligible: 2,
+          deleted: 0,
+          retained: 2,
+          outcome: "failed",
+        },
+      },
+    });
+    const statements = mocks.query.mock.calls.map(([sql]) => (
+      String(sql).replace(/\s+/g, " ").trim().toLowerCase()
+    ));
+    expect(statements.some((sql) => (
+      sql.startsWith("delete from email_outbox")
+    ))).toBe(false);
+  });
+
+  it("requires a strict true no-replay coverage result before terminal deletion", async () => {
+    mocks.state.dedupCovered = false;
+
+    const report = await runRetention({
+      idempotencyKey: "retention:test:mail-no-replay-uncovered",
+      dryRun: false,
+      batchSize: 2,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    });
+
+    expect(report).toMatchObject({
+      outcome: "completed_with_errors",
+      requiresRetry: true,
+      categories: {
+        terminalEmailDeliveryRecords: { deleted: 0, outcome: "failed" },
+        nonExternalConsoleDeliveryQuarantines: { deleted: 0, outcome: "failed" },
+      },
     });
   });
 
@@ -433,7 +755,7 @@ describe("retention runtime orchestration", () => {
     const statements = calls.map(([sql]) => String(sql).replace(/\s+/g, " ").trim().toLowerCase());
     const savepoint = statements.indexOf("savepoint retention_email_redaction");
     const redaction = statements.findIndex((sql) => (
-      sql.includes("from public.redact_unresolved_email_outbox_authority(")
+      sql.includes("from public.redact_quarantined_email_outbox_authority_v2(")
     ));
     const rollbackTo = statements.indexOf("rollback to savepoint retention_email_redaction");
     const release = statements.indexOf("release savepoint retention_email_redaction");
@@ -478,9 +800,34 @@ describe("retention runtime orchestration", () => {
     const statements = mocks.query.mock.calls.map(([sql]) => (
       String(sql).replace(/\s+/g, " ").trim().toLowerCase()
     ));
-    expect(statements.some((sql) => sql.includes("redact_unresolved_email_outbox_authority"))).toBe(false);
+    expect(statements.some((sql) => sql.includes("redact_quarantined_email_outbox_authority_v2"))).toBe(false);
     expect(statements.some((sql) => sql.startsWith("delete from "))).toBe(false);
     expect(statements.some((sql) => sql.startsWith("update email_outbox"))).toBe(false);
+    expect(mocks.processFileErasures).not.toHaveBeenCalled();
+  });
+
+  it("replays the supplied terminal key before an unrelated recovery checkpoint", async () => {
+    mocks.state.claim = "replay_with_unrelated_checkpoint";
+
+    const report = await runRetention({
+      idempotencyKey: "retention:test:existing-terminal-key",
+      dryRun: false,
+      batchSize: 2,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    });
+
+    expect(report).toMatchObject({
+      runId: "existing-run",
+      replayed: true,
+      outcome: "succeeded",
+      requiresRetry: false,
+    });
+    const statements = mocks.query.mock.calls.map(([sql]) => (
+      String(sql).replace(/\s+/g, " ").trim().toLowerCase()
+    ));
+    expect(statements.some((sql) => sql.includes("order by created_at asc"))).toBe(false);
+    expect(statements.some((sql) => sql.includes("set status = 'running'"))).toBe(false);
     expect(mocks.processFileErasures).not.toHaveBeenCalled();
   });
 
@@ -496,7 +843,7 @@ describe("retention runtime orchestration", () => {
     expect(report).toMatchObject({ outcome: "succeeded", requiresRetry: false });
     const redactionCall = (
       mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>
-    ).find(([sql]) => String(sql).includes("redact_unresolved_email_outbox_authority"));
+    ).find(([sql]) => String(sql).includes("redact_quarantined_email_outbox_authority_v2"));
     expect(redactionCall?.[1]?.[1]).toBe(2);
   });
   it("aborts the relational transaction when redaction rollback-to-savepoint is not confirmed", async () => {
@@ -595,7 +942,7 @@ describe("retention runtime orchestration", () => {
       acquireClient,
       processFileErasures: mocks.processFileErasures,
     })).resolves.toMatchObject({
-      runId: "retention-run-1",
+      runId: expect.stringMatching(/^dry-run-[0-9a-f]{24}$/u),
       dryRun: true,
     });
 
@@ -761,7 +1108,7 @@ describe("retention runtime orchestration", () => {
     const calls = mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>;
     const statements = calls.map(([sql]) => String(sql).replace(/\s+/g, " ").trim().toLowerCase());
     expect(statements.some((sql) => sql.startsWith("select count(*)"))).toBe(false);
-    expect(statements.some((sql) => sql.includes("redact_unresolved_email_outbox_authority"))).toBe(false);
+    expect(statements.some((sql) => sql.includes("redact_quarantined_email_outbox_authority_v2"))).toBe(false);
     expect(statements.some((sql) => sql.startsWith("delete from chat_message"))).toBe(false);
     expect(statements.some((sql) => sql.startsWith("delete from email_outbox"))).toBe(false);
     expect(statements.some((sql) => sql.startsWith("select id, storage_key from stored_object"))).toBe(needsObjectCheckpoint);
@@ -796,13 +1143,33 @@ describe("retention runtime orchestration", () => {
     mocks.state.failCount = true;
     await expect(runRetention({
       idempotencyKey: "retention:test:failure",
-      dryRun: true,
+      dryRun: false,
       now,
     })).rejects.toThrow("synthetic count failure");
     const failedUpdate = mocks.query.mock.calls.find(([sql]) => String(sql).includes("status = 'failed'"));
     expect(failedUpdate?.[1]?.[1]).toMatch(/^RETENTION_[0-9a-f]{12}$/);
     expect(String(failedUpdate?.[1]?.[1])).not.toContain("TypeError");
     expect(mocks.query).toHaveBeenCalledWith("select pg_advisory_unlock(hashtext('learncoding:data-lifecycle-retention'))");
+    expect(mocks.client.release).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not persist a failed dry-run", async () => {
+    mocks.state.failCount = true;
+    await expect(runRetention({
+      idempotencyKey: "retention:test:dry-run-failure",
+      dryRun: true,
+      now,
+    })).rejects.toThrow("synthetic count failure");
+
+    const statements = mocks.query.mock.calls.map(([sql]) => (
+      String(sql).replace(/\s+/g, " ").trim().toLowerCase()
+    ));
+    expect(
+      statements.filter((sql) => /^(?:insert|update|delete|merge|truncate|alter|create|drop)\b/u.test(sql)),
+    ).toEqual([]);
+    expect(mocks.query).toHaveBeenCalledWith(
+      "select pg_advisory_unlock(hashtext('learncoding:data-lifecycle-retention'))",
+    );
     expect(mocks.client.release).toHaveBeenCalledTimes(1);
   });
 

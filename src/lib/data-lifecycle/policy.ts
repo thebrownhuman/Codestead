@@ -1,4 +1,4 @@
-export const RETENTION_POLICY_VERSION = "2026-07-14.v4" as const;
+export const RETENTION_POLICY_VERSION = "2026-07-25.v5" as const;
 
 export type RetentionDuration =
   | Readonly<{ unit: "days"; value: number }>
@@ -25,6 +25,14 @@ export const RETENTION_POLICY = Object.freeze({
     temporaryObjects: Object.freeze({ duration: { unit: "days", value: 1 } as const, action: "delete" as const }),
     failedQuarantinedOrSoftDeletedObjects: Object.freeze({ duration: { unit: "days", value: 7 } as const, action: "delete" as const }),
     terminalEmailDeliveryRecords: Object.freeze({ duration: { unit: "days", value: 30 } as const, action: "delete" as const }),
+    unresolvedEmailDeliveryAuthority: Object.freeze({
+      duration: { unit: "days", value: 30 } as const,
+      action: "redact_pii_retain_correlation_authority" as const,
+    }),
+    nonExternalConsoleDeliveryQuarantines: Object.freeze({
+      duration: { unit: "days", value: 30 } as const,
+      action: "delete" as const,
+    }),
     masteryAndOfficialEvidence: Object.freeze({
       duration: { unit: "until_admin_account_deletion" } as const,
       action: "delete_only_with_account" as const,
@@ -122,6 +130,14 @@ export function retentionCutoffManifest(now: Date) {
     terminalEmailDeliveryRecords: retentionCutoff(
       now,
       categories.terminalEmailDeliveryRecords.duration,
+    )!.toISOString(),
+    unresolvedEmailDeliveryAuthority: retentionCutoff(
+      now,
+      categories.unresolvedEmailDeliveryAuthority.duration,
+    )!.toISOString(),
+    nonExternalConsoleDeliveryQuarantines: retentionCutoff(
+      now,
+      categories.nonExternalConsoleDeliveryQuarantines.duration,
     )!.toISOString(),
   } as const;
 }

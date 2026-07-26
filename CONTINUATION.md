@@ -1,5 +1,18 @@
 # Codestead continuation handoff
 
+## Current superseding checkpoint - 2026-07-27
+
+This section supersedes the older task and Git state below; the historical material remains for provenance.
+
+- Active branch: `main`; pushed Task 5 base: `4af6269a1540481038ca7fa3918e1ee71725cb95` (`feat(mail): complete durable replay authority`).
+- Task 6 (`0068` quarantine redaction/retention authority) is the commit containing this update. It adds one classifier-driven retention predicate, an ops-only `SECURITY DEFINER` redactor, a narrow immutable-payload trigger carve-out, deterministic redaction, savepoint-isolated runtime orchestration, and durable replay-coverage checks before terminal deletion.
+- The migration now rejects altered final-0067 hold/coverage routines by live-derived body and full-definition hashes, requires an unconditional `ENABLE ALWAYS` hold trigger, dynamically scrubs delegated routine ACLs, and finishes with an exact owner/security/search-path/ACL/payload-trigger catalog verifier.
+- The native PostgreSQL 18.1 harness passed and proved real migrator-to-owner delegation, hostile ACL convergence, predecessor tamper rollback and clean retry, report-only behavior, oldest-then-ID batches of 1 and 2, protected replay/provider/claim evidence preservation, idempotent replay, direct delegated-owner denial, and exact listener/PID-gated cleanup. Its sole output was `mail_quarantine_redaction_0068=PASS`; stderr was empty; no disposable listener, process, or root remained.
+- Focused verification passed under Node 22.23.1: 67/67 retention/redaction Vitest tests, 21/21 final-0067 migration tests, 40/40 final-0067 role-contract tests, 10/10 0068 harness-contract tests, repository typecheck, repository ESLint, static deployment validation, semantic Compose validation, and `git diff --check`.
+- PostgreSQL 17 is not installed locally. The PG17 behavioral run, 0068 journal/reviewed-ledger registration, phase-68 role/catalog reconciliation, CI projection, restore/rollback registration, and correction of the stale shared 0067 coverage-routine digest remain explicit Task 8 gates. Do not describe 0068 as release-registered until those pass.
+- The next repository lane is Task 7: production TX2/exact-byte dispatch runtime. After that, complete Task 8 integration gates, Task 9 races, Task 10 full release gates, and P3-2.
+- Real Gmail, NUC, Cloudflare, Google Drive, reboot, and supervised power-cut evidence remains external and unproven. Repository evidence does not make the product production-ready.
+
 ## Current superseding checkpoint - 2026-07-25
 
 This section supersedes the older Git/worktree and pending-migration state below. The older material is retained only as historical context.

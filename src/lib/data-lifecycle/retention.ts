@@ -86,6 +86,18 @@ type RedactionCapabilityResult =
       transitioned: number;
       blocked: number;
       malformed: number;
+      malformedTransitioned: number;
+    }>
+  | Readonly<{
+      outcome: "failed";
+      failureCode: typeof EMAIL_OUTBOX_REDACTION_RETRYABLE;
+    }>;
+
+type CoverageRow = Readonly<{ covered: boolean | null }>;
+
+type TerminalDeletionCoverageResult =
+  | Readonly<{
+      outcome: "succeeded";
     }>
   | Readonly<{
       outcome: "failed";
@@ -153,6 +165,9 @@ function transitionedCategory(
 }
 
 function parseRedactionCount(value: string | number) {
+  if (typeof value === "string" && !/^(?:0|[1-9][0-9]*)$/.test(value)) {
+    throw new Error("Email outbox redaction summary is invalid.");
+  }
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed < 0) {
     throw new Error("Email outbox redaction summary is invalid.");
@@ -167,7 +182,7 @@ async function queryRedactionCapability(
 ) {
   const result = await client.query<RedactionSummaryRow>(
     `select disposition, eligible::text as eligible, transitioned::text as transitioned
-       from public.redact_unresolved_email_outbox_authority(
+       from public.redact_quarantined_email_outbox_authority_v2(
          $1::timestamptz, $2::integer
        )`,
     [cutoff, batchLimit],
@@ -188,16 +203,28 @@ async function queryRedactionCapability(
   const eligible = summaries.get("eligible")!;
   const blocked = summaries.get("blocked")!;
   const malformed = summaries.get("malformed")!;
-  if (parseRedactionCount(blocked.transitioned) !== 0
-      || parseRedactionCount(malformed.transitioned) !== 0) {
+  const eligibleCount = parseRedactionCount(eligible.eligible);
+  const eligibleTransitioned = parseRedactionCount(eligible.transitioned);
+  const blockedCount = parseRedactionCount(blocked.eligible);
+  const blockedTransitioned = parseRedactionCount(blocked.transitioned);
+  const malformedCount = parseRedactionCount(malformed.eligible);
+  const malformedTransitioned = parseRedactionCount(malformed.transitioned);
+  if (
+    blockedTransitioned !== 0
+    || eligibleTransitioned > eligibleCount
+    || malformedTransitioned > malformedCount
+    || eligibleTransitioned > batchLimit
+    || malformedTransitioned > batchLimit - eligibleTransitioned
+  ) {
     throw new Error("Email outbox redaction summary is invalid.");
   }
   return {
     outcome: "succeeded" as const,
-    eligible: parseRedactionCount(eligible.eligible),
-    transitioned: parseRedactionCount(eligible.transitioned),
-    blocked: parseRedactionCount(blocked.eligible),
-    malformed: parseRedactionCount(malformed.eligible),
+    eligible: eligibleCount,
+    transitioned: eligibleTransitioned,
+    blocked: blockedCount,
+    malformed: malformedCount,
+    malformedTransitioned,
   };
 }
 
@@ -225,6 +252,80 @@ async function runRedactionCapability(
   }
   await client.query("release savepoint retention_email_redaction");
   return summary;
+}
+
+async function queryTerminalDeletionCoverage(
+  client: PoolClient,
+  candidateIds: readonly string[],
+): Promise<TerminalDeletionCoverageResult> {
+  const uniqueIds = [...new Set(candidateIds)];
+  if (
+    uniqueIds.length === 0
+    || uniqueIds.length !== candidateIds.length
+    || uniqueIds.length > MAX_BATCH_SIZE
+  ) {
+    throw new Error("Terminal email deletion coverage input is invalid.");
+  }
+  const result = await client.query<CoverageRow>(
+    `select public.email_outbox_idempotency_coverage_authority(
+       $1::uuid[]
+     ) as covered`,
+    [uniqueIds],
+  );
+  if ((result.rowCount ?? 0) !== 1 || result.rows[0]?.covered !== true) {
+    return {
+      outcome: "failed",
+      failureCode: EMAIL_OUTBOX_REDACTION_RETRYABLE,
+    };
+  }
+  return { outcome: "succeeded" };
+}
+
+async function runTerminalDeletionCoverage(
+  client: PoolClient,
+  candidateIds: readonly string[],
+  mode: "report-only" | "apply",
+): Promise<TerminalDeletionCoverageResult> {
+  if (candidateIds.length === 0) return { outcome: "succeeded" };
+  if (mode === "report-only") {
+    try {
+      return await queryTerminalDeletionCoverage(client, candidateIds);
+    } catch {
+      return {
+        outcome: "failed",
+        failureCode: EMAIL_OUTBOX_REDACTION_RETRYABLE,
+      };
+    }
+  }
+
+  await client.query("savepoint retention_email_dedup_coverage");
+  let coverage: TerminalDeletionCoverageResult;
+  try {
+    coverage = await queryTerminalDeletionCoverage(client, candidateIds);
+  } catch {
+    await client.query("rollback to savepoint retention_email_dedup_coverage");
+    coverage = {
+      outcome: "failed",
+      failureCode: EMAIL_OUTBOX_REDACTION_RETRYABLE,
+    };
+  }
+  await client.query("release savepoint retention_email_dedup_coverage");
+  return coverage;
+}
+
+function terminalDeletionCoverageFailureCategory(
+  eligible: number,
+  note: string,
+): RetentionCategoryReport {
+  return {
+    eligible,
+    deleted: 0,
+    retained: eligible,
+    hasMore: true,
+    outcome: "failed",
+    failureCode: EMAIL_OUTBOX_REDACTION_RETRYABLE,
+    note,
+  };
 }
 
 function redactionFailureCategory(note: string): RetentionCategoryReport {
@@ -268,17 +369,119 @@ function setRedactionCategories(
   categories.unresolvedEmailDeliveryAuthorityBlocked = transitionedCategory(
     result.blocked,
     0,
-    "Held authority is blocked from redaction until its fence is atomically released and aged.",
+    "Over-cutoff complete authority remains blocked until atomically released; retry health stays open while recipient PII is retained.",
   );
   categories.unresolvedEmailDeliveryAuthorityMalformed = transitionedCategory(
     result.malformed,
-    0,
-    "Malformed authority is retained for explicit operator repair and is never auto-redacted.",
+    dryRun ? 0 : result.malformedTransitioned,
+    dryRun
+      ? "dry-run; malformed recipient payload would be redacted while retaining non-PII authority state"
+      : "Malformed recipient payload redacted; non-PII authority state retained for reconciliation.",
   );
 }
 
-function hasRedactionFailure(categories: Readonly<Record<string, RetentionCategoryReport>>) {
-  return categories.unresolvedEmailDeliveryAuthority?.outcome === "failed";
+function hasEmailPrivacyFailure(
+  categories: Readonly<Record<string, RetentionCategoryReport>>,
+  dryRun: boolean,
+) {
+  return categories.terminalEmailDeliveryRecords?.outcome === "failed"
+    || categories.nonExternalConsoleDeliveryQuarantines?.outcome === "failed"
+    || categories.unresolvedEmailDeliveryAuthority?.outcome === "failed"
+    || (!dryRun && categories.unresolvedEmailDeliveryAuthority?.hasMore === true)
+    || categories.unresolvedEmailDeliveryAuthorityBlocked?.hasMore === true
+    || (!dryRun && categories.unresolvedEmailDeliveryAuthorityMalformed?.hasMore === true)
+    || (categories.unclassifiedEmailDeliveryAuthorityBlocked?.eligible ?? 0) > 0
+    || (
+      categories.unclassifiedEmailDeliveryAuthorityRepairRequired?.eligible
+      ?? 0
+    ) > 0;
+}
+
+async function selectTerminalEmailDeletionCandidates(
+  client: PoolClient,
+  cutoff: string,
+  limit: number,
+) {
+  const result = await client.query<IdRow>(
+    `select /* terminal_email_deletion_candidates */ id
+       from email_outbox
+      where (
+        status in ('sent', 'suppressed', 'failed')
+        or (
+          status = 'quarantined'
+          and (
+            provider_call_started is null
+            or (
+              provider_call_started is not null
+              and adapter = 'gmail'
+              and provider_message_id is not null
+              and btrim(provider_message_id) <> ''
+              and sent_at is not null
+              and quarantined_at is not null
+              and quarantined_at < $1::timestamptz
+              and claim_version >= 2
+              and claim_token is null
+              and claim_owner is null
+              and lease_expires_at is null
+              and last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'
+              and dispatch_binding_version = 'gmail-raw-v1'
+              and dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'
+              and (
+                (user_id is not null and delivery_scope_key = 'a:' || user_id)
+                or (
+                  user_id is null
+                  and delivery_scope_key = 's:' || operation_id::text
+                )
+              )
+            )
+          )
+        )
+      )
+      and coalesce(sent_at, updated_at) < $1
+      order by coalesce(sent_at, updated_at) asc, id asc
+      limit $2
+      for update skip locked`,
+    [cutoff, limit],
+  );
+  return result.rows.map((row) => row.id);
+}
+
+async function selectConsoleEmailDeletionCandidates(
+  client: PoolClient,
+  cutoff: string,
+  limit: number,
+) {
+  const result = await client.query<IdRow>(
+    `select /* console_email_deletion_candidates */ id
+       from email_outbox
+      where status = 'quarantined'
+        and provider_call_started is not null
+        and adapter = 'console'
+        and provider_message_id is null
+        and sent_at is null
+        and quarantined_at is not null
+        and quarantined_at < $1::timestamptz
+        and claim_version >= 2
+        and claim_token is null
+        and claim_owner is null
+        and lease_expires_at is null
+        and last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'
+        and dispatch_binding_version = 'console-json-v1'
+        and dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'
+        and (
+          (user_id is not null and delivery_scope_key = 'a:' || user_id)
+          or (
+            user_id is null
+            and delivery_scope_key = 's:' || operation_id::text
+          )
+        )
+        and coalesce(sent_at, updated_at) < $1
+      order by coalesce(sent_at, updated_at) asc, id asc
+      limit $2
+      for update skip locked`,
+    [cutoff, limit],
+  );
+  return result.rows.map((row) => row.id);
 }
 
 async function deleteBounded(
@@ -314,6 +517,34 @@ function isRetentionCheckpoint(report: unknown): report is RetentionCheckpoint {
   return phase === "relational_retention_committed" || phase === "file_erasure_pending";
 }
 
+type ExistingRetentionRun = Readonly<{
+  id: string;
+  operation: string;
+  policy_version: string;
+  dry_run: boolean;
+  status: string;
+  cutoff_matches: boolean;
+  report: RetentionReport | RetentionCheckpoint;
+}>;
+
+async function selectRetentionRunByKey(
+  client: PoolClient,
+  idempotencyKey: string,
+  cutoffs: Record<string, string>,
+) {
+  return client.query<ExistingRetentionRun>(
+    `select id, operation, policy_version, dry_run, status, report,
+            cutoff_manifest = $2::jsonb as cutoff_matches
+       from data_lifecycle_run where idempotency_key = $1`,
+    [idempotencyKey, JSON.stringify(cutoffs)],
+  );
+}
+
+function dryRunIdentifier(idempotencyKey: string) {
+  const digest = createHash("sha256").update(idempotencyKey).digest("hex");
+  return `dry-run-${digest.slice(0, 24)}`;
+}
+
 async function claimRun(
   client: PoolClient,
   input: {
@@ -323,7 +554,19 @@ async function claimRun(
     now: Date;
   },
 ) {
-  if (!input.dryRun) {
+  let row = (await selectRetentionRunByKey(
+    client,
+    input.idempotencyKey,
+    input.cutoffs,
+  )).rows[0];
+  if (!row && input.dryRun) {
+    return {
+      id: dryRunIdentifier(input.idempotencyKey),
+      replay: null,
+      resume: null,
+    };
+  }
+  if (!row) {
     const recoverable = await client.query<{
       id: string;
       status: "running" | "failed";
@@ -360,7 +603,9 @@ async function claimRun(
     }
   }
 
-  const inserted = await client.query<{ id: string }>(
+  const inserted = row
+    ? { rows: [] as Array<{ id: string }> }
+    : await client.query<{ id: string }>(
     `insert into data_lifecycle_run
       (operation, policy_version, idempotency_key, dry_run, status, cutoff_manifest, started_at)
      values ('retention', $1, $2, $3, 'running', $4::jsonb, $5)
@@ -376,21 +621,11 @@ async function claimRun(
   );
   if (inserted.rows[0]) return { id: inserted.rows[0].id, replay: null, resume: null };
 
-  const existing = await client.query<{
-    id: string;
-    operation: string;
-    policy_version: string;
-    dry_run: boolean;
-    status: string;
-    cutoff_matches: boolean;
-    report: RetentionReport | RetentionCheckpoint;
-  }>(
-    `select id, operation, policy_version, dry_run, status, report,
-            cutoff_manifest = $2::jsonb as cutoff_matches
-       from data_lifecycle_run where idempotency_key = $1`,
-    [input.idempotencyKey, JSON.stringify(input.cutoffs)],
-  );
-  const row = existing.rows[0];
+  if (!row) {
+    row = (await selectRetentionRunByKey(
+      client, input.idempotencyKey, input.cutoffs,
+    )).rows[0];
+  }
   if (!row) throw new Error("Lifecycle idempotency state could not be resolved.");
   const recoverableCheckpoint = !input.dryRun
     && (row.status === "running" || row.status === "failed")
@@ -607,8 +842,11 @@ async function commitObjectRetentionCheckpoint(
   }
 }
 
-function reportOutcome(categories: Readonly<Record<string, RetentionCategoryReport>>) {
-  if (hasRedactionFailure(categories)) {
+function reportOutcome(
+  categories: Readonly<Record<string, RetentionCategoryReport>>,
+  dryRun: boolean,
+) {
+  if (hasEmailPrivacyFailure(categories, dryRun)) {
     return { outcome: "completed_with_errors" as const, requiresRetry: true as const };
   }
   return { outcome: "succeeded" as const, requiresRetry: false as const };
@@ -686,7 +924,7 @@ export async function runRetention(input: {
         lifecycleRunId: runId,
         objectStorageRoot: objectRoot,
       });
-      const outcome = reportOutcome(fileCheckpoint.categories);
+      const outcome = reportOutcome(fileCheckpoint.categories, false);
       const report: RetentionReport = {
         runId,
         policyVersion: RETENTION_POLICY.version,
@@ -748,14 +986,181 @@ export async function runRetention(input: {
     const emailEligible = await count(
       client,
       `select count(*)::text as count from email_outbox
-        where status in ('sent', 'suppressed', 'failed', 'quarantined')
-          and not (
+        where (
+          status in ('sent', 'suppressed', 'failed')
+          or (
             status = 'quarantined'
-            and provider_call_started is not null
-            and provider_message_id is null
+            and (
+              provider_call_started is null
+              or (
+                provider_call_started is not null
+                and adapter = 'gmail'
+                and provider_message_id is not null
+                and btrim(provider_message_id) <> ''
+                and sent_at is not null
+                and quarantined_at is not null
+                and quarantined_at < $1::timestamptz
+                and claim_version >= 2
+                and claim_token is null
+                and claim_owner is null
+                and lease_expires_at is null
+                and last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'
+                and dispatch_binding_version = 'gmail-raw-v1'
+                and dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'
+                and (
+                  (user_id is not null and delivery_scope_key = 'a:' || user_id)
+                  or (
+                    user_id is null
+                    and delivery_scope_key = 's:' || operation_id::text
+                  )
+                )
+              )
+            )
+          )
+        )
+        and coalesce(sent_at, updated_at) < $1`,
+      [cutoffs.terminalEmailDeliveryRecords],
+    );
+    const nonExternalConsoleEmailEligible = await count(
+      client,
+      `select count(*)::text as count from email_outbox
+        where status = 'quarantined'
+          and provider_call_started is not null
+          and adapter = 'console'
+          and provider_message_id is null
+          and sent_at is null
+          and quarantined_at is not null
+          and quarantined_at < $1::timestamptz
+          and claim_version >= 2
+          and claim_token is null
+          and claim_owner is null
+          and lease_expires_at is null
+          and last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'
+          and dispatch_binding_version = 'console-json-v1'
+          and dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'
+          and (
+            (user_id is not null and delivery_scope_key = 'a:' || user_id)
+            or (
+              user_id is null
+              and delivery_scope_key = 's:' || operation_id::text
+            )
           )
           and coalesce(sent_at, updated_at) < $1`,
-      [cutoffs.terminalEmailDeliveryRecords],
+      [cutoffs.nonExternalConsoleDeliveryQuarantines],
+    );
+    const unclassifiedEmailAuthorityBlocked = await count(
+      client,
+      `select /* unclassified_email_authority_blocked */
+              count(*)::text as count from email_outbox as candidate
+        where candidate.status = 'quarantined'
+          and candidate.provider_call_started is not null
+          and coalesce(candidate.sent_at, candidate.updated_at) < $1
+          and candidate.claim_token is not null
+          and candidate.claim_owner is not null
+          and btrim(candidate.claim_owner) <> ''
+          and candidate.lease_expires_at > pg_catalog.statement_timestamp()
+          and not (
+            /* unresolved_email_redaction_domain */
+            candidate.adapter = 'gmail'
+            and candidate.provider_message_id is null
+            and candidate.sent_at is null
+            and (
+              (
+                candidate.user_id is not null
+                and candidate.delivery_scope_key = 'a:' || candidate.user_id
+              )
+              or (
+                candidate.user_id is null
+                and candidate.delivery_scope_key
+                  = 's:' || candidate.operation_id::text
+              )
+            )
+          )`,
+      [cutoffs.unresolvedEmailDeliveryAuthority],
+    );
+    const unclassifiedEmailAuthorityRepairRequired = await count(
+      client,
+      `select /* unclassified_email_authority_repair_required */
+              count(*)::text as count
+         from email_outbox as candidate
+        where candidate.status = 'quarantined'
+          and candidate.provider_call_started is not null
+          and coalesce(candidate.sent_at, candidate.updated_at) < $1
+          and not (
+            /* unresolved_email_redaction_domain */
+            candidate.adapter = 'gmail'
+            and candidate.provider_message_id is null
+            and candidate.sent_at is null
+            and (
+              (
+                candidate.user_id is not null
+                and candidate.delivery_scope_key = 'a:' || candidate.user_id
+              )
+              or (
+                candidate.user_id is null
+                and candidate.delivery_scope_key
+                  = 's:' || candidate.operation_id::text
+              )
+            )
+          )
+          and not (
+            candidate.claim_token is not null
+            and candidate.claim_owner is not null
+            and btrim(candidate.claim_owner) <> ''
+            and candidate.lease_expires_at > pg_catalog.statement_timestamp()
+          )
+          and not (
+            candidate.adapter = 'console'
+            and candidate.provider_message_id is null
+            and candidate.sent_at is null
+            and candidate.quarantined_at is not null
+            and candidate.quarantined_at < $1::timestamptz
+            and candidate.claim_version >= 2
+            and candidate.claim_token is null
+            and candidate.claim_owner is null
+            and candidate.lease_expires_at is null
+            and candidate.last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'
+            and candidate.dispatch_binding_version = 'console-json-v1'
+            and candidate.dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'
+            and (
+              (
+                candidate.user_id is not null
+                and candidate.delivery_scope_key = 'a:' || candidate.user_id
+              )
+              or (
+                candidate.user_id is null
+                and candidate.delivery_scope_key
+                  = 's:' || candidate.operation_id::text
+              )
+            )
+          )
+          and not (
+            candidate.adapter = 'gmail'
+            and candidate.provider_message_id is not null
+            and btrim(candidate.provider_message_id) <> ''
+            and candidate.sent_at is not null
+            and candidate.quarantined_at is not null
+            and candidate.quarantined_at < $1::timestamptz
+            and candidate.claim_version >= 2
+            and candidate.claim_token is null
+            and candidate.claim_owner is null
+            and candidate.lease_expires_at is null
+            and candidate.last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'
+            and candidate.dispatch_binding_version = 'gmail-raw-v1'
+            and candidate.dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'
+            and (
+              (
+                candidate.user_id is not null
+                and candidate.delivery_scope_key = 'a:' || candidate.user_id
+              )
+              or (
+                candidate.user_id is null
+                and candidate.delivery_scope_key
+                  = 's:' || candidate.operation_id::text
+              )
+            )
+          )`,
+      [cutoffs.unresolvedEmailDeliveryAuthority],
     );
     const oldAudit = await count(
       client,
@@ -837,10 +1242,63 @@ export async function runRetention(input: {
         "dry-run; would mark expired, not delete",
       );
       categories.objects = category(objectEligible, 0, "dry-run");
-      categories.terminalEmailDeliveryRecords = category(emailEligible, 0, "dry-run");
+      const terminalEmailCandidates = emailEligible > 0
+        ? await selectTerminalEmailDeletionCandidates(
+            client,
+            cutoffs.terminalEmailDeliveryRecords,
+            limit,
+          )
+        : [];
+      const terminalEmailCoverage = await runTerminalDeletionCoverage(
+        client,
+        terminalEmailCandidates,
+        "report-only",
+      );
+      categories.terminalEmailDeliveryRecords = terminalEmailCoverage.outcome === "failed"
+        ? terminalDeletionCoverageFailureCategory(
+            emailEligible,
+            "Terminal email deletion is blocked until durable hashed no-replay coverage is available.",
+          )
+        : category(
+            emailEligible,
+            0,
+            "dry-run; durable hashed no-replay coverage confirmed for bounded deletion candidates",
+          );
+      const consoleEmailCandidates = nonExternalConsoleEmailEligible > 0
+        ? await selectConsoleEmailDeletionCandidates(
+            client,
+            cutoffs.nonExternalConsoleDeliveryQuarantines,
+            limit,
+          )
+        : [];
+      const consoleEmailCoverage = await runTerminalDeletionCoverage(
+        client,
+        consoleEmailCandidates,
+        "report-only",
+      );
+      categories.nonExternalConsoleDeliveryQuarantines = consoleEmailCoverage.outcome === "failed"
+        ? terminalDeletionCoverageFailureCategory(
+            nonExternalConsoleEmailEligible,
+            "Console terminal deletion is blocked until durable hashed no-replay coverage is available.",
+          )
+        : category(
+            nonExternalConsoleEmailEligible,
+            0,
+            "dry-run; durable hashed no-replay coverage confirmed for bounded deletion candidates",
+          );
+      categories.unclassifiedEmailDeliveryAuthorityBlocked = transitionedCategory(
+        unclassifiedEmailAuthorityBlocked,
+        0,
+        "Over-cutoff unclassified authority has a live complete claim; it is retained and retry-required until release.",
+      );
+      categories.unclassifiedEmailDeliveryAuthorityRepairRequired = transitionedCategory(
+        unclassifiedEmailAuthorityRepairRequired,
+        0,
+        "Recipient PII is retained under explicit repair-required health until 0068 can redact it safely.",
+      );
       const redaction = await runRedactionCapability(
         client,
-        cutoffs.terminalEmailDeliveryRecords,
+        cutoffs.unresolvedEmailDeliveryAuthority,
         0,
         "report-only",
       );
@@ -947,27 +1405,148 @@ export async function runRetention(input: {
 
         const redaction = await runRedactionCapability(
           client,
-          cutoffs.terminalEmailDeliveryRecords,
+          cutoffs.unresolvedEmailDeliveryAuthority,
           limit,
           "apply",
         );
         setRedactionCategories(categories, redaction, false);
 
-        const deletedEmail = await client.query<IdRow>(
-          `delete from email_outbox where id in (
-             select id from email_outbox
-              where status in ('sent', 'suppressed', 'failed', 'quarantined')
-                and not (
-                  status = 'quarantined'
-                  and provider_call_started is not null
-                  and provider_message_id is null
-                )
-                and coalesce(sent_at, updated_at) < $1
-              order by coalesce(sent_at, updated_at) asc, id asc limit $2
-           ) returning id`,
-          [cutoffs.terminalEmailDeliveryRecords, limit],
+        const terminalEmailCandidates = await selectTerminalEmailDeletionCandidates(
+          client,
+          cutoffs.terminalEmailDeliveryRecords,
+          limit,
         );
-        categories.terminalEmailDeliveryRecords = category(emailEligible, deletedEmail.rowCount ?? 0);
+        const terminalEmailCoverage = await runTerminalDeletionCoverage(
+          client,
+          terminalEmailCandidates,
+          "apply",
+        );
+        if (terminalEmailCoverage.outcome === "failed") {
+          categories.terminalEmailDeliveryRecords = terminalDeletionCoverageFailureCategory(
+            emailEligible,
+            "Terminal email deletion retained rows because durable hashed no-replay coverage was unavailable.",
+          );
+        } else {
+          const deletedEmail = await client.query<IdRow>(
+            `delete from email_outbox where id in (
+               select id from email_outbox
+                where (
+                  status in ('sent', 'suppressed', 'failed')
+                  or (
+                    status = 'quarantined'
+                    and (
+                      provider_call_started is null
+                      or (
+                        provider_call_started is not null
+                        and adapter = 'gmail'
+                        and provider_message_id is not null
+                        and btrim(provider_message_id) <> ''
+                        and sent_at is not null
+                        and quarantined_at is not null
+                        and quarantined_at < $1::timestamptz
+                        and claim_version >= 2
+                        and claim_token is null
+                        and claim_owner is null
+                        and lease_expires_at is null
+                        and last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'
+                        and dispatch_binding_version = 'gmail-raw-v1'
+                        and dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'
+                        and (
+                          (
+                            user_id is not null
+                            and delivery_scope_key = 'a:' || user_id
+                          )
+                          or (
+                            user_id is null
+                            and delivery_scope_key = 's:' || operation_id::text
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+                and id = any($3::uuid[])
+                and coalesce(sent_at, updated_at) < $1
+                order by coalesce(sent_at, updated_at) asc, id asc limit $2
+             ) returning id`,
+            [cutoffs.terminalEmailDeliveryRecords, limit, terminalEmailCandidates],
+          );
+          categories.terminalEmailDeliveryRecords = category(
+            emailEligible,
+            deletedEmail.rowCount ?? 0,
+            "Deleted only after durable hashed no-replay coverage was confirmed.",
+          );
+        }
+
+        const consoleEmailCandidates = await selectConsoleEmailDeletionCandidates(
+          client,
+          cutoffs.nonExternalConsoleDeliveryQuarantines,
+          limit,
+        );
+        const consoleEmailCoverage = await runTerminalDeletionCoverage(
+          client,
+          consoleEmailCandidates,
+          "apply",
+        );
+        if (consoleEmailCoverage.outcome === "failed") {
+          categories.nonExternalConsoleDeliveryQuarantines = terminalDeletionCoverageFailureCategory(
+            nonExternalConsoleEmailEligible,
+            "Console terminal deletion retained rows because durable hashed no-replay coverage was unavailable.",
+          );
+        } else {
+          const deletedNonExternalConsoleEmail = await client.query<IdRow>(
+            `delete from email_outbox where id in (
+               select id from email_outbox
+                where status = 'quarantined'
+                  and provider_call_started is not null
+                  and adapter = 'console'
+                  and provider_message_id is null
+                  and sent_at is null
+                  and quarantined_at is not null
+                  and quarantined_at < $1::timestamptz
+                  and claim_version >= 2
+                  and claim_token is null
+                  and claim_owner is null
+                  and lease_expires_at is null
+                  and last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'
+                  and dispatch_binding_version = 'console-json-v1'
+                  and dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'
+                  and (
+                    (
+                      user_id is not null
+                      and delivery_scope_key = 'a:' || user_id
+                    )
+                    or (
+                      user_id is null
+                      and delivery_scope_key = 's:' || operation_id::text
+                    )
+                  )
+                  and id = any($3::uuid[])
+                  and coalesce(sent_at, updated_at) < $1
+                order by coalesce(sent_at, updated_at) asc, id asc limit $2
+             ) returning id`,
+            [
+              cutoffs.nonExternalConsoleDeliveryQuarantines,
+              limit,
+              consoleEmailCandidates,
+            ],
+          );
+          categories.nonExternalConsoleDeliveryQuarantines = category(
+            nonExternalConsoleEmailEligible,
+            deletedNonExternalConsoleEmail.rowCount ?? 0,
+            "Deleted only after durable hashed no-replay coverage was confirmed.",
+          );
+        }
+        categories.unclassifiedEmailDeliveryAuthorityBlocked = transitionedCategory(
+          unclassifiedEmailAuthorityBlocked,
+          0,
+          "Over-cutoff unclassified authority has a live complete claim; it is retained and retry-required until release.",
+        );
+        categories.unclassifiedEmailDeliveryAuthorityRepairRequired = transitionedCategory(
+          unclassifiedEmailAuthorityRepairRequired,
+          0,
+          "Recipient PII remains repair-required until the 0068 redaction authority is composed.",
+        );
         const markedBackupEligible = await client.query<IdRow>(
           `update account_deletion_tombstone
               set backup_status = 'eligible_for_operator_verification', updated_at = $1
@@ -1028,7 +1607,7 @@ export async function runRetention(input: {
       objectFiles.failed = fileSummary.failed;
     }
     setDurableCategories(categories, durableCounts);
-    const outcome = reportOutcome(categories);
+    const outcome = reportOutcome(categories, input.dryRun);
 
     const report: RetentionReport = {
       runId,
@@ -1041,10 +1620,12 @@ export async function runRetention(input: {
       ...outcome,
       replayed: false,
     };
-    await persistFinalRetentionReport(client, runId, report, new Date());
+    if (!input.dryRun) {
+      await persistFinalRetentionReport(client, runId, report, new Date());
+    }
     return report;
   } catch (error) {
-    if (runId) {
+    if (runId && !input.dryRun) {
       await client.query(
         `update data_lifecycle_run
             set status = 'failed', error_code = $2, completed_at = $3, updated_at = $3

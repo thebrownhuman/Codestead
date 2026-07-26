@@ -1339,7 +1339,7 @@ expect(
     "Service",
     "ExecStart",
     "/usr/bin/docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml --profile operations run --rm --no-deps lifecycle",
-  ) && !retentionUnit.includes("2026-07-14.v4"),
+  ) && !/20\d{2}-\d{2}-\d{2}\.v\d+/u.test(retentionUnit),
   "retention systemd unit must consume the versioned Compose lifecycle command through explicit inputs",
 );
 for (const [timerPath, timer] of persistentTimers) {
@@ -1351,47 +1351,47 @@ for (const [timerPath, timer] of persistentTimers) {
 
 const lifecycleService = composeService("lifecycle");
 expect(
-  /data-lifecycle\.ts[\s\S]*?- retention[\s\S]*?- --apply[\s\S]*?- --confirm[\s\S]*?- 2026-07-14\.v4/.test(
+  /data-lifecycle\.ts[\s\S]*?- retention[\s\S]*?- --apply[\s\S]*?- --confirm[\s\S]*?- 2026-07-25\.v5/.test(
     lifecycleService,
   ),
-  "Compose lifecycle command must use canonical retention version 2026-07-14.v4",
+  "Compose lifecycle command must use canonical retention version 2026-07-25.v5",
 );
 expect(
-  /"worker:retention": "tsx scripts\/data-lifecycle\.ts retention --apply --confirm 2026-07-14\.v4"/.test(
+  /"worker:retention": "tsx scripts\/data-lifecycle\.ts retention --apply --confirm 2026-07-25\.v5"/.test(
     packageJson,
   ) &&
-    /RETENTION_POLICY_VERSION = "2026-07-14\.v4"/.test(retentionPolicy) &&
-    /2026-07-14\.v4/.test(retentionPolicyTest) &&
-    /2026-07-14\.v4/.test(retentionRuntimeTest) &&
-    /2026-07-14\.v4/.test(composeValidator),
-  "active retention runtime and validation surfaces must agree on 2026-07-14.v4",
+    /RETENTION_POLICY_VERSION = "2026-07-25\.v5"/.test(retentionPolicy) &&
+    /2026-07-25\.v5/.test(retentionPolicyTest) &&
+    /2026-07-25\.v5/.test(retentionRuntimeTest) &&
+    /2026-07-25\.v5/.test(composeValidator),
+  "active retention runtime and validation surfaces must agree on 2026-07-25.v5",
 );
 expect(
-  /Policy version `2026-07-14\.v4` is authoritative/.test(lifecycleRunbook) &&
-    /Version v4 adds/.test(lifecycleRunbook) &&
+  /Policy version `2026-07-25\.v5` is authoritative/.test(lifecycleRunbook) &&
+    /Version v5 adds/.test(lifecycleRunbook) &&
     /version v3 added/.test(lifecycleRunbook) &&
     /version v2 added/.test(lifecycleRunbook) &&
-    (lifecycleRunbook.match(/retention:2026-07-14\.v4:/g) ?? []).length === 2 &&
+    (lifecycleRunbook.match(/retention:2026-07-25\.v5:/g) ?? []).length === 2 &&
     !/2026-07-12\.v3/.test(lifecycleRunbook),
-  "lifecycle runbook must make v4 authoritative while preserving v2/v3 history",
+  "lifecycle runbook must make v5 authoritative while preserving v2/v3 history",
 );
 expect(
-  /docker compose --env-file \/etc\/learncoding\/compose\.env \\\r?\n\s+-f \/opt\/learncoding\/compose\.yaml --profile operations run --rm --no-deps lifecycle \\\r?\n\s+node --import tsx \/app\/scripts\/data-lifecycle\.ts retention --apply \\\r?\n\s+--confirm 2026-07-14\.v4 \\\r?\n\s+--idempotency-key retention:2026-07-14\.v4:YYYY-MM-DD:apply/.test(
+  /docker compose --env-file \/etc\/learncoding\/compose\.env \\\r?\n\s+-f \/opt\/learncoding\/compose\.yaml --profile operations run --rm --no-deps lifecycle \\\r?\n\s+node --import tsx \/app\/scripts\/data-lifecycle\.ts retention --apply \\\r?\n\s+--confirm 2026-07-25\.v5 \\\r?\n\s+--idempotency-key retention:2026-07-25\.v5:YYYY-MM-DD:apply/.test(
     lifecycleRunbook,
   ) && !/npm run lifecycle -- retention --apply/.test(lifecycleRunbook),
-  "lifecycle runbook apply example must use the explicit Compose lifecycle container and v4 confirmation",
+  "lifecycle runbook apply example must use the explicit Compose lifecycle container and v5 confirmation",
 );
 expect(
-  /Retention policy `2026-07-14\.v4`/.test(draftSyncGuide) &&
-    /Retention policy `2026-07-14\.v4`/.test(projectRevisionsGuide),
-  "draft and project-revision product guides must name active retention v4",
+  /Retention policy `2026-07-25\.v5`/.test(draftSyncGuide) &&
+    /Retention policy `2026-07-25\.v5`/.test(projectRevisionsGuide),
+  "draft and project-revision product guides must name active retention v5",
 );
 expect(
-  /2026-07-14\.v4/.test(deploymentGuide) &&
+  /2026-07-25\.v5/.test(deploymentGuide) &&
     /runbooks\/data-lifecycle\.md/.test(deploymentGuide) &&
-    /2026-07-14\.v4/.test(updatesRunbook) &&
+    /2026-07-25\.v5/.test(updatesRunbook) &&
     /\(data-lifecycle\.md\)/.test(updatesRunbook),
-  "deployment and update guides must link to the canonical v4 lifecycle procedure",
+  "deployment and update guides must link to the canonical v5 lifecycle procedure",
 );
 expect(
   /NODEJS_APT_VERSION=22\.23\.1-1nodesource1/.test(deploymentGuide) &&

@@ -8293,7 +8293,7 @@ async function proveBeforeCommitJournalMutationRollback(port, database) {
         await client.query(`
           INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
           VALUES (
-            '4dca7bc11ae7ad6edefc3314545823a0013e4aef0242b74802bdb4ba8b759319',
+            'ccb3e093847fb875ded41ec0c36d0ff8405c04d1546ba9dd21696e86a73a6817',
             1785002172253
           )
         `);
@@ -8383,7 +8383,7 @@ async function proveBootstrapReconciliation(port, database) {
     database,
     `INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
      VALUES (
-       '4dca7bc11ae7ad6edefc3314545823a0013e4aef0242b74802bdb4ba8b759319',
+       'ccb3e093847fb875ded41ec0c36d0ff8405c04d1546ba9dd21696e86a73a6817',
        1785002172253
      );`,
   );

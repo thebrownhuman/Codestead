@@ -460,7 +460,7 @@ describe("0067 durable email replay authority", () => {
 
   it("makes coverage bounded, row-locked, redaction-stable, and ops-only", () => {
     expect(normalized).toMatch(
-      /create function public\.email_outbox_idempotency_coverage_authority\(\s*candidate_ids pg_catalog\.uuid\[\]\s*\) returns pg_catalog\.boolean language plpgsql security definer set search_path = pg_catalog, pg_temp/u,
+      /create function public\.email_outbox_idempotency_coverage_authority\(\s*candidate_ids pg_catalog\.uuid\[\]\s*\) returns pg_catalog\.bool language plpgsql security definer set search_path = pg_catalog, pg_temp/u,
     );
     expect(normalized).toContain(
       "candidate_count := pg_catalog.cardinality(candidate_ids)",
@@ -543,6 +543,25 @@ describe("0067 durable email replay authority", () => {
     );
     expect(normalized).toContain(
       "email outbox idempotency authority table column acl contract failed",
+    );
+  });
+
+  it("uses canonical catalog type names instead of schema-qualified aliases", () => {
+    expect(normalized).not.toMatch(/\bpg_catalog\.(?:integer|boolean)\b/u);
+    expect(normalized).toContain("selected_admin_count pg_catalog.int4");
+    expect(normalized).toContain("revalidated_admin_count pg_catalog.int4");
+    expect(normalized).toContain(
+      "replay_authorized pg_catalog.bool := false",
+    );
+    expect(normalized).toContain("checked_functions pg_catalog.int4 := 0");
+    expect(normalized).toContain("checked_columns pg_catalog.int4 := 0");
+    expect(normalized.match(/returns pg_catalog\.bool/gu)).toHaveLength(2);
+  });
+
+  it("pins the exact PG18 delivery-hold CHECK deparse", () => {
+    expect(normalized).toContain(
+      "hold_constraint.constraint_expression is distinct from " +
+        "'((delivery_hold_version = ''task7-v1''::text) is true)'",
     );
   });
 

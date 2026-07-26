@@ -68,8 +68,8 @@ SET search_path = pg_catalog, pg_temp
 AS $function$
 DECLARE
   requested_outcome pg_catalog.text := p_outcome;
-  selected_admin_count pg_catalog.integer;
-  revalidated_admin_count pg_catalog.integer;
+  selected_admin_count pg_catalog.int4;
+  revalidated_admin_count pg_catalog.int4;
   hinted_admin_id pg_catalog.text;
   selected_admin_id pg_catalog.text;
   selected_admin_email pg_catalog.text;
@@ -79,7 +79,7 @@ DECLARE
   new_outbox_id pg_catalog.uuid;
   new_operation_id pg_catalog.uuid;
   existing_source public.backup_status_mail_authority%ROWTYPE;
-  replay_authorized pg_catalog.boolean := false;
+  replay_authorized pg_catalog.bool := false;
   fixed_summary pg_catalog.text;
 BEGIN
   IF session_user <> 'learncoding_backup_reporter'
@@ -457,7 +457,7 @@ CREATE FUNCTION pg_temp.mail_outbox_historical_ascii_email_matches(
   source_email pg_catalog.text,
   outbox_email pg_catalog.text
 )
-RETURNS pg_catalog.boolean
+RETURNS pg_catalog.bool
 LANGUAGE sql
 IMMUTABLE
 PARALLEL SAFE
@@ -1295,7 +1295,7 @@ $function$;--> statement-breakpoint
 CREATE FUNCTION public.email_outbox_idempotency_coverage_authority(
   candidate_ids pg_catalog.uuid[]
 )
-RETURNS pg_catalog.boolean
+RETURNS pg_catalog.bool
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
@@ -1672,8 +1672,8 @@ DECLARE
   column_row pg_catalog.record;
   column_acl pg_catalog.text[];
   expected_column_acl pg_catalog.text[];
-  checked_functions pg_catalog.integer := 0;
-  checked_columns pg_catalog.integer := 0;
+  checked_functions pg_catalog.int4 := 0;
+  checked_columns pg_catalog.int4 := 0;
 BEGIN
   FOR function_contract IN
     SELECT *
@@ -2023,7 +2023,7 @@ BEGIN
      OR hold_constraint.conkey IS DISTINCT FROM
           ARRAY[hold_attribute.attnum]::pg_catalog.int2[]
      OR hold_constraint.constraint_expression IS DISTINCT FROM
-          '(delivery_hold_version = ''task7-v1''::text) IS TRUE'
+          '((delivery_hold_version = ''task7-v1''::text) IS TRUE)'
   THEN
     RAISE EXCEPTION 'email outbox delivery hold constraint is invalid'
       USING ERRCODE = '23514',
