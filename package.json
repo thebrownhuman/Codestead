@@ -169,7 +169,7 @@
     "ajv-formats": "^3.0.1",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.39.2",
-    "eslint-config-next": "^16.2.10",
+    "eslint-config-next": "^16.2.12",
     "fake-indexeddb": "6.2.5",
     "jsdom": "^29.1.1",
     "postcss": "^8.5.10",
