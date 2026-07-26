@@ -19,7 +19,10 @@ import { fileURLToPath } from "node:url";
 
 import { Client } from "pg";
 
-import { verifyPostMigrationReviewedContractsBeforeReconciliation } from "../../scripts/bootstrap-database-roles.mjs";
+import {
+  REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES,
+  verifyPostMigrationReviewedContractsBeforeReconciliation,
+} from "../../scripts/bootstrap-database-roles.mjs";
 import { allocateDisposableLoopbackPort } from "../../scripts/lib/disposable-loopback-port.mjs";
 import {
   REVIEWED_MIGRATION_LEDGER,
@@ -28,6 +31,10 @@ import {
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(testDirectory, "../..");
+const REVIEWED_PHASE_0064 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
+  ({ index }) => index === 64,
+);
+assert.ok(REVIEWED_PHASE_0064, "reviewed phase 0064 must be registered");
 const migrationDirectory = path.join(repositoryRoot, "drizzle");
 const selectedPostgresRuntime = [
   ["17", process.env.POSTGRES_17_BIN],
@@ -358,7 +365,10 @@ async function verifyRawReviewedPhase(connectionString) {
   await client.connect();
   try {
     assert.equal(
-      await verifyPostMigrationReviewedContractsBeforeReconciliation(client),
+      await verifyPostMigrationReviewedContractsBeforeReconciliation(
+        client,
+        REVIEWED_PHASE_0064,
+      ),
       1,
     );
   } finally {

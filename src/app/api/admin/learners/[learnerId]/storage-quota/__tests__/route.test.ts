@@ -63,6 +63,7 @@ describe("administrator storage quota route", () => {
     mocks.authorizePrivilegedAction.mockReturnValue({ allowed: true, code: "AUTHORIZED" });
     mocks.writeAuditEvent.mockResolvedValue({ correlationId: requestBody.requestId, eventHash: "hash" });
     const quota = {
+      requestId: requestBody.requestId,
       learnerUserId: "learner-1",
       learnerPublicId: learnerId,
       learnerName: "Learner",
@@ -136,13 +137,50 @@ describe("administrator storage quota route", () => {
       correlationId: requestBody.requestId,
     }));
     expect(mocks.emailStorageQuotaChanged).toHaveBeenCalledWith(
-      expect.objectContaining({ learnerUserId: "learner-1" }),
-      requestBody.requestId,
+      expect.objectContaining({
+        learnerUserId: "learner-1",
+        requestId: requestBody.requestId,
+      }),
+    );
+  });
+
+  it("uses the canonical persisted request ID for audit and email replay authority", async () => {
+    const submittedRequestId = requestBody.requestId.toUpperCase();
+    const canonicalRequestId = requestBody.requestId;
+    mocks.changeLearnerStorageQuota.mockResolvedValueOnce({
+      requestId: canonicalRequestId,
+      learnerUserId: "learner-1",
+      learnerPublicId: learnerId,
+      learnerName: "Learner",
+      learnerEmail: "learner@example.test",
+      usedBytes: 1234,
+      quotaBytes: requestBody.quotaBytes,
+      rowVersion: 4,
+      replayed: false,
+    });
+
+    const response = await PATCH(
+      request({ ...requestBody, requestId: submittedRequestId }),
+      { params: Promise.resolve({ learnerId }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.changeLearnerStorageQuota).toHaveBeenCalledWith(
+      expect.objectContaining({ requestId: submittedRequestId }),
+    );
+    expect(mocks.writeAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ correlationId: canonicalRequestId }),
+    );
+    expect(mocks.emailStorageQuotaChanged).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: canonicalRequestId,
+      }),
     );
   });
 
   it("returns an explicit durable replay marker while notifications remain idempotent", async () => {
     mocks.changeLearnerStorageQuota.mockResolvedValueOnce({
+      requestId: requestBody.requestId,
       learnerUserId: "learner-1",
       learnerPublicId: learnerId,
       learnerName: "Learner",

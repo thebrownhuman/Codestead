@@ -19,6 +19,9 @@ const MAX_PASSWORD_BYTES = 1_024;
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
+const BACKUP_RUN_KEY =
+  /^(?:[0-9]{8}T[0-9]{6}Z|[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/u;
+
 const POLICY_KEYS = Object.freeze({
   connectionTimeoutMillis:
     "BACKUP_STATUS_REPORTER_CONNECTION_TIMEOUT_MS",
@@ -94,7 +97,7 @@ export function validateBackupStatusRequest(input) {
     !input
     || !["success", "failure"].includes(input.outcome)
     || typeof input.runKey !== "string"
-    || !/^[0-9]{8}T[0-9]{6}Z$/u.test(input.runKey)
+    || !BACKUP_RUN_KEY.test(input.runKey)
   ) {
     throw invalidInput();
   }

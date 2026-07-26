@@ -75,6 +75,7 @@ const owned = {
   keyVersion: 2,
   lastFour: "tial",
 };
+const requestId = "10000000-0000-4000-8000-000000000001";
 
 function request(body: unknown) {
   return new NextRequest("https://learn.test/api/credentials/credential-1", {
@@ -121,14 +122,14 @@ describe("credential mutation API", () => {
       allowed: false,
       response: NextResponse.json({ code: "FRESH_MFA_REQUIRED" }, { status: 403 }),
     });
-    const response = await PATCH(request({ action: "disable" }), context);
+    const response = await PATCH(request({ action: "disable", requestId }), context);
     expect(response.status).toBe(403);
     expect(mocks.select).not.toHaveBeenCalled();
     expect(mocks.update).not.toHaveBeenCalled();
   });
 
   it("tests only the authenticated learner's encrypted credential", async () => {
-    const response = await PATCH(request({ action: "test" }), context);
+    const response = await PATCH(request({ action: "test", requestId }), context);
     expect(response.status).toBe(200);
     expect(mocks.openCredential).toHaveBeenCalledWith(
       owned,
@@ -147,19 +148,19 @@ describe("credential mutation API", () => {
 
   it("blocks provider use after consent withdrawal while preserving disable/delete controls", async () => {
     mocks.hasCurrentConsent.mockResolvedValue(false);
-    const response = await PATCH(request({ action: "test" }), context);
+    const response = await PATCH(request({ action: "test", requestId }), context);
     expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({ code: "PROVIDER_CONSENT_REQUIRED" });
     expect(mocks.openCredential).not.toHaveBeenCalled();
     expect(mocks.validateProviderCredential).not.toHaveBeenCalled();
 
-    const disable = await PATCH(request({ action: "disable" }), context);
+    const disable = await PATCH(request({ action: "disable", requestId }), context);
     expect(disable.status).toBe(200);
   });
 
   it("replaces ciphertext with a version-bound envelope and never persists plaintext", async () => {
     const replacement = "synthetic-replacement";
-    const response = await PATCH(request({ action: "replace", secret: replacement }), context);
+    const response = await PATCH(request({ action: "replace", secret: replacement, requestId }), context);
     expect(response.status).toBe(200);
     expect(mocks.sealCredential).toHaveBeenCalledWith(
       replacement,
@@ -180,7 +181,7 @@ describe("credential mutation API", () => {
 
   it("does not reveal whether a fresh-MFA caller owns another user's id", async () => {
     mocks.limit.mockReset().mockResolvedValueOnce([]);
-    const response = await PATCH(request({ action: "test" }), context);
+    const response = await PATCH(request({ action: "test", requestId }), context);
     expect(response.status).toBe(404);
     expect(mocks.openCredential).not.toHaveBeenCalled();
     expect(mocks.validateProviderCredential).not.toHaveBeenCalled();
@@ -188,7 +189,11 @@ describe("credential mutation API", () => {
 
   it("gates deletion with MFA and binds the delete to the authenticated learner", async () => {
     const response = await DELETE(
-      new NextRequest("https://learn.test/api/credentials/credential-1", { method: "DELETE" }),
+      new NextRequest("https://learn.test/api/credentials/credential-1", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ requestId }),
+      }),
       context,
     );
     expect(response.status).toBe(204);

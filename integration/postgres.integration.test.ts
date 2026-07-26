@@ -34,6 +34,12 @@ import {
 import { aggregateArtifactHash, hashCurriculumValue } from "@/lib/curriculum-publication/hash";
 import { db, pool } from "@/lib/db/client";
 import { auth } from "@/lib/auth";
+import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
+import {
+  EmailOutboxReplayConflictError,
+  enqueueEmail,
+  enqueueEmailInTransaction,
+} from "@/lib/notifications/outbox";
 import {
   activity,
   adminFallbackGrant,
@@ -847,6 +853,72 @@ describe("PostgreSQL migration contract", () => {
     ]) {
       expect(constraintNames.has(required), `missing migrated constraint ${required}`).toBe(true);
     }
+  });
+});
+
+describe("email outbox replay transaction boundary", () => {
+  it("rolls back a preceding Drizzle write on a sanitized durable replay conflict", async () => {
+    await seedUsers();
+    const original = {
+      to: "learner-a@integration.invalid",
+      template: "weekly-summary" as const,
+      variables: {
+        name: "Integration Learner A",
+        summary: "Original durable payload",
+      },
+      userId: USER_A,
+      idempotencySeed: "postgres-drizzle-rollback-event",
+    };
+    await enqueueEmail(original);
+    const idempotencyKey = accountMailEventIdempotencyKey({
+      eventId: original.idempotencySeed,
+      template: original.template,
+      userId: original.userId,
+    });
+    const sentinelHash =
+      "a9190d1b8927d84c4786349f381d1c35c4807d358a6b62228d38e8af0e00b046";
+    const privateConflictValue = "must-not-escape-from-replay-conflict";
+
+    let observed: unknown;
+    try {
+      await db.transaction(async (tx) => {
+        await tx.insert(auditEvent).values({
+          action: "integration.outbox_replay_sentinel",
+          resourceType: "integration",
+          outcome: "success",
+          correlationId: "outbox-replay-transaction-rollback",
+          eventHash: sentinelHash,
+        });
+        await enqueueEmailInTransaction(tx, {
+          ...original,
+          variables: {
+            ...original.variables,
+            summary: privateConflictValue,
+          },
+        });
+      });
+    } catch (error) {
+      observed = error;
+    }
+
+    expect(observed).toBeInstanceOf(EmailOutboxReplayConflictError);
+    expect(observed).toMatchObject({
+      code: "EMAIL_OUTBOX_REPLAY_CONFLICT",
+      message: "Email outbox replay conflicts with durable authority.",
+    });
+    expect(String(observed)).not.toContain(privateConflictValue);
+
+    const persistedSentinel = await db
+      .select({ eventHash: auditEvent.eventHash })
+      .from(auditEvent)
+      .where(eq(auditEvent.eventHash, sentinelHash));
+    expect(persistedSentinel).toEqual([]);
+
+    const persistedOutbox = await db
+      .select({ variables: emailOutbox.variables })
+      .from(emailOutbox)
+      .where(eq(emailOutbox.idempotencyKey, idempotencyKey));
+    expect(persistedOutbox).toEqual([{ variables: original.variables }]);
   });
 });
 
@@ -1982,7 +2054,12 @@ describe("versioned category retention", () => {
       template: "weekly-summary",
       templateVersion: "1",
       variables: { name: "Learner" },
-      idempotencyKey: "retention-old-email",
+      idempotencyKey: accountMailEventIdempotencyKey({
+        eventId: "retention-old-email",
+        template: "weekly-summary",
+        userId: USER_A,
+      }),
+      idempotencyAuthorityVersion: "event-v1-native",
       status: "sent",
       sentAt: old,
       createdAt: old,
@@ -1995,7 +2072,12 @@ describe("versioned category retention", () => {
       template: "weekly-summary",
       templateVersion: "1",
       variables: { name: "Learner" },
-      idempotencyKey: "retention-old-failed-email",
+      idempotencyKey: accountMailEventIdempotencyKey({
+        eventId: "retention-old-failed-email",
+        template: "weekly-summary",
+        userId: USER_A,
+      }),
+      idempotencyAuthorityVersion: "event-v1-native",
       status: "failed",
       createdAt: old,
       updatedAt: old,

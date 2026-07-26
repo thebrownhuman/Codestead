@@ -241,6 +241,87 @@ git -C "$work/repo" merge-base --is-ancestor \
   "$dispatch_binding_compatible_source_commit" || {
   fail "the real compatible capability target is not an ancestor of its source"
 }
+task7_durable_replay_migration=drizzle/0067_mail_outbox_durable_replay_authority.sql
+task7_unrecognized_capability_path=infra/ops/mail-outbox-durable-replay-receipt-capability.env
+task7_unrecognized_secret=fixture-task7-receipt-do-not-log
+task7_fixture_index="$work/task7-release-denial.index"
+task7_migration_blob="$(
+  git -C "$work/repo" hash-object -w -- \
+    "$repo_root/$task7_durable_replay_migration"
+)"
+GIT_INDEX_FILE="$task7_fixture_index" \
+  git -C "$work/repo" read-tree "$dispatch_binding_compatible_target_tree"
+GIT_INDEX_FILE="$task7_fixture_index" \
+  git -C "$work/repo" update-index --add --cacheinfo \
+    100644 "$task7_migration_blob" "$task7_durable_replay_migration"
+task7_without_receipt_tree="$(
+  GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE="$task7_fixture_index" \
+    git -C "$work/repo" write-tree --missing-ok
+)"
+task7_without_receipt_target_commit="$(
+  printf '%s\n' 'fixture 0067 rollback target without Task 7 receipt capability' \
+    | git -C "$work/repo" commit-tree "$task7_without_receipt_tree" \
+      -p "$dispatch_binding_compatible_target_commit"
+)"
+task7_without_receipt_source_commit="$(
+  printf '%s\n' 'fixture 0067 rollback source without Task 7 receipt capability' \
+    | git -C "$work/repo" commit-tree "$task7_without_receipt_tree" \
+      -p "$task7_without_receipt_target_commit"
+)"
+for task7_commit in "$task7_without_receipt_source_commit" \
+  "$task7_without_receipt_target_commit"; do
+  [[ "$(
+    git -C "$work/repo" ls-tree -r --name-only \
+      "$task7_commit" -- "$task7_durable_replay_migration"
+  )" == "$task7_durable_replay_migration" ]] || {
+    fail "Task 7 rollback denial fixture omits 0067 from an exact Git tree"
+  }
+done
+if git -C "$work/repo" ls-tree -r --name-only \
+    "$task7_without_receipt_tree" \
+    | grep -Eq '(^|/).*task7.*receipt.*capability|(^|/).*receipt.*task7.*capability'; then
+  fail "plain Task 7 rollback fixture unexpectedly contains a receipt capability"
+fi
+
+task7_unrecognized_capability_blob="$(
+  printf '%s\n' \
+    'SCHEMA_VERSION=999' \
+    "TASK7_RECEIPT_CAPABILITY=$task7_unrecognized_secret" \
+    | git -C "$work/repo" hash-object -w --stdin
+)"
+GIT_INDEX_FILE="$task7_fixture_index" \
+  git -C "$work/repo" update-index --add --cacheinfo \
+    100644 "$task7_unrecognized_capability_blob" \
+    "$task7_unrecognized_capability_path"
+task7_unrecognized_tree="$(
+  GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE="$task7_fixture_index" \
+    git -C "$work/repo" write-tree --missing-ok
+)"
+task7_unrecognized_target_commit="$(
+  printf '%s\n' 'fixture 0067 rollback target with unrecognized receipt file' \
+    | git -C "$work/repo" commit-tree "$task7_unrecognized_tree" \
+      -p "$dispatch_binding_compatible_target_commit"
+)"
+task7_unrecognized_source_commit="$(
+  printf '%s\n' 'fixture 0067 rollback source with unrecognized receipt file' \
+    | git -C "$work/repo" commit-tree "$task7_unrecognized_tree" \
+      -p "$task7_unrecognized_target_commit"
+)"
+for task7_commit in "$task7_unrecognized_source_commit" \
+  "$task7_unrecognized_target_commit"; do
+  [[ "$(
+    git -C "$work/repo" ls-tree -r --name-only \
+      "$task7_commit" -- "$task7_durable_replay_migration"
+  )" == "$task7_durable_replay_migration" \
+    && "$(
+      git -C "$work/repo" ls-tree -r --name-only \
+        "$task7_commit" -- "$task7_unrecognized_capability_path"
+    )" == "$task7_unrecognized_capability_path" ]] || {
+    fail "unrecognized Task 7 file fixture is not in both exact rollback trees"
+  }
+done
+rm -f -- "$task7_fixture_index"
+
 dispatch_binding_index="$work/dispatch-binding.index"
 GIT_INDEX_FILE="$dispatch_binding_index" \
   git -C "$work/repo" read-tree "$dispatch_binding_compatible_tree"
@@ -1149,6 +1230,109 @@ if grep -Eq '0064_mail_outbox_dispatch_binding|dispatch binding capability' \
   fail "exact compatible fenced images were rejected by the 0064 rollback gate"
 fi
 echo "ok - rollback permits only exact compatible fenced dispatch binding images"
+
+task7_rollback_diagnostic='0067_mail_outbox_durable_replay_authority requires an approved Task 7 delivery receipt capability'
+write_task7_rollback_contract() {
+  cat >"$mail_contract_path" <<EOF
+SCHEMA_VERSION=3
+MAIL_OUTBOX_PHASE=dual-write-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
+OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability
+DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract
+STORE_CUTOVER=false
+PREVIOUS_MAIL_OUTBOX_PHASE=dual-write-v1
+PREVIOUS_OUTBOX_WORKER_MODE=fenced-postgres-v1
+PREVIOUS_OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+PREVIOUS_DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability
+PREVIOUS_DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract
+PREVIOUS_RUNTIME_COMPATIBLE=true
+FORWARD_ONLY_MIGRATION=none
+EOF
+  chmod 0600 "$mail_contract_path"
+}
+
+task7_rollback_denial_failures=0
+check_task7_rollback_denial() {
+  local scenario="$1" source_commit="$2" source_tree="$3"
+  local target_commit="$4" target_tree="$5"
+  local current_before="$work/$scenario.current-before.env"
+  local candidate_before="$work/$scenario.candidate-before.env"
+  local marker="$work/control/release-quarantine"
+  local case_failed=false line
+  local command env_flag env_path file_flag file_path action
+  local timeout_flag seconds service extra
+  local stop_count=0
+
+  set_rollback_git_evidence \
+    "$source_commit" "$source_tree" "$target_commit" "$target_tree"
+  write_task7_rollback_contract
+  cp "$work/records/current-release.env" "$current_before"
+  cp "$work/records/latest-candidate.env" "$candidate_before"
+  RUN_STAGE_TIMEOUT=30 \
+    run_rollback "$scenario" --schema-backward-compatible
+  unset RUN_STAGE_TIMEOUT
+
+  if [[ "$ROLLBACK_STATUS" == 0 ]]; then
+    case_failed=true
+  fi
+  if [[ ! -f "$marker" || -L "$marker" \
+    || "$(<"$marker")" != codestead-release-quarantine-v1 ]]; then
+    case_failed=true
+  fi
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    IFS=$'\t' read -r command env_flag env_path file_flag file_path action \
+      timeout_flag seconds service extra <<<"$line"
+    if [[ "$command" != compose || "$env_flag" != --env-file \
+      || "$env_path" != "$work/compose.env" || "$file_flag" != -f \
+      || "$file_path" != "$work/repo/compose.yaml" || "$action" != stop \
+      || "$timeout_flag" != --timeout || "$seconds" != 30 \
+      || "$service" != cloudflared || -n "$extra" ]]; then
+      case_failed=true
+    fi
+    stop_count="$((stop_count + 1))"
+  done <"$ROLLBACK_CASE/docker.log"
+  (( stop_count >= 1 )) || case_failed=true
+  [[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || case_failed=true
+  [[ ! -s "$ROLLBACK_CASE/stdout" ]] || case_failed=true
+  cmp -s "$work/records/current-release.env" "$current_before" \
+    || case_failed=true
+  cmp -s "$work/records/latest-candidate.env" "$candidate_before" \
+    || case_failed=true
+  grep -Fqx "fatal: $task7_rollback_diagnostic" \
+    "$ROLLBACK_CASE/stderr" || case_failed=true
+  (( $(wc -c <"$ROLLBACK_CASE/stderr") <= 512 )) || case_failed=true
+  (( $(wc -l <"$ROLLBACK_CASE/stderr") <= 3 )) || case_failed=true
+  if grep -Eq '[0-9a-f]{40}|[0-9a-f]{64}' \
+      "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/stderr" \
+    || grep -Fq "$task7_unrecognized_secret" \
+      "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/stderr"; then
+    case_failed=true
+  fi
+
+  if [[ "$case_failed" == true ]]; then
+    printf 'unsafe 0067 rollback denial case: %s\n' "$scenario" >&2
+    task7_rollback_denial_failures="$((task7_rollback_denial_failures + 1))"
+  fi
+}
+
+check_task7_rollback_denial task7-receipt-schema-assertion \
+  "$task7_without_receipt_source_commit" "$task7_without_receipt_tree" \
+  "$task7_without_receipt_target_commit" "$task7_without_receipt_tree"
+export MAIL_OUTBOX_TASK7_RECEIPT_CAPABILITY="$task7_unrecognized_secret"
+check_task7_rollback_denial task7-receipt-ambient-claim \
+  "$task7_without_receipt_source_commit" "$task7_without_receipt_tree" \
+  "$task7_without_receipt_target_commit" "$task7_without_receipt_tree"
+unset MAIL_OUTBOX_TASK7_RECEIPT_CAPABILITY
+check_task7_rollback_denial task7-receipt-unrecognized-file \
+  "$task7_unrecognized_source_commit" "$task7_unrecognized_tree" \
+  "$task7_unrecognized_target_commit" "$task7_unrecognized_tree"
+
+(( task7_rollback_denial_failures == 0 )) || {
+  fail "$task7_rollback_denial_failures unsafe 0067 rollback cases reached work beyond quarantine or lacked the Task 7 receipt denial"
+}
+echo "ok - rollback denies exact 0067 source and target trees until a reviewed Task 7 receipt capability exists"
 
 set_rollback_git_evidence \
   "$dispatch_binding_unknown_capability_commit" "$dispatch_binding_unknown_capability_tree" \

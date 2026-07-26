@@ -455,6 +455,20 @@ describe("PostgresOutboxStore", () => {
     for (const call of [decision, lockedDecision, boundary]) {
       expect(call.sql).toContain("_mailOperationId");
       expect(call.sql).toContain("_mailRecipient");
+      expect(call.sql).toContain(
+        "public.backup_status_mail_authorized(outbox.id)",
+      );
+      expect(call.sql).toMatch(
+        /outbox\.variables ->> '_mailAudienceId'\s*=\s*admin_recipient\.id::text/u,
+      );
+      expect(call.sql).toMatch(
+        /outbox\.variables ->> '_mailAudienceId'\s*=\s*source_request\.id::text/u,
+      );
+      expect(call.sql).not.toContain("idempotency_authority_version");
+      expect(call.sql).not.toContain("idempotency_authority_sha256");
+      expect(call.sql).not.toContain("idempotency_original_payload_sha256");
+      expect(call.sql).not.toContain("'admin:' || admin_recipient.id::text");
+      expect(call.sql).not.toContain("'requester:' || source_request.id::text");
       expect(call.sql).toContain("_mailProducer");
       expect(call.sql).toContain("_mailSourceId");
       expect(call.sql).toContain("source_request.adult_confirmed_at is not null");

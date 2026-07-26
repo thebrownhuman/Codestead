@@ -27,7 +27,7 @@ const commonFields = {
 } as const;
 const patchSchema = z.discriminatedUnion("action", [
   z.object({ ...commonFields, action: z.literal("test"), requestId: z.uuid() }).strict(),
-  z.object({ ...commonFields, action: z.enum(["enable", "disable"]) }).strict(),
+  z.object({ ...commonFields, action: z.enum(["enable", "disable"]), requestId: z.uuid() }).strict(),
   z.object({
     ...commonFields,
     action: z.literal("replace"),
@@ -35,7 +35,7 @@ const patchSchema = z.discriminatedUnion("action", [
     secret: z.string().trim().min(8).max(4_096),
   }).strict(),
 ]);
-const deleteSchema = z.object(commonFields).strict();
+const deleteSchema = z.object({ ...commonFields, requestId: z.uuid() }).strict();
 const credentialIdSchema = z.uuid();
 const noStore = {
   "Cache-Control": "private, no-store, max-age=0, must-revalidate",
@@ -118,6 +118,7 @@ async function execute(
     learnerId: string;
     reason: string;
     action: AdminCredentialAction;
+    requestId: string;
     secret?: string;
   },
 ) {
@@ -149,6 +150,7 @@ async function execute(
       learnerPublicId: input.learnerId,
       credentialId,
       action: input.action,
+      requestId: input.requestId,
       reason: input.reason,
       ...(input.action === "replace" ? { replacementSecret: input.secret } : {}),
     });

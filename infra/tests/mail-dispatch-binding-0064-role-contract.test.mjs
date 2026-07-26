@@ -133,7 +133,7 @@ test("bootstrap verifies raw reviewed contracts before role normalization", () =
     "export async function runDatabaseRoleBootstrap(options)",
   );
   const rawContractCheck = bootstrap.indexOf(
-    "await verifyPostMigrationReviewedContractsBeforeReconciliation(client)",
+    "await verifyPostMigrationReviewedContractsBeforeReconciliation(",
     bootstrapStart,
   );
   const roleReset = bootstrap.indexOf(
@@ -141,7 +141,7 @@ test("bootstrap verifies raw reviewed contracts before role normalization", () =
     bootstrapStart,
   );
   const ownershipRepair = bootstrap.indexOf(
-    "await transferApplicationOwnership(client)",
+    "await transferApplicationOwnership(",
     bootstrapStart,
   );
 

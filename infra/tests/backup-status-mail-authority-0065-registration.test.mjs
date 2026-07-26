@@ -10,9 +10,7 @@ import {
 } from "../../scripts/verify-backup-status-mail-authority.mjs";
 import {
   REVIEWED_MIGRATION_LEDGER,
-  REVIEWED_MIGRATION_LEDGER_SHA256,
   reviewedMigrationLedgerSha256,
-  verifyReviewedMigrationRepository,
 } from "../../scripts/lib/reviewed-migration-ledger.mjs";
 import {
   assertBackupStatusMailAuthority0065PostgresProjection,
@@ -32,6 +30,9 @@ const expected0065LedgerEntry = Object.freeze({
   breakpoints: true,
   sqlSha256: "1274dda8013fe80f09df63f7ddc73b24b0a9a482a40e5f5042eaef2373c14b3c",
 });
+const reviewedLedgerThrough0065 = REVIEWED_MIGRATION_LEDGER.slice(0, 66);
+const reviewedLedgerThrough0065Sha256 =
+  reviewedMigrationLedgerSha256(reviewedLedgerThrough0065);
 
 const packageManifest = JSON.parse(read("package.json"));
 const workflow = read(".github/workflows/ci.yml");
@@ -66,24 +67,13 @@ assert.equal(
   "npm run check must execute the 0065 registration guard exactly once",
 );
 
-assert.equal(REVIEWED_MIGRATION_LEDGER.length, 66);
+assert.equal(reviewedLedgerThrough0065.length, 66);
+assert.equal(reviewedLedgerThrough0065.at(-1)?.idx, 65);
+assert.deepEqual(reviewedLedgerThrough0065.at(-1), expected0065LedgerEntry);
 assert.equal(
-  reviewedMigrationLedgerSha256(REVIEWED_MIGRATION_LEDGER),
-  REVIEWED_MIGRATION_LEDGER_SHA256,
-  "the canonical through-0065 ledger digest must verify",
-);
-assert.equal(REVIEWED_MIGRATION_LEDGER.at(-1)?.idx, 65);
-assert.deepEqual(REVIEWED_MIGRATION_LEDGER.at(-1), expected0065LedgerEntry);
-assert.equal(
-  REVIEWED_MIGRATION_LEDGER_SHA256,
+  reviewedLedgerThrough0065Sha256,
   "cfe0f4ae4ad8dd34a018fff730acbc09413e2d4f7e461f8ee033814412735fa9",
 );
-assert.deepEqual(verifyReviewedMigrationRepository(), {
-  entryCount: 66,
-  ledgerSha256: REVIEWED_MIGRATION_LEDGER_SHA256,
-  tailIndex: 65,
-  tailTag: "0065_backup_status_mail_authority",
-});
 
 const migrationNames = readdirSync(new URL("../../drizzle", import.meta.url))
   .filter((name) => /^\d{4}_.+\.sql$/u.test(name))
@@ -91,10 +81,10 @@ const migrationNames = readdirSync(new URL("../../drizzle", import.meta.url))
   .sort();
 assert.deepEqual(
   migrationNames,
-  REVIEWED_MIGRATION_LEDGER.map(({ tag }) => `${tag}.sql`),
+  reviewedLedgerThrough0065.map(({ tag }) => `${tag}.sql`),
   "the canonical ordered ledger must name every migration through 0065",
 );
-for (const entry of REVIEWED_MIGRATION_LEDGER) {
+for (const entry of reviewedLedgerThrough0065) {
   assert.equal(
     sha256(readBytes(`drizzle/${entry.tag}.sql`)),
     entry.sqlSha256,
@@ -112,7 +102,7 @@ const journalThrough0065 = journal.entries
   .sort((left, right) => left.idx - right.idx);
 assert.deepEqual(
   journalThrough0065,
-  REVIEWED_MIGRATION_LEDGER.map(({ sqlSha256: omittedSqlSha256, ...entry }) => {
+  reviewedLedgerThrough0065.map(({ sqlSha256: omittedSqlSha256, ...entry }) => {
     assert.match(omittedSqlSha256, /^[0-9a-f]{64}$/u);
     return entry;
   }),
@@ -147,11 +137,14 @@ assert.equal(
 const phase0064 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
   ({ index }) => index === 64,
 );
+const phasesThrough0065 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.filter(
+  ({ index }) => index <= 65,
+);
 assert.deepEqual(
-  REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.map((phase) => phase.index),
+  phasesThrough0065.map((phase) => phase.index),
   [62, 63, 64, 65],
 );
-const phase0065 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.at(-1);
+const phase0065 = phasesThrough0065.at(-1);
 assert.equal(phase0064?.routines.length, 4);
 assert.equal(phase0064?.triggers.length, 2);
 assert.equal(phase0064?.backupStatusAuthority, null);
@@ -295,7 +288,7 @@ assert.deepEqual(
       19,
       null,
       [],
-      ["id", "email", "role", "banned", "status"],
+      ["id", "email", "role", "status", "banned"],
     ],
     [
       'public."user"',

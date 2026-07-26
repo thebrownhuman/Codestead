@@ -409,6 +409,14 @@ type SystemMailAuthorityParameters = Readonly<{
   lockAuthorityRows: boolean;
 }>;
 
+function systemAudienceAuthorityPredicate(
+  outbox: string,
+  authoritativeAudienceSql: string,
+) {
+  const audience = `${outbox}.variables ->> '_mailAudienceId'`;
+  return `(${audience} = ${authoritativeAudienceSql})`;
+}
+
 function systemMailAuthorityPredicate(
   outbox: string,
   input: SystemMailAuthorityParameters,
@@ -435,6 +443,14 @@ function systemMailAuthorityPredicate(
     outbox,
     ACCESS_REQUEST_REJECTED_TEMPLATE_AUTHORITY,
   );
+  const adminAudienceAuthority = systemAudienceAuthorityPredicate(
+    outbox,
+    "admin_recipient.id::text",
+  );
+  const requesterAudienceAuthority = systemAudienceAuthorityPredicate(
+    outbox,
+    "source_request.id::text",
+  );
 
   return `(
     ${outbox}.user_id is null
@@ -454,6 +470,7 @@ function systemMailAuthorityPredicate(
           join public."user" admin_recipient
             on lower(admin_recipient.email) = ${outbox}.to_email
           where source_request.id::text = ${outbox}.variables ->> '_mailSourceId'
+            and ${adminAudienceAuthority}
             and source_request.status = 'pending'
             and source_request.adult_confirmed_at is not null
             and source_request.decided_by is null
@@ -476,6 +493,7 @@ function systemMailAuthorityPredicate(
           join public.access_request source_request
             on source_invitation.access_request_id = source_request.id
           where source_invitation.id::text = ${outbox}.variables ->> '_mailSourceId'
+            and ${requesterAudienceAuthority}
             and source_request.status = 'approved'
             and source_request.decided_by is not null
             and source_request.decision_reason is not null
@@ -500,6 +518,7 @@ function systemMailAuthorityPredicate(
           select 1
           from public.access_request source_request
           where source_request.id::text = ${outbox}.variables ->> '_mailSourceId'
+            and ${requesterAudienceAuthority}
             and source_request.status = 'rejected'
             and source_request.decided_by is not null
             and source_request.decision_reason is not null
@@ -574,6 +593,10 @@ function deletionNoticeCapabilityPredicate(
 }
 
 const ACCOUNT_MAIL_AUTHORITY_SQL = accountMailAuthorityPredicate("outbox");
+const BACKUP_STATUS_TEMPLATE_SQL = "'backup-status'";
+const BACKUP_STATUS_MAIL_AUTHORITY_SQL =
+  `(outbox.template = ${BACKUP_STATUS_TEMPLATE_SQL}`
+  + " and public.backup_status_mail_authorized(outbox.id))";
 const DECISION_DELETION_CAPABILITY_SQL = deletionNoticeCapabilityPredicate("outbox", {
   validParameter: 14,
   recipientHmacParameter: 12,
@@ -686,6 +709,7 @@ type BoundaryDecision =
   | "allowed"
   | "ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY"
   | "SYSTEM_EMAIL_AUTHORITY_INVALID"
+  | "BACKUP_STATUS_MAIL_AUTHORITY_INVALID"
   | "DELETION_NOTICE_CAPABILITY_INVALID";
 
 async function lockFenceScope(
@@ -861,7 +885,12 @@ async function providerBoundaryDecision(
     select case
       when ${systemAuthoritySql} then 'allowed'
       when outbox.user_id is null then 'SYSTEM_EMAIL_AUTHORITY_INVALID'
-      when outbox.template <> ${DELETION_NOTICE_TEMPLATE_SQL} and ${accountAuthoritySql}
+      when ${BACKUP_STATUS_MAIL_AUTHORITY_SQL} then 'allowed'
+      when outbox.template = ${BACKUP_STATUS_TEMPLATE_SQL}
+        then 'BACKUP_STATUS_MAIL_AUTHORITY_INVALID'
+      when outbox.template not in (
+        ${DELETION_NOTICE_TEMPLATE_SQL}, ${BACKUP_STATUS_TEMPLATE_SQL}
+      ) and ${accountAuthoritySql}
         then 'allowed'
       when ${DECISION_DELETION_CAPABILITY_SQL} then 'allowed'
       when outbox.template = ${DELETION_NOTICE_TEMPLATE_SQL}
@@ -875,6 +904,7 @@ async function providerBoundaryDecision(
       and outbox.claim_owner = $4::text
       and outbox.claim_version = $5::integer
       and outbox.delivery_scope_key = $6::text
+      and outbox.delivery_hold_version is null
       and outbox.user_id is not distinct from $7::text
       and outbox.to_email = lower(btrim($8::text))
       and outbox.template = $9::text
@@ -979,6 +1009,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                quarantined_at::text, last_error_code
         from public.email_outbox
         where operation_id = $1::uuid
+          and delivery_hold_version is null
           and adapter = 'gmail'
           and provider_call_started is not null
           and (
@@ -1154,6 +1185,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and claim_version = $3::integer
           and user_id is not distinct from $4::text
           and delivery_scope_key = $5::text
+          and delivery_hold_version is null
           and adapter = $6::text
           and claim_token is not distinct from $7::uuid
           and claim_owner is not distinct from $8::text
@@ -1210,6 +1242,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and claim_version = $3::integer
           and user_id is not distinct from $4::text
           and delivery_scope_key = $5::text
+          and delivery_hold_version is null
           and adapter = $6::text
           and claim_token is not distinct from $7::uuid
           and claim_owner is not distinct from $8::text
@@ -1292,6 +1325,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                  ) as scope_rank
           from public.email_outbox candidate
           where candidate.claim_version < 2147483647
+            and candidate.delivery_hold_version is null
             and (
               (candidate.user_id is not null and candidate.delivery_scope_key = 'a:' || candidate.user_id)
             or (
@@ -1366,6 +1400,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             and claim_version = $3::integer
             and claim_version < 2147483647
             and user_id is not distinct from $7::text
+            and delivery_hold_version is null
             and delivery_scope_key = $8::text
             and (
               (
@@ -1486,6 +1521,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             and outbox.claim_owner = $4::text
             and outbox.claim_version = $5::integer
             and outbox.delivery_scope_key = $6::text
+            and outbox.delivery_hold_version is null
             and outbox.user_id is not distinct from $8::text
             and outbox.to_email = lower(btrim($9::text))
             and outbox.template = $10::text
@@ -1504,9 +1540,16 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                 and not (${SUPPRESSION_DELETION_CAPABILITY_SQL})
               )
               or (
+                $7::text = 'BACKUP_STATUS_MAIL_AUTHORITY_INVALID'
+                and outbox.template = ${BACKUP_STATUS_TEMPLATE_SQL}
+                and not public.backup_status_mail_authorized(outbox.id)
+              )
+              or (
                 $7::text = 'ACCOUNT_NOT_ACTIVE_AT_PROVIDER_BOUNDARY'
                 and outbox.user_id is not null
-                and outbox.template <> ${DELETION_NOTICE_TEMPLATE_SQL}
+                and outbox.template not in (
+                  ${DELETION_NOTICE_TEMPLATE_SQL}, ${BACKUP_STATUS_TEMPLATE_SQL}
+                )
                 and not (${ACCOUNT_MAIL_AUTHORITY_SQL})
               )
               or (
@@ -1566,6 +1609,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and outbox.provider_call_started is null
           and outbox.quarantined_at is null
           and outbox.lease_expires_at > pg_catalog.statement_timestamp()
+          and outbox.delivery_hold_version is null
           and outbox.status = 'sending'
           and outbox.user_id is not distinct from $8::text
           and outbox.delivery_scope_key = $9::text
@@ -1575,8 +1619,11 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
           and outbox.variables = $13::jsonb
           and (
             ${BOUNDARY_SYSTEM_MAIL_AUTHORITY_SQL}
+            or ${BACKUP_STATUS_MAIL_AUTHORITY_SQL}
             or (
-              outbox.template <> ${DELETION_NOTICE_TEMPLATE_SQL}
+              outbox.template not in (
+                ${DELETION_NOTICE_TEMPLATE_SQL}, ${BACKUP_STATUS_TEMPLATE_SQL}
+              )
               and ${ACCOUNT_MAIL_AUTHORITY_SQL}
             )
             or ${BOUNDARY_DELETION_CAPABILITY_SQL}
@@ -2021,6 +2068,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
                claim_token::text, claim_owner, lease_expires_at::text as lease_expires_at
         from public.email_outbox
         where status = 'sending'
+          and delivery_hold_version is null
           and provider_call_started is not null
           and adapter is not null
           and provider_message_id is null
@@ -2069,6 +2117,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
             and adapter is not null
             and provider_message_id is null
             and quarantined_at is null
+            and delivery_hold_version is null
             and status = 'sending'
           returning operation_id::text, claim_version, claim_token::text, claim_owner, lease_expires_at
         `, [

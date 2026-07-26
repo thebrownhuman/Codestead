@@ -301,17 +301,16 @@ export async function revokeOneOwnedSession(input: {
   const now = input.now ?? new Date();
   return db.transaction(async (tx) => {
     const [row] = await tx
-      .select({
+      .delete(session)
+      .where(and(eq(session.id, input.sessionId), eq(session.userId, input.userId)))
+      .returning({
         id: session.id,
         deviceLabel: session.deviceLabel,
         userAgent: session.userAgent,
         createdAt: session.createdAt,
         lastSeenAt: session.lastSeenAt,
         expiresAt: session.expiresAt,
-      })
-      .from(session)
-      .where(and(eq(session.id, input.sessionId), eq(session.userId, input.userId)))
-      .limit(1);
+      });
     if (!row) return false;
     await tx
       .insert(authSessionHistory)
@@ -328,9 +327,6 @@ export async function revokeOneOwnedSession(input: {
         revokedByUserId: input.actorUserId,
       })
       .onConflictDoNothing({ target: authSessionHistory.originalSessionId });
-    await tx
-      .delete(session)
-      .where(and(eq(session.id, input.sessionId), eq(session.userId, input.userId)));
     await tx
       .update(sessionRevocationRequest)
       .set({

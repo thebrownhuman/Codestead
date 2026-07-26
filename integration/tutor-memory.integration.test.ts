@@ -104,14 +104,14 @@ async function seed() {
   }
   await pool.query(
     `insert into email_outbox
-      (id,user_id,delivery_scope_key,to_email,template,template_version,variables,idempotency_key,status,created_at,updated_at)
+      (id,user_id,delivery_scope_key,to_email,template,template_version,variables,idempotency_key,idempotency_authority_version,status,created_at,updated_at)
      values
       ('67000000-0000-4000-8000-000000000001',$1,'a:' || $1,'asha-memory@integration.invalid','weekly-summary','1',
-       '{"summary":"Older summary"}'::jsonb,'memory-old','sent',$3::timestamptz - interval '1 day',$3::timestamptz - interval '1 day'),
+       '{"summary":"Older summary"}'::jsonb,'b04c397be415650a1bf513e37c4dfa64bd98b80dbaa2c538851b55ccab80ba66','event-v1-native','sent',$3::timestamptz - interval '1 day',$3::timestamptz - interval '1 day'),
       ('67000000-0000-4000-8000-000000000002',$1,'a:' || $1,'asha-memory@integration.invalid','weekly-summary','1',
-       $4::jsonb,'memory-latest','sent',$3::timestamptz,$3::timestamptz),
+       $4::jsonb,'c52cdc5a21700cf40ffd1934f8da7a564b216a2c6e1563b144df5803410e048c','event-v1-native','sent',$3::timestamptz,$3::timestamptz),
       ('67000000-0000-4000-8000-000000000003',$2,'a:' || $2,'other-memory@integration.invalid','weekly-summary','1',
-       '{"summary":"OTHER-SUMMARY-SENTINEL"}'::jsonb,'memory-other','sent',$3::timestamptz,$3::timestamptz)`,
+       '{"summary":"OTHER-SUMMARY-SENTINEL"}'::jsonb,'53a3d96d2de01a41a5e87bd1ecba4ece9c78c29bd6595d343707516dd10329d1','event-v1-native','sent',$3::timestamptz,$3::timestamptz)`,
     [LEARNER, OTHER, NOW, JSON.stringify({ summary: `Latest owner summary. token: ${FAKE_OPENAI_KEY}` })],
   );
   await pool.query(

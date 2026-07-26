@@ -8,6 +8,8 @@ import {
   REVIEWED_APPLICATION_CONSTRAINTS,
   REVIEWED_APPLICATION_FUNCTIONS,
   REVIEWED_APPLICATION_TRIGGERS,
+  REVIEWED_0066_APPLICATION_FUNCTIONS,
+  REVIEWED_0066_APPLICATION_TRIGGERS,
   REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES,
 } from "../../scripts/bootstrap-database-roles.mjs";
 
@@ -216,15 +218,19 @@ test("0066 exact routine, trigger, constraint, and phase are frozen in the verif
   ]);
   assert.equal(
     constraint.normalizedExpressionSha256,
-    "02a5367ba5c5eed54bc69732c38f1517fa05d7321aaad3c11d30200ee6b06dc8",
+    "2594dd57e4115fe9296d03888d8d1771b98e90725bce7e0d66c753eb1f0dba82",
   );
 
   assert.deepEqual(
     REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.map(({ index }) => index),
-    [62, 63, 64, 65, 66],
+    [62, 63, 64, 65, 66, 67],
   );
-  const phase0065 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.at(-2);
-  const phase0066 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.at(-1);
+  const phase0065 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
+    ({ index }) => index === 65,
+  );
+  const phase0066 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
+    ({ index }) => index === 66,
+  );
   assert.equal(phase0065?.index, 65);
   assert.equal(phase0065?.requiresProviderEvidence, false);
   assert.deepEqual(
@@ -236,20 +242,22 @@ test("0066 exact routine, trigger, constraint, and phase are frozen in the verif
           migrationSha256: phase0066.migrationSha256,
           requiresWorkerContract: phase0066.requiresWorkerContract,
           requiresProviderEvidence: phase0066.requiresProviderEvidence,
+          requiresReplayAuthority: phase0066.requiresReplayAuthority,
         }
       : null,
     {
       index: 66,
-      createdAt: "1784940000000",
+      createdAt: "1784997273087",
       migrationFile: "0066_mail_outbox_provider_correlation_evidence.sql",
       migrationSha256:
         "3d4962ed82c0209245ca7e0a0e9ea667001eab7ae864f89120894cc1fa915ec9",
       requiresWorkerContract: true,
       requiresProviderEvidence: true,
+      requiresReplayAuthority: false,
     },
   );
-  assert.equal(phase0066?.routines, REVIEWED_APPLICATION_FUNCTIONS);
-  assert.equal(phase0066?.triggers, REVIEWED_APPLICATION_TRIGGERS);
+  assert.equal(phase0066?.routines, REVIEWED_0066_APPLICATION_FUNCTIONS);
+  assert.equal(phase0066?.triggers, REVIEWED_0066_APPLICATION_TRIGGERS);
   assert.equal(
     phase0066?.backupStatusAuthority,
     phase0065?.backupStatusAuthority,

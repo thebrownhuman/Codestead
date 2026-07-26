@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 
 import type { PoolClient } from "pg";
 
@@ -10,6 +10,7 @@ import { gradeExamSubmission } from "@/app/api/exams/_lib/policy";
 import { EXAM_MASTERY_RULE_VERSION, examModuleMasterySlug } from "@/lib/achievements/exam-mastery";
 import { hashAppealEvidence } from "@/lib/appeals/evidence";
 import { pool } from "@/lib/db/client";
+import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 import { runtimeByLanguage } from "@/lib/runner/client";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
 import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
@@ -576,13 +577,15 @@ async function persistOutcome(job: ClaimedJob, correctedResult: ExamResult, runn
       [job.userId, actionPath, now],
     );
     if (learnerAuthority.rows[0]) {
-      const mailKey = createHash("sha256")
-        .update(`assessment-corrected:${learnerAuthority.rows[0].email.toLowerCase()}:${outcomeId}`)
-        .digest("hex");
+      const mailKey = accountMailEventIdempotencyKey({
+        eventId: outcomeId,
+        template: "assessment-corrected",
+        userId: job.userId,
+      });
       await client.query(
         `insert into email_outbox
-          (user_id, delivery_scope_key, to_email, template, template_version, variables, idempotency_key, status)
-         values ($1,'a:' || $1,lower($2),'assessment-corrected','1',$3::jsonb,$4,'pending')
+          (user_id, delivery_scope_key, to_email, template, template_version, variables, idempotency_key, idempotency_authority_version, status)
+         values ($1,'a:' || $1,lower($2),'assessment-corrected','1',$3::jsonb,$4,'event-v1-native','pending')
          on conflict (idempotency_key) do nothing`,
         [job.userId, learnerAuthority.rows[0].email, JSON.stringify({
           name: learnerAuthority.rows[0].name,

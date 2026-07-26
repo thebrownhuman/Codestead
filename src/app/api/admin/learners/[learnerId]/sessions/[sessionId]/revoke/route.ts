@@ -100,7 +100,7 @@ export async function POST(
   await notifySessionRevoked({
     userId: learnerId,
     device,
-    idempotencySeed: `${sessionId}:${authz.session.user.id}`,
+    idempotencySeed: sessionId,
   }).catch(() => undefined);
   return adminJson({ ok: true });
 }

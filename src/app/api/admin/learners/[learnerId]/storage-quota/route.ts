@@ -119,7 +119,7 @@ export async function PATCH(
           resourceId: learnerId,
           reason: body.data.reason,
           outcome: "success",
-          correlationId: body.data.requestId,
+          correlationId: quota.requestId,
           metadata: {
             quotaBytes: quota.quotaBytes,
             usedBytes: quota.usedBytes,
@@ -129,7 +129,7 @@ export async function PATCH(
         });
         let notificationWarning: string | undefined;
         try {
-          await emailStorageQuotaChanged(quota, body.data.requestId);
+          await emailStorageQuotaChanged(quota);
         } catch {
           notificationWarning = "The in-app notice was recorded, but email delivery could not be queued.";
           await writeAuditEvent({
@@ -139,7 +139,7 @@ export async function PATCH(
             resourceType: "email_outbox",
             resourceId: learnerId,
             outcome: "failure",
-            correlationId: body.data.requestId,
+            correlationId: quota.requestId,
             metadata: { errorCode: "EMAIL_ENQUEUE_FAILED" },
           }).catch(() => undefined);
         }

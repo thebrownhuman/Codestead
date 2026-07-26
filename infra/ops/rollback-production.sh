@@ -127,6 +127,8 @@ readonly mail_outbox_dispatch_binding_boundary_commit=b73788a4b4d213e6423d737050
 readonly mail_outbox_dispatch_binding_capability_path=infra/ops/mail-outbox-dispatch-binding-capability.env
 readonly mail_outbox_dispatch_binding_capability_mode=100644
 readonly mail_outbox_dispatch_binding_capability_blob=ea707715f84608b1e1a33ac1832d533b878b6c07
+readonly mail_outbox_durable_replay_migration_path=drizzle/0067_mail_outbox_durable_replay_authority.sql
+readonly mail_outbox_task7_receipt_denial='0067_mail_outbox_durable_replay_authority requires an approved Task 7 delivery receipt capability'
 readonly dispatch_binding_runtime_contract=exact-adapter-payload-sha256-before-provider-call-v1
 readonly dispatch_binding_privilege_contract=owner-execute-worker-columns-update-only-no-grant-option-trigger-v1
 readonly -a mail_outbox_forward_only_capability_registry=(
@@ -1051,6 +1053,31 @@ run_local_evidence_git() {
     GIT_NO_REPLACE_OBJECTS=1 \
     "$git_bin" -C "$repo_root" "$@"
 }
+
+deny_unapproved_mail_outbox_durable_replay_tree() {
+  local commit="$1" expected_tree="$2"
+  local actual_tree durable_replay_entry
+
+  actual_tree="$(run_local_evidence_git rev-parse --verify \
+    "${commit}^{tree}" 2>/dev/null)" || {
+    fatal "unable to verify the trusted 0067 durable replay rollback tree"
+  }
+  [[ "$actual_tree" == "$expected_tree" ]] || {
+    fatal "trusted 0067 durable replay rollback tree evidence does not match repository objects"
+  }
+  durable_replay_entry="$(run_local_evidence_git ls-tree "$actual_tree" -- \
+    "$mail_outbox_durable_replay_migration_path" 2>/dev/null)" || {
+    fatal "unable to verify the trusted 0067 durable replay rollback tree"
+  }
+  [[ -z "$durable_replay_entry" ]] || {
+    fatal "$mail_outbox_task7_receipt_denial"
+  }
+}
+
+deny_unapproved_mail_outbox_durable_replay_tree \
+  "$record_git_commit" "$record_git_tree"
+deny_unapproved_mail_outbox_durable_replay_tree \
+  "$previous_git_commit" "$previous_git_tree"
 
 load_dispatch_binding_capability() {
   local commit="$1" expected_tree="$2" label="$3" entry metadata entry_path entry_extra

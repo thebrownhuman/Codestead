@@ -91,6 +91,7 @@ describe("real PostgreSQL administrator credential operations", () => {
       learnerPublicId: LEARNER_PUBLIC_ID,
       credentialId: CREDENTIAL_ID,
       action: "disable",
+      requestId: "a3000000-0000-4000-8000-000000000001",
       reason: "Disable the learner key while the provider issue is reviewed.",
     })).resolves.toMatchObject({ action: "disable", status: "disabled" });
 
@@ -120,6 +121,7 @@ describe("real PostgreSQL administrator credential operations", () => {
       learnerPublicId: LEARNER_PUBLIC_ID,
       credentialId: CREDENTIAL_ID,
       action: "disable",
+      requestId: "a3000000-0000-4000-8000-000000000002",
       reason: "A learner cannot perform this administrator operation.",
     })).rejects.toMatchObject({ code: "ADMIN_REQUIRED" });
 
@@ -128,6 +130,7 @@ describe("real PostgreSQL administrator credential operations", () => {
       learnerPublicId: "b1000000-0000-4000-8000-000000000099",
       credentialId: CREDENTIAL_ID,
       action: "disable",
+      requestId: "a3000000-0000-4000-8000-000000000003",
       reason: "This mismatched learner must not receive the operation.",
     })).rejects.toMatchObject({ code: "CREDENTIAL_NOT_FOUND" });
 
@@ -148,6 +151,7 @@ describe("real PostgreSQL administrator credential operations", () => {
       learnerPublicId: LEARNER_PUBLIC_ID,
       credentialId: CREDENTIAL_ID,
       action: "disable",
+      requestId: "a3000000-0000-4000-8000-000000000004",
       reason: secretCanary,
     })).rejects.toThrow();
 
@@ -170,6 +174,7 @@ describe("real PostgreSQL administrator credential operations", () => {
       learnerPublicId: LEARNER_PUBLIC_ID,
       credentialId: CREDENTIAL_ID,
       action: "test",
+      requestId: "a3000000-0000-4000-8000-000000000005",
       reason: secretCanary,
     })).rejects.toThrow(/Secret-like value/i);
 
@@ -185,6 +190,7 @@ describe("real PostgreSQL administrator credential operations", () => {
       learnerPublicId: LEARNER_PUBLIC_ID,
       credentialId: CREDENTIAL_ID,
       action: "disable",
+      requestId: "a3000000-0000-4000-8000-000000000006",
       reason: "Reject replacement material on this disable operation.",
       replacementSecret: "must-never-be-accepted-here",
     })).rejects.toEqual(expect.any(AdminCredentialError));

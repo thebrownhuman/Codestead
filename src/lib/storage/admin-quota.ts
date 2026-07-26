@@ -41,6 +41,10 @@ export interface LearnerStorageQuota {
   readonly replayed: boolean;
 }
 
+export interface LearnerStorageQuotaChange extends LearnerStorageQuota {
+  readonly requestId: string;
+}
+
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function normalizeQuotaChangeRequest(input: {
@@ -169,7 +173,7 @@ export async function changeLearnerStorageQuota(input: {
   readonly requestId: string;
   readonly actorUserId: string;
   readonly reason: string;
-}): Promise<LearnerStorageQuota> {
+}): Promise<LearnerStorageQuotaChange> {
   const request = normalizeQuotaChangeRequest(input);
   return db.transaction(async (tx) => {
     // Serialize the idempotency key independently of the learner lock. Two
@@ -216,6 +220,7 @@ export async function changeLearnerStorageQuota(input: {
       }
       return {
         ...priorIdentity,
+        requestId: request.requestId,
         usedBytes: numberFromDatabase(prior.usedBytesAtChange),
         quotaBytes: numberFromDatabase(prior.requestedBytes),
         rowVersion: numberFromDatabase(prior.resultingRowVersion),
@@ -318,6 +323,7 @@ export async function changeLearnerStorageQuota(input: {
       requestHash: request.requestHash,
     });
     return {
+      requestId: request.requestId,
       learnerUserId: current.learnerUserId,
       learnerPublicId: current.learnerPublicId,
       learnerName: current.learnerName,

@@ -305,9 +305,51 @@ function extractRuntimeEntries(postgresProjection) {
   }));
 }
 
+function assertExactCiScriptList(
+  actual,
+  expected,
+  message,
+  { allowReviewedSuffix },
+) {
+  assert.equal(
+    new Set(actual).size,
+    actual.length,
+    `${message}: scripts must not be duplicated`,
+  );
+  if (!allowReviewedSuffix) {
+    assert.deepEqual(actual, expected, message);
+    return;
+  }
+  assert.ok(
+    actual.length >= expected.length,
+    `${message}: the historical prefix must not be truncated`,
+  );
+  assert.deepEqual(
+    actual.slice(0, expected.length),
+    expected,
+    `${message}: the historical prefix must remain exact and ordered`,
+  );
+  const expectedVersions = expected.map((script) => {
+    const match = script.match(/-(\d{4})(?::|$)/u);
+    assert.ok(match, `${message}: historical script has no migration version`);
+    return Number.parseInt(match[1], 10);
+  });
+  let lastVersion = Math.max(...expectedVersions);
+  for (const script of actual.slice(expected.length)) {
+    const match = script.match(/-(\d{4})(?::|$)/u);
+    assert.ok(match, `${message}: suffix script has no migration version`);
+    const version = Number.parseInt(match[1], 10);
+    assert.ok(
+      version > lastVersion,
+      `${message}: suffix migrations must be strictly later and ordered`,
+    );
+    lastVersion = version;
+  }
+}
 function assertCanonicalPostgresInstallAndRuntimeMajors(
   postgresProjection,
   contract,
+  { allowReviewedSuffix },
 ) {
   const { productionMajor, targetedMajor } = postgresCiRuntimePolicy;
   const expected = projectPostgresCiProjectionContract(contract);
@@ -395,15 +437,17 @@ function assertCanonicalPostgresInstallAndRuntimeMajors(
   const targetedEntries = runtimeEntries.filter(
     (entry) => entry.environmentMajor === targetedMajor,
   );
-  assert.deepEqual(
+  assertExactCiScriptList(
     productionEntries.map((entry) => entry.script),
     contract.productionPg17Scripts,
     "PostgreSQL 17 scripts must match the exact composed contract",
+    { allowReviewedSuffix },
   );
-  assert.deepEqual(
+  assertExactCiScriptList(
     targetedEntries.map((entry) => entry.script),
     contract.targetedPg18Scripts,
     "PostgreSQL 18 scripts must match the exact composed contract",
+    { allowReviewedSuffix },
   );
 
   const firstProductionIndex = productionEntries.at(0)?.index ?? -1;
@@ -427,7 +471,9 @@ function assertCanonicalPostgresInstallAndRuntimeMajors(
 export function assertPostgresCiProjectionContract(
   postgresProjection,
   contract = canonicalPostgresCiProjectionContract,
+  { allowReviewedSuffix = false } = {},
 ) {
+  assert.equal(typeof allowReviewedSuffix, "boolean");
   const expected = projectPostgresCiProjectionContract(contract);
   assert.deepEqual(
     postgresProjection.match(/^    runs-on: .+$/gmu) ?? [],
@@ -451,13 +497,18 @@ export function assertPostgresCiProjectionContract(
   );
 
   const registrationEntries = extractRegistrationEntries(postgresProjection);
-  assert.deepEqual(
+  assertExactCiScriptList(
     registrationEntries.map((entry) => entry.script),
     contract.registrationScripts,
     "PostgreSQL CI registration scripts must match the exact composed contract",
+    { allowReviewedSuffix },
   );
 
-  assertCanonicalPostgresInstallAndRuntimeMajors(postgresProjection, contract);
+  assertCanonicalPostgresInstallAndRuntimeMajors(
+    postgresProjection,
+    contract,
+    { allowReviewedSuffix },
+  );
 
   const installIndex = postgresProjection.indexOf(expected.installLine);
   const lastRegistrationIndex = registrationEntries.at(-1)?.index ?? -1;

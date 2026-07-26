@@ -8,7 +8,6 @@ import {
   assertMailDispatchBinding0064PostgresProjection,
   mailDispatchBinding0064CiContract,
 } from "./mail-dispatch-binding-0064-ci-contract.mjs";
-import { postgresCiProjectionThrough0065 } from "./backup-status-mail-authority-0065-ci-contract.mjs";
 
 const allocatorProbePath = fileURLToPath(
   new URL(
@@ -187,9 +186,77 @@ const postgresJob =
   workflow.match(
     /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
   )?.[0] ?? "";
-assertMailDispatchBinding0064PostgresProjection(
-  postgresJob,
-  postgresCiProjectionThrough0065,
+assert.doesNotThrow(
+  () => assertMailDispatchBinding0064PostgresProjection(postgresJob),
+  "the historical 0064 contract must accept ordered 0065-0067 suffixes",
+);
+
+const replaceProjectionExactly = (projection, before, after) => {
+  assert.equal(
+    projection.split(before).length,
+    2,
+    `0064 mutation anchor must be unique: ${before}`,
+  );
+  return projection.replace(before, after);
+};
+const expectHistoricalProjectionRejected = (
+  label,
+  projection,
+  expectedMessage,
+) => {
+  assert.throws(
+    () => assertMailDispatchBinding0064PostgresProjection(projection),
+    expectedMessage,
+    label,
+  );
+};
+const registration0064Line =
+  "      - run: npm run test:mail-dispatch-binding-0064:registration";
+const registration0066Line =
+  "      - run: npm run test:mail-provider-correlation-0066:registration";
+const registration0067Line =
+  "      - run: npm run test:mail-durable-replay-0067:registration";
+const role0064Line =
+  "      - run: npm run test:mail-dispatch-binding-0064:roles";
+
+expectHistoricalProjectionRejected(
+  "0064 cannot hide an earlier registration dependency",
+  replaceProjectionExactly(
+    postgresJob,
+    "      - run: npm run test:mail-retention-redaction-0063:registration\n",
+    "",
+  ),
+  /historical prefix/u,
+);
+expectHistoricalProjectionRejected(
+  "an older migration cannot be inserted after the 0064 prefix",
+  replaceProjectionExactly(
+    postgresJob,
+    registration0064Line,
+    [
+      registration0064Line,
+      "      - run: npm run test:hostile-mail-authority-0062:registration",
+    ].join("\n"),
+  ),
+  /suffix migrations must be strictly later and ordered/u,
+);
+expectHistoricalProjectionRejected(
+  "0064 reviewed suffix registrations cannot be reordered",
+  replaceProjectionExactly(
+    postgresJob,
+    [registration0066Line, registration0067Line].join("\n"),
+    [registration0067Line, registration0066Line].join("\n"),
+  ),
+  /suffix migrations must be strictly later and ordered/u,
+);
+expectHistoricalProjectionRejected(
+  "the 0064 role contract must remain exact-once",
+  replaceProjectionExactly(
+    postgresJob,
+    role0064Line,
+    [role0064Line, role0064Line].join("\n"),
+  ),
+  /must appear exactly once/u,
 );
 
 console.log("mail-dispatch-binding-0064-registration-tests-ok");

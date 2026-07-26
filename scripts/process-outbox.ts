@@ -5,6 +5,7 @@ import { pool } from "../src/lib/db/client";
 import { materializeDeliveryVariables } from "../src/lib/notifications/delivery-variables";
 import { scheduleInactivityReminders } from "../src/lib/notifications/inactivity";
 import {
+  requireMailDeliveryAuthorityRuntime,
   requireMailDispatchPostgresRuntime,
 } from "../src/lib/notifications/mail-dispatch-runtime-startup";
 import {
@@ -42,6 +43,7 @@ const TERMINAL_PERSISTENCE_ATTEMPTS = 3;
 const FENCED_WORKER_MODE = "fenced-postgres-v1";
 const MAIL_WORKER_ERROR_CODES = new Set([
   "MAIL_WORKER_FAILED",
+  "MAIL_DELIVERY_AUTHORITY_UNAVAILABLE",
   "OUTBOX_WORKER_MODE_INVALID",
   "POOL_SHUTDOWN_FAILED",
   "POOL_SHUTDOWN_TIMEOUT",
@@ -61,6 +63,13 @@ class OutboxWorkerModeError extends Error {
     this.name = "OUTBOX_WORKER_MODE_INVALID";
   }
 }
+class MailDeliveryAuthorityUnavailableError extends Error {
+  constructor() {
+    super("Mail delivery authority is unavailable.");
+    this.name = "MAIL_DELIVERY_AUTHORITY_UNAVAILABLE";
+  }
+}
+
 const POOL_SHUTDOWN_TIMEOUT_MS = 5_000;
 const TERMINATION_SIGNALS = ["SIGTERM", "SIGINT"] as const;
 
@@ -159,6 +168,26 @@ function configuredAdapter(): "console" | "gmail" {
     throw new Error("MAIL_ADAPTER must be either console or gmail.");
   }
   return adapter;
+}
+
+async function requireRunnableMailDeliveryAuthority() {
+  try {
+    const verdict = await requireMailDeliveryAuthorityRuntime(pool);
+    if (
+      typeof verdict !== "object"
+      || verdict === null
+      || typeof verdict.holdCatalogExact !== "boolean"
+      || typeof verdict.deliveryReleaseCapabilityExact !== "boolean"
+      || (
+        verdict.holdCatalogExact
+        !== verdict.deliveryReleaseCapabilityExact
+      )
+    ) {
+      throw new MailDeliveryAuthorityUnavailableError();
+    }
+  } catch {
+    throw new MailDeliveryAuthorityUnavailableError();
+  }
 }
 
 function retryMaterialization(input: {
@@ -358,8 +387,9 @@ async function main() {
       "INACTIVITY_SCHEDULE_SECONDS must be an integer from 10 to 3600.",
     );
   }
-  const adapter = configuredAdapter();
   await requireMailDispatchPostgresRuntime(pool);
+  await requireRunnableMailDeliveryAuthority();
+  const adapter = configuredAdapter();
   const store = new PostgresOutboxStore(pool);
   const once = process.argv.includes("--once");
   healthReporter = createWorkerHealthReporter({ worker: "mail-worker" });

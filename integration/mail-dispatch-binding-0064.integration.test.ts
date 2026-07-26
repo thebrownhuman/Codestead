@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import pg from "pg";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
@@ -22,6 +23,9 @@ function fixture(number: number) {
     sourceId: `${SOURCE_PREFIX}${tail}`,
     claimToken: `${CLAIM_PREFIX}${tail}`,
     suffix: String(number),
+    idempotencyKey: createHash("sha256")
+      .update(`dispatch-binding-pg17:${number}`, "utf8")
+      .digest("hex"),
   } as const;
 }
 
@@ -75,7 +79,7 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
         `
         INSERT INTO public.email_outbox (
           id, operation_id, user_id, delivery_scope_key, to_email, template,
-          template_version, variables, idempotency_key, status,
+          template_version, variables, idempotency_key, idempotency_authority_version, status,
           next_attempt_at, created_at, updated_at
         ) VALUES (
           $1::uuid,
@@ -91,7 +95,8 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
             '_mailProducer', 'access-request-admin',
             '_mailSourceId', $4::uuid::text
           ),
-          'dispatch-binding-pg17-' || $5::text,
+          $6::text,
+          'event-v1-native',
           'pending',
           pg_catalog.statement_timestamp(),
           pg_catalog.statement_timestamp(),
@@ -104,6 +109,7 @@ describe("0064 dispatch binding on production-pinned PostgreSQL 17", () => {
           `dispatch-${row.suffix}@integration.invalid`,
           row.sourceId,
           row.suffix,
+          row.idempotencyKey,
         ],
       );
       await setupClient.query(

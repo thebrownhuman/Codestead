@@ -31,6 +31,8 @@ describe("access-request system-mail producers", () => {
     expect(source).toContain('template: "access-request-admin"');
     expect(source).toContain('systemProducer: "access-request-admin"');
     expect(source).toContain("sourceId: created.id");
+    expect(source).toContain("audienceId: admin.id");
+    expect(source).not.toContain("audienceId: `admin:");
     expect(source).not.toContain("BOOTSTRAP_ADMIN_EMAIL");
     expect(source).not.toContain("enqueueEmail({");
   });
@@ -57,6 +59,8 @@ describe("access-request system-mail producers", () => {
     expect(mailInsert).toBeGreaterThan(decisionUpdate);
     expect(source).toContain('systemProducer: "access-request-approved"');
     expect(source).toContain("sourceId: invitationId");
+    expect(source).toContain("audienceId: pending.id");
+    expect(source).not.toContain("audienceId: `requester:");
     expect(source).not.toContain("enqueueEmail({");
   });
 
@@ -77,6 +81,8 @@ describe("access-request system-mail producers", () => {
     expect(mailInsert).toBeGreaterThan(decisionUpdate);
     expect(source).toContain('systemProducer: "access-request-rejected"');
     expect(source).toContain("sourceId: pending.id");
+    expect(source).toContain("audienceId: pending.id");
+    expect(source).not.toContain("audienceId: `requester:");
     expect(source).not.toContain("enqueueEmail({");
   });
 });

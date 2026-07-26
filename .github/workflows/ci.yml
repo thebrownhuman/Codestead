@@ -21,6 +21,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:migration-ledger
+      - run: npm run test:email-outbox-writer-inventory
       - run: npm run production-load:ci-registration
       - run: npm run production-load:test-control:bundle
       - run: npm run production-load:fixture-runtime:bundle
@@ -383,8 +384,10 @@ jobs:
       - run: npm run test:mail-dispatch-binding-0064:registration
       - run: npm run test:backup-status-mail-authority-0065:registration
       - run: npm run test:mail-provider-correlation-0066:registration
+      - run: npm run test:mail-durable-replay-0067:registration
       - run: npm run test:mail-dispatch-binding-0064:roles
       - run: npm run test:mail-provider-correlation-0066:roles
+      - run: npm run test:mail-durable-replay-0067:roles
       - run: npm run test:integration
       - run: docker pull postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394
       - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737
@@ -418,12 +421,14 @@ jobs:
       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17
       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:backup-status-mail-authority-0065
       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-provider-correlation-0066:pg17
+      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-durable-replay-0067:pg17
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-payload-immutability-0060
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-retention-redaction-0063
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-dispatch-binding-0064:pg18
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:backup-status-mail-authority-0065
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-provider-correlation-0066:pg18
+      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-durable-replay-0067:pg18
 
   curriculum-runtime:
     runs-on: ubuntu-24.04

@@ -120,7 +120,8 @@ describe("retention ops-session integration", () => {
             );
             insert into public.email_outbox (
               id, user_id, to_email, template, template_version, variables,
-              idempotency_key, operation_id, delivery_scope_key, status,
+              idempotency_key, idempotency_authority_version, operation_id,
+              delivery_scope_key, status,
               provider_call_started, adapter, quarantined_at,
               last_error_code, created_at, updated_at
             ) values (
@@ -130,7 +131,8 @@ describe("retention ops-session integration", () => {
               'weekly-summary',
               '1',
               '{"secret":"must-remain"}'::jsonb,
-              'retention-savepoint-unresolved',
+              'c45ece643fc7971d22c4d34daca51b48127b160a4c7e630f99a11b308cade070',
+              'event-v1-native',
               '63810000-0000-4000-8000-000000000001',
               'a:${userId}',
               'quarantined',
@@ -143,7 +145,8 @@ describe("retention ops-session integration", () => {
             );
             insert into public.email_outbox (
               id, user_id, to_email, template, template_version, variables,
-              idempotency_key, operation_id, delivery_scope_key, status,
+              idempotency_key, idempotency_authority_version, operation_id,
+              delivery_scope_key, status,
               sent_at, created_at, updated_at
             ) values (
               '${terminalId}',
@@ -152,7 +155,8 @@ describe("retention ops-session integration", () => {
               'weekly-summary',
               '1',
               '{}'::jsonb,
-              'retention-savepoint-terminal',
+              '61a368ed9b4997ce82b5a85e059afa6658c9dd9cb5b6a1a85eb46820dddb4f84',
+              'event-v1-native',
               '63810000-0000-4000-8000-000000000002',
               'a:${userId}',
               'sent',

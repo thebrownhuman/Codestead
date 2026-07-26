@@ -76,6 +76,7 @@ export async function POST(
       template: "invitation",
       variables: { name: pending.name, url: activationUrl },
       systemProducer: "access-request-approved",
+      audienceId: pending.id,
       sourceId: invitationId,
       idempotencySeed: invitationId,
     });

@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 type DatabaseRoleModule = {
   DATABASE_ADMIN_LOCK_NAME: string;
+  REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES: ReadonlyArray<{
+    readonly index: number;
+  }>;
   REVIEWED_APPLICATION_FUNCTIONS: ReadonlyArray<{
     signature: string;
     owner: string;
@@ -24,7 +27,8 @@ type DatabaseRoleModule = {
     returnsSet: boolean;
     variadic: boolean;
   }>;
-  reviewedApplicationFunctionPrivilegesSql: () => string;
+  reviewedApplicationFunctionPrivilegesSql: (phase: unknown) => string;
+  globalDefaultAclScrubSql: () => string;
   validateDatabaseRoleUrls: (input: {
     postgresUser: string;
     postgresDatabase: string;
@@ -50,12 +54,37 @@ type DatabaseRoleModule = {
       kind: string;
       owner: string;
     }>;
+    defaultAcls?: Array<{
+      schema: string;
+      owner: string;
+      grantee: string | null;
+      grantee_oid?: number | null;
+      is_public?: boolean | null;
+      kind: string;
+      privilege_type?: string | null;
+      is_grantable?: boolean | null;
+    }>;
     unexpectedOwnerDependencies?: Array<{ catalog: string; objectId: string }>;
     directAcls?: Array<{
       scope: string;
       grantee: string;
       privilege: string;
       isGrantable?: boolean;
+    }>;
+  }) => void;
+  verifyDatabaseDefaultAclState: (input: {
+    postgresUser: string;
+    drizzleExists: boolean;
+    entries: Array<{
+      schema: string;
+      owner: string;
+      grantor: string | null;
+      grantee: string | null;
+      kind: string;
+      grantee_oid: number | null;
+      is_public: boolean | null;
+      privilege_type: string | null;
+      is_grantable: boolean | null;
     }>;
   }) => void;
   cleanupDatabaseBootstrapResources: (input: {
@@ -180,7 +209,7 @@ describe("database least-privilege bootstrap", () => {
         signature: "public.enqueue_backup_status_mail_authority(text,text)",
         owner: "learncoding_owner",
         securityDefiner: true,
-        configuration: ["search_path=pg_catalog"],
+        configuration: ["search_path=pg_catalog, pg_temp"],
         allowedRoles: ["learncoding_backup_reporter"],
       },
       {
@@ -190,14 +219,86 @@ describe("database least-privilege bootstrap", () => {
         configuration: ["search_path=pg_catalog"],
         allowedRoles: ["learncoding_worker"],
       },
+      {
+        signature:
+          "public.enforce_email_outbox_provider_correlation_evidence()",
+        owner: "learncoding_owner",
+        securityDefiner: false,
+        configuration: ["search_path=pg_catalog"],
+        allowedRoles: [],
+      },
+      {
+        signature:
+          "public.email_outbox_original_payload_sha256(text,text,text,text,jsonb)",
+        owner: "learncoding_owner",
+        securityDefiner: true,
+        configuration: ["search_path=pg_catalog, pg_temp"],
+        allowedRoles: [],
+      },
+      {
+        signature:
+          "public.email_outbox_event_sha256(text,text,text)",
+        owner: "learncoding_owner",
+        securityDefiner: true,
+        configuration: ["search_path=pg_catalog, pg_temp"],
+        allowedRoles: [],
+      },
+      {
+        signature:
+          "public.claim_email_outbox_idempotency_authority()",
+        owner: "learncoding_owner",
+        securityDefiner: true,
+        configuration: ["search_path=pg_catalog, pg_temp"],
+        allowedRoles: [],
+      },
+      {
+        signature:
+          "public.persist_email_outbox_idempotency_authority()",
+        owner: "learncoding_owner",
+        securityDefiner: true,
+        configuration: ["search_path=pg_catalog, pg_temp"],
+        allowedRoles: [],
+      },
+      {
+        signature:
+          "public.enforce_email_outbox_idempotency_metadata_immutable()",
+        owner: "learncoding_owner",
+        securityDefiner: true,
+        configuration: ["search_path=pg_catalog, pg_temp"],
+        allowedRoles: [],
+      },
+      {
+        signature:
+          "public.enforce_email_outbox_idempotency_append_only()",
+        owner: "learncoding_owner",
+        securityDefiner: true,
+        configuration: ["search_path=pg_catalog, pg_temp"],
+        allowedRoles: [],
+      },
+      {
+        signature:
+          "public.email_outbox_idempotency_coverage_authority(uuid[])",
+        owner: "learncoding_owner",
+        securityDefiner: true,
+        configuration: ["search_path=pg_catalog, pg_temp"],
+        allowedRoles: ["learncoding_ops"],
+      },
     ]);
     for (const routine of routines) {
       expect(routine.bodySha256).toMatch(/^[0-9a-f]{64}$/u);
-      expect(routine.language).toBe("plpgsql");
+      expect(routine.language).toMatch(/^(?:plpgsql|sql)$/u);
       expect(routine.kind).toBe("f");
       expect(routine.argumentDefaultCount).toBe(0);
       expect(routine.variadic).toBe(false);
     }
+    expect(
+      routines
+        .filter(({ language }) => language === "sql")
+        .map(({ signature }) => signature),
+    ).toEqual([
+      "public.email_outbox_original_payload_sha256(text,text,text,text,jsonb)",
+      "public.email_outbox_event_sha256(text,text,text)",
+    ]);
     expect(routines[0]).toMatchObject({
       argumentNames: [
         "cutoff_at",
@@ -218,8 +319,11 @@ describe("database least-privilege bootstrap", () => {
       returnType: "record",
       returnsSet: true,
     });
+    const reviewedPhase0067 =
+      databaseRoleBootstrap!.REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.at(-1);
+    expect(reviewedPhase0067?.index).toBe(67);
     const reviewedGrant = databaseRoleBootstrap!
-      .reviewedApplicationFunctionPrivilegesSql()
+      .reviewedApplicationFunctionPrivilegesSql(reviewedPhase0067)
       .toLowerCase();
     expect(reviewedGrant).toContain(
       "grant execute on function public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer) to learncoding_ops",
@@ -229,6 +333,9 @@ describe("database least-privilege bootstrap", () => {
     );
     expect(reviewedGrant).toContain(
       "grant execute on function public.backup_status_mail_authorized(uuid) to learncoding_worker",
+    );
+    expect(reviewedGrant).toContain(
+      "grant execute on function public.email_outbox_idempotency_coverage_authority(uuid[]) to learncoding_ops",
     );
     expect(reviewedGrant).not.toMatch(
       /to\s+(public|learncoding_app|learncoding_migrator)\b/iu,
@@ -241,7 +348,7 @@ describe("database least-privilege bootstrap", () => {
       source.indexOf("revoke execute on all routines in schema public"),
     ).toBeLessThan(
       source.indexOf(
-        "await client.query(reviewedApplicationFunctionPrivilegesSql())",
+        "await client.query(reviewedApplicationFunctionPrivilegesSql(canonicalPhase))",
       ),
     );
     expect(source).toMatch(/is distinct from exists/iu);
@@ -425,6 +532,16 @@ describe("database least-privilege bootstrap", () => {
 
   it.each([
     [
+      "bootstrap identity reused as the non-login owner",
+      {
+        postgresUser: "learncoding_owner",
+        databaseBootstrapUrl: urls.databaseBootstrapUrl.replace(
+          "legacy_bootstrap",
+          "learncoding_owner",
+        ),
+      },
+    ],
+    [
       "bootstrap user reused by app",
       { databaseAppUrl: urls.databaseBootstrapUrl },
     ],
@@ -506,6 +623,12 @@ describe("database least-privilege bootstrap", () => {
         objects: [],
         directAcls: [
           {
+            scope: "schema public",
+            grantee: "PUBLIC",
+            privilege: "USAGE",
+            isGrantable: false,
+          },
+          {
             scope: "database learncoding",
             grantee: "learncoding_migrator",
             privilege: "CONNECT",
@@ -514,6 +637,115 @@ describe("database least-privilege bootstrap", () => {
         ],
       }),
     ).not.toThrow();
+  });
+
+  it("admits only globally repairable routine/type ACL drift before scrub", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+    const base = {
+      postgresUser: "legacy_bootstrap",
+      postgresDatabase: "learncoding",
+      databases: [{ name: "learncoding", owner: "legacy_bootstrap" }],
+      tablespaces: [],
+      schemas: [{ name: "public", owner: "pg_database_owner" }],
+      objects: [],
+    };
+    expect(() =>
+      databaseRoleBootstrap!.validateOwnershipInventory({
+        ...base,
+        defaultAcls: [
+          {
+            schema: "<global>",
+            owner: "learncoding_owner",
+            grantee: "delegated_leaf",
+            grantee_oid: 16_384,
+            is_public: false,
+            kind: "f",
+            privilege_type: "EXECUTE",
+            is_grantable: false,
+          },
+          {
+            schema: "<global>",
+            owner: "legacy_bootstrap",
+            grantee: "PUBLIC",
+            grantee_oid: 0,
+            is_public: true,
+            kind: "T",
+            privilege_type: "USAGE",
+            is_grantable: true,
+          },
+        ],
+      }),
+    ).not.toThrow();
+    for (const defaultAcls of [
+      [
+        {
+          schema: "<global>",
+          owner: "learncoding_owner",
+          grantee: "PUBLIC",
+          grantee_oid: 16_385,
+          is_public: false,
+          kind: "f",
+          privilege_type: "EXECUTE",
+          is_grantable: false,
+        },
+      ],
+      [
+        {
+          schema: "<global>",
+          owner: "learncoding_owner",
+          grantee: "delegated_leaf",
+          grantee_oid: 16_384,
+          is_public: false,
+          kind: "r",
+          privilege_type: "SELECT",
+          is_grantable: false,
+        },
+      ],
+      [
+        {
+          schema: "<global>",
+          owner: "learncoding_owner",
+          grantee: "delegated_leaf",
+          grantee_oid: 16_384,
+          is_public: false,
+          kind: "S",
+          privilege_type: "USAGE",
+          is_grantable: false,
+        },
+      ],
+      [
+        {
+          schema: "public",
+          owner: "learncoding_owner",
+          grantee: "delegated_leaf",
+          grantee_oid: 16_384,
+          is_public: false,
+          kind: "f",
+          privilege_type: "EXECUTE",
+          is_grantable: false,
+        },
+      ],
+      [
+        {
+          schema: "<global>",
+          owner: "unreviewed_creator",
+          grantee: "PUBLIC",
+          grantee_oid: 0,
+          is_public: true,
+          kind: "f",
+          privilege_type: "EXECUTE",
+          is_grantable: false,
+        },
+      ],
+    ]) {
+      expect(() =>
+        databaseRoleBootstrap!.validateOwnershipInventory({
+          ...base,
+          defaultAcls,
+        }),
+      ).toThrow(/unsafe legacy ownership inventory/u);
+    }
   });
 
   it.each([
@@ -528,6 +760,19 @@ describe("database least-privilege bootstrap", () => {
     [
       "out-of-scope schema",
       { schemas: [{ name: "decoy", owner: "legacy_bootstrap" }] },
+    ],
+    [
+      "externally owned public schema",
+      { schemas: [{ name: "public", owner: "external_owner" }] },
+    ],
+    [
+      "invalidly owned drizzle schema",
+      {
+        schemas: [
+          { name: "public", owner: "pg_database_owner" },
+          { name: "drizzle", owner: "pg_database_owner" },
+        ],
+      },
     ],
     [
       "unsupported owner-bearing catalog object",
@@ -653,6 +898,438 @@ describe("database least-privilege bootstrap", () => {
     expect(pool.end).toHaveBeenCalledOnce();
   });
 
+  it("verifies the exact physical and exploded default-ACL state", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+    expect(
+      databaseRoleBootstrap?.verifyDatabaseDefaultAclState,
+    ).toBeTypeOf("function");
+
+    const entry = (
+      owner: string,
+      schema: string,
+      kind: string,
+      grantee: string | null,
+      privilegeType: string | null,
+      isGrantable: boolean | null = false,
+      grantor: string | null = owner,
+    ) => ({
+      schema,
+      owner,
+      grantor,
+      grantee,
+      kind,
+      grantee_oid:
+        grantee === null ? null : grantee === "PUBLIC" ? 0 : 16_384,
+      is_public: grantee === null ? null : grantee === "PUBLIC",
+      privilege_type: privilegeType,
+      is_grantable: isGrantable,
+    });
+    const runtimeRoles = [
+      "learncoding_app",
+      "learncoding_worker",
+      "learncoding_ops",
+    ];
+    const managedPrivileges = {
+      r: ["DELETE", "INSERT", "SELECT", "UPDATE"],
+      S: ["SELECT", "UPDATE", "USAGE"],
+      T: ["USAGE"],
+    };
+    const validEntries = [
+      ...["learncoding_owner", "legacy_bootstrap"].flatMap((owner) => [
+        entry(owner, "<global>", "f", owner, "EXECUTE"),
+        entry(owner, "<global>", "T", owner, "USAGE"),
+      ]),
+      ...runtimeRoles.flatMap((grantee) =>
+        Object.entries(managedPrivileges).flatMap(([kind, privileges]) =>
+          privileges.map((privilege) =>
+            entry(
+              "learncoding_owner",
+              "public",
+              kind,
+              grantee,
+              privilege,
+            ),
+          ),
+        ),
+      ),
+    ];
+    const sameCreatorEntries = validEntries.filter(
+      ({ owner }) => owner !== "legacy_bootstrap",
+    );
+    expect(validEntries).toHaveLength(28);
+    expect(
+      new Set(
+        validEntries.map(({ owner, schema, kind }) => `${owner}|${schema}|${kind}`),
+      ).size,
+    ).toBe(7);
+    expect(sameCreatorEntries).toHaveLength(26);
+    expect(
+      new Set(
+        sameCreatorEntries.map(
+          ({ owner, schema, kind }) => `${owner}|${schema}|${kind}`,
+        ),
+      ).size,
+    ).toBe(5);
+
+    expect(() =>
+      databaseRoleBootstrap!.verifyDatabaseDefaultAclState({
+        postgresUser: "legacy_bootstrap",
+        drizzleExists: true,
+        entries: validEntries,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      databaseRoleBootstrap!.verifyDatabaseDefaultAclState({
+        postgresUser: "learncoding_owner",
+        drizzleExists: true,
+        entries: sameCreatorEntries,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      databaseRoleBootstrap!.verifyDatabaseDefaultAclState({
+        postgresUser: "legacy_bootstrap",
+        drizzleExists: false,
+        entries: validEntries,
+      }),
+    ).not.toThrow();
+
+    const invalidEntries = [
+      [
+        ...validEntries,
+        entry("second_creator", "<global>", "f", "second_creator", "EXECUTE"),
+      ],
+      [
+        ...validEntries,
+        entry(
+          "legacy_bootstrap",
+          "public",
+          "r",
+          "legacy_bootstrap",
+          "SELECT",
+        ),
+      ],
+      validEntries.map((candidate) =>
+        candidate.owner === "learncoding_owner" &&
+        candidate.schema === "<global>" &&
+        candidate.kind === "f"
+          ? entry("learncoding_owner", "<global>", "f", null, null, null, null)
+          : candidate,
+      ),
+      [
+        ...validEntries,
+        entry(
+          "learncoding_owner",
+          "<global>",
+          "f",
+          "learncoding_owner",
+          "EXECUTE",
+        ),
+      ],
+      validEntries.map((candidate) =>
+        candidate.owner === "learncoding_owner" &&
+        candidate.schema === "<global>" &&
+        candidate.kind === "f"
+          ? { ...candidate, privilege_type: "USAGE" }
+          : candidate,
+      ),
+      validEntries.map((candidate) =>
+        candidate.owner === "learncoding_owner" &&
+        candidate.schema === "<global>" &&
+        candidate.kind === "T"
+          ? { ...candidate, grantor: "second_creator" }
+          : candidate,
+      ),
+      [...validEntries, entry("learncoding_owner", "public", "f", "learncoding_owner", "EXECUTE")],
+      [...validEntries, entry("learncoding_owner", "drizzle", "T", "learncoding_owner", "USAGE")],
+      [
+        ...validEntries,
+        entry(
+          "learncoding_owner",
+          "public",
+          "r",
+          "learncoding_owner",
+          "SELECT",
+        ),
+      ],
+      validEntries.map((candidate) =>
+        candidate.owner === "learncoding_owner" &&
+        candidate.schema === "<global>" &&
+        candidate.kind === "f"
+          ? { ...candidate, grantee: "PUBLIC" }
+          : candidate,
+      ),
+      validEntries.map((candidate) =>
+        candidate.owner === "learncoding_owner" &&
+        candidate.schema === "<global>" &&
+        candidate.kind === "f"
+          ? { ...candidate, is_grantable: true }
+          : candidate,
+      ),
+      validEntries.map((candidate) =>
+        candidate.owner === "learncoding_owner" &&
+        candidate.schema === "public" &&
+        candidate.kind === "r" &&
+        candidate.grantee === "learncoding_app" &&
+        candidate.privilege_type === "SELECT"
+          ? { ...candidate, is_grantable: true }
+          : candidate,
+      ),
+      [
+        ...validEntries,
+        entry(
+          "learncoding_owner",
+          "<global>",
+          "S",
+          "learncoding_owner",
+          "USAGE",
+        ),
+      ],
+      validEntries.map((candidate) =>
+        candidate.owner === "learncoding_owner" &&
+        candidate.schema === "public" &&
+        candidate.kind === "r" &&
+        candidate.grantee === "learncoding_app" &&
+        candidate.privilege_type === "SELECT"
+          ? {
+              ...candidate,
+              grantee_oid: 0,
+              is_public: true,
+            }
+          : candidate,
+      ),
+      validEntries.filter(
+        (candidate) =>
+          !(
+            candidate.owner === "legacy_bootstrap" &&
+            candidate.schema === "<global>" &&
+            candidate.kind === "T"
+          ),
+      ),
+      validEntries.filter(
+        (candidate) =>
+          !(
+            candidate.owner === "learncoding_owner" &&
+            candidate.schema === "public" &&
+            candidate.grantee === "learncoding_app" &&
+            candidate.kind === "r" &&
+            candidate.privilege_type === "SELECT"
+          ),
+      ),
+    ];
+    const expectDefaultAclFailure = (
+      postgresUser: string,
+      entries: typeof validEntries,
+    ) => {
+      expect(() =>
+        databaseRoleBootstrap!.verifyDatabaseDefaultAclState({
+          postgresUser,
+          drizzleExists: true,
+          entries,
+        }),
+      ).toThrow(/default-acl/u);
+    };
+    for (const entries of invalidEntries) {
+      expectDefaultAclFailure("legacy_bootstrap", entries);
+    }
+
+    const sameCreatorInvalidEntries = [
+      sameCreatorEntries.filter(
+        (candidate) =>
+          !(
+            candidate.owner === "learncoding_owner" &&
+            candidate.schema === "<global>" &&
+            candidate.kind === "T"
+          ),
+      ),
+      [...sameCreatorEntries, { ...sameCreatorEntries[0] }],
+      [
+        ...sameCreatorEntries,
+        entry("second_creator", "<global>", "f", "second_creator", "EXECUTE"),
+      ],
+      [
+        ...sameCreatorEntries,
+        entry(
+          "learncoding_owner",
+          "public",
+          "f",
+          "learncoding_owner",
+          "EXECUTE",
+        ),
+      ],
+      [
+        ...sameCreatorEntries,
+        entry(
+          "learncoding_owner",
+          "public",
+          "r",
+          "learncoding_owner",
+          "SELECT",
+        ),
+      ],
+      [
+        ...sameCreatorEntries,
+        entry(
+          "learncoding_owner",
+          "drizzle",
+          "T",
+          "learncoding_owner",
+          "USAGE",
+        ),
+      ],
+    ];
+    for (const entries of sameCreatorInvalidEntries) {
+      expectDefaultAclFailure("learncoding_owner", entries);
+    }
+
+    for (const [index] of validEntries.entries()) {
+      expectDefaultAclFailure(
+        "legacy_bootstrap",
+        validEntries.map((candidate, candidateIndex) =>
+          candidateIndex === index
+            ? { ...candidate, is_grantable: true }
+            : candidate,
+        ),
+      );
+    }
+    for (const [index] of sameCreatorEntries.entries()) {
+      expectDefaultAclFailure(
+        "learncoding_owner",
+        sameCreatorEntries.map((candidate, candidateIndex) =>
+          candidateIndex === index
+            ? { ...candidate, is_grantable: true }
+            : candidate,
+        ),
+      );
+    }
+
+    const source = await import("node:fs/promises").then(({ readFile }) =>
+      readFile("scripts/bootstrap-database-roles.mjs", "utf8"),
+    );
+    const ownershipInventoryStart = source.indexOf(
+      "async function loadOwnershipInventory",
+    );
+    const inventoryDefaultAclStart = source.indexOf(
+      "`select case when a.defaclnamespace = 0 then '<global>'",
+      ownershipInventoryStart,
+    );
+    const inventoryDefaultAclEnd = source.indexOf(
+      "order by 1, 2, 3, 4, 5, 6`",
+      inventoryDefaultAclStart,
+    );
+    const finalDefaultAclStart = source.indexOf(
+      "const defaultAcls = await client.query(",
+    );
+    const finalDefaultAclEnd = source.indexOf(
+      "verifyDatabaseDefaultAclState({",
+      finalDefaultAclStart,
+    );
+    expect(ownershipInventoryStart).toBeGreaterThanOrEqual(0);
+    expect(inventoryDefaultAclStart).toBeGreaterThan(
+      ownershipInventoryStart,
+    );
+    expect(inventoryDefaultAclEnd).toBeGreaterThan(inventoryDefaultAclStart);
+    expect(finalDefaultAclStart).toBeGreaterThanOrEqual(0);
+    expect(finalDefaultAclEnd).toBeGreaterThan(finalDefaultAclStart);
+    for (const query of [
+      source.slice(inventoryDefaultAclStart, inventoryDefaultAclEnd),
+      source.slice(finalDefaultAclStart, finalDefaultAclEnd),
+    ]) {
+      expect(query).toMatch(
+        /case when a[.]defaclnamespace = 0 then '<global>'[\s\S]*?else n[.]nspname end schema/iu,
+      );
+      expect(query).toMatch(
+        /left join lateral aclexplode\(a[.]defaclacl\) privilege on true/iu,
+      );
+      expect(query).toMatch(
+        /left join pg_namespace n on n[.]oid = a[.]defaclnamespace/iu,
+      );
+      expect(query).not.toMatch(/\b(?:where|having|limit|offset)\b/iu);
+      expect(query).not.toMatch(/\$\d+/u);
+      expect(query).not.toMatch(
+        /pg_get_userbyid[(]a[.]defaclrole[)]\s+in\b/iu,
+      );
+      expect(query).toMatch(
+        /privilege[.]grantee\s+grantee_oid/iu,
+      );
+      expect(query).toMatch(
+        /else privilege[.]grantee\s*=\s*0 end is_public/iu,
+      );
+    }
+    expect(source).toMatch(
+      /verifyDatabaseDefaultAclState\(\{\s*postgresUser,[\s\S]*?entries:\s*defaultAcls\.rows/u,
+    );
+    expect(source).toMatch(
+      /left join lateral aclexplode\(a\.defaclacl\) privilege on true/u,
+    );
+    expect(source).toMatch(
+      /case when a[.]defaclnamespace = 0 then '<global>'[\s\S]*?else n[.]nspname end schema/iu,
+    );
+    expect(source).toMatch(
+      /left join pg_namespace n on n[.]oid = a[.]defaclnamespace/iu,
+    );
+    const observedSchemaRevokeTargets = [
+      ...source.matchAll(
+        /alter default privileges for role (learncoding_owner|current_user) in schema (public|drizzle)\s+revoke (?:all|execute|usage) on (tables|sequences|routines|types)/giu,
+      ),
+    ].map(([, owner, schema, kind]) => `${owner}|${schema}|${kind}`);
+    const expectedSchemaRevokeTargets = [
+      "learncoding_owner",
+      "current_user",
+    ].flatMap((owner) =>
+      ["public", "drizzle"].flatMap((schema) =>
+        ["tables", "sequences", "routines", "types"].map(
+          (kind) => `${owner}|${schema}|${kind}`,
+        ),
+      ),
+    );
+    expect(observedSchemaRevokeTargets).toHaveLength(16);
+    expect(new Set(observedSchemaRevokeTargets)).toEqual(
+      new Set(expectedSchemaRevokeTargets),
+    );
+    expect(databaseRoleBootstrap?.globalDefaultAclScrubSql).toBeTypeOf(
+      "function",
+    );
+    const scrubSql = databaseRoleBootstrap!.globalDefaultAclScrubSql();
+    expect(scrubSql).toMatch(
+      /creator[.]rolname in [(]'learncoding_owner', current_user[)]/iu,
+    );
+    expect(scrubSql).toMatch(
+      /from pg_catalog[.]pg_default_acl[\s\S]*?cross join lateral pg_catalog[.]aclexplode/iu,
+    );
+    expect(scrubSql).toMatch(/default_acl[.]defaclnamespace = 0/iu);
+    expect(scrubSql).toMatch(/pg_catalog[.]array_agg/iu);
+    expect(scrubSql).toMatch(/access[.]grantee\s+grantee_oid/iu);
+    expect(scrubSql).toMatch(/access[.]grantee\s*=\s*0\s+is_public/iu);
+    expect(scrubSql).toMatch(
+      /union\s+select 0::pg_catalog[.]oid,\s*true,\s*'PUBLIC'/iu,
+    );
+    expect(scrubSql).toMatch(
+      /union\s+select target[.]creator_oid,\s*false,\s*target[.]creator_name/iu,
+    );
+    expect(scrubSql).toMatch(
+      /when grantee_is_public\[grantee_index\] then 'PUBLIC'/iu,
+    );
+    expect(scrubSql).toMatch(
+      /pg_catalog[.]format[(]'%I', grantee_names\[grantee_index\][)]/iu,
+    );
+    expect(scrubSql).not.toMatch(/grantee_name\s*=\s*'PUBLIC'/iu);
+    expect(scrubSql).toMatch(
+      /revoke all on %s from %s cascade/iu,
+    );
+    expect(scrubSql).toMatch(
+      /grant %s on %s to %I/iu,
+    );
+    const scrubCall = source.indexOf(
+      "await client.query(globalDefaultAclScrubSql())",
+    );
+    const firstSchemaDefaultRevoke = source.indexOf(
+      "alter default privileges for role learncoding_owner in schema public",
+    );
+    expect(scrubCall).toBeGreaterThanOrEqual(0);
+    expect(firstSchemaDefaultRevoke).toBeGreaterThan(scrubCall);
+  });
+
   it("declares aggregate ownership and non-grantable ACL invariants", async () => {
     const [{ readFile }, { join }] = await Promise.all([
       import("node:fs/promises"),
@@ -662,6 +1339,25 @@ describe("database least-privilege bootstrap", () => {
       join(process.cwd(), "scripts", "bootstrap-database-roles.mjs"),
       "utf8",
     );
+    const bootstrapStart = source.indexOf(
+      "export async function runDatabaseRoleBootstrap(options) {",
+    );
+    const connectIndex = source.indexOf(
+      "client = await pool.connect();",
+      bootstrapStart,
+    );
+    const trustedSearchPathIndex = source.indexOf(
+      "pg_catalog.set_config('search_path', 'pg_catalog,pg_temp', false)",
+      connectIndex,
+    );
+    const identityIndex = source.indexOf(
+      "const identity = await client.query(",
+      connectIndex,
+    );
+    expect(bootstrapStart).toBeGreaterThanOrEqual(0);
+    expect(connectIndex).toBeGreaterThan(bootstrapStart);
+    expect(trustedSearchPathIndex).toBeGreaterThan(connectIndex);
+    expect(trustedSearchPathIndex).toBeLessThan(identityIndex);
 
     expect(source).toContain(
       "when 'a' then 'alter aggregate %I.%I(%s) owner to learncoding_owner'",
@@ -692,5 +1388,50 @@ describe("database least-privilege bootstrap", () => {
     expect(source).toMatch(/pg_stat_clear_snapshot\(\)/u);
     expect(source).toMatch(/privilege\.is_grantable/u);
     expect(source).toMatch(/has_function_privilege\(0, p\.oid, 'EXECUTE'\)/u);
+  });
+
+  it("re-verifies every boundary after beforeCommit and before COMMIT", async () => {
+    const [{ readFile }, { join }] = await Promise.all([
+      import("node:fs/promises"),
+      import("node:path"),
+    ]);
+    const source = await readFile(
+      join(process.cwd(), "scripts", "bootstrap-database-roles.mjs"),
+      "utf8",
+    );
+    const bootstrapStart = source.indexOf(
+      "export async function runDatabaseRoleBootstrap(options) {",
+    );
+    const beforeCommit = source.indexOf(
+      "if (options.beforeCommit)",
+      bootstrapStart,
+    );
+    const commit = source.indexOf(
+      'await client.query("commit")',
+      beforeCommit,
+    );
+    expect(bootstrapStart).toBeGreaterThanOrEqual(0);
+    expect(beforeCommit).toBeGreaterThan(bootstrapStart);
+    expect(commit).toBeGreaterThan(beforeCommit);
+    const finalTransactionalVerification = source.slice(
+      beforeCommit,
+      commit,
+    );
+
+    const reviewedCatalog = finalTransactionalVerification.indexOf(
+      "verifyPostMigrationReviewedContractsBeforeReconciliation(",
+    );
+    const completeRoleState = finalTransactionalVerification.indexOf(
+      "verifyDatabaseRoleBootstrapState(",
+    );
+    const backupAuthority = finalTransactionalVerification.indexOf(
+      "verifyBackupStatusAuthorityAfterRepair(",
+    );
+    expect(reviewedCatalog).toBeGreaterThanOrEqual(0);
+    expect(backupAuthority).toBeGreaterThan(reviewedCatalog);
+    expect(completeRoleState).toBeGreaterThan(backupAuthority);
+    expect(finalTransactionalVerification).not.toContain(
+      "verifyBackupStatusAuthorityAfterRepair(client);\n    await client.query(\"commit\")",
+    );
   });
 });

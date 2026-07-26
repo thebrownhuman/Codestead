@@ -959,6 +959,152 @@ git -C "$work/repo" reset --quiet --hard "$dispatch_binding_preflight_head"
 regenerate_release_fixture
 echo "ok - release fails closed after 0064 while the runtime capability identifier is absent"
 
+task7_release_diagnostic='0067_mail_outbox_durable_replay_authority requires an approved Task 7 delivery receipt capability'
+task7_unrecognized_capability_path=infra/ops/mail-outbox-durable-replay-receipt-capability.env
+task7_unrecognized_secret=fixture-task7-receipt-do-not-log
+task7_release_repo="$work/task7-release-deny-repo"
+git -c advice.detachedHead=false clone --quiet --no-local "$dispatch_binding_real_repo" "$task7_release_repo"
+git -C "$task7_release_repo" remote set-url origin \
+  https://github.com/example/codestead
+git -C "$task7_release_repo" config user.name 'Codestead Task 7 release denial test'
+git -C "$task7_release_repo" config user.email \
+  'task7-release-denial@codestead.invalid'
+mkdir -p "$task7_release_repo/drizzle"
+cp "$repo_root/drizzle/0067_mail_outbox_durable_replay_authority.sql" \
+  "$task7_release_repo/drizzle/0067_mail_outbox_durable_replay_authority.sql"
+git -C "$task7_release_repo" add \
+  drizzle/0067_mail_outbox_durable_replay_authority.sql
+git -C "$task7_release_repo" commit -qm \
+  'fixture 0067 durable replay authority without Task 7 receipt capability'
+task7_release_tree="$(
+  git -C "$task7_release_repo" rev-parse --verify 'HEAD^{tree}'
+)"
+[[ "$(
+  git -C "$task7_release_repo" ls-tree -r --name-only \
+    "$task7_release_tree" -- drizzle/0067_mail_outbox_durable_replay_authority.sql
+)" == drizzle/0067_mail_outbox_durable_replay_authority.sql ]] || {
+  fail "Task 7 denial fixture does not bind 0067 to its exact candidate tree"
+}
+if git -C "$task7_release_repo" ls-tree -r --name-only \
+    "$task7_release_tree" \
+    | grep -Eq '(^|/).*task7.*receipt.*capability|(^|/).*receipt.*task7.*capability'; then
+  fail "plain Task 7 denial fixture unexpectedly contains a receipt capability"
+fi
+/usr/bin/python3 "$fixture_generator" \
+  --source "$task7_release_repo" \
+  --packager "$task7_release_repo/infra/ops/package-release-tree.py" \
+  --destination "$work/task7-release-deny-package" \
+  >/dev/null || fail "unable to package the 0067 deny-now release fixture"
+[[ -z "$(git -C "$task7_release_repo" status --porcelain=v1 --untracked-files=all)" ]] || {
+  fail "0067 deny-now release fixture is not an exact clean Git tree"
+}
+
+task7_release_denial_failures=0
+check_task7_release_denial() {
+  local scenario="$1" candidate_repo="$2"
+  shift 2
+  local record_root="$work/task7-release-records-$scenario"
+  local marker="$work/control/release-quarantine"
+  local case_failed=false line
+  local command env_flag env_path file_flag file_path action
+  local timeout_flag seconds service extra
+  local stop_count=0
+
+  RUN_REPO_ROOT="$candidate_repo" RUN_RECORD_ROOT="$record_root" \
+    RUN_STAGE_TIMEOUT=30 run_release "$scenario" "$@"
+  unset RUN_REPO_ROOT RUN_RECORD_ROOT RUN_STAGE_TIMEOUT
+
+  if [[ "$RELEASE_STATUS" == 0 ]]; then
+    case_failed=true
+  fi
+  if [[ ! -f "$marker" || -L "$marker" \
+    || "$(<"$marker")" != codestead-release-quarantine-v1 ]]; then
+    case_failed=true
+  fi
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    IFS=$'\t' read -r command env_flag env_path file_flag file_path action \
+      timeout_flag seconds service extra <<<"$line"
+    if [[ "$command" != compose || "$env_flag" != --env-file \
+      || "$env_path" != "$work/compose.env" || "$file_flag" != -f \
+      || "$file_path" != "$candidate_repo/compose.yaml" || "$action" != stop \
+      || "$timeout_flag" != --timeout || "$seconds" != 30 \
+      || "$service" != cloudflared || -n "$extra" ]]; then
+      case_failed=true
+    fi
+    stop_count="$((stop_count + 1))"
+  done <"$RELEASE_CASE_DIR/docker.log"
+  (( stop_count >= 1 )) || case_failed=true
+  if grep -Eq \
+      '^(prepare-postgres|prepare-object|validate|smoke)([[:space:]]|$)|^docker[[:space:]].*[[:space:]](up|run|exec)([[:space:]]|$)' \
+      "$RELEASE_CASE_DIR/trace.log"; then
+    case_failed=true
+  fi
+  [[ ! -s "$RELEASE_CASE_DIR/smoke.log" ]] || case_failed=true
+  [[ ! -s "$RELEASE_CASE_DIR/stdout" ]] || case_failed=true
+  [[ ! -e "$record_root/current-release.env" \
+    && ! -e "$record_root/latest-candidate.env" ]] || case_failed=true
+  grep -Fqx "fatal: $task7_release_diagnostic" \
+    "$RELEASE_CASE_DIR/stderr" || case_failed=true
+  (( $(wc -c <"$RELEASE_CASE_DIR/stderr") <= 512 )) || case_failed=true
+  (( $(wc -l <"$RELEASE_CASE_DIR/stderr") <= 3 )) || case_failed=true
+  if grep -Eq '[0-9a-f]{40}|[0-9a-f]{64}' \
+      "$RELEASE_CASE_DIR/stdout" "$RELEASE_CASE_DIR/stderr" \
+    || grep -Fq "$task7_unrecognized_secret" \
+      "$RELEASE_CASE_DIR/stdout" "$RELEASE_CASE_DIR/stderr"; then
+    case_failed=true
+  fi
+
+  if [[ "$case_failed" == true ]]; then
+    printf 'unsafe 0067 release denial case: %s\n' "$scenario" >&2
+    task7_release_denial_failures="$((task7_release_denial_failures + 1))"
+  fi
+}
+
+check_task7_release_denial task7-receipt-missing \
+  "$task7_release_repo"
+check_task7_release_denial task7-receipt-schema-flag \
+  "$task7_release_repo" --schema-backward-compatible
+check_task7_release_denial task7-receipt-mail-store-flag \
+  "$task7_release_repo" --mail-store-cutover
+export MAIL_OUTBOX_TASK7_RECEIPT_CAPABILITY="$task7_unrecognized_secret"
+check_task7_release_denial task7-receipt-ambient-claim \
+  "$task7_release_repo"
+unset MAIL_OUTBOX_TASK7_RECEIPT_CAPABILITY
+
+mkdir -p "$task7_release_repo/infra/ops"
+printf '%s\n' \
+  'SCHEMA_VERSION=999' \
+  "TASK7_RECEIPT_CAPABILITY=$task7_unrecognized_secret" \
+  >"$task7_release_repo/$task7_unrecognized_capability_path"
+git -C "$task7_release_repo" add "$task7_unrecognized_capability_path"
+git -C "$task7_release_repo" commit -qm \
+  'fixture unrecognized Task 7 receipt-looking file'
+task7_unrecognized_tree="$(
+  git -C "$task7_release_repo" rev-parse --verify 'HEAD^{tree}'
+)"
+[[ "$(
+  git -C "$task7_release_repo" ls-tree -r --name-only \
+    "$task7_unrecognized_tree" -- "$task7_unrecognized_capability_path"
+)" == "$task7_unrecognized_capability_path" ]] || {
+  fail "unrecognized Task 7 capability fixture is not in the exact Git tree"
+}
+/usr/bin/python3 "$fixture_generator" \
+  --source "$task7_release_repo" \
+  --packager "$task7_release_repo/infra/ops/package-release-tree.py" \
+  --destination "$work/task7-release-unrecognized-package" \
+  >/dev/null || fail "unable to package the unrecognized Task 7 file fixture"
+[[ -z "$(git -C "$task7_release_repo" status --porcelain=v1 --untracked-files=all)" ]] || {
+  fail "unrecognized Task 7 file fixture is not an exact clean Git tree"
+}
+check_task7_release_denial task7-receipt-unrecognized-file \
+  "$task7_release_repo"
+
+(( task7_release_denial_failures == 0 )) || {
+  fail "$task7_release_denial_failures unsafe 0067 release cases reached work beyond quarantine or lacked the Task 7 receipt denial"
+}
+echo "ok - release denies every exact 0067 tree until a reviewed Task 7 receipt capability exists"
+
 cat >"$work/compose.env" <<EOF
 APP_URL=https://127.0.0.1
 POSTGRES_IMAGE=registry.example.test/postgres@sha256:1111111111111111111111111111111111111111111111111111111111111111

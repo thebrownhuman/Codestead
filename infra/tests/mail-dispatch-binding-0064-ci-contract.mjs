@@ -35,9 +35,12 @@ export const postgresCiProjectionThrough0064 =
 
 export function assertMailDispatchBinding0064PostgresProjection(
   postgresProjection,
-  projectionContract = postgresCiProjectionThrough0064,
 ) {
-  assertPostgresCiProjectionContract(postgresProjection, projectionContract);
+  assertPostgresCiProjectionContract(
+    postgresProjection,
+    postgresCiProjectionThrough0064,
+    { allowReviewedSuffix: true },
+  );
   const { registrationScript, roleContractScript, pg18Command } =
     mailDispatchBinding0064CiContract;
   assert.match(

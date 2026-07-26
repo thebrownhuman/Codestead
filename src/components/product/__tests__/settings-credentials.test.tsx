@@ -14,6 +14,7 @@ const credential = {
   routingConsented: true,
   lastValidatedAt: "2026-07-12T10:00:00.000Z",
 };
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function json(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
@@ -53,13 +54,14 @@ describe("provider credential settings", () => {
         "/api/security/fresh-mfa",
         expect.objectContaining({ method: "POST" }),
       );
-      expect(fetchMock).toHaveBeenCalledWith(
-        `/api/credentials/${credential.id}`,
-        expect.objectContaining({
-          method: "PATCH",
-          body: JSON.stringify({ action: "test" }),
-        }),
+      const mutation = fetchMock.mock.calls.find(
+        ([input, init]) => String(input).endsWith(credential.id) && init?.method === "PATCH",
       );
+      expect(mutation).toBeDefined();
+      expect(JSON.parse(String(mutation?.[1]?.body))).toEqual({
+        action: "test",
+        requestId: expect.stringMatching(UUID),
+      });
     });
   });
 
@@ -90,10 +92,14 @@ describe("provider credential settings", () => {
     await user.click(screen.getByRole("button", { name: "Replace encrypted key" }));
 
     await waitFor(() => {
-      expect(calls).toContainEqual({
-        url: `/api/credentials/${credential.id}`,
-        method: "PATCH",
-        body: JSON.stringify({ action: "replace", secret: replacement }),
+      const mutation = calls.find(
+        (call) => call.url.endsWith(credential.id) && call.method === "PATCH",
+      );
+      expect(mutation).toBeDefined();
+      expect(JSON.parse(mutation?.body ?? "")).toEqual({
+        action: "replace",
+        secret: replacement,
+        requestId: expect.stringMatching(UUID),
       });
     });
     expect(document.body.textContent).not.toContain(replacement);

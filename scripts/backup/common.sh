@@ -68,6 +68,20 @@ _valid_compact_utc_timestamp() {
   [[ "$normalized" == "$value" ]]
 }
 
+_valid_canonical_uuid_v4() {
+  local value="${1:-}"
+
+  (( $# == 1 )) || return 1
+  [[ "$value" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$ ]]
+}
+
+_valid_backup_status_run_key() {
+  local value="${1:-}"
+
+  (( $# == 1 )) || return 1
+  [[ "$value" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || _valid_canonical_uuid_v4 "$value"
+}
+
 _valid_success_marker_values() {
   local archive="${1:-}" completed_utc="${2:-}" sha256="${3:-}"
 
@@ -346,7 +360,7 @@ emit_alert() {
 }
 
 enqueue_backup_status() {
-  local outcome="$1" seed="$2" result
+  local outcome="$1" run_key="$2" result
   case "$outcome" in
     success|failure) ;;
     *)
@@ -354,8 +368,8 @@ enqueue_backup_status() {
       return 1
       ;;
   esac
-  [[ "$seed" =~ ^[0-9]{8}T[0-9]{6}Z$ ]] || {
-    log "backup status report rejected an invalid idempotency seed"
+  _valid_backup_status_run_key "$run_key" || {
+    log "backup status report rejected an invalid run identity"
     return 1
   }
 
@@ -363,7 +377,7 @@ enqueue_backup_status() {
     --profile operations run --rm --no-deps -T \
     --pull never \
     --env "BACKUP_REPORT_OUTCOME=$outcome" \
-    --env "BACKUP_REPORT_RUN_KEY=$seed" \
+    --env "BACKUP_REPORT_RUN_KEY=$run_key" \
     backup-status-reporter)"; then
     log "backup status report could not reach the application outbox"
     return 1

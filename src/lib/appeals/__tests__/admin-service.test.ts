@@ -22,6 +22,7 @@ import {
   listAdminAppeals,
 } from "../admin-service";
 import { hashAppealEvidence } from "../evidence";
+import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 
 const appealId = "10000000-0000-4000-8000-000000000001";
 const actorUserId = "admin-user";
@@ -354,6 +355,7 @@ describe("administrator appeal service", () => {
   });
 
   it.each([
+    [{ appealId: "not-a-uuid" }, "appealId must be a UUID"],
     [{ requestId: "not-a-uuid" }, "requestId must be a UUID"],
     [{ expectedVersion: 0 }, "expectedVersion must be a positive integer"],
     [{ reason: "too short" }, "decision reason"],
@@ -440,6 +442,48 @@ describe("administrator appeal service", () => {
     );
     expect(query).toHaveBeenCalledWith("commit");
     expect(release).toHaveBeenCalledOnce();
+  });
+
+  it("canonicalizes mixed-case UUIDs before deriving durable mail identity", async () => {
+    const canonicalAppealId = "a0000000-0000-4000-8000-00000000000a";
+    const canonicalRequestId = "b0000000-0000-4000-8000-00000000000b";
+    const candidate = { ...baseCandidate, id: canonicalAppealId };
+    const current = {
+      id: canonicalAppealId,
+      user_id: candidate.user_id,
+      decision: "upheld",
+      status: "upheld",
+      row_version: "2",
+      decided_at: now,
+      exam_session_id: candidate.exam_session_id,
+      project_review_id: null,
+      correction_id: null,
+      correction_status: null,
+      correction_revision: null,
+    };
+    const { query } = decisionClient({ candidate, current });
+
+    await decideAppeal(decisionInput({
+      appealId: canonicalAppealId.toUpperCase(),
+      requestId: canonicalRequestId.toUpperCase(),
+    }));
+
+    const appealEventCall = query.mock.calls.find(([statement]) =>
+      String(statement).includes("insert into appeal_event")
+    );
+    expect(appealEventCall?.[1]?.[0]).toBe(canonicalAppealId);
+    expect(appealEventCall?.[1]?.[3]).toBe(canonicalRequestId);
+
+    const outboxCall = query.mock.calls.find(([statement]) =>
+      String(statement).includes("insert into email_outbox")
+    );
+    expect(outboxCall?.[1]?.[3]).toBe(
+      accountMailEventIdempotencyKey({
+        eventId: `${canonicalAppealId}:${canonicalRequestId}`,
+        template: "appeal-updated",
+        userId: baseCandidate.user_id,
+      }),
+    );
   });
 
   it("commits a learner-input request while keeping manual grading under review", async () => {

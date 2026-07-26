@@ -93,6 +93,61 @@ function nativeHarnessFailure(code) {
 export function outwardFailureCode(error) {
   if (error instanceof assert.AssertionError) return "assertion_failed";
   if (error instanceof NativeHarnessError) return error.code;
+  const boundarySectionMatch =
+    error instanceof Error
+    && error.name === "DatabaseRoleBoundaryError"
+      ? /^database role boundary verification failed: ((?:mail-worker-outbox-contract|mail-replay-authority-table-contract):[a-z0-9_,]{1,192})$/u.exec(
+        error.message,
+      )
+      : null;
+  if (boundarySectionMatch !== null) {
+    return `database_role_boundary_${boundarySectionMatch[1]
+      .replaceAll(":", "_")
+      .replaceAll(",", "_")
+      .replaceAll("-", "_")}`;
+  }
+  const safeErrorNames = new Map([
+    ["BackupStatusMailAuthorityContractError", "backup_status_contract_error"],
+    [
+      "DatabaseBootstrapCleanupTimeoutError",
+      "database_bootstrap_cleanup_timeout",
+    ],
+    ["DatabaseRoleBootstrapInvariantError", "database_role_bootstrap_error"],
+    ["DatabaseRoleBoundaryError", "database_role_boundary_error"],
+  ]);
+  const safeErrorName = safeErrorNames.get(error?.name);
+  if (safeErrorName !== undefined) return safeErrorName;
+  const safeErrorMessages = new Map([
+    [
+      "database bootstrap authority verification failed",
+      "database_bootstrap_authority_verification_failed",
+    ],
+  ]);
+  const safeErrorMessage = safeErrorMessages.get(error?.message);
+  if (safeErrorMessage !== undefined) return safeErrorMessage;
+  const bootstrapInvariantMatch = error instanceof Error
+    ? /^database role bootstrap invariant verification failed \[([a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)(?:: [^\]\r\n]*)?\]$/u.exec(
+      error.message,
+    )
+    : null;
+  if (bootstrapInvariantMatch !== null) {
+    return `database_role_bootstrap_${bootstrapInvariantMatch[1].replaceAll(
+      "-",
+      "_",
+    )}`;
+  }
+  if (
+    typeof error?.code === "string"
+    && /^[0-9A-Z]{5}$/u.test(error.code)
+  ) {
+    return `postgres_sqlstate_${error.code.toLowerCase()}`;
+  }
+  if (
+    error instanceof Error
+    && /^[a-z0-9_]{1,128}$/u.test(error.message)
+  ) {
+    return error.message;
+  }
   return "unexpected_failure";
 }
 
@@ -977,37 +1032,49 @@ async function runLiveRoleBootstrap(port, database) {
     databaseMigratorUrl: roleUrl("learncoding_migrator", "m".repeat(48)),
     databaseWorkerUrl: roleUrl("learncoding_worker", "w".repeat(48)),
     databaseOpsUrl: roleUrl("learncoding_ops", "o".repeat(48)),
+    databaseBackupReporterUrl: roleUrl(
+      "learncoding_backup_reporter", "r".repeat(48)),
     lockTimeoutMs: 5_000,
     cleanupTimeoutMs: 5_000,
     pool,
   });
 }
 
-async function runProductionApplicationBoundaryVerifier(port, database) {
-  const [{ Pool }, { verifyDatabaseRoleBoundaries }] = await Promise.all([
+async function runHistoricalPhase0064CatalogVerifier(port, database) {
+  const [
+    { Pool },
+    { verifyReviewedMailAuthorityCatalogContracts },
+    { REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES },
+  ] = await Promise.all([
     import("pg"),
     import("../../scripts/verify-database-role-boundaries.mjs"),
+    import("../../scripts/bootstrap-database-roles.mjs"),
   ]);
-  const roleUrl = (role, password) =>
-    `postgresql://${role}:${password}@postgres:5432/${database}`;
-  return verifyDatabaseRoleBoundaries({
-    postgresDatabase: database,
-    databaseAppUrl: roleUrl("learncoding_app", "a".repeat(48)),
-    databaseMigratorUrl: roleUrl("learncoding_migrator", "m".repeat(48)),
-    databaseWorkerUrl: roleUrl("learncoding_worker", "w".repeat(48)),
-    databaseOpsUrl: roleUrl("learncoding_ops", "o".repeat(48)),
-    requireApplicationObjects: true,
-    lockTimeoutMs: 5_000,
-    poolFactory: ({ role }) => new Pool({
-      host: "127.0.0.1",
-      port,
-      user: role,
-      database,
-      max: 1,
-      connectionTimeoutMillis: 5_000,
-      statement_timeout: 5_000,
-    }),
+  const phase0064 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
+    ({ index }) => index === 64,
+  );
+  if (phase0064 === undefined) {
+    throw nativeHarnessFailure("reviewed_phase_0064_missing");
+  }
+  const pool = new Pool({
+    host: "127.0.0.1",
+    port,
+    user: "learncoding_ops",
+    database,
+    max: 1,
+    connectionTimeoutMillis: 5_000,
+    statement_timeout: 5_000,
   });
+  const client = await pool.connect();
+  try {
+    return await verifyReviewedMailAuthorityCatalogContracts(
+      client,
+      phase0064,
+    );
+  } finally {
+    client.release();
+    await pool.end();
+  }
 }
 
 async function applyMigrationsWithFramework(port, database, migrationsFolder) {
@@ -1056,6 +1123,11 @@ function catalogAssertionSql() {
       routine_failure_count integer;
       trigger_failure_count integer;
     begin
+      perform pg_catalog.set_config(
+        'search_path',
+        'pg_catalog,pg_temp',
+        true
+      );
       with expected(signature, expected_owner, expected_definer,
                     expected_config, expected_body_sha256,
                     expected_definition_sha256, expected_acl) as (
@@ -1066,7 +1138,7 @@ function catalogAssertionSql() {
             true,
             array['search_path=pg_catalog']::text[],
             '7c2d6df1168a89d63ed026c63bc390201a2a6b618e75967eddbe27c3d5bf672c',
-            '67df14d91b1d8f11f1d9627b34e332d14ae871a68482f371d15e149ab81d5853',
+            '43ea2a3bed7514efdb28ee52dfb128af57f39f525bb8842ce49c0eb4fa245466',
             array[
               'learncoding_owner>learncoding_owner:EXECUTE:false'
             ]::text[]
@@ -2331,20 +2403,20 @@ function proveReconciliationAfterRedaction(port, database) {
   );
 }
 
-async function assertProductionBoundaryRejects(port, database, label) {
+async function assertHistoricalPhaseBoundaryRejects(port, database, label) {
   await assert.rejects(
-    runProductionApplicationBoundaryVerifier(port, database),
+    runHistoricalPhase0064CatalogVerifier(port, database),
     { name: "DatabaseRoleBoundaryError" },
-    `${label} tamper escaped the production application-object verifier`,
+    `${label} tamper escaped the historical phase-0064 catalog verifier`,
   );
 }
 
-async function proveProductionBoundaryTamperAndRestore(
+async function proveHistoricalPhaseBoundaryTamperAndRestore(
   port,
   database,
   migration0063,
 ) {
-  await runProductionApplicationBoundaryVerifier(port, database);
+  await runHistoricalPhase0064CatalogVerifier(port, database);
   psql(port, database, `
     alter function public.redact_unresolved_email_outbox_authority(
       timestamp with time zone,
@@ -2353,7 +2425,7 @@ async function proveProductionBoundaryTamperAndRestore(
   `, {
     label: "production_boundary_missing_routine",
   });
-  await assertProductionBoundaryRejects(port, database, "missing_routine");
+  await assertHistoricalPhaseBoundaryRejects(port, database, "missing_routine");
   psql(port, database, `
     alter function public.redact_unresolved_email_outbox_authority_missing(
       timestamp with time zone,
@@ -2368,7 +2440,7 @@ async function proveProductionBoundaryTamperAndRestore(
         timestamp with time zone
       ) to learncoding_app;
   `, { label: "production_boundary_classifier_acl" });
-  await assertProductionBoundaryRejects(port, database, "classifier_acl");
+  await assertHistoricalPhaseBoundaryRejects(port, database, "classifier_acl");
   replayMigration0063(port, database, migration0063);
 
   psql(port, database, `
@@ -2377,21 +2449,21 @@ async function proveProductionBoundaryTamperAndRestore(
       integer
     ) security invoker;
   `, { label: "production_boundary_redactor_security" });
-  await assertProductionBoundaryRejects(port, database, "redactor_security");
+  await assertHistoricalPhaseBoundaryRejects(port, database, "redactor_security");
   replayMigration0063(port, database, migration0063);
 
   psql(port, database, `
     alter table public.email_outbox
       disable trigger email_outbox_payload_immutable;
   `, { label: "production_boundary_trigger_disabled" });
-  await assertProductionBoundaryRejects(port, database, "trigger_disabled");
+  await assertHistoricalPhaseBoundaryRejects(port, database, "trigger_disabled");
   psql(port, database, `
     alter table public.email_outbox
       enable trigger email_outbox_payload_immutable;
   `, { label: "production_boundary_restore_trigger" });
   replayMigration0063(port, database, migration0063);
 
-  await runProductionApplicationBoundaryVerifier(port, database);
+  await runHistoricalPhase0064CatalogVerifier(port, database);
   assertCatalogContract(port, database);
 }
 function proveCatalogTamperDetection(port, database) {
@@ -2811,8 +2883,8 @@ async function main(control = defaultHarnessControl) {
       "65",
       "framework did not record migrations 0000 through 0064",
     );
-    await runProductionApplicationBoundaryVerifier(port, database);
-    await proveProductionBoundaryTamperAndRestore(
+    await runHistoricalPhase0064CatalogVerifier(port, database);
+    await proveHistoricalPhaseBoundaryTamperAndRestore(
       port,
       database,
       migration0063,

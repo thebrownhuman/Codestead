@@ -117,14 +117,14 @@ export function AdminCredentialManager({
         setMessage("Credential revealed for 30 seconds. The access was audited and the learner was notified.");
       } else {
         const method = action === "delete" ? "DELETE" : "PATCH";
-        const requestId = action === "test" || action === "replace" ? crypto.randomUUID() : undefined;
+        const requestId = crypto.randomUUID();
         const body = action === "delete"
-          ? { learnerId, reason: reason.trim() }
+          ? { learnerId, reason: reason.trim(), requestId }
           : {
               learnerId,
               reason: reason.trim(),
               action,
-              ...(requestId ? { requestId } : {}),
+              requestId,
               ...(action === "replace" ? { secret: replacementSecret.trim() } : {}),
             };
         const url = `/api/admin/credentials/${encodeURIComponent(selected.id)}`;
@@ -133,11 +133,12 @@ export function AdminCredentialManager({
           headers: { "content-type": "application/json" },
           body: JSON.stringify(body),
         } satisfies RequestInit;
+        const hasDurableReceipt = action === "test" || action === "replace";
         let result: { status: string };
         try {
           result = await requestAdminJson<{ status: string }>(url, init);
         } catch (error) {
-          if (!requestId || error instanceof AdminApiError) throw error;
+          if (error instanceof AdminApiError || !hasDurableReceipt) throw error;
           // Retry only an indeterminate transport failure. Reusing the UUID
           // makes the server replay a committed test/replacement safely.
           result = await requestAdminJson<{ status: string }>(url, init);

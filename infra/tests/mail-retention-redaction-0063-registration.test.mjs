@@ -5,9 +5,14 @@ import { readFileSync, readdirSync } from "node:fs";
 import { mailDispatchBinding0064PostgresCiExtension } from "./mail-dispatch-binding-0064-ci-contract.mjs";
 import {
   backupStatusMailAuthority0065CiExtension,
-  postgresCiProjectionThrough0065,
 } from "./backup-status-mail-authority-0065-ci-contract.mjs";
+import {
+  mailProviderCorrelation0066PostgresCiExtension,
+} from "./mail-provider-correlation-0066-ci-contract.mjs";
 import * as postgresCiProjectionModule from "./mail-retention-redaction-0063-ci-contract.mjs";
+import {
+  outwardFailureCode,
+} from "./mail-retention-redaction-0063.integration.mjs";
 
 const { mailRetentionRedaction0063CiContract } = postgresCiProjectionModule;
 
@@ -32,6 +37,65 @@ const integrationHarness = read(
 );
 const scripts = packageManifest.scripts;
 const staticOnly = process.argv.includes("--static-only");
+
+assert.equal(
+  outwardFailureCode(new Error("bounded_phase_timeout")),
+  "bounded_phase_timeout",
+);
+assert.equal(
+  outwardFailureCode(Object.assign(
+    new Error("database role boundary verification failed: secret"),
+    { name: "DatabaseRoleBoundaryError" },
+  )),
+  "database_role_boundary_error",
+);
+assert.equal(
+  outwardFailureCode(Object.assign(
+    new Error(
+      "database role boundary verification failed: "
+        + "mail-worker-outbox-contract:"
+        + "worker_table_direct_acl_exact,worker_column_direct_acl_exact",
+    ),
+    { name: "DatabaseRoleBoundaryError" },
+  )),
+  "database_role_boundary_mail_worker_outbox_contract_worker_table_direct_acl_exact_worker_column_direct_acl_exact",
+);
+assert.equal(
+  outwardFailureCode(Object.assign(
+    new Error("unsafe SQL detail"),
+    { code: "42501" },
+  )),
+  "postgres_sqlstate_42501",
+);
+assert.equal(
+  outwardFailureCode(new Error(
+    "database role bootstrap invariant verification failed [default-acl-rows: hostile_detail]",
+  )),
+  "database_role_bootstrap_default_acl_rows",
+);
+assert.equal(
+  outwardFailureCode(new Error(
+    "database role bootstrap invariant verification failed [default-acl-rows: postgresql://user:secret@host/database]",
+  )),
+  "database_role_bootstrap_default_acl_rows",
+);
+assert.equal(
+  outwardFailureCode(Object.assign(
+    new Error("database bootstrap cleanup timed out during pool shutdown"),
+    { name: "DatabaseBootstrapCleanupTimeoutError" },
+  )),
+  "database_bootstrap_cleanup_timeout",
+);
+assert.equal(
+  outwardFailureCode(new Error(
+    "database bootstrap authority verification failed",
+  )),
+  "database_bootstrap_authority_verification_failed",
+);
+assert.equal(
+  outwardFailureCode(new Error("postgresql://user:secret@host/database")),
+  "unexpected_failure",
+);
 
 assert.equal(
   typeof postgresCiProjectionModule.definePostgresCiProjectionExtension,
@@ -94,10 +158,11 @@ const composedSelfTestContract =
     selfTest0065Extension,
     selfTestRestoreExtension,
   );
-const composedSelfTestContractThrough0065 =
+const composedSelfTestContractThrough0066 =
   postgresCiProjectionModule.composeCanonicalPostgresCiProjectionContract(
     mailDispatchBinding0064PostgresCiExtension,
     backupStatusMailAuthority0065CiExtension,
+    mailProviderCorrelation0066PostgresCiExtension,
     selfTest0064Extension,
     selfTest0065Extension,
     selfTestRestoreExtension,
@@ -287,6 +352,34 @@ for (const requiredLiveProof of [
     `0063 live harness is missing hostile-catalog proof: ${requiredLiveProof}`,
   );
 }
+const liveRoleBootstrapStart = integrationHarness.indexOf(
+  "async function runLiveRoleBootstrap(port, database)",
+);
+const historicalPhaseVerifierStart = integrationHarness.indexOf(
+  "async function runHistoricalPhase0064CatalogVerifier(port, database)",
+);
+const migrationFrameworkStart = integrationHarness.indexOf(
+  "async function applyMigrationsWithFramework(port, database, migrationsFolder)",
+);
+assert.ok(liveRoleBootstrapStart >= 0);
+assert.ok(
+  historicalPhaseVerifierStart > liveRoleBootstrapStart,
+  "the 0063 harness must use an explicitly historical catalog verifier",
+);
+assert.ok(migrationFrameworkStart > historicalPhaseVerifierStart);
+assert.match(
+  integrationHarness.slice(liveRoleBootstrapStart, historicalPhaseVerifierStart),
+  /databaseBackupReporterUrl:\s*roleUrl\(\s*"learncoding_backup_reporter",\s*"r"\.repeat\(48\)\)/u,
+);
+const historicalPhaseVerifierSource = integrationHarness.slice(
+  historicalPhaseVerifierStart,
+  migrationFrameworkStart,
+);
+assert.match(
+  historicalPhaseVerifierSource,
+  /verifyReviewedMailAuthorityCatalogContracts\(\s*client,\s*phase0064/u,
+);
+assert.match(historicalPhaseVerifierSource, /\(\{ index \}\) => index === 64/u);
 const rawCatalogAssertion = integrationHarness.indexOf(
   "assertHostileFunctionAclsRemoved(port, database)",
 );
@@ -298,14 +391,14 @@ const latestPhaseMigration = integrationHarness.indexOf(
   "frameworkMigrationDirectoryThrough0064",
   postMigrationBootstrap,
 );
-const broadBoundaryVerifier = integrationHarness.indexOf(
-  "await runProductionApplicationBoundaryVerifier(port, database)",
+const historicalBoundaryVerifier = integrationHarness.indexOf(
+  "await runHistoricalPhase0064CatalogVerifier(port, database)",
   latestPhaseMigration,
 );
 assert.ok(rawCatalogAssertion >= 0);
 assert.ok(postMigrationBootstrap > rawCatalogAssertion);
 assert.ok(latestPhaseMigration > postMigrationBootstrap);
-assert.ok(broadBoundaryVerifier > latestPhaseMigration);
+assert.ok(historicalBoundaryVerifier > latestPhaseMigration);
 
 const boundaryVerifierCommand =
   'command: ["node", "/app/scripts/verify-database-role-boundaries.mjs", "--require-application-objects"]';
@@ -339,11 +432,6 @@ if (!staticOnly) {
     workflow.match(
       /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
     )?.[0] ?? "";
-  postgresCiProjectionModule.assertPostgresCiProjectionContract(
-    postgresJob,
-    postgresCiProjectionThrough0065,
-  );
-
   const replaceProjectionExactly = (projection, before, after) => {
     assert.equal(
       projection.split(before).length,
@@ -352,17 +440,60 @@ if (!staticOnly) {
     );
     return projection.replace(before, after);
   };
+  const assertHistoricalProjection = (projection) =>
+    postgresCiProjectionModule.assertPostgresCiProjectionContract(
+      projection,
+      postgresCiProjectionModule.canonicalPostgresCiProjectionContract,
+      { allowReviewedSuffix: true },
+    );
+  assert.doesNotThrow(
+    () => assertHistoricalProjection(postgresJob),
+    "the historical 0063 contract must accept an ordered reviewed suffix",
+  );
   const expectProjectionRejected = (label, projection, expectedMessage) => {
     assert.throws(
-      () =>
-        postgresCiProjectionModule.assertPostgresCiProjectionContract(
-          projection,
-          postgresCiProjectionThrough0065,
-        ),
+      () => assertHistoricalProjection(projection),
       expectedMessage,
       label,
     );
   };
+
+  const registration0063Line =
+    "      - run: npm run test:mail-retention-redaction-0063:registration";
+  const registration0066Line =
+    "      - run: npm run test:mail-provider-correlation-0066:registration";
+  const registration0067Line =
+    "      - run: npm run test:mail-durable-replay-0067:registration";
+  expectProjectionRejected(
+    "an older migration cannot be inserted after the historical prefix",
+    replaceProjectionExactly(
+      postgresJob,
+      registration0063Line,
+      [
+        registration0063Line,
+        "      - run: npm run test:hostile-mail-authority-0062:registration",
+      ].join("\n"),
+    ),
+    /suffix migrations must be strictly later and ordered/u,
+  );
+  expectProjectionRejected(
+    "reviewed suffix registrations cannot be reordered",
+    replaceProjectionExactly(
+      postgresJob,
+      [registration0066Line, registration0067Line].join("\n"),
+      [registration0067Line, registration0066Line].join("\n"),
+    ),
+    /suffix migrations must be strictly later and ordered/u,
+  );
+  expectProjectionRejected(
+    "the historical registration command must remain exact-once",
+    replaceProjectionExactly(
+      postgresJob,
+      registration0063Line,
+      [registration0063Line, registration0063Line].join("\n"),
+    ),
+    /scripts must not be duplicated/u,
+  );
 
   expectProjectionRejected(
     "the PostgreSQL timeout is one canonical policy",
@@ -426,9 +557,8 @@ if (!staticOnly) {
   for (const differentMajorImage of ["postgres:160-bookworm", "postgres:161"]) {
     assert.doesNotThrow(
       () =>
-        postgresCiProjectionModule.assertPostgresCiProjectionContract(
+        assertHistoricalProjection(
           `${postgresJob}      - run: docker run --rm ${differentMajorImage}\n`,
-          postgresCiProjectionThrough0065,
         ),
       `${differentMajorImage} must not be mistaken for PostgreSQL 16`,
     );
@@ -470,21 +600,25 @@ if (!staticOnly) {
   );
   expectProjectionRejected(
     "production PostgreSQL 17 must run before targeted PostgreSQL 18",
-    replaceProjectionExactly(
-      postgresJob,
-      [
-        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063",
-        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17",
-        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:backup-status-mail-authority-0065",
-        "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
-      ].join("\n"),
-      [
-        "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
-        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063",
-        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-dispatch-binding-0064:pg17",
-        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:backup-status-mail-authority-0065",
-      ].join("\n"),
-    ),
+    (() => {
+      const firstProductionLine =
+        "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0063";
+      const firstTargetedLine =
+        "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059";
+      const productionStart = postgresJob.indexOf(firstProductionLine);
+      const targetedStart = postgresJob.indexOf(firstTargetedLine);
+      assert.ok(productionStart >= 0);
+      assert.ok(targetedStart > productionStart);
+      const productionBlock = postgresJob.slice(
+        productionStart,
+        targetedStart,
+      );
+      return replaceProjectionExactly(
+        postgresJob,
+        `${productionBlock}${firstTargetedLine}`,
+        `${firstTargetedLine}\n${productionBlock.trimEnd()}`,
+      );
+    })(),
     /PostgreSQL 17 harnesses must run before PostgreSQL 18/u,
   );
   expectProjectionRejected(
@@ -518,11 +652,24 @@ if (!staticOnly) {
     /PostgreSQL 18 scripts/u,
   );
 
+  const exactProjectionThrough0066 = postgresJob
+    .split(/\r?\n/u)
+    .filter((line) => {
+      const script = line.match(
+        /\bnpm run (test:[a-z0-9][a-z0-9:-]*)$/u,
+      )?.[1];
+      const versionText = script?.match(/-(\d{4})(?::|$)/u)?.[1];
+      return (
+        versionText === undefined ||
+        Number.parseInt(versionText, 10) <= 66
+      );
+    })
+    .join("\n");
   const extendedProjection = replaceProjectionExactly(
     replaceProjectionExactly(
       replaceProjectionExactly(
         replaceProjectionExactly(
-          postgresJob,
+          exactProjectionThrough0066,
           "    timeout-minutes: 20",
           "    timeout-minutes: 35",
         ),
@@ -542,9 +689,9 @@ if (!staticOnly) {
         "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059",
       ].join("\n"),
     ),
-    "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:backup-status-mail-authority-0065",
+    "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-provider-correlation-0066:pg18",
     [
-      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:backup-status-mail-authority-0065",
+      "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-provider-correlation-0066:pg18",
       "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-0064",
       "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-0065",
       "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-restore",
@@ -554,7 +701,7 @@ if (!staticOnly) {
     () =>
       postgresCiProjectionModule.assertPostgresCiProjectionContract(
         extendedProjection,
-        composedSelfTestContractThrough0065,
+        composedSelfTestContractThrough0066,
       ),
     "0064, 0065, and restore must compose without replacing prior gates",
   );
@@ -566,7 +713,7 @@ if (!staticOnly) {
           "      - run: npm run test:mail-delivery-scope-0059:registration\n",
           "",
         ),
-        composedSelfTestContractThrough0065,
+        composedSelfTestContractThrough0066,
       ),
     /registration scripts/u,
     "an extension cannot make a prior registration optional",

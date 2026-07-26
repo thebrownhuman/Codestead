@@ -324,7 +324,8 @@ run_compose_managed() {
   printf '%s\n' "$compose_result"
 }
 
-enqueue_backup_status success 20260712T120000Z
+backup_run_key=8b4f9fbe-d45a-4e4d-9c90-dfef3c8fce31
+enqueue_backup_status success "$backup_run_key"
 grep -Fq -- "--profile" "$compose_calls"
 grep -Fq "operations" "$compose_calls"
 grep -Fq "run" "$compose_calls"
@@ -333,7 +334,7 @@ grep -Fq -- "--no-deps" "$compose_calls"
 grep -Fq -- "--pull" "$compose_calls"
 grep -Fq "never" "$compose_calls"
 grep -Fq "BACKUP_REPORT_OUTCOME=success" "$compose_calls"
-grep -Fq "BACKUP_REPORT_RUN_KEY=20260712T120000Z" "$compose_calls"
+grep -Fq "BACKUP_REPORT_RUN_KEY=$backup_run_key" "$compose_calls"
 grep -Fq "backup-status-reporter" "$compose_calls"
 if grep -Eqi 'learncoding-full-|\.tar\.gz|AGE-SECRET-KEY|database\.dump|POSTGRES_PASSWORD|POSTGRES_USER|email_outbox|INSERT INTO|psql' "$compose_calls"; then
   echo "backup status report exposed an archive, dump, or encryption identity" >&2
@@ -359,6 +360,14 @@ if enqueue_backup_status invalid 20260712T120003Z >/dev/null 2>&1; then
   echo "invalid backup report outcome was accepted" >&2
   exit 1
 fi
+if enqueue_backup_status success 8B4F9FBE-D45A-4E4D-9C90-DFEF3C8FCE31 >/dev/null 2>&1; then
+  echo "non-canonical backup run UUID was accepted" >&2
+  exit 1
+fi
+if enqueue_backup_status success 8b4f9fbe-d45a-1e4d-9c90-dfef3c8fce31 >/dev/null 2>&1; then
+  echo "non-v4 backup run UUID was accepted" >&2
+  exit 1
+fi
 if enqueue_backup_status success ../unsafe >/dev/null 2>&1; then
   echo "invalid backup report idempotency seed was accepted" >&2
   exit 1
@@ -368,7 +377,9 @@ grep -Fq 'run_compose_managed "$BACKUP_STATUS_REPORT_DEADLINE_SECONDS"' \
   "$repo_root/scripts/backup/common.sh"
 grep -Fq 'run_managed_backup_command "$allotted_seconds" "${args[@]}" "$@"' \
   "$repo_root/scripts/backup/common.sh"
-grep -Fq 'enqueue_backup_status failure "$timestamp"' "$repo_root/scripts/backup/backup.sh"
-grep -Fq 'enqueue_backup_status success "$timestamp"' "$repo_root/scripts/backup/backup.sh"
+grep -Fq 'uuid.uuid4()' "$repo_root/scripts/backup/backup.sh"
+grep -Fq '_valid_canonical_uuid_v4 "$backup_run_key"' "$repo_root/scripts/backup/backup.sh"
+grep -Fq 'enqueue_backup_status failure "$backup_run_key"' "$repo_root/scripts/backup/backup.sh"
+grep -Fq 'enqueue_backup_status success "$backup_run_key"' "$repo_root/scripts/backup/backup.sh"
 
 echo "backup-config-tests-ok"

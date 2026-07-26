@@ -18,12 +18,14 @@ import { requireRecentMfa } from "@/lib/security/recent-mfa";
 import { consentPurposeForProvider, hasCurrentConsent } from "@/lib/privacy/consent";
 
 const patchSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.enum(["prefer", "disable", "enable", "test"]) }),
+  z.object({ action: z.enum(["prefer", "disable", "enable", "test"]), requestId: z.uuid() }),
   z.object({
     action: z.literal("replace"),
     secret: z.string().trim().min(8).max(4_096),
+    requestId: z.uuid(),
   }),
 ]);
+const deleteSchema = z.object({ requestId: z.uuid() }).strict();
 
 function masterKey() {
   const configured = process.env.CREDENTIAL_MASTER_KEY;
@@ -210,7 +212,7 @@ export async function PATCH(
         userId: authz.session.user.id,
         provider: owned.provider,
         action: body.data.action,
-        idempotencySeed: `${owned.id}:${body.data.action}:${Date.now()}`,
+        idempotencySeed: `${owned.id}:${body.data.action}:${body.data.requestId}`,
       });
       return NextResponse.json(
         { ok: true, ...(validationStatus ? { status: validationStatus } : {}) },
@@ -221,7 +223,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
   const authz = await requireAuth({ allowPending: true });
@@ -229,6 +231,13 @@ export async function DELETE(
   return withRateLimit(
     { policy: "credential_write_user", identity: { kind: "user", value: authz.session.user.id } },
     async () => {
+      const body = deleteSchema.safeParse(await request.json().catch(() => null));
+      if (!body.success) {
+        return NextResponse.json(
+          { error: "A stable request ID is required." },
+          { status: 400, headers: { "Cache-Control": "no-store" } },
+        );
+      }
       const { id } = await context.params;
       const mfa = await requireRecentMfa({
         sessionId: authz.session.session.id,
@@ -260,7 +269,7 @@ export async function DELETE(
         userId: authz.session.user.id,
         provider: deleted[0].provider,
         action: "delete",
-        idempotencySeed: `${deleted[0].id}:delete:${Date.now()}`,
+        idempotencySeed: `${deleted[0].id}:delete:${body.data.requestId}`,
       });
       return new NextResponse(null, { status: 204 });
     },

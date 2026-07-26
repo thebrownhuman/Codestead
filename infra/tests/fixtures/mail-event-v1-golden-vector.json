@@ -1,0 +1,14 @@
+{
+  "authorityVersion": "event-v1-native",
+  "domain": "mail-event-v1",
+  "template": "weekly-summary",
+  "scope": "a:mail-0067-learner",
+  "eventId": "smart-reminder:72000000-0000-4000-8000-000000000005",
+  "accountInput": {
+    "template": "weekly-summary",
+    "userId": "mail-0067-learner",
+    "eventId": "smart-reminder:72000000-0000-4000-8000-000000000005"
+  },
+  "separatorCodePoint": 31,
+  "sha256": "66124baf827fdbbdbbd66f3f6b0f2465ba26a30475c87cbd9424962fa5d99204"
+}

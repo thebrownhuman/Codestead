@@ -32,13 +32,15 @@ const authorityRow = Object.freeze({
   operation_id: "33333333-3333-4333-8333-333333333333",
 });
 
+const backupRunId = "8b4f9fbe-d45a-4e4d-9c90-dfef3c8fce31";
+
 function reporterInput(overrides = {}) {
   return {
     databaseUrl: reporterUrl,
     databaseName: "learncoding",
     environment: reporterEnvironment,
     outcome: "success",
-    runKey: "20260725T051500Z",
+    runKey: backupRunId,
     ...overrides,
   };
 }
@@ -75,15 +77,15 @@ test("the dedicated backup-status reporter implementation exists", () => {
   assert.notEqual(implementation, null);
 });
 
-test("request validation accepts only the fixed outcome and run-key grammar", {
+test("request validation accepts UUIDv4 run identities and legacy timestamps", {
   skip: implementation === null,
 }, () => {
   assert.deepEqual(
     implementation.validateBackupStatusRequest({
       outcome: "success",
-      runKey: "20260725T051500Z",
+      runKey: backupRunId,
     }),
-    { outcome: "success", runKey: "20260725T051500Z" },
+    { outcome: "success", runKey: backupRunId },
   );
   assert.deepEqual(
     implementation.validateBackupStatusRequest({
@@ -93,10 +95,27 @@ test("request validation accepts only the fixed outcome and run-key grammar", {
     { outcome: "failure", runKey: "20260725T051501Z" },
   );
   for (const input of [
-    { outcome: "SUCCESS", runKey: "20260725T051500Z" },
+    { outcome: "SUCCESS", runKey: backupRunId },
     { outcome: "success", runKey: "../unsafe" },
     { outcome: "success", runKey: "20260725t051500z" },
     { outcome: "success", runKey: "20260725T051500Z\n" },
+    {
+      outcome: "success",
+      runKey: "8B4F9FBE-D45A-4E4D-9C90-DFEF3C8FCE31",
+    },
+    {
+      outcome: "success",
+      runKey: "8b4f9fbe-d45a-1e4d-9c90-dfef3c8fce31",
+    },
+    {
+      outcome: "success",
+      runKey: "8b4f9fbe-d45a-4e4d-7c90-dfef3c8fce31",
+    },
+    {
+      outcome: "success",
+      runKey: "00000000-0000-0000-0000-000000000000",
+    },
+    { outcome: "success", runKey: `${backupRunId}\n` },
   ]) {
     assert.throws(
       () => implementation.validateBackupStatusRequest(input),
@@ -241,7 +260,7 @@ test("enqueue uses one private bounded connection and only the owner routine", {
     calls[0].sql,
     /^select acknowledgement, authority_id::text, outbox_id::text, operation_id::text\s+from public\.enqueue_backup_status_mail_authority\(\$1::text, \$2::text\)$/u,
   );
-  assert.deepEqual(calls[0].values, ["20260725T051500Z", "success"]);
+  assert.deepEqual(calls[0].values, [backupRunId, "success"]);
   assert.doesNotMatch(calls[0].sql, /postgresql:|learncoding_backup_reporter|a{32}/u);
 });
 

@@ -1,24 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const onConflictDoNothing = vi.fn(async () => undefined);
-  const values = vi.fn((value: unknown) => {
-    void value;
-    return { onConflictDoNothing };
+  const execute = vi.fn(async (_statement: unknown) => {
+    void _statement;
   });
-  const insert = vi.fn(() => ({ values }));
-  return { insert, values, onConflictDoNothing };
+  const values = vi.fn((_value: unknown) => {
+    void _value;
+  });
+  return { execute, values };
 });
 
-vi.mock("@/lib/db/client", () => ({ db: { insert: mocks.insert } }));
-vi.mock("@/lib/db/schema", () => ({
-  emailOutbox: { idempotencyKey: "idempotency_key" },
-}));
+vi.mock("@/lib/db/client", () => ({ db: { execute: mocks.execute } }));
 
 import { enqueueEmail } from "../outbox";
+import { capturedOutboxRow } from "./outbox-sql-test-support";
 
 describe("email outbox delivery scope", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.execute.mockImplementation(async (statement) => {
+      mocks.values(capturedOutboxRow(statement));
+    });
+  });
 
   it("derives an immutable account scope from the account identity", async () => {
     await enqueueEmail({
@@ -50,6 +53,7 @@ describe("email outbox delivery scope", () => {
         _mailSourceId: "11111111-1111-4111-8111-111111111111",
       },
       systemProducer: "access-request-rejected",
+      audienceId: "22222222-2222-4222-8222-222222222222",
       sourceId: "22222222-2222-4222-8222-222222222222",
       idempotencySeed: "request-1",
     });
@@ -69,6 +73,7 @@ describe("email outbox delivery scope", () => {
         _mailRecipient: "candidate@example.com",
         _mailProducer: "access-request-rejected",
         _mailSourceId: "22222222-2222-4222-8222-222222222222",
+        _mailAudienceId: "22222222-2222-4222-8222-222222222222",
       }),
     );
   });
@@ -84,7 +89,7 @@ describe("email outbox delivery scope", () => {
         idempotencySeed: "request-2",
       } as never),
     ).rejects.toThrow("System email producer/template pair is not allowed");
-    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.execute).not.toHaveBeenCalled();
   });
 
   it("rejects a non-UUID durable system source before insertion", async () => {
@@ -94,10 +99,11 @@ describe("email outbox delivery scope", () => {
         template: "access-rejected",
         variables: {},
         systemProducer: "access-request-rejected",
+        audienceId: "22222222-2222-4222-8222-222222222222",
         sourceId: "request-2",
         idempotencySeed: "request-2",
       }),
     ).rejects.toThrow("System email source ID must be a UUID");
-    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.execute).not.toHaveBeenCalled();
   });
 });

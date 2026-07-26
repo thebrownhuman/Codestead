@@ -252,13 +252,18 @@ describe("0066 email outbox provider correlation evidence", () => {
     expect(schema).toContain(
       '"email_outbox_provider_correlation_evidence_valid"',
     );
-    expect(JSON.parse(journal).entries.at(-1)).toEqual({
+    const entries = JSON.parse(journal).entries as Array<{
+      idx: number;
+    }>;
+    const migration0066Index = entries.findIndex(({ idx }) => idx === 66);
+    expect(entries[migration0066Index]).toEqual({
       idx: 66,
       version: "7",
       when: 1784997273087,
       tag: "0066_mail_outbox_provider_correlation_evidence",
       breakpoints: true,
     });
+    expect(entries[migration0066Index + 1]?.idx).toBe(67);
     const snapshotPath = resolve(
       repositoryRoot,
       "drizzle",

@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
               throw new Error("Access request insert did not return an ID.");
 
             const [admin] = await tx
-              .select({ email: user.email })
+              .select({ id: user.id, email: user.email })
               .from(user)
               .where(
                 and(
@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
                 url: `${process.env.APP_URL ?? "http://localhost:3000"}/admin/access`,
               },
               systemProducer: "access-request-admin",
+              audienceId: admin.id,
               sourceId: created.id,
               idempotencySeed: created.id,
             });

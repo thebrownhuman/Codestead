@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -105,6 +108,8 @@ describe("disposable integration environment", () => {
       HTTPS_PROXY: "proxy-canary",
       DATABASE_READONLY_URL: "database-canary",
       PGHOST: "postgres-canary",
+      DELETION_TOMBSTONE_KEY: "deletion-tombstone-secret-canary",
+      DELETION_TOMBSTONE_KEY_FILE: "deletion-tombstone-file-canary",
     });
 
     expect(child).toEqual({
@@ -114,7 +119,25 @@ describe("disposable integration environment", () => {
       TEMP: "C:\\Temp",
     });
     expect(JSON.stringify(child)).not.toMatch(
-      /token-canary|secret-canary|key-canary|credential-canary|cloud-canary|proxy-canary|database-canary|postgres-canary/u,
+      /token-canary|secret-canary|key-canary|credential-canary|cloud-canary|proxy-canary|database-canary|postgres-canary|deletion-tombstone-secret-canary|deletion-tombstone-file-canary/u,
     );
+  });
+
+  it("keeps the deletion tombstone capability out of migration and the general runner", async () => {
+    const [migrationRunner, integrationRunner] = await Promise.all([
+      readFile(
+        path.resolve(process.cwd(), "scripts/migrate-production.mjs"),
+        "utf8",
+      ),
+      readFile(
+        path.resolve(process.cwd(), "scripts/run-integration-tests.ts"),
+        "utf8",
+      ),
+    ]);
+    const deletionCapability =
+      /DELETION_TOMBSTONE_KEY(?:_FILE)?|deletion_tombstone_key/u;
+
+    expect(migrationRunner).not.toMatch(deletionCapability);
+    expect(integrationRunner).not.toMatch(deletionCapability);
   });
 });

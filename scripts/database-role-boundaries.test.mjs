@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -10,8 +11,12 @@ import {
   REVIEWED_APPLICATION_CONSTRAINTS,
   REVIEWED_APPLICATION_FUNCTIONS,
   REVIEWED_APPLICATION_TRIGGERS,
+  REVIEWED_0065_BACKUP_STATUS_AUTHORITY,
+  REVIEWED_0067_BACKUP_STATUS_AUTHORITY,
   REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES,
+  REVIEWED_REPLAY_AUTHORITY_RELATIONAL_CONTRACT,
   backupStatusAuthorityPrivilegesSql,
+  canonicalReviewedMailAuthorityCatalogPhase,
   mailWorkerOutboxPrivilegesSql,
   reconcileDatabaseRolePrivileges,
   reviewedApplicationFunctionPrivilegesSql,
@@ -28,6 +33,26 @@ import {
   verifyReviewedApplicationTriggers,
   validateDatabaseRoleBoundaryUrls,
 } from "./verify-database-role-boundaries.mjs";
+
+function reviewedPhase(index) {
+  const phase = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
+    (candidate) => candidate.index === index,
+  );
+  assert.ok(phase, `reviewed phase ${index} must be registered`);
+  return phase;
+}
+
+const REVIEWED_PHASE_0064 = reviewedPhase(64);
+const REVIEWED_PHASE_0065 = reviewedPhase(65);
+const REVIEWED_PHASE_0066 = reviewedPhase(66);
+const REVIEWED_PHASE_0067 = reviewedPhase(67);
+
+function reviewedPhaseForOptions(options) {
+  if (options.journalPresent === false || options.appliedMigrationIndex === null) {
+    return null;
+  }
+  return reviewedPhase(options.appliedMigrationIndex ?? 67);
+}
 
 const password = (character) => character.repeat(48);
 const validInput = () => ({
@@ -68,6 +93,60 @@ function minimalPlatformEnvironment(environment) {
   return result;
 }
 
+function normalizedReviewedCheck(expression) {
+  return expression
+    .replace(
+      /"?(email_outbox|email_outbox_idempotency_authority)"?[.]/gu,
+      "",
+    )
+    .replace(/[\s"]/gu, "");
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+function reviewedApplicationConstraint(name) {
+  const constraint = REVIEWED_APPLICATION_CONSTRAINTS.find(
+    (candidate) => candidate.name === name,
+  );
+  assert.ok(constraint, `missing reviewed application constraint ${name}`);
+  return constraint;
+}
+
+test("pins reviewed-SQL and live-catalog Group 4 CHECK hashes separately", () => {
+  const snapshot = JSON.parse(
+    readFileSync(
+      new URL("../drizzle/meta/0067_snapshot.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const authorityChecks = snapshot.tables[
+    "public.email_outbox_idempotency_authority"
+  ].checkConstraints;
+  const outboxChecks =
+    snapshot.tables["public.email_outbox"].checkConstraints;
+  const contract = REVIEWED_REPLAY_AUTHORITY_RELATIONAL_CONTRACT;
+
+  for (const expected of contract.authority.checks) {
+    const expression = authorityChecks[expected.name]?.value;
+    assert.equal(typeof expression, "string");
+    assert.equal(
+      sha256(normalizedReviewedCheck(expression)),
+      expected.reviewedSqlExpressionSha256,
+    );
+  }
+  assert.equal(
+    sha256(
+      normalizedReviewedCheck(
+        outboxChecks[contract.deliveryScope.name].value,
+      ),
+    ),
+    contract.deliveryScope.reviewedSqlExpressionSha256,
+  );
+  assert.equal(contract.triggers.length, 8);
+  assert.equal(contract.routines.length, 7);
+});
 test("composes the mail worker outbox role without payload mutation authority", () => {
   assert.deepEqual(MAIL_WORKER_OUTBOX_INSERT_COLUMNS, [
     "operation_id",
@@ -78,6 +157,7 @@ test("composes the mail worker outbox role without payload mutation authority", 
     "template_version",
     "variables",
     "idempotency_key",
+    "idempotency_authority_version",
     "status",
     "next_attempt_at",
   ]);
@@ -164,7 +244,9 @@ test("guards reviewed application grants on both role and object existence", () 
     /pg_catalog\.to_regclass\('public\.email_outbox'\)\s+is\s+not\s+null/iu,
   );
 
-  const routineSql = reviewedApplicationFunctionPrivilegesSql();
+  const routineSql = reviewedApplicationFunctionPrivilegesSql(
+    REVIEWED_PHASE_0067,
+  );
   assert.match(
     routineSql,
     /pg_catalog\.to_regrole\('learncoding_ops'\)\s+is\s+not\s+null/iu,
@@ -205,6 +287,8 @@ test("replays post-migration privilege reconciliation idempotently", async () =>
               post_migration_binding_column_exact_count: 0,
               post_migration_provider_column_count: 0,
               post_migration_provider_column_exact_count: 0,
+              post_migration_replay_column_count: 0,
+              post_migration_replay_column_exact_count: 0,
             },
           ],
         };
@@ -226,6 +310,8 @@ test("replays post-migration privilege reconciliation idempotently", async () =>
               reviewed_trigger_presence_exact: true,
               reviewed_constraint_presence_exact: true,
               reviewed_provider_evidence_constraint_presence_exact: true,
+              reviewed_replay_authority_constraint_presence_exact: true,
+              reviewed_replay_authority_relation_presence_exact: true,
             },
           ],
         };
@@ -245,15 +331,34 @@ test("replays post-migration privilege reconciliation idempotently", async () =>
   };
 
   for (let pass = 0; pass < 2; pass += 1) {
-    await databaseRoleBootstrap.reconcileDatabaseRolePrivileges(client);
+    await databaseRoleBootstrap.reconcileDatabaseRolePrivileges(
+      client,
+      null,
+    );
     passes.push(currentPass);
     currentPass = [];
   }
 
   assert.deepEqual(passes[1], passes[0]);
-  assert.equal(
-    passes[0].some((sql) => sql.includes("do $codestead_mail_worker_outbox$")),
-    true,
+  const scrubSql = passes[0].find((sql) =>
+    sql.includes("do $codestead_managed_column_acl_scrub$"),
+  );
+  assert.equal(typeof scrubSql, "string");
+  assert.match(scrubSql, /pg_catalog\.pg_attribute/iu);
+  assert.match(scrubSql, /pg_catalog\.aclexplode/iu);
+  assert.match(scrubSql, /namespace\.nspname in \('public', 'drizzle'\)/iu);
+  assert.match(
+    scrubSql,
+    /revoke all privileges \(%i\) on table %i\.%i from %s cascade/iu,
+  );
+
+  const workerSql = passes[0].find((sql) =>
+    sql.includes("do $codestead_mail_worker_outbox$"),
+  );
+  assert.equal(typeof workerSql, "string");
+  assert.match(
+    workerSql,
+    /grant insert \(idempotency_authority_version\) on table public\.email_outbox to learncoding_app/iu,
   );
 });
 
@@ -278,14 +383,185 @@ test("reconciles both authority relations to an exact zero-DML surface", () => {
     "utf8",
   );
   const precheck = bootstrapSource.indexOf(
-    "await verifyBackupStatusAuthorityBeforeRepair(client)",
+    "await verifyBackupStatusAuthorityBeforeRepair(",
   );
   const repair = bootstrapSource.indexOf("await createAndResetRoles(client)");
   const postcheck = bootstrapSource.indexOf(
-    "await verifyBackupStatusAuthorityAfterRepair(client)",
+    "await verifyBackupStatusAuthorityAfterRepair(",
   );
   assert.ok(precheck >= 0 && precheck < repair);
   assert.ok(postcheck > repair);
+});
+
+test("freezes 0065/0066 backup authority and selects 0067 at every verifier", async () => {
+  const phase0065 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
+    ({ index }) => index === 65,
+  );
+  const phase0066 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
+    ({ index }) => index === 66,
+  );
+  const phase0067 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
+    ({ index }) => index === 67,
+  );
+  assert.equal(
+    phase0065?.backupStatusAuthority,
+    REVIEWED_0065_BACKUP_STATUS_AUTHORITY,
+  );
+  assert.equal(
+    phase0066?.backupStatusAuthority,
+    REVIEWED_0065_BACKUP_STATUS_AUTHORITY,
+  );
+  assert.equal(
+    phase0067?.backupStatusAuthority,
+    REVIEWED_0067_BACKUP_STATUS_AUTHORITY,
+  );
+  assert.notEqual(
+    phase0067?.backupStatusAuthority,
+    phase0066?.backupStatusAuthority,
+  );
+
+  const expectedConfigurations = new Map([
+    [65, ["search_path=pg_catalog"]],
+    [66, ["search_path=pg_catalog"]],
+    [67, ["search_path=pg_catalog, pg_temp"]],
+  ]);
+  for (const [appliedMigrationIndex, expectedConfiguration] of
+    expectedConfigurations) {
+    const client = makeClient("learncoding_ops", "learncoding", {
+      appliedMigrationIndex,
+      bindingColumnCount: 2,
+      bindingColumnExactCount: 2,
+    });
+    assert.equal(
+      await verifyPostMigrationReviewedContractsBeforeReconciliation(
+        client,
+        reviewedPhase(appliedMigrationIndex),
+      ),
+      1,
+    );
+    const enqueueCalls = client.queryParameters.filter(
+      (parameters) =>
+        parameters?.[0]
+          === "public.enqueue_backup_status_mail_authority(text,text)",
+    );
+    assert.ok(enqueueCalls.length >= 1);
+    for (const parameters of enqueueCalls) {
+      assert.deepEqual(parameters[3], expectedConfiguration);
+    }
+  }
+
+  const finalEnqueueContracts = REVIEWED_APPLICATION_FUNCTIONS.filter(
+    ({ signature }) =>
+      signature === "public.enqueue_backup_status_mail_authority(text,text)",
+  );
+  assert.equal(finalEnqueueContracts.length, 1);
+  assert.deepEqual(
+    finalEnqueueContracts[0].configuration,
+    ["search_path=pg_catalog, pg_temp"],
+  );
+});
+
+test("rejects missing, partial, and cloned catalog phases before work", async () => {
+  const invalidPhases = [
+    undefined,
+    Object.freeze({ index: 66 }),
+    Object.freeze({ ...REVIEWED_PHASE_0066 }),
+  ];
+  for (const phase of invalidPhases) {
+    assert.throws(
+      () => canonicalReviewedMailAuthorityCatalogPhase(phase),
+      /reviewed-mail-authority-catalog-phase-contract/u,
+    );
+    assert.throws(
+      () => reviewedApplicationFunctionPrivilegesSql(phase),
+      /reviewed-mail-authority-catalog-phase-contract/u,
+    );
+    const client = {
+      calls: 0,
+      async query() {
+        this.calls += 1;
+        throw new Error("canonical rejection must happen before query");
+      },
+    };
+    await assert.rejects(
+      verifyReviewedMailAuthorityCatalogContracts(client, phase),
+      /reviewed-mail-authority-catalog-phase-contract/u,
+    );
+    assert.equal(client.calls, 0);
+  }
+  assert.equal(canonicalReviewedMailAuthorityCatalogPhase(null), null);
+});
+
+test("generates routine ACL repair from only the selected catalog phase", () => {
+  const sql0065 = reviewedApplicationFunctionPrivilegesSql(
+    REVIEWED_PHASE_0065,
+  );
+  const sql0066 = reviewedApplicationFunctionPrivilegesSql(
+    REVIEWED_PHASE_0066,
+  );
+  const sql0067 = reviewedApplicationFunctionPrivilegesSql(
+    REVIEWED_PHASE_0067,
+  );
+  assert.doesNotMatch(
+    sql0065,
+    /enforce_email_outbox_provider_correlation_evidence/u,
+  );
+  assert.match(
+    sql0066,
+    /enforce_email_outbox_provider_correlation_evidence/u,
+  );
+  for (const preReplaySql of [sql0065, sql0066]) {
+    assert.doesNotMatch(
+      preReplaySql,
+      /email_outbox_original_payload_sha256/u,
+    );
+  }
+  assert.match(sql0067, /email_outbox_original_payload_sha256/u);
+});
+test("re-resolves the full journal-selected catalog phase after beforeCommit", () => {
+  const source = readFileSync(
+    new URL("./bootstrap-database-roles.mjs", import.meta.url),
+    "utf8",
+  );
+  const callback = source.indexOf("await options.beforeCommit(client)");
+  const postCallbackResolution = source.indexOf(
+    "await resolveReviewedMailAuthorityCatalogPhase(client)",
+    callback,
+  );
+  const postCallbackBoundary = source.indexOf(
+    "await verifyBackupStatusAuthorityAfterRepair(",
+    postCallbackResolution,
+  );
+  const commit = source.indexOf('await client.query("commit")', callback);
+  assert.ok(callback >= 0);
+  assert.ok(postCallbackResolution > callback);
+  assert.ok(postCallbackBoundary > postCallbackResolution);
+  assert.ok(commit > postCallbackBoundary);
+});
+
+test("re-verifies the reviewed ACL catalog after privilege reconciliation", () => {
+  const source = readFileSync(
+    new URL("./bootstrap-database-roles.mjs", import.meta.url),
+    "utf8",
+  );
+  const runStart = source.indexOf(
+    "export async function runDatabaseRoleBootstrap(options)",
+  );
+  const reconcile = source.indexOf(
+    "await reconcileDatabaseRolePrivileges(",
+    runStart,
+  );
+  const postReconciliationVerify = source.indexOf(
+    "await verifyPostMigrationReviewedContractsBeforeReconciliation(",
+    reconcile + 1,
+  );
+  const stateVerify = source.indexOf(
+    "await verifyDatabaseRoleBootstrapState(",
+    reconcile + 1,
+  );
+  assert.ok(runStart >= 0 && reconcile > runStart);
+  assert.ok(postReconciliationVerify > reconcile);
+  assert.ok(stateVerify > postReconciliationVerify);
 });
 
 test("accepts only the exact five distinct restricted-role URLs", () => {
@@ -351,7 +627,7 @@ function makeClient(role, database, options) {
   let grantCatalogVersion = 0;
   const latestApplied =
     options.appliedMigrationIndex === undefined
-      ? 66
+      ? 67
       : options.appliedMigrationIndex;
   const backupAuthorityPresent =
     options.backupAuthorityPresent ??
@@ -367,6 +643,14 @@ function makeClient(role, database, options) {
       const normalized = String(sql).replace(/\s+/gu, " ").trim().toLowerCase();
       queries.push(normalized);
       queryParameters.push(parameters);
+      if (normalized.includes("trusted_search_path")) {
+        return {
+          rows: [{
+            trusted_search_path:
+              options.trustedSearchPath ?? "pg_catalog,pg_temp",
+          }],
+        };
+      }
       if (normalized.startsWith("select pg_try_advisory_lock")) {
         return { rows: [{ acquired: options.lockAvailable !== false }] };
       }
@@ -492,6 +776,22 @@ function makeClient(role, database, options) {
                 options.providerColumnExactCount
                 ?? options.providerColumnCount
                 ?? (latestApplied !== null && latestApplied >= 66 ? 3 : 0),
+              post_migration_replay_column_count:
+                options.replayColumnCount
+                ?? (
+                  options.journalPresent === false
+                  || latestApplied === null
+                  || latestApplied < 67 ? 0 : 3
+                ),
+              post_migration_replay_column_exact_count:
+                options.replayColumnExactCount
+                ?? options.replayColumnCount
+                ?? (
+                  options.journalPresent === false
+                  || latestApplied === null
+                  || latestApplied < 67 ? 0 : 3
+                ),
+
             },
           ],
         };
@@ -506,6 +806,10 @@ function makeClient(role, database, options) {
               reviewed_constraint_presence_exact: tamper !== "constraint",
               reviewed_provider_evidence_constraint_presence_exact:
                 tamper !== "provider-constraint",
+              reviewed_replay_authority_constraint_presence_exact:
+                tamper !== "replay-constraint",
+              reviewed_replay_authority_relation_presence_exact:
+                tamper !== "replay-relation",
             },
           ],
         };
@@ -656,6 +960,11 @@ function makeClient(role, database, options) {
       }
       if (normalized.includes("worker_column_direct_acl_exact")) {
         const tamper = options.workerContractTamper;
+        const premature0067CheckObserved = (
+          options.premature0067CheckConstraints ?? []
+        ).some((constraintName) =>
+          normalized.includes(`'${constraintName}'`)
+        );
         return {
           rows: [
             {
@@ -664,6 +973,27 @@ function makeClient(role, database, options) {
               binding_columns_exact: tamper !== "binding-columns",
               provider_evidence_columns_exact:
                 tamper !== "provider-evidence-columns",
+              idempotency_authority_columns_exact:
+                tamper !== "replay-columns",
+              reviewed_0067_check_constraints_exact: !tamper?.startsWith("variables-constraint-")
+                && !tamper?.startsWith("recipient-constraint-")
+                && !premature0067CheckObserved,
+              variables_object_constraint_exact: ![
+                "variables-constraint-missing",
+                "variables-constraint-expression",
+                "variables-constraint-columns",
+                "variables-constraint-type",
+                "variables-constraint-validation",
+                "variables-constraint-noinherit",
+              ].includes(tamper),
+              recipient_canonical_constraint_exact: ![
+                "recipient-constraint-missing",
+                "recipient-constraint-expression",
+                "recipient-constraint-columns",
+                "recipient-constraint-type",
+                "recipient-constraint-validation",
+                "recipient-constraint-noinherit",
+              ].includes(tamper),
               dispatch_constraint_exact: ![
                 "constraint",
                 "constraint-always-true",
@@ -677,12 +1007,148 @@ function makeClient(role, database, options) {
                 "provider-constraint-hash",
                 "provider-constraint-columns",
               ].includes(tamper),
+              replay_authority_constraint_exact: ![
+                "replay-constraint",
+                "replay-constraint-type",
+                "replay-constraint-validation",
+                "replay-constraint-hash",
+                "replay-constraint-columns",
+              ].includes(tamper),
               worker_table_direct_acl_exact: tamper !== "table-acl",
               worker_column_direct_acl_exact: ![
                 "column-acl",
                 "one-column-grant",
               ].includes(tamper),
               worker_effective_privileges_exact: tamper !== "effective-acl",
+            },
+          ],
+        };
+      }
+      if (normalized.includes("authority_column_acl_exact")) {
+        const tamper = options.replayAuthorityTableTamper;
+        return {
+          rows: [
+            {
+              authority_relation_exact: tamper !== "relation",
+              authority_relation_storage_exact:
+                tamper !== "relation-persistence",
+              authority_relation_rls_exact: ![
+                "relation-rls",
+                "relation-force-rls",
+              ].includes(tamper),
+              authority_constraint_set_exact: tamper !== "extra-constraint",
+              authority_index_set_exact: tamper !== "extra-index",
+              authority_primary_index_catalog_exact:
+                !tamper?.startsWith("primary-index-"),
+              authority_composite_index_catalog_exact:
+                !tamper?.startsWith("composite-index-"),
+              outbox_replay_lookup_index_catalog_exact:
+                !tamper?.startsWith("lookup-index-"),
+              persistent_default_acl_exact:
+                tamper === "default-acl-additional-creator-complete-pair"
+                  ? normalized.includes(
+                    "additional_creator_default_acl_exact",
+                  ) &&
+                    normalized.includes(
+                      "additional_creator_default_acl_rows",
+                    ) &&
+                    normalized.includes(
+                      "default_acl_catalog_prerequisites",
+                    )
+                  : ![
+                    "default-acl-additional-creator-drizzle-row",
+                    "default-acl-additional-creator-function-only",
+                    "default-acl-additional-creator-unrelated-schema-row",
+                    "default-acl-additional-creator-public-row",
+                    "default-acl-additional-creator-split-pair",
+                    "default-acl-additional-creator-type-only",
+                    "default-acl-missing-managed-grantee",
+                    "default-acl-missing-owner-role",
+                    "default-acl-missing-public-schema",
+                    "default-acl-orphan-owner",
+                    "default-acl-arbitrary-owner",
+                    "default-acl",
+                    "default-acl-arbitrary-grantee",
+                    "default-acl-duplicate-entry",
+                    "default-acl-duplicate-row",
+                    "default-acl-empty-extra",
+                    "default-acl-extra-owner-privilege",
+                    "default-acl-global-sequence",
+                    "default-acl-global-table",
+                    "default-acl-grant-option",
+                    "default-acl-pseudo-public-entry",
+                    "default-acl-real-public-role",
+                    "default-acl-harmless-global-function-owner",
+                    "default-acl-harmless-global-type-owner",
+                    "default-acl-missing-owner-global-function",
+                    "default-acl-missing-owner-global-type",
+                    "default-acl-missing-owner-public-sequence",
+                    "default-acl-missing-owner-public-table",
+                    "default-acl-missing-owner-public-type",
+                    "default-acl-multiple-owner-tuples",
+                    "default-acl-object-kind",
+                    "default-acl-extra-row",
+                    "default-acl-unexpected-owner-public-function",
+                    "default-acl-unexpected-owner-drizzle-type",
+                    "default-acl-unknown-schema-owner",
+                    "default-acl-unknown-sequence-owner",
+                    "default-acl-unknown-table-owner",
+                    "default-acl-wrong-grantor",
+                    "default-acl-wrong-privilege",
+                  ].includes(tamper),
+              persistent_relation_grant_options_exact:
+                tamper !== "relation-grant-option",
+              persistent_column_acl_exact: ![
+                "column-acl-unexpected",
+                "column-acl-missing",
+                "column-acl-wrong-grantor",
+                "column-acl-wrong-grantee",
+                "column-acl-grantable",
+              ].includes(tamper),
+              authority_owner_exact: tamper !== "owner",
+              authority_columns_exact: !["columns", "extra-column"].includes(tamper),
+              authority_primary_key_exact: tamper !== "primary-key",
+              authority_checks_exact: ![
+                "digest-check",
+                "payload-check",
+              ].includes(tamper),
+              outbox_delivery_scope_exact: tamper !== "delivery-scope",
+              reviewed_trigger_set_exact: tamper !== "extra-trigger",
+              reviewed_routine_overloads_exact: tamper !== "routine-overload",
+              authority_direct_acl_exact: tamper !== "direct-acl",
+              authority_effective_acl_exact: tamper !== "effective-acl",
+              authority_column_acl_exact: ![
+                "column-acl",
+                "authority-column-acl",
+              ].includes(tamper),
+              outbox_replay_lookup_index_exact: tamper !== "lookup-index",
+              authority_composite_unique_exact: ![
+                "unique-type",
+                "unique-validation",
+                "unique-deferrable",
+                "unique-initially-deferred",
+                "unique-noinherit",
+                "unique-columns",
+                "unique-index-nonunique",
+                "unique-index-invalid",
+                "unique-index-not-ready",
+                "unique-index-partial",
+                "unique-index-expression",
+              ].includes(tamper),
+              outbox_authority_foreign_key_exact: ![
+                "foreign-key-type",
+                "foreign-key-validation",
+                "foreign-key-noinherit",
+                "foreign-key-columns",
+                "foreign-key-reference",
+                "foreign-key-deferrable",
+                "foreign-key-initially-deferred",
+                "foreign-key-match",
+                "foreign-key-update",
+                "foreign-key-delete",
+              ].includes(tamper),
+              outbox_authority_trigger_order_exact:
+                tamper !== "foreign-key-trigger-order",
             },
           ],
         };
@@ -933,19 +1399,27 @@ const backupStatusAuthorityTamperCases = Object.freeze([
 
 test("fails closed on phase-65 authority tamper before and after repair", async () => {
   const exact = makeClient("learncoding_ops", "learncoding", {});
-  assert.equal(await verifyBackupStatusAuthorityBeforeRepair(exact), true);
-  assert.equal(await verifyBackupStatusAuthorityAfterRepair(exact), true);
+  assert.equal(
+    await verifyBackupStatusAuthorityBeforeRepair(exact, REVIEWED_PHASE_0065),
+    true,
+  );
+  assert.equal(
+    await verifyBackupStatusAuthorityAfterRepair(exact, REVIEWED_PHASE_0065),
+    true,
+  );
 
   for (const options of backupStatusAuthorityTamperCases) {
     await assert.rejects(
       verifyBackupStatusAuthorityBeforeRepair(
         makeClient("learncoding_ops", "learncoding", options),
+        REVIEWED_PHASE_0065,
       ),
       /backup-status-authority-pre-repair/u,
     );
     await assert.rejects(
       verifyBackupStatusAuthorityAfterRepair(
         makeClient("learncoding_ops", "learncoding", options),
+        REVIEWED_PHASE_0065,
       ),
       /backup-status-authority-post-repair/u,
     );
@@ -963,13 +1437,17 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
   assert.equal(
     await verifyPostMigrationReviewedContractsBeforeReconciliation(
       preMigration,
+      null,
     ),
     0,
   );
 
   const exact = makeClient("learncoding_ops", "learncoding", {});
   assert.equal(
-    await verifyPostMigrationReviewedContractsBeforeReconciliation(exact),
+    await verifyPostMigrationReviewedContractsBeforeReconciliation(
+      exact,
+      REVIEWED_PHASE_0067,
+    ),
     1,
   );
   assert.equal(
@@ -998,6 +1476,7 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
     assert.equal(
       await verifyPostMigrationReviewedContractsBeforeReconciliation(
         priorPhase,
+        reviewedPhase(appliedMigrationIndex),
       ),
       1,
     );
@@ -1032,9 +1511,27 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
         "email_outbox_provider_correlation_evidence_valid",
         "c",
         true,
-        "02a5367ba5c5eed54bc69732c38f1517fa05d7321aaad3c11d30200ee6b06dc8",
-        REVIEWED_APPLICATION_CONSTRAINTS[1].columns,
+        "2594dd57e4115fe9296d03888d8d1771b98e90725bce7e0d66c753eb1f0dba82",
+        reviewedApplicationConstraint(
+          "email_outbox_provider_correlation_evidence_valid",
+        ).columns,
         false,
+        [
+          "idempotency_authority_version",
+          "idempotency_authority_sha256",
+          "idempotency_original_payload_sha256",
+        ],
+        0,
+        "public.email_outbox",
+        "email_outbox_idempotency_authority_valid",
+        "c",
+        true,
+        "3f32ee19567df8889a129cc1e2e95af9f70a8e4e5878c7f7930ec396259ceefc",
+        reviewedApplicationConstraint(
+          "email_outbox_idempotency_authority_valid",
+        ).columns,
+        false,
+        "[]",
       ],
     );
   }
@@ -1045,7 +1542,10 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
     bindingColumnExactCount: 2,
   });
   assert.equal(
-    await verifyPostMigrationReviewedContractsBeforeReconciliation(phase0064),
+    await verifyPostMigrationReviewedContractsBeforeReconciliation(
+      phase0064,
+      REVIEWED_PHASE_0064,
+    ),
     1,
   );
   assert.equal(
@@ -1102,6 +1602,7 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
     await assert.rejects(
       verifyPostMigrationReviewedContractsBeforeReconciliation(
         makeClient("learncoding_ops", "learncoding", options),
+        reviewedPhaseForOptions(options),
       ),
     );
   }
@@ -1129,7 +1630,12 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
     ...backupStatusAuthorityTamperCases,
   ]) {
     const tampered = makeClient("learncoding_ops", "learncoding", options);
-    await assert.rejects(reconcileDatabaseRolePrivileges(tampered));
+    await assert.rejects(
+      reconcileDatabaseRolePrivileges(
+        tampered,
+        reviewedPhaseForOptions(options),
+      ),
+    );
     assert.equal(
       tampered.queries[0]?.includes("reviewed_migration_journal_present"),
       true,
@@ -1195,7 +1701,7 @@ test("proves application-object access without mutating application rows", async
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 59,
+    positiveChecks: 71,
     negativeChecks: 29,
   });
   for (const role of [
@@ -1224,7 +1730,7 @@ test("proves application-object access without mutating application rows", async
   );
 });
 
-test("requires the exact reviewed 0062 through 0064 routine contracts in application-object mode", async () => {
+test("requires the exact reviewed 0062 through 0067 routine contracts in application-object mode", async () => {
   const verified = makePoolHarness();
   const result = await verifyDatabaseRoleBoundaries({
     ...validInput(),
@@ -1235,7 +1741,7 @@ test("requires the exact reviewed 0062 through 0064 routine contracts in applica
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 59,
+    positiveChecks: 71,
     negativeChecks: 29,
   });
   const routineQueries = verified.clients
@@ -1360,6 +1866,82 @@ test("requires the exact reviewed 0062 through 0064 routine contracts in applica
   }
 });
 
+test("preserves a reviewed catalog failure through top-level cleanup", async () => {
+  const tampered = makePoolHarness({
+    workerContractTamper: "table-acl",
+  });
+
+  await assert.rejects(
+    verifyDatabaseRoleBoundaries({
+      ...validInput(),
+      poolFactory: tampered.factory,
+      lockTimeoutMs: 50,
+      requireApplicationObjects: true,
+    }),
+    (error) =>
+      error instanceof DatabaseRoleBoundaryError
+      && error.message.includes(
+        "mail-worker-outbox-contract:worker_table_direct_acl_exact",
+      ),
+    "the top-level verifier must retain the exact failed catalog invariant",
+  );
+  assert.equal(
+    tampered.pools.every((pool) => pool.ended),
+    true,
+  );
+});
+
+test("freezes both 0067 email_outbox CHECK manifests", () => {
+  for (const expected of [
+    {
+      name: "email_outbox_variables_object_valid",
+      columns: ["variables"],
+      reviewedSqlExpressionSha256:
+        "474e75e58049be566e89f5e17641091aebefb946928e5ed97987db96bb7d7e33",
+      normalizedExpressionSha256:
+        "9a0d45d473dbe0925bc515e3061a94f53cc9c4684e843565c7ee64946b2521ca",
+    },
+    {
+      name: "email_outbox_recipient_canonical_valid",
+      columns: ["to_email"],
+      reviewedSqlExpressionSha256:
+        "5a2426a2aafcdec419fc4d534d8558d82110e0759c1445a2c917bbf2ec27b447",
+      normalizedExpressionSha256:
+        "02ba45407386c19b742347bf29e39fa5a5d3d09b8cd8ca74a31bf1c1aeae8a0b",
+    },
+  ]) {
+    const constraint = REVIEWED_APPLICATION_CONSTRAINTS.find(
+      ({ name }) => name === expected.name,
+    );
+    assert.deepEqual(
+      constraint
+        ? {
+            relation: constraint.relation,
+            relationOwner: constraint.relationOwner,
+            type: constraint.type,
+            validated: constraint.validated,
+            noInherit: constraint.noInherit,
+            columns: constraint.columns,
+            reviewedSqlExpressionSha256:
+              constraint.reviewedSqlExpressionSha256,
+            normalizedExpressionSha256:
+              constraint.normalizedExpressionSha256,
+          }
+        : null,
+      {
+        relation: "public.email_outbox",
+        relationOwner: "learncoding_owner",
+        type: "c",
+        validated: true,
+        noInherit: false,
+        columns: expected.columns,
+        reviewedSqlExpressionSha256: expected.reviewedSqlExpressionSha256,
+        normalizedExpressionSha256: expected.normalizedExpressionSha256,
+      },
+    );
+  }
+});
+
 test("requires exact reviewed trigger and worker outbox catalog contracts", async () => {
   const verified = makePoolHarness();
   const result = await verifyDatabaseRoleBoundaries({
@@ -1370,7 +1952,7 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
   });
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 59,
+    positiveChecks: 71,
     negativeChecks: 29,
   });
 
@@ -1388,13 +1970,59 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
     sql.includes("worker_column_direct_acl_exact"),
   );
   const workerQueryIndex = opsClient.queries.indexOf(workerQuery);
+  const reviewed0067Checks = JSON.parse(
+    opsClient.queryParameters[workerQueryIndex]?.[30],
+  );
+  assert.deepEqual(
+    reviewed0067Checks.map(
+      ({
+        constraint_name,
+        constraint_type,
+        validated,
+        no_inherit,
+        normalized_expression_sha256,
+        columns,
+      }) => ({
+        constraint_name,
+        constraint_type,
+        validated,
+        no_inherit,
+        normalized_expression_sha256,
+        columns,
+      }),
+    ),
+    [
+      {
+        constraint_name: "email_outbox_variables_object_valid",
+        constraint_type: "c",
+        validated: true,
+        no_inherit: false,
+        normalized_expression_sha256:
+          "9a0d45d473dbe0925bc515e3061a94f53cc9c4684e843565c7ee64946b2521ca",
+        columns: ["variables"],
+      },
+      {
+        constraint_name: "email_outbox_recipient_canonical_valid",
+        constraint_type: "c",
+        validated: true,
+        no_inherit: false,
+        normalized_expression_sha256:
+          "02ba45407386c19b742347bf29e39fa5a5d3d09b8cd8ca74a31bf1c1aeae8a0b",
+        columns: ["to_email"],
+      },
+    ],
+  );
+  assert.match(workerQuery, /jsonb_to_recordset/iu);
+  assert.match(workerQuery, /except all/iu);
   assert.equal(
     opsClient.queryParameters[workerQueryIndex]?.[4],
     "email_outbox_dispatch_binding_valid",
   );
   assert.equal(
     opsClient.queryParameters[workerQueryIndex]?.[7],
-    REVIEWED_APPLICATION_CONSTRAINTS[0].normalizedExpression,
+    reviewedApplicationConstraint(
+      "email_outbox_dispatch_binding_valid",
+    ).normalizedExpression,
   );
   assert.doesNotMatch(workerQuery, /\slike\s/iu);
   assert.match(workerQuery, /pg_catalog\.aclexplode/iu);
@@ -1413,13 +2041,39 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
   );
   assert.equal(
     opsClient.queryParameters[workerQueryIndex]?.[18],
-    REVIEWED_APPLICATION_CONSTRAINTS[1].normalizedExpressionSha256,
+    reviewedApplicationConstraint(
+      "email_outbox_provider_correlation_evidence_valid",
+    ).normalizedExpressionSha256,
   );
   assert.deepEqual(
     opsClient.queryParameters[workerQueryIndex]?.[19],
-    REVIEWED_APPLICATION_CONSTRAINTS[1].columns,
+    reviewedApplicationConstraint(
+      "email_outbox_provider_correlation_evidence_valid",
+    ).columns,
   );
   assert.equal(opsClient.queryParameters[workerQueryIndex]?.[20], true);
+  assert.deepEqual(
+    opsClient.queryParameters[workerQueryIndex]?.slice(21, 30),
+    [
+      [
+        "idempotency_authority_version",
+        "idempotency_authority_sha256",
+        "idempotency_original_payload_sha256",
+      ],
+      3,
+      "public.email_outbox",
+      "email_outbox_idempotency_authority_valid",
+      "c",
+      true,
+      reviewedApplicationConstraint(
+        "email_outbox_idempotency_authority_valid",
+      ).normalizedExpressionSha256,
+      reviewedApplicationConstraint(
+        "email_outbox_idempotency_authority_valid",
+      ).columns,
+      true,
+    ],
+  );
   assert.match(workerQuery, /pg_catalog\.sha256/iu);
   assert.match(workerQuery, /pg_catalog\.pg_get_expr/iu);
 
@@ -1442,7 +2096,52 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
     );
   }
 
+  await assert.rejects(
+    verifyMailWorkerOutboxContract(
+      makeClient("learncoding_ops", "learncoding", {
+        workerContractTamper: "table-acl",
+      }),
+      {
+        requiresDispatchBinding: true,
+        requiresProviderEvidence: true,
+      },
+    ),
+    (error) =>
+      error instanceof DatabaseRoleBoundaryError
+      && error.message.includes("mail-worker-outbox-contract")
+      && error.message.includes("worker_table_direct_acl_exact"),
+    "the aggregate worker contract must identify its failed invariant",
+  );
+
+  await assert.rejects(
+    verifyMailWorkerOutboxContract(
+      makeClient("learncoding_ops", "learncoding", {
+        trustedSearchPath: "public,pg_catalog",
+      }),
+      {
+        requiresDispatchBinding: true,
+        requiresProviderEvidence: true,
+      },
+    ),
+    (error) =>
+      error instanceof DatabaseRoleBoundaryError
+      && error.message.includes("trusted-search-path"),
+    "the worker contract must reject an untrusted deparse search_path",
+  );
+
   for (const workerContractTamper of [
+    "variables-constraint-missing",
+    "variables-constraint-expression",
+    "variables-constraint-columns",
+    "variables-constraint-type",
+    "variables-constraint-validation",
+    "variables-constraint-noinherit",
+    "recipient-constraint-missing",
+    "recipient-constraint-expression",
+    "recipient-constraint-columns",
+    "recipient-constraint-type",
+    "recipient-constraint-validation",
+    "recipient-constraint-noinherit",
     "table",
     "owner",
     "binding-columns",
@@ -1450,11 +2149,18 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
     "constraint-state-arm-removed",
     "constraint-unknown-version",
     "constraint",
+    "provider-evidence-columns",
     "provider-constraint",
     "provider-constraint-type",
     "provider-constraint-validation",
     "provider-constraint-hash",
     "provider-constraint-columns",
+    "replay-columns",
+    "replay-constraint",
+    "replay-constraint-type",
+    "replay-constraint-validation",
+    "replay-constraint-hash",
+    "replay-constraint-columns",
     "table-acl",
     "column-acl",
     "effective-acl",
@@ -1471,9 +2177,61 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
     );
   }
 
+  for (const replayAuthorityTableTamper of [
+    "relation",
+    "owner",
+    "columns",
+    "extra-column",
+    "primary-key",
+    "digest-check",
+    "payload-check",
+    "delivery-scope",
+    "extra-trigger",
+    "routine-overload",
+    "direct-acl",
+    "effective-acl",
+    "column-acl",
+    "lookup-index",
+    "unique-type",
+    "unique-validation",
+    "unique-deferrable",
+    "unique-initially-deferred",
+    "unique-noinherit",
+    "unique-columns",
+    "unique-index-nonunique",
+    "unique-index-invalid",
+    "unique-index-not-ready",
+    "unique-index-partial",
+    "unique-index-expression",
+    "foreign-key-type",
+    "foreign-key-validation",
+    "foreign-key-noinherit",
+    "foreign-key-columns",
+    "foreign-key-reference",
+    "foreign-key-deferrable",
+    "foreign-key-initially-deferred",
+    "foreign-key-match",
+    "foreign-key-update",
+    "foreign-key-delete",
+    "foreign-key-trigger-order",
+  ]) {
+    const tampered = makeClient("learncoding_ops", "learncoding", {
+      replayAuthorityTableTamper,
+    });
+    await assert.rejects(
+      verifyMailWorkerOutboxContract(tampered, {
+        requiresDispatchBinding: true,
+        requiresProviderEvidence: true,
+        requiresReplayAuthority: true,
+      }),
+      DatabaseRoleBoundaryError,
+    );
+  }
+
   assert.deepEqual(
     await verifyReviewedMailAuthorityCatalogContracts(
       makeClient("learncoding_ops", "learncoding", {}),
+      REVIEWED_PHASE_0067,
     ),
     {
       routinesVerified: REVIEWED_APPLICATION_FUNCTIONS.length,
@@ -1485,6 +2243,386 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
         1,
     },
   );
+});
+
+test("verifies a frozen historical mail-authority catalog phase explicitly", async () => {
+  const phase0064 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
+    ({ index }) => index === 64,
+  );
+  assert.ok(phase0064);
+  const client = makeClient("learncoding_ops", "learncoding", {});
+
+  assert.deepEqual(
+    await verifyReviewedMailAuthorityCatalogContracts(client, phase0064),
+    {
+      routinesVerified: phase0064.routines.length,
+      triggersVerified: phase0064.triggers.length,
+      workerContractsVerified: 1,
+      totalVerified:
+        phase0064.routines.length + phase0064.triggers.length + 1,
+    },
+  );
+  assert.equal(
+    client.queries.filter((query) =>
+      query.includes("routine_direct_acl_exact")
+    ).length,
+    phase0064.routines.length,
+  );
+});
+
+test("rejects Phase A replay-authority relation and catalog-footprint tampering", async () => {
+  for (const replayAuthorityTableTamper of [
+    "relation-persistence",
+    "relation-rls",
+    "relation-force-rls",
+    "extra-constraint",
+    "extra-index",
+  ]) {
+    const tampered = makeClient("learncoding_ops", "learncoding", {
+      replayAuthorityTableTamper,
+    });
+    await assert.rejects(
+      verifyMailWorkerOutboxContract(tampered, {
+        requiresDispatchBinding: true,
+        requiresProviderEvidence: true,
+        requiresReplayAuthority: true,
+      }),
+      DatabaseRoleBoundaryError,
+      replayAuthorityTableTamper,
+    );
+  }
+});
+
+test("rejects Phase A2 exact PK, composite, and lookup index tampering", async () => {
+  const indexProperties = [
+    "kind",
+    "persistence",
+    "namespace",
+    "access-method",
+    "state",
+    "key",
+    "opclass",
+    "collation",
+    "indoption",
+    "include",
+    "expression",
+    "predicate",
+    "linkage",
+  ];
+  for (const indexKind of ["primary", "composite", "lookup"]) {
+    for (const property of indexProperties) {
+      const replayAuthorityTableTamper = `${indexKind}-index-${property}`;
+      const tampered = makeClient("learncoding_ops", "learncoding", {
+        replayAuthorityTableTamper,
+      });
+      await assert.rejects(
+        verifyMailWorkerOutboxContract(tampered, {
+          requiresDispatchBinding: true,
+          requiresProviderEvidence: true,
+          requiresReplayAuthority: true,
+        }),
+        DatabaseRoleBoundaryError,
+        replayAuthorityTableTamper,
+      );
+    }
+  }
+});
+
+test("rejects Phase B persistent default ACL inventory drift", async () => {
+  const completePair = makeClient("learncoding_ops", "learncoding", {
+    replayAuthorityTableTamper:
+      "default-acl-additional-creator-complete-pair",
+  });
+  await assert.doesNotReject(
+    verifyMailWorkerOutboxContract(completePair, {
+      requiresDispatchBinding: true,
+      requiresProviderEvidence: true,
+      requiresReplayAuthority: true,
+    }),
+    "a complete exact global f+T pair for one additional creator",
+  );
+
+  for (const replayAuthorityTableTamper of [
+    "default-acl",
+    "default-acl-additional-creator-drizzle-row",
+    "default-acl-additional-creator-function-only",
+    "default-acl-additional-creator-unrelated-schema-row",
+    "default-acl-additional-creator-public-row",
+    "default-acl-additional-creator-split-pair",
+    "default-acl-additional-creator-type-only",
+    "default-acl-missing-managed-grantee",
+    "default-acl-missing-owner-role",
+    "default-acl-missing-public-schema",
+    "default-acl-orphan-owner",
+    "default-acl-arbitrary-owner",
+    "default-acl-arbitrary-grantee",
+    "default-acl-duplicate-entry",
+    "default-acl-duplicate-row",
+    "default-acl-empty-extra",
+    "default-acl-extra-owner-privilege",
+    "default-acl-global-sequence",
+    "default-acl-global-table",
+    "default-acl-grant-option",
+    "default-acl-pseudo-public-entry",
+    "default-acl-real-public-role",
+    "default-acl-harmless-global-function-owner",
+    "default-acl-harmless-global-type-owner",
+    "default-acl-missing-owner-global-function",
+    "default-acl-missing-owner-global-type",
+    "default-acl-missing-owner-public-sequence",
+    "default-acl-missing-owner-public-table",
+    "default-acl-missing-owner-public-type",
+    "default-acl-multiple-owner-tuples",
+    "default-acl-object-kind",
+    "default-acl-extra-row",
+    "default-acl-unexpected-owner-public-function",
+    "default-acl-unexpected-owner-drizzle-type",
+    "default-acl-unknown-schema-owner",
+    "default-acl-unknown-sequence-owner",
+    "default-acl-unknown-table-owner",
+    "default-acl-wrong-grantor",
+    "default-acl-wrong-privilege",
+  ]) {
+    const tampered = makeClient("learncoding_ops", "learncoding", {
+      replayAuthorityTableTamper,
+    });
+    await assert.rejects(
+      verifyMailWorkerOutboxContract(tampered, {
+        requiresDispatchBinding: true,
+        requiresProviderEvidence: true,
+        requiresReplayAuthority: true,
+      }),
+      DatabaseRoleBoundaryError,
+      replayAuthorityTableTamper,
+    );
+  }
+
+  const exact = makeClient("learncoding_ops", "learncoding", {});
+  await verifyMailWorkerOutboxContract(exact, {
+    requiresDispatchBinding: true,
+    requiresProviderEvidence: true,
+    requiresReplayAuthority: true,
+  });
+  const catalogQuery = exact.queries.find((query) =>
+    query.includes("persistent_default_acl_exact"),
+  );
+  const defaultAclStart = catalogQuery.indexOf("with owner_role as");
+  const defaultAclEnd = catalogQuery.indexOf(
+    ") persistent_default_acl_exact",
+    defaultAclStart,
+  );
+  assert.ok(defaultAclStart >= 0 && defaultAclEnd > defaultAclStart);
+  const defaultAclQuery = catalogQuery.slice(
+    defaultAclStart,
+    defaultAclEnd,
+  );
+  assert.match(
+    defaultAclQuery,
+    /with owner_role as[\s\S]*?default_acl_rows_raw[\s\S]*?from pg_catalog[.]pg_default_acl default_acl[\s\S]*?left join pg_catalog[.]pg_namespace default_namespace[\s\S]*?managed_default_acl_creators[\s\S]*?select distinct raw_row[.]owner_oid[\s\S]*?raw_row[.]namespace_oid = 0[\s\S]*?raw_row[.]namespace_name in [(]'public', 'drizzle'[)][\s\S]*?managed_default_acl_rows[\s\S]*?join managed_default_acl_creators/iu,
+  );
+  assert.match(
+    defaultAclQuery,
+    /managed_default_acl_rows[\s\S]*?select raw_row[.]owner_oid[\s\S]*?raw_row[.]owner_name[\s\S]*?raw_row[.]namespace_oid[\s\S]*?raw_row[.]object_type[\s\S]*?raw_row[.]acl[\s\S]*?from default_acl_rows_raw raw_row[\s\S]*?join managed_default_acl_creators/iu,
+  );
+  const managedRowsStart = defaultAclQuery.indexOf(
+    "), managed_default_acl_rows",
+  );
+  const managedRowsEnd = defaultAclQuery.indexOf(
+    "), managed_default_acl_entries",
+    managedRowsStart,
+  );
+  assert.ok(managedRowsStart >= 0 && managedRowsEnd > managedRowsStart);
+  const managedRowsQuery = defaultAclQuery.slice(
+    managedRowsStart,
+    managedRowsEnd,
+  );
+  assert.doesNotMatch(
+    managedRowsQuery,
+    /\bwhere\b/iu,
+  );
+  assert.match(
+    defaultAclQuery,
+    /managed_default_acl_entries[\s\S]*?pg_catalog[.]aclexplode[(][\s\S]*?managed_row[.]acl/iu,
+  );
+  assert.match(defaultAclQuery, /public_namespace as/iu);
+  assert.match(defaultAclQuery, /managed_grantee_roles as/iu);
+  assert.match(defaultAclQuery, /default_acl_catalog_prerequisites/iu);
+  assert.match(
+    defaultAclQuery,
+    /owner_role_count = 1[\s\S]*?public_namespace_count = 1[\s\S]*?managed_grantee_role_count = 3[\s\S]*?managed_owner_references_exact/iu,
+  );
+  assert.match(
+    defaultAclQuery,
+    /managed_row[.]owner_name is null/iu,
+  );
+  assert.match(defaultAclQuery, /expected_owner_default_acl_rows/iu);
+  for (const [objectType, privilegeType] of [
+    ["f", "execute"],
+    ["t", "usage"],
+  ]) {
+    assert.match(
+      catalogQuery,
+      new RegExp(
+        `0::oid[\\s\\S]*?'${objectType}'::text[\\s\\S]*?'${privilegeType}'::text`,
+        "iu",
+      ),
+      `global ${objectType} owner-only default ACL entry`,
+    );
+  }
+  assert.match(defaultAclQuery, /expected_owner_default_acl_entries/iu);
+  for (const objectType of ["r", "s", "t"]) {
+    assert.match(
+      catalogQuery,
+      new RegExp(`'public'::text, '${objectType}'::text`, "iu"),
+      `public ${objectType} required default ACL row`,
+    );
+  }
+  assert.match(
+    defaultAclQuery,
+    /managed_grantee_roles[\s\S]*?rolname = any[(]array\[[\s\S]*?'learncoding_app'[\s\S]*?'learncoding_worker'[\s\S]*?'learncoding_ops'/iu,
+  );
+  assert.match(defaultAclQuery, /additional_creator_default_acl_rows/iu);
+  assert.match(defaultAclQuery, /additional_creator_default_acl_exact/iu);
+  assert.match(
+    defaultAclQuery,
+    /pg_catalog[.]count[(][*][)] = 2[\s\S]*?object_type = 'f'[\s\S]*?object_type = 't'/iu,
+  );
+  assert.match(
+    defaultAclQuery,
+    /entry[.]grantor_oid = additional_row[.]owner_oid[\s\S]*?entry[.]grantee_oid = additional_row[.]owner_oid/iu,
+  );
+  assert.match(
+    defaultAclQuery,
+    /entry[.]privilege_type = case entry[.]object_type[\s\S]*?when 'f' then 'execute'[\s\S]*?when 't' then 'usage'/iu,
+  );
+  assert.match(defaultAclQuery, /not entry[.]is_grantable/iu);
+  assert.match(
+    defaultAclQuery,
+    /group by additional_row[.]owner_oid/iu,
+  );
+  assert.equal(
+    [...defaultAclQuery.matchAll(/\bexcept all\b/giu)].length,
+    4,
+  );
+  assert.match(
+    defaultAclQuery,
+    /access[.]grantee = 0 is_public/iu,
+  );
+  assert.match(
+    defaultAclQuery,
+    /additional_row[.]owner_name <> 'public'/iu,
+  );
+  assert.match(defaultAclQuery, /not additional[.]owner_name_exact/iu);
+  assert.doesNotMatch(
+    defaultAclQuery,
+    /pg_get_userbyid[(][^)]*grantee/iu,
+  );
+  assert.doesNotMatch(
+    defaultAclQuery,
+    /permitted_extra_default_acl_rows/iu,
+  );
+  assert.match(
+    defaultAclQuery,
+    /select [(][\s\S]*?owner_role_count = 1[\s\S]*?from default_acl_catalog_prerequisites[\s\S]*?[)] and not exists [(][\s\S]*?expected_owner_default_acl_rows[\s\S]*?[)] and not exists [(][\s\S]*?expected_owner_default_acl_entries[\s\S]*?[)] and not exists [(][\s\S]*?where not additional[.]owner_name_exact[\s\S]*?or not additional[.]rows_exact[\s\S]*?or not additional[.]entries_exact/iu,
+  );
+
+  const bootstrapSource = readFileSync(
+    new URL("./bootstrap-database-roles.mjs", import.meta.url),
+    "utf8",
+  );
+  const inventoryStart = bootstrapSource.indexOf(
+    "async function loadOwnershipInventory",
+  );
+  const inventoryEnd = bootstrapSource.indexOf(
+    "async function createAndResetRoles",
+    inventoryStart,
+  );
+  assert.ok(inventoryStart >= 0 && inventoryEnd > inventoryStart);
+  const inventorySource = bootstrapSource.slice(
+    inventoryStart,
+    inventoryEnd,
+  );
+  const defaultAclInventoryStart = inventorySource.indexOf(
+    "from pg_default_acl a",
+  );
+  const defaultAclInventoryEnd = inventorySource.indexOf(
+    "order by 1, 2, 3, 4, 5, 6",
+    defaultAclInventoryStart,
+  );
+  assert.ok(
+    defaultAclInventoryStart >= 0 &&
+      defaultAclInventoryEnd > defaultAclInventoryStart,
+  );
+  const defaultAclInventorySource = inventorySource.slice(
+    defaultAclInventoryStart,
+    defaultAclInventoryEnd,
+  );
+  assert.match(
+    defaultAclInventorySource,
+    /from pg_default_acl a[\s\S]*?left join pg_namespace n[\s\S]*?left join lateral aclexplode[(]a[.]defaclacl[)] privilege on true/iu,
+  );
+  assert.doesNotMatch(defaultAclInventorySource, /\bwhere\b/iu);
+
+  const runStart = bootstrapSource.indexOf(
+    "export async function runDatabaseRoleBootstrap(options)",
+  );
+  const loadInventory = bootstrapSource.indexOf(
+    "const inventory = await loadOwnershipInventory",
+    runStart,
+  );
+  const validateInventory = bootstrapSource.indexOf(
+    "validateOwnershipInventory(inventory)",
+    loadInventory,
+  );
+  const resetRoles = bootstrapSource.indexOf(
+    "await createAndResetRoles(client)",
+    validateInventory,
+  );
+  assert.ok(
+    runStart >= 0 &&
+      loadInventory > runStart &&
+      validateInventory > loadInventory &&
+      resetRoles > validateInventory,
+  );
+});
+
+test("rejects Phase B grant options on any managed relation", async () => {
+  const tampered = makeClient("learncoding_ops", "learncoding", {
+    replayAuthorityTableTamper: "relation-grant-option",
+  });
+  await assert.rejects(
+    verifyMailWorkerOutboxContract(tampered, {
+      requiresDispatchBinding: true,
+      requiresProviderEvidence: true,
+      requiresReplayAuthority: true,
+    }),
+    DatabaseRoleBoundaryError,
+    "relation-grant-option",
+  );
+});
+
+test("rejects Phase B exact column ACL manifest drift", async () => {
+  for (const replayAuthorityTableTamper of [
+    "column-acl-unexpected",
+    "column-acl-missing",
+    "column-acl-wrong-grantor",
+    "column-acl-wrong-grantee",
+    "column-acl-grantable",
+    "authority-column-acl",
+  ]) {
+    const tampered = makeClient("learncoding_ops", "learncoding", {
+      replayAuthorityTableTamper,
+    });
+    await assert.rejects(
+      verifyMailWorkerOutboxContract(tampered, {
+        requiresDispatchBinding: true,
+        requiresProviderEvidence: true,
+        requiresReplayAuthority: true,
+      }),
+      DatabaseRoleBoundaryError,
+      replayAuthorityTableTamper,
+    );
+  }
 });
 
 test("supports reviewed routines with no restricted-role execute allowance", async () => {
@@ -1524,10 +2662,26 @@ test("supports reviewed routines with no restricted-role execute allowance", asy
     await verifyReviewedApplicationRoutines(verified, [contract]),
     1,
   );
+  assert.equal(
+    verified.queries[0],
+    "select pg_catalog.set_config('search_path', 'pg_catalog,pg_temp', false) trusted_search_path",
+  );
   const queryIndex = verified.queries.findIndex((sql) =>
     sql.includes("routine_direct_acl_exact"),
   );
   assert.deepEqual(verified.queryParameters[queryIndex]?.[5], []);
+
+  await assert.rejects(
+    verifyReviewedApplicationRoutines(
+      makeClient("learncoding_ops", "learncoding", {
+        trustedSearchPath: "public,pg_catalog",
+      }),
+      [contract],
+    ),
+    (error) =>
+      error instanceof DatabaseRoleBoundaryError
+      && error.message.includes("trusted-search-path"),
+  );
 
   for (const routineContractTamper of ["effective-acl", "direct-acl"]) {
     const tampered = makeClient("learncoding_ops", "learncoding", {
@@ -1554,7 +2708,7 @@ test("grounds PostgreSQL's successful no-op GRANT in unchanged effective and cat
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 59,
+    positiveChecks: 71,
     negativeChecks: 29,
   });
   for (const role of [
@@ -1834,3 +2988,60 @@ test("bootstrap CLI failure output uses a fixed code without credential material
     code: "DATABASE_ROLE_BOOTSTRAP_FAILED",
   });
 });
+
+const FIXED_0067_OUTBOX_CHECK_NAMES = Object.freeze([
+  "email_outbox_variables_object_valid",
+  "email_outbox_recipient_canonical_valid",
+]);
+
+for (const [label, premature0067CheckConstraints] of [
+  ["variables-only", [FIXED_0067_OUTBOX_CHECK_NAMES[0]]],
+  ["recipient-only", [FIXED_0067_OUTBOX_CHECK_NAMES[1]]],
+  ["both", [...FIXED_0067_OUTBOX_CHECK_NAMES]],
+]) {
+  test(`G rejects premature 0067 CHECK presence before cutover: ${label}`, async () => {
+    const client = makeClient("learncoding_ops", "learncoding", {
+      premature0067CheckConstraints,
+    });
+    await assert.rejects(
+      verifyMailWorkerOutboxContract(client, {
+        requiresDispatchBinding: true,
+        requiresProviderEvidence: true,
+        requiresReplayAuthority: false,
+      }),
+      DatabaseRoleBoundaryError,
+    );
+
+    const workerQuery = client.queries.find((sql) =>
+      sql.includes("worker_column_direct_acl_exact")
+    );
+    assert.ok(workerQuery, "worker contract query is missing");
+    const observedStart = workerQuery.indexOf(
+      "reviewed_0067_check_constraints_observed as",
+    );
+    const observedEnd = workerQuery.indexOf(
+      "select",
+      workerQuery.indexOf("reviewed_0067_check_constraints_exact"),
+    );
+    assert.ok(observedStart >= 0 && observedEnd > observedStart);
+    const observed = workerQuery.slice(observedStart, observedEnd);
+    for (const constraintName of FIXED_0067_OUTBOX_CHECK_NAMES) {
+      assert.match(
+        observed,
+        new RegExp(`'${constraintName}'`, "u"),
+        `${constraintName} must always be observed`,
+      );
+    }
+    assert.doesNotMatch(
+      observed,
+      /select expected[.]constraint_name/u,
+      "the observed-name inventory must not disappear with the expected phase",
+    );
+    const workerQueryIndex = client.queries.indexOf(workerQuery);
+    assert.deepEqual(
+      JSON.parse(client.queryParameters[workerQueryIndex]?.[30]),
+      [],
+      "pre-0067 expected rows remain phase-gated to the empty set",
+    );
+  });
+}

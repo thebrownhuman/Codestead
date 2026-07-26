@@ -1,25 +1,31 @@
 import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const onConflictDoNothing = vi.fn(async () => undefined);
-  const values = vi.fn(() => ({ onConflictDoNothing }));
-  const insert = vi.fn(() => ({ values }));
-  return { insert, values, onConflictDoNothing };
+  const execute = vi.fn(async (_statement: unknown) => {
+    void _statement;
+  });
+  const values = vi.fn((_row: unknown) => {
+    void _row;
+  });
+  return { execute, values };
 });
 
-vi.mock("@/lib/db/client", () => ({ db: { insert: mocks.insert } }));
-vi.mock("@/lib/db/schema", () => ({
-  emailOutbox: { idempotencyKey: "idempotency_key" },
-}));
+vi.mock("@/lib/db/client", () => ({ db: { execute: mocks.execute } }));
 
 import {
   enqueueEmail,
   type AccountEmailTemplate,
   type EnqueueEmailInput,
 } from "../outbox";
+import { capturedOutboxRow } from "./outbox-sql-test-support";
 
 describe("generic outbox template policy", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.execute.mockImplementation(async (statement) => {
+      mocks.values(capturedOutboxRow(statement));
+    });
+  });
 
   it("does not type specialized inactivity templates as generic account mail", () => {
     expectTypeOf<"inactivity-reminder">().not.toMatchTypeOf<AccountEmailTemplate>();
@@ -43,7 +49,7 @@ describe("generic outbox template policy", () => {
     await expect(enqueueEmail(bypassedInput)).rejects.toThrow(
       "requires its specialized producer",
     );
-    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.execute).not.toHaveBeenCalled();
   });
 
   it("derives the exact reviewed version instead of relying on a writer literal", async () => {

@@ -46,10 +46,15 @@ type RoleBootstrapRunner = (options: {
   readonly pool: InstanceType<typeof Pool>;
 }) => Promise<unknown>;
 
+type ReviewedCatalogPhaseResolver = (
+  client: PoolClient,
+) => Promise<unknown>;
+
 type RoleBootstrapStateVerifier = (
   client: PoolClient,
   postgresDatabase: string,
   postgresUser: string,
+  phase: unknown,
 ) => Promise<unknown>;
 
 type ProductionMigrationRunner = (options: {
@@ -291,9 +296,13 @@ async function verifyDisposableIntegrationTopology(input: {
   database: string;
 }) {
   const modulePath = "./bootstrap-database-roles.mjs";
-  const { verifyDatabaseRoleBootstrapState } = await import(
+  const {
+    resolveReviewedMailAuthorityCatalogPhase,
+    verifyDatabaseRoleBootstrapState,
+  } = await import(
     /* @vite-ignore */ modulePath
   ) as {
+    resolveReviewedMailAuthorityCatalogPhase: ReviewedCatalogPhaseResolver;
     verifyDatabaseRoleBootstrapState: RoleBootstrapStateVerifier;
   };
   const pool = new Pool({ connectionString: input.databaseUrl, max: 1 });
@@ -316,10 +325,13 @@ async function verifyDisposableIntegrationTopology(input: {
     ) {
       throw new Error("disposable integration verifier authority mismatch");
     }
+    const reviewedPhase =
+      await resolveReviewedMailAuthorityCatalogPhase(client);
     await verifyDatabaseRoleBootstrapState(
       client,
       input.database,
       input.integrationUser,
+      reviewedPhase,
     );
     const result = await client.query<{
       fingerprint: string;

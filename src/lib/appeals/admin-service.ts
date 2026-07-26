@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import type { PoolClient } from "pg";
 
 import {
@@ -10,6 +8,7 @@ import {
   type ExamResult,
 } from "@/lib/exams/contracts";
 import { pool } from "@/lib/db/client";
+import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 import { queueProjectReviewCorrectionWithClient } from "@/lib/projects/review-correction-service";
 
 import { hashAppealEvidence } from "./evidence";
@@ -508,7 +507,10 @@ export async function decideAppeal(input: {
   const reason = input.reason.trim();
   const correctiveAction = input.correctiveAction?.trim();
   if (!Number.isFinite(now.getTime())) throw new Error("A valid decision timestamp is required.");
+  if (!UUID_PATTERN.test(input.appealId)) throw new Error("appealId must be a UUID.");
   if (!UUID_PATTERN.test(input.requestId)) throw new Error("requestId must be a UUID.");
+  const appealId = input.appealId.toLowerCase();
+  const requestId = input.requestId.toLowerCase();
   if (!Number.isSafeInteger(input.expectedVersion) || input.expectedVersion < 1) {
     throw new Error("expectedVersion must be a positive integer.");
   }
@@ -525,7 +527,7 @@ export async function decideAppeal(input: {
   const client = await pool.connect();
   try {
     await client.query("begin");
-    await client.query("select pg_advisory_xact_lock(hashtext($1))", [`appeal-decision:${input.appealId}`]);
+    await client.query("select pg_advisory_xact_lock(hashtext($1))", [`appeal-decision:${appealId}`]);
     const actor = await client.query<{ role: string | null; status: string }>(
       `select role, status from "user" where id = $1 for update`,
       [input.actorUserId],
@@ -554,7 +556,7 @@ export async function decideAppeal(input: {
          left join attempt t on t.id = a.attempt_id
          left join exam_session es on es.attempt_id = a.attempt_id
         where a.id = $1 for update of a`,
-      [input.appealId],
+      [appealId],
     );
     const row = candidate.rows[0];
     if (!row) throw new AppealAdminError("APPEAL_NOT_FOUND");
@@ -567,7 +569,7 @@ export async function decideAppeal(input: {
     }>(
       `select actor_user_id, event, reason, evidence, occurred_at from appeal_event
         where appeal_id = $1 and client_request_id = $2 for update`,
-      [input.appealId, input.requestId],
+      [appealId, requestId],
     );
     if (priorEvent.rows[0]) {
       const prior = priorEvent.rows[0];
@@ -579,7 +581,7 @@ export async function decideAppeal(input: {
       ) {
         throw new AppealAdminError("IDEMPOTENCY_MISMATCH");
       }
-      const report = await currentDecisionReport(client, input.appealId, true);
+      const report = await currentDecisionReport(client, appealId, true);
       await client.query("commit");
       return report;
     }
@@ -594,10 +596,10 @@ export async function decideAppeal(input: {
         (appeal_id, actor_user_id, actor_role, event, client_request_id, reason, evidence, occurred_at)
        values ($1, $2, 'admin', $3, $4, $5, $6::jsonb, $7)`,
       [
-        input.appealId,
+        appealId,
         input.actorUserId,
         input.decision,
-        input.requestId,
+        requestId,
         reason,
         JSON.stringify({
           priorStatus: row.status,
@@ -618,7 +620,7 @@ export async function decideAppeal(input: {
         where id = $1 and row_version = $6
           and status = any($7::text[])`,
       [
-        input.appealId,
+        appealId,
         input.decision,
         reason,
         input.actorUserId,
@@ -649,8 +651,8 @@ export async function decideAppeal(input: {
       await queueProjectReviewCorrectionWithClient(client, {
         actorUserId: input.actorUserId,
         sourceReviewId: row.project_review_id,
-        sourceAppealId: input.appealId,
-        requestId: input.requestId,
+        sourceAppealId: appealId,
+        requestId,
         reason: correctiveAction!,
         now,
       });
@@ -671,13 +673,15 @@ export async function decideAppeal(input: {
       [row.user_id, copy.title, copy.body, actionPath, now],
     );
     const appUrl = process.env.APP_URL ?? "http://localhost:3000";
-    const mailKey = createHash("sha256")
-      .update(`appeal-updated:${row.learner_email.toLowerCase()}:${input.appealId}:${input.requestId}`)
-      .digest("hex");
+    const mailKey = accountMailEventIdempotencyKey({
+      eventId: `${appealId}:${requestId}`,
+      template: "appeal-updated",
+      userId: row.user_id,
+    });
     await client.query(
       `insert into email_outbox
-        (user_id, delivery_scope_key, to_email, template, template_version, variables, idempotency_key, status)
-       values ($1, 'a:' || $1, lower($2), 'appeal-updated', '1', $3::jsonb, $4, 'pending')
+        (user_id, delivery_scope_key, to_email, template, template_version, variables, idempotency_key, idempotency_authority_version, status)
+       values ($1, 'a:' || $1, lower($2), 'appeal-updated', '1', $3::jsonb, $4, 'event-v1-native', 'pending')
        on conflict (idempotency_key) do nothing`,
       [
         row.user_id,
@@ -690,7 +694,7 @@ export async function decideAppeal(input: {
         mailKey,
       ],
     );
-    const report = await currentDecisionReport(client, input.appealId, false);
+    const report = await currentDecisionReport(client, appealId, false);
     await client.query("commit");
     return report;
   } catch (error) {

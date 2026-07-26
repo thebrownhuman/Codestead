@@ -23,8 +23,8 @@ function exactConstraint(name, type, keyColumns, definition) {
 
 function exactIndex(name, keyColumn, primary) {
   const relationName = name.startsWith("backup_status_mail_admin_guard")
-    ? "backup_status_mail_admin_guard"
-    : "backup_status_mail_authority";
+    ? "public.backup_status_mail_admin_guard"
+    : "public.backup_status_mail_authority";
   return Object.freeze({
     name,
     owner: "learncoding_owner",
@@ -288,6 +288,133 @@ export const BACKUP_STATUS_AUTHORITY_ROUTINES = Object.freeze([
   }),
 ]);
 
+const BACKUP_STATUS_ENQUEUE_ROUTINE_SIGNATURE =
+  "public.enqueue_backup_status_mail_authority(text,text)";
+const BACKUP_STATUS_UUID_V4_PATTERN =
+  "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$";
+
+export const BACKUP_STATUS_AUTHORITY_TRIGGERS = Object.freeze([
+  Object.freeze({
+    relation: "public.backup_status_mail_authority",
+    name: "backup_status_mail_authority_immutable",
+    functionSignature: "public.reject_backup_status_mail_authority_mutation()",
+    enabled: "O",
+    type: 27,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: "public.backup_status_mail_authority",
+    name: "backup_status_mail_authority_no_truncate",
+    functionSignature: "public.reject_backup_status_mail_authority_mutation()",
+    enabled: "O",
+    type: 34,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: 'public."user"',
+    name: "backup_status_mail_admin_insert_lock",
+    functionSignature: "public.lock_backup_status_mail_admin_authority()",
+    enabled: "O",
+    type: 7,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: 'public."user"',
+    name: "backup_status_mail_admin_update_lock",
+    functionSignature: "public.lock_backup_status_mail_admin_authority()",
+    enabled: "O",
+    type: 19,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze(["id", "email", "role", "status", "banned"]),
+  }),
+  Object.freeze({
+    relation: 'public."user"',
+    name: "backup_status_mail_admin_delete_lock",
+    functionSignature: "public.lock_backup_status_mail_admin_authority()",
+    enabled: "O",
+    type: 11,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+]);
+
+export const BACKUP_STATUS_AUTHORITY_GUARD_STATE = Object.freeze({
+  relation: "public.backup_status_mail_admin_guard",
+  singletonColumn: "singleton",
+  authorityEpochColumn: "authority_epoch",
+  expectedRows: 1,
+  singletonValue: true,
+  requiresNonZeroAuthorityEpoch: true,
+});
+
+export const BACKUP_STATUS_AUTHORITY_0065_CONTRACT = Object.freeze({
+  phase: 65,
+  relations: BACKUP_STATUS_AUTHORITY_RELATIONS,
+  routines: BACKUP_STATUS_AUTHORITY_ROUTINES,
+  triggers: BACKUP_STATUS_AUTHORITY_TRIGGERS,
+  guardState: BACKUP_STATUS_AUTHORITY_GUARD_STATE,
+});
+
+export const BACKUP_STATUS_AUTHORITY_0067_RELATIONS = Object.freeze(
+  BACKUP_STATUS_AUTHORITY_RELATIONS.map((relation) => {
+    if (relation.name !== "public.backup_status_mail_authority") {
+      return relation;
+    }
+    return Object.freeze({
+      ...relation,
+      constraints: Object.freeze(
+        relation.constraints.map((constraint) =>
+          constraint.name === "backup_status_mail_authority_run_key_valid"
+            ? exactConstraint(
+                constraint.name,
+                constraint.type,
+                constraint.keyColumns,
+                "CHECK (((run_key ~ '^[0-9]{8}T[0-9]{6}Z$'::text) OR "
+                  + `(run_key ~ '${BACKUP_STATUS_UUID_V4_PATTERN}'::text)))`,
+              )
+            : constraint
+        ),
+      ),
+    });
+  }),
+);
+
+export const BACKUP_STATUS_AUTHORITY_0067_ROUTINES = Object.freeze(
+  BACKUP_STATUS_AUTHORITY_ROUTINES.map((routine) =>
+    routine.signature === BACKUP_STATUS_ENQUEUE_ROUTINE_SIGNATURE
+      ? exactRoutine({
+          ...routine,
+          configuration: ["search_path=pg_catalog, pg_temp"],
+          bodySha256:
+            "03de5c191a17996fabf881a7916343aa73ffeaf5b522c48aaf4c5f2a57b7a43a",
+          definitionSha256:
+            "c8e48d582c9caefd8665b78482fecf64437d7055ff8d6c5ee24a9b9319c304d9",
+        })
+      : routine
+  ),
+);
+
+export const BACKUP_STATUS_AUTHORITY_0067_CONTRACT = Object.freeze({
+  phase: 67,
+  relations: BACKUP_STATUS_AUTHORITY_0067_RELATIONS,
+  routines: BACKUP_STATUS_AUTHORITY_0067_ROUTINES,
+  triggers: BACKUP_STATUS_AUTHORITY_TRIGGERS,
+  guardState: BACKUP_STATUS_AUTHORITY_GUARD_STATE,
+});
+
+const CANONICAL_BACKUP_STATUS_AUTHORITY_CONTRACTS = new Map([
+  [65, BACKUP_STATUS_AUTHORITY_0065_CONTRACT],
+  [67, BACKUP_STATUS_AUTHORITY_0067_CONTRACT],
+]);
+
 export class BackupStatusMailAuthorityContractError extends Error {
   constructor(component) {
     const base =
@@ -301,6 +428,23 @@ function fail(component) {
   throw new BackupStatusMailAuthorityContractError(component);
 }
 
+function canonicalBackupStatusAuthorityContract(contract) {
+  const canonical = CANONICAL_BACKUP_STATUS_AUTHORITY_CONTRACTS.get(
+    contract?.phase,
+  );
+  if (
+    canonical === undefined
+    || canonical !== contract
+    || contract.relations !== canonical.relations
+    || contract.routines !== canonical.routines
+    || contract.triggers !== canonical.triggers
+    || contract.guardState !== canonical.guardState
+  ) {
+    fail("contract");
+  }
+  return canonical;
+}
+
 function exactTrueRow(row, keys) {
   return row !== undefined && keys.every((key) => row[key] === true);
 }
@@ -311,6 +455,24 @@ async function verifyRestrictedRelation(
   restrictedRoles,
 ) {
   const expectedColumns = relation.columns.map(({ name }) => name);
+  const exactKeys = [
+    "owner_exact",
+    "relation_kind_exact",
+    "persistence_exact",
+    "access_method_exact",
+    "replica_identity_exact",
+    "reloptions_exact",
+    "tablespace_exact",
+    "row_security_exact",
+    "forced_row_security_exact",
+    "columns_exact",
+    "column_definitions_exact",
+    "constraints_exact",
+    "indexes_exact",
+    "effective_table_acl_exact",
+    "effective_column_acl_exact",
+    "direct_acl_exact",
+  ];
   const result = await client.query(`
     with target as (
       select c.*
@@ -636,27 +798,15 @@ async function verifyRestrictedRelation(
       JSON.stringify(relation.indexes),
     ],
   );
-  if (
-    result.rows.length !== 1 ||
-    !exactTrueRow(result.rows[0], [
-      "owner_exact",
-      "relation_kind_exact",
-      "persistence_exact",
-      "access_method_exact",
-      "replica_identity_exact",
-      "reloptions_exact",
-      "tablespace_exact",
-      "row_security_exact",
-      "forced_row_security_exact",
-      "columns_exact",
-      "column_definitions_exact",
-      "constraints_exact",
-      "indexes_exact",
-      "effective_table_acl_exact",
-      "effective_column_acl_exact",
-      "direct_acl_exact",
-    ])
-  ) fail(`relation:${relation.name}`);
+  const failedKeys = exactKeys.filter(
+    (key) => result.rows[0]?.[key] !== true,
+  );
+  if (result.rows.length !== 1 || failedKeys.length > 0) {
+    const detail = failedKeys.length > 0
+      ? `[${failedKeys.join(",")}]`
+      : "[row_count]";
+    fail(`relation:${relation.name}${detail}`);
+  }
 }
 
 async function verifyRoutine(client, routine, restrictedRoles) {
@@ -886,86 +1036,83 @@ async function verifyRoutine(client, routine, restrictedRoles) {
   }
 }
 
-async function verifyTriggers(client) {
+async function verifyTriggers(client, contract) {
+  const expectedTriggers = contract.triggers.map((trigger) => ({
+    relation_name: trigger.relation,
+    trigger_name: trigger.name,
+    trigger_type: trigger.type,
+    enabled: trigger.enabled,
+    function_signature: trigger.functionSignature,
+    watched_columns: trigger.watchedColumns,
+    condition_absent: trigger.predicate === null,
+    argument_count: trigger.arguments.length,
+    argument_bytes: trigger.arguments.reduce(
+      (total, argument) =>
+        total + new TextEncoder().encode(argument).byteLength + 1,
+      0,
+    ),
+  }));
+  const authorityTriggerRelations = [
+    ...new Set([
+      ...contract.relations.map(({ name }) => name),
+      contract.guardState.relation,
+    ]),
+  ];
+  const userTrigger = contract.triggers.find(
+    ({ relation }) => relation === 'public."user"',
+  );
+  if (userTrigger === undefined) fail("contract:triggers:user");
+
   const result = await client.query(`
-    with expected(
-      relation_name, trigger_name, trigger_type, enabled, function_oid,
-      attribute_numbers, condition_absent, argument_count, argument_bytes
-    ) as (
-      values
-        (
-          'public.backup_status_mail_authority'::text,
-          'backup_status_mail_authority_immutable'::name,
-          27::smallint,
-          'O'::"char",
-          pg_catalog.to_regprocedure(
-            'public.reject_backup_status_mail_authority_mutation()'
-          )::oid,
-          ARRAY[]::smallint[],
-          true,
-          0::smallint,
-          0::integer
-        ),
-        (
-          'public.backup_status_mail_authority'::text,
-          'backup_status_mail_authority_no_truncate'::name,
-          34::smallint,
-          'O'::"char",
-          pg_catalog.to_regprocedure(
-            'public.reject_backup_status_mail_authority_mutation()'
-          )::oid,
-          ARRAY[]::smallint[],
-          true,
-          0::smallint,
-          0::integer
-        ),
-        (
-          'public."user"'::text,
-          'backup_status_mail_admin_insert_lock'::name,
-          7::smallint,
-          'O'::"char",
-          pg_catalog.to_regprocedure(
-            'public.lock_backup_status_mail_admin_authority()'
-          )::oid,
-          ARRAY[]::smallint[],
-          true,
-          0::smallint,
-          0::integer
-        ),
-        (
-          'public."user"'::text,
-          'backup_status_mail_admin_update_lock'::name,
-          19::smallint,
-          'O'::"char",
-          pg_catalog.to_regprocedure(
-            'public.lock_backup_status_mail_admin_authority()'
-          )::oid,
-          ARRAY(
-            SELECT attribute.attnum::smallint
-              FROM pg_catalog.pg_attribute attribute
-             WHERE attribute.attrelid = pg_catalog.to_regclass('public."user"')
-               AND attribute.attname = ANY(
-                 ARRAY['id', 'email', 'role', 'status', 'banned']::name[]
-               )
-             ORDER BY attribute.attnum
-          )::smallint[],
-          true,
-          0::smallint,
-          0::integer
-        ),
-        (
-          'public."user"'::text,
-          'backup_status_mail_admin_delete_lock'::name,
-          11::smallint,
-          'O'::"char",
-          pg_catalog.to_regprocedure(
-            'public.lock_backup_status_mail_admin_authority()'
-          )::oid,
-          ARRAY[]::smallint[],
-          true,
-          0::smallint,
-          0::integer
+    with expected_manifest as (
+      select manifest.relation_name,
+             manifest.trigger_name::name trigger_name,
+             manifest.trigger_type,
+             manifest.enabled::"char" enabled,
+             manifest.function_signature,
+             manifest.watched_columns,
+             manifest.condition_absent,
+             manifest.argument_count,
+             manifest.argument_bytes
+        from pg_catalog.jsonb_to_recordset($1::jsonb) manifest(
+          relation_name text,
+          trigger_name text,
+          trigger_type smallint,
+          enabled text,
+          function_signature text,
+          watched_columns text[],
+          condition_absent boolean,
+          argument_count smallint,
+          argument_bytes integer
         )
+    ),
+    expected as (
+      select manifest.relation_name,
+             manifest.trigger_name,
+             manifest.trigger_type,
+             manifest.enabled,
+             pg_catalog.to_regprocedure(
+               manifest.function_signature
+             )::oid function_oid,
+             coalesce(
+               ARRAY(
+                 select attribute.attnum::smallint
+                   from pg_catalog.unnest(manifest.watched_columns)
+                        with ordinality as watched_column(
+                          attname, declared_order
+                        )
+                   join pg_catalog.pg_attribute attribute
+                     on attribute.attrelid =
+                          pg_catalog.to_regclass(manifest.relation_name)
+                    and attribute.attname = watched_column.attname
+                  order by watched_column.declared_order
+               ),
+               ARRAY[]::smallint[]
+             ) attribute_numbers,
+             manifest.condition_absent,
+             manifest.argument_count,
+             manifest.argument_bytes
+        from expected_manifest manifest
     ),
     observed as (
       select pg_catalog.format(
@@ -987,40 +1134,51 @@ async function verifyTriggers(client) {
           on namespace.oid = relation.relnamespace
        where not trigger.tgisinternal
          and (
-           trigger.tgrelid = pg_catalog.to_regclass(
-             'public.backup_status_mail_authority'
-           )
-           or trigger.tgrelid = pg_catalog.to_regclass(
-             'public.backup_status_mail_admin_guard'
+           trigger.tgrelid = any (
+             ARRAY(
+               select pg_catalog.to_regclass(relation_name)
+                 from pg_catalog.unnest($2::text[]) relation_name
+             )
            )
            or (
-             trigger.tgrelid = pg_catalog.to_regclass('public."user"')
-             and trigger.tgname in (
-               'backup_status_mail_admin_insert_lock',
-               'backup_status_mail_admin_update_lock',
-               'backup_status_mail_admin_delete_lock'
-             )
+             trigger.tgrelid = pg_catalog.to_regclass($3::text)
+             and pg_catalog.left(
+                   trigger.tgname,
+                   pg_catalog.length($4::text)
+                 ) = $4::text
            )
          )
     )
     select (
-             pg_catalog.to_regclass(
-               'public.backup_status_mail_authority'
-             ) is not null
-             and pg_catalog.to_regclass(
-               'public.backup_status_mail_admin_guard'
-             ) is not null
-             and pg_catalog.to_regclass('public."user"') is not null
+             not exists (
+               select 1
+                 from pg_catalog.unnest(
+                   $2::text[] || ARRAY[$3::text]
+                 ) relation_name
+                where pg_catalog.to_regclass(relation_name) is null
+             )
            ) relations_present,
            (
-             select pg_catalog.count(*) = 1
+             $5::text =
+               'public.backup_status_mail_admin_guard'
+             and $6::name = 'singleton'::name
+             and $7::name = 'authority_epoch'::name
+             and (
+             select pg_catalog.count(*) = $8::integer
                     and pg_catalog.bool_and(
-                      authority_guard.singleton is true
-                      and authority_guard.authority_epoch is not null
-                      and authority_guard.authority_epoch <>
-                        '00000000-0000-0000-0000-000000000000'::uuid
+                      (
+                        pg_catalog.to_jsonb(authority_guard) ->> $6::text
+                      )::boolean is not distinct from $9::boolean
+                      and (
+                        not $10::boolean
+                        or (
+                          pg_catalog.to_jsonb(authority_guard) ->> $7::text
+                        )::uuid <>
+                          '00000000-0000-0000-0000-000000000000'::uuid
+                      )
                     )
                from public.backup_status_mail_admin_guard authority_guard
+             )
            ) guard_state_exact,
            not exists (
              select 1
@@ -1030,6 +1188,18 @@ async function verifyTriggers(client) {
                  (select * from expected except all select * from observed)
                ) difference
            ) triggers_exact`,
+    [
+      JSON.stringify(expectedTriggers),
+      authorityTriggerRelations,
+      userTrigger.relation,
+      "backup_status_mail_admin_",
+      contract.guardState.relation,
+      contract.guardState.singletonColumn,
+      contract.guardState.authorityEpochColumn,
+      contract.guardState.expectedRows,
+      contract.guardState.singletonValue,
+      contract.guardState.requiresNonZeroAuthorityEpoch,
+    ],
   );
   if (
     result.rows.length !== 1 ||
@@ -1039,22 +1209,36 @@ async function verifyTriggers(client) {
     )
   ) fail("triggers");
 }
-
 export async function verifyBackupStatusMailAuthorityObjects(
   client,
   restrictedRoles,
+  contract,
 ) {
+  const canonicalContract = canonicalBackupStatusAuthorityContract(contract);
   if (
     !Array.isArray(restrictedRoles) ||
     restrictedRoles.length === 0 ||
-    new Set(restrictedRoles).size !== restrictedRoles.length
+    new Set(restrictedRoles).size !== restrictedRoles.length ||
+    canonicalContract.relations.length === 0 ||
+    canonicalContract.routines.length === 0
   ) fail();
-  for (const relation of BACKUP_STATUS_AUTHORITY_RELATIONS) {
+  const trustedSearchPath = await client.query(
+    "select pg_catalog.set_config('search_path', 'pg_catalog,pg_temp', false) trusted_search_path",
+  );
+  if (
+    trustedSearchPath.rows.length !== 1
+    || trustedSearchPath.rows[0]?.trusted_search_path !== "pg_catalog,pg_temp"
+  ) {
+    fail("trusted_search_path");
+  }
+  for (const relation of canonicalContract.relations) {
     await verifyRestrictedRelation(client, relation, restrictedRoles);
   }
-  for (const routine of BACKUP_STATUS_AUTHORITY_ROUTINES) {
+  for (const routine of canonicalContract.routines) {
     await verifyRoutine(client, routine, restrictedRoles);
   }
-  await verifyTriggers(client);
-  return 7;
+  await verifyTriggers(client, canonicalContract);
+  return canonicalContract.relations.length
+    + canonicalContract.routines.length
+    + 1;
 }

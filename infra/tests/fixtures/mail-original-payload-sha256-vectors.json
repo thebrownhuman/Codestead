@@ -1,0 +1,67 @@
+[
+  {
+    "name": "nested-json",
+    "userId": "mail-0067-vector-user",
+    "toEmail": " Vector@Example.Invalid ",
+    "template": "storage-quota-changed",
+    "templateVersion": "1",
+    "variables": {
+      "dd": null,
+      "aa": {
+        "bb": [
+          "x",
+          {
+            "cc": true
+          }
+        ]
+      }
+    },
+    "canonicalPayloadJson": "[\"mail-replay-conflict-v1\", \"storage-quota-changed\", \"a:mail-0067-vector-user\", \"vector@example.invalid\", \"1\", {\"aa\": {\"bb\": [\"x\", {\"cc\": true}]}, \"dd\": null}]",
+    "sha256": "5a6b0fd1e88e8f98d05804d90a5353362b5aa1c3e2c8e3fa3dd0b866b6929de2"
+  },
+  {
+    "name": "numeric-forms",
+    "userId": "mail-0067-vector-user",
+    "toEmail": " Vector@Example.Invalid ",
+    "template": "storage-quota-changed",
+    "templateVersion": "1",
+    "variables": {
+      "cc": -7,
+      "aa": 42,
+      "bb": 42.5
+    },
+    "canonicalPayloadJson": "[\"mail-replay-conflict-v1\", \"storage-quota-changed\", \"a:mail-0067-vector-user\", \"vector@example.invalid\", \"1\", {\"aa\": 42, \"bb\": 42.5, \"cc\": -7}]",
+    "sha256": "031175ce0821548428880c32a7e7b520adc693c1b68296202577a8905504f387"
+  },
+  {
+    "name": "unicode",
+    "userId": "mail-0067-vector-user",
+    "toEmail": " Vector@Example.Invalid ",
+    "template": "storage-quota-changed",
+    "templateVersion": "1",
+    "variables": {
+      "cc": "🙂",
+      "aa": "नमस्ते",
+      "bb": "東京"
+    },
+    "canonicalPayloadJson": "[\"mail-replay-conflict-v1\", \"storage-quota-changed\", \"a:mail-0067-vector-user\", \"vector@example.invalid\", \"1\", {\"aa\": \"नमस्ते\", \"bb\": \"東京\", \"cc\": \"🙂\"}]",
+    "sha256": "b930c31033833bea1060632f31aacc031516dd99b34e2af9eedbb853e4955e5b"
+  },
+  {
+    "name": "system-envelope",
+    "userId": null,
+    "toEmail": " System@Example.Invalid ",
+    "template": "invitation",
+    "templateVersion": "1",
+    "variables": {
+      "_mailOperationId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "_mailRecipient": "ignored@example.invalid",
+      "_mailProducer": "access-request-approved",
+      "_mailSourceId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "_mailAudienceId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      "aa": "kept"
+    },
+    "canonicalPayloadJson": "[\"mail-replay-conflict-v1\", \"invitation\", \"s:access-request-approved:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb:cccccccc-cccc-4ccc-8ccc-cccccccccccc\", \"system@example.invalid\", \"1\", {\"aa\": \"kept\", \"_mailProducer\": \"access-request-approved\", \"_mailSourceId\": \"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb\", \"_mailAudienceId\": \"cccccccc-cccc-4ccc-8ccc-cccccccccccc\"}]",
+    "sha256": "b3c8de0ca119880b4cb0eedff6a73b626c3fa970e24d309d6ed329f8bfdb7be8"
+  }
+]

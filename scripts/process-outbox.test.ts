@@ -156,9 +156,17 @@ describe("mail worker production composition", () => {
       swept: 0,
       outcomes: [],
     } satisfies BatchResult);
-    mocks.poolQuery.mockResolvedValue({
-      rows: [{ server_version_num: "170000" }],
-    });
+    mocks.poolQuery.mockImplementation(async (queryText: string) => (
+      queryText.includes("server_version_num")
+        ? { rows: [{ server_version_num: "170000" }] }
+        : {
+            rows: [{
+              hold_catalog_present: false,
+              hold_catalog_exact: false,
+              delivery_release_capability_exact: false,
+            }],
+          }
+    ));
     mocks.materializeDeliveryVariables.mockResolvedValue({});
     mocks.sendPreparedEmail.mockResolvedValue({ providerId: "console-provider-1" });
     mocks.scheduleInactivityReminders.mockResolvedValue({ scheduled: 0 });
@@ -226,6 +234,9 @@ describe("mail worker production composition", () => {
 
     expect(mocks.poolQuery).toHaveBeenCalledWith(
       "select pg_catalog.current_setting('server_version_num') as server_version_num",
+    );
+    expect(mocks.poolQuery).toHaveBeenCalledWith(
+      expect.stringContaining("delivery_hold_version"),
     );
     expect(mocks.PostgresOutboxStore).toHaveBeenCalledWith(mocks.pool);
     expect(mocks.poolQuery.mock.invocationCallOrder[0]).toBeLessThan(

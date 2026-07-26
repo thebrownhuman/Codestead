@@ -262,6 +262,7 @@ describe("real PostgreSQL provider-operation idempotency", () => {
           learnerPublicId: LEARNER_PUBLIC_ID,
           credentialId: CREDENTIAL_ID,
           action,
+          requestId: REQUEST_ID,
           reason,
           ...(action === "replace" ? { replacementSecret } : {}),
         });

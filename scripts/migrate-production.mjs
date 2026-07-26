@@ -13,11 +13,15 @@ import {
 
 const MIGRATION_LOCK_NAME = "codestead:database-administration:v1";
 const MAX_LOCK_TIMEOUT_MS = 120_000;
+const DEFAULT_OPERATION_TIMEOUT_MS = 55_000;
 const DEFAULT_CLEANUP_TIMEOUT_MS = 5_000;
 const DEFAULT_UNLOCK_TIMEOUT_MS = 5_000;
 const TRY_LOCK_SQL = "select pg_try_advisory_lock(hashtextextended($1, 0)) acquired";
 const UNLOCK_SQL = "select pg_advisory_unlock(hashtextextended($1, 0)) released";
 const PRODUCTION_POSTGRES_MAJOR = 17;
+const TIMED_OUT_OPERATION_OUTCOME = Symbol(
+  "timed-out-production-migration-outcome",
+);
 
 const delay = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const monotonicNow = () => performance.now();
@@ -57,6 +61,13 @@ class MigrationCleanupTimeoutError extends Error {
   }
 }
 
+class MigrationOperationTimeoutError extends Error {
+  constructor() {
+    super("Timed out during the checked-out production migration operation");
+    this.name = "MigrationOperationTimeoutError";
+  }
+}
+
 function preserveFailureWithAggregateCause(primaryFailure, cleanupFailures) {
   if (primaryFailure instanceof Error) {
     try {
@@ -92,6 +103,19 @@ function preserveFailureWithAggregateCause(primaryFailure, cleanupFailures) {
   return failure;
 }
 
+function attachLateCleanupEvidence(cleanupError, lateError) {
+  try {
+    Object.defineProperty(cleanupError, "cause", {
+      value: lateError,
+      configurable: true,
+      writable: true,
+      enumerable: false,
+    });
+  } catch {
+    // The bounded cleanup-timeout evidence remains authoritative.
+  }
+}
+
 function normalizeLockTimeoutMs(timeoutMs) {
   if (!Number.isFinite(timeoutMs)) {
     throw new RangeError("Production migration lock timeout must be finite");
@@ -106,11 +130,86 @@ function normalizeUnlockTimeoutMs(timeoutMs) {
   return Math.min(timeoutMs, DEFAULT_UNLOCK_TIMEOUT_MS);
 }
 
+function normalizeOperationTimeoutMs(timeoutMs) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new RangeError("Production migration operation timeout must be positive and finite");
+  }
+  return Math.min(timeoutMs, DEFAULT_OPERATION_TIMEOUT_MS);
+}
+
 function normalizeCleanupTimeoutMs(timeoutMs) {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new RangeError("Production migration cleanup timeout must be positive and finite");
   }
   return Math.min(timeoutMs, DEFAULT_CLEANUP_TIMEOUT_MS);
+}
+
+function createMigrationDeadline(timeoutMs) {
+  return monotonicNow() + timeoutMs;
+}
+
+function remainingOperationDeadlineMs(deadline) {
+  const remainingMs = deadline - monotonicNow();
+  if (remainingMs <= 0) throw new MigrationOperationTimeoutError();
+  return remainingMs;
+}
+
+function remainingCleanupDeadlineMs(deadline, phase) {
+  const remainingMs = deadline - monotonicNow();
+  if (remainingMs <= 0) throw new MigrationCleanupTimeoutError(phase);
+  return remainingMs;
+}
+
+async function runCleanupWithinDeadline(operation, deadline, phase) {
+  return boundedMigrationCleanup(
+    operation,
+    remainingCleanupDeadlineMs(deadline, phase),
+    phase,
+  );
+}
+
+async function shutdownPoolWithinDeadline(pool, deadline) {
+  let shutdown;
+  try {
+    shutdown = Promise.resolve(pool.end());
+  } catch (error) {
+    throw error;
+  }
+  const immediate = {
+    settled: false,
+    status: undefined,
+    value: undefined,
+    error: undefined,
+  };
+  void shutdown.then(
+    (value) => {
+      immediate.settled = true;
+      immediate.status = "fulfilled";
+      immediate.value = value;
+    },
+    (error) => {
+      immediate.settled = true;
+      immediate.status = "rejected";
+      immediate.error = error;
+    },
+  );
+  await Promise.resolve();
+  if (immediate.settled) {
+    if (immediate.status === "rejected") throw immediate.error;
+    if (monotonicNow() >= deadline) {
+      throw new MigrationCleanupTimeoutError("pool shutdown");
+    }
+    return immediate.value;
+  }
+  const remainingMs = remainingCleanupDeadlineMs(
+    deadline,
+    "pool shutdown",
+  );
+  return boundedMigrationCleanup(
+    () => shutdown,
+    remainingMs,
+    "pool shutdown",
+  );
 }
 
 async function queryMigrationLock(client, remainingMs) {
@@ -174,6 +273,71 @@ async function boundedMigrationCleanup(operation, timeoutMs, phase) {
     if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
   }
 }
+
+function observeMigrationOutcome(promise) {
+  return Promise.resolve(promise).then(
+    (value) => ({ status: "fulfilled", value }),
+    (error) => ({ status: "rejected", error }),
+  );
+}
+
+async function waitForMigrationOutcome(observed, timeoutMs) {
+  let timeoutHandle;
+  const timeout = new Promise((resolve) => {
+    timeoutHandle = setTimeout(
+      () => resolve({ settled: false }),
+      timeoutMs,
+    );
+  });
+  try {
+    return await Promise.race([
+      observed.then((outcome) => ({ settled: true, outcome })),
+      timeout,
+    ]);
+  } finally {
+    if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+  }
+}
+
+async function runMigrationOperationWithinDeadline(
+  client,
+  operation,
+  operationDeadline,
+) {
+  const observed = observeMigrationOutcome(
+    Promise.resolve().then(operation),
+  );
+  const remainingMs = operationDeadline - monotonicNow();
+  const initial = remainingMs > 0
+    ? await waitForMigrationOutcome(observed, remainingMs)
+    : { settled: false };
+  if (initial.settled && monotonicNow() < operationDeadline) {
+    if (initial.outcome.status === "rejected") throw initial.outcome.error;
+    return initial.outcome.value;
+  }
+
+  const timeoutError = new MigrationOperationTimeoutError();
+  try {
+    client.connection?.stream?.destroy();
+  } catch (error) {
+    Object.defineProperty(timeoutError, "cause", {
+      value: new AggregateError(
+        [error],
+        "Production migration session abort failed",
+      ),
+      configurable: true,
+      writable: true,
+    });
+  }
+  Object.defineProperty(timeoutError, TIMED_OUT_OPERATION_OUTCOME, {
+    value: observed,
+    configurable: false,
+    enumerable: false,
+    writable: false,
+  });
+  throw timeoutError;
+}
+
 async function queryMigrationCleanup(client, sql, timeoutMs) {
   return boundedMigrationCleanup(() => client.query(sql), timeoutMs, "session cleanup");
 }
@@ -272,6 +436,10 @@ export async function runProductionMigration(options) {
   const cleanupTimeoutMs = normalizeCleanupTimeoutMs(
     options.cleanupTimeoutMs ?? DEFAULT_CLEANUP_TIMEOUT_MS,
   );
+  const operationTimeoutMs = normalizeOperationTimeoutMs(
+    options.operationTimeoutMs ?? DEFAULT_OPERATION_TIMEOUT_MS,
+  );
+  const operationDeadline = createMigrationDeadline(operationTimeoutMs);
   let client;
   let lockAcquired = false;
   let destroyClient = false;
@@ -279,49 +447,143 @@ export async function runProductionMigration(options) {
   let hasPrimaryFailure = false;
   const cleanupFailures = [];
   let ownerRoleAssumed = false;
+  let sessionAmbiguous = false;
+  let timedOutCheckoutOutcome;
 
   try {
-    client = await migrationPool.connect();
-    await requireProductionPostgresMajor(
-      client,
-      options.requiredPostgresMajor,
+    const observedCheckout = observeMigrationOutcome(
+      Promise.resolve().then(() => migrationPool.connect()),
     );
-    try {
-      await acquireMigrationLock(client, options.lockOptions);
-      lockAcquired = true;
-    } catch (error) {
-      destroyClient = true;
-      throw error;
+    const checkout = await waitForMigrationOutcome(
+      observedCheckout,
+      remainingOperationDeadlineMs(operationDeadline),
+    );
+    if (!checkout.settled || monotonicNow() >= operationDeadline) {
+      timedOutCheckoutOutcome = observedCheckout;
+      throw new MigrationOperationTimeoutError();
     }
-    await verifyMigrationIdentity(client, "learncoding_migrator");
-    verifyReviewedMigrationRepository({ drizzleDirectory: migrationsFolder });
-    await client.query("SET ROLE learncoding_owner");
-    ownerRoleAssumed = true;
-    await verifyMigrationIdentity(client, "learncoding_owner");
-    await verifyAppliedMigrationLedger(client, {
-      requireComplete: false,
-    });
-    await migrate(drizzle(client), { migrationsFolder });
-    await verifyAppliedMigrationLedger(client, {
-      requireComplete: true,
-    });
+    if (checkout.outcome.status === "rejected") {
+      throw checkout.outcome.error;
+    }
+    client = checkout.outcome.value;
+    await runMigrationOperationWithinDeadline(
+      client,
+      async () => {
+        await requireProductionPostgresMajor(
+          client,
+          options.requiredPostgresMajor,
+        );
+        try {
+          await acquireMigrationLock(client, options.lockOptions);
+          lockAcquired = true;
+        } catch (error) {
+          destroyClient = true;
+          throw error;
+        }
+        await verifyMigrationIdentity(client, "learncoding_migrator");
+        verifyReviewedMigrationRepository({ drizzleDirectory: migrationsFolder });
+        await client.query("SET ROLE learncoding_owner");
+        ownerRoleAssumed = true;
+        await verifyMigrationIdentity(client, "learncoding_owner");
+        await verifyAppliedMigrationLedger(client, {
+          requireComplete: false,
+        });
+        await migrate(drizzle(client), { migrationsFolder });
+        await verifyAppliedMigrationLedger(client, {
+          requireComplete: true,
+        });
+      },
+      operationDeadline,
+    );
   } catch (error) {
     destroyClient = true;
+    sessionAmbiguous = error instanceof MigrationOperationTimeoutError;
     hasPrimaryFailure = true;
     primaryFailure = error;
   }
 
+  const cleanupDeadline = createMigrationDeadline(cleanupTimeoutMs);
+  const shutdownReserveMs = Math.min(
+    cleanupTimeoutMs * 0.8,
+    Math.max(10, cleanupTimeoutMs * 0.2),
+  );
+  if (timedOutCheckoutOutcome !== undefined) {
+    const remainingMs = cleanupDeadline - monotonicNow();
+    const settlementMs = Math.max(0, remainingMs - shutdownReserveMs);
+    const lateCheckout = settlementMs > 0
+      ? await waitForMigrationOutcome(
+          timedOutCheckoutOutcome,
+          settlementMs,
+        )
+      : { settled: false };
+    if (lateCheckout.settled) {
+      if (lateCheckout.outcome.status === "rejected") {
+        cleanupFailures.push(lateCheckout.outcome.error);
+      } else {
+        try {
+          lateCheckout.outcome.value.release(true);
+        } catch (error) {
+          cleanupFailures.push(error);
+        }
+      }
+    } else {
+      const checkoutSettlementError = new MigrationCleanupTimeoutError(
+        "pool checkout settlement",
+      );
+      cleanupFailures.push(checkoutSettlementError);
+      void timedOutCheckoutOutcome.then((outcome) => {
+        if (outcome.status === "rejected") {
+          attachLateCleanupEvidence(
+            checkoutSettlementError,
+            outcome.error,
+          );
+          return;
+        }
+        try {
+          outcome.value.release(true);
+        } catch (error) {
+          attachLateCleanupEvidence(checkoutSettlementError, error);
+        }
+      });
+    }
+  }
+  const timedOutOperationOutcome = (
+    primaryFailure instanceof MigrationOperationTimeoutError
+  )
+    ? primaryFailure[TIMED_OUT_OPERATION_OUTCOME]
+    : undefined;
+  if (timedOutOperationOutcome !== undefined) {
+    const remainingMs = cleanupDeadline - monotonicNow();
+    const settlementMs = Math.max(0, remainingMs - shutdownReserveMs);
+    if (settlementMs > 0) {
+      await waitForMigrationOutcome(timedOutOperationOutcome, settlementMs);
+    }
+  }
+
   try {
-    if (client && ownerRoleAssumed) {
-      await queryMigrationCleanup(client, "RESET ROLE", cleanupTimeoutMs);
-      await verifyMigrationIdentity(
-        client,
-        "learncoding_migrator",
-        cleanupTimeoutMs,
+    if (client && ownerRoleAssumed && !sessionAmbiguous) {
+      await runCleanupWithinDeadline(
+        () => client.query("RESET ROLE"),
+        cleanupDeadline,
+        "session role reset",
+      );
+      await runCleanupWithinDeadline(
+        () => verifyMigrationIdentity(client, "learncoding_migrator"),
+        cleanupDeadline,
+        "session identity restoration",
       );
     }
-    if (client && lockAcquired) {
-      await queryMigrationUnlock(client, unlockTimeoutMs);
+    if (client && lockAcquired && !sessionAmbiguous) {
+      await queryMigrationUnlock(
+        client,
+        Math.min(
+          unlockTimeoutMs,
+          remainingCleanupDeadlineMs(
+            cleanupDeadline,
+            "advisory lock release",
+          ),
+        ),
+      );
     }
   } catch (error) {
     destroyClient = true;
@@ -338,17 +600,20 @@ export async function runProductionMigration(options) {
   }
 
   try {
-    await boundedMigrationCleanup(
-      () => migrationPool.end(),
-      cleanupTimeoutMs,
-      "pool shutdown",
-    );
+    await shutdownPoolWithinDeadline(migrationPool, cleanupDeadline);
   } catch (error) {
     cleanupFailures.push(error);
   }
 
   if (hasPrimaryFailure) {
     if (cleanupFailures.length === 0) throw primaryFailure;
+    if (timedOutCheckoutOutcome !== undefined) {
+      throw new AggregateError(
+        [primaryFailure, ...cleanupFailures],
+        "Production migration checkout timed out and cleanup was incomplete",
+        { cause: primaryFailure },
+      );
+    }
     throw preserveFailureWithAggregateCause(
       primaryFailure,
       cleanupFailures,

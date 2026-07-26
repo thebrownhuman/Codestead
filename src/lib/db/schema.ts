@@ -15,6 +15,7 @@ import {
   real,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -3192,6 +3193,28 @@ export const notification = pgTable(
   (table) => [index("notification_user_unread_idx").on(table.userId, table.readAt, table.createdAt)],
 );
 
+export const emailOutboxIdempotencyAuthority = pgTable(
+  "email_outbox_idempotency_authority",
+  {
+    idempotencySha256: text("idempotency_sha256").primaryKey(),
+    originalPayloadSha256: text("original_payload_sha256").notNull(),
+  },
+  (table) => [
+    check(
+      "email_outbox_idempotency_authority_digest_valid",
+      sql`${table.idempotencySha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    check(
+      "email_outbox_idempotency_authority_payload_valid",
+      sql`${table.originalPayloadSha256} ~ '^[0-9a-f]{64}$'`,
+    ),
+    unique("email_outbox_idempotency_authority_payload_unique").on(
+      table.idempotencySha256,
+      table.originalPayloadSha256,
+    ),
+  ],
+);
+
 export const emailOutbox = pgTable(
   "email_outbox",
   {
@@ -3202,6 +3225,14 @@ export const emailOutbox = pgTable(
     templateVersion: text("template_version").notNull(),
     variables: jsonb("variables").$type<Record<string, string>>().notNull(),
     idempotencyKey: text("idempotency_key").notNull().unique(),
+    idempotencyAuthorityVersion: text("idempotency_authority_version").notNull(),
+    idempotencyAuthoritySha256: text("idempotency_authority_sha256"),
+    idempotencyOriginalPayloadSha256: text("idempotency_original_payload_sha256")
+      .$defaultFn(() => sql`NULL`)
+      .notNull(),
+    deliveryHoldVersion: text("delivery_hold_version")
+      .$defaultFn(() => sql`NULL`)
+      .notNull(),
     operationId: uuid("operation_id").defaultRandom().notNull().unique(),
     deliveryScopeKey: text("delivery_scope_key").notNull(),
     status: notificationStatusEnum("status").default("pending").notNull(),
@@ -3228,6 +3259,20 @@ export const emailOutbox = pgTable(
     index("email_outbox_queue_idx").on(table.status, table.nextAttemptAt),
     index("email_outbox_delivery_scope_idx").on(table.deliveryScopeKey),
     index("email_outbox_user_idx").on(table.userId),
+    index("email_outbox_idempotency_authority_lookup_idx")
+      .on(table.idempotencyAuthoritySha256, table.id)
+      .where(sql`${table.idempotencyAuthoritySha256} IS NOT NULL`),
+    foreignKey({
+      name: "email_outbox_idempotency_authority_fk",
+      columns: [
+        table.idempotencyAuthoritySha256,
+        table.idempotencyOriginalPayloadSha256,
+      ],
+      foreignColumns: [
+        emailOutboxIdempotencyAuthority.idempotencySha256,
+        emailOutboxIdempotencyAuthority.originalPayloadSha256,
+      ],
+    }).onUpdate("restrict").onDelete("restrict"),
     uniqueIndex("email_outbox_claim_token_unique")
       .on(table.claimToken)
       .where(sql`${table.claimToken} IS NOT NULL`),
@@ -3235,6 +3280,45 @@ export const emailOutbox = pgTable(
       .on(table.adapter, table.providerMessageId)
       .where(sql`${table.providerMessageId} IS NOT NULL`),
     check("email_outbox_claim_version_nonnegative", sql`${table.claimVersion} >= 0`),
+    check(
+      "email_outbox_variables_object_valid",
+      sql`(pg_catalog.jsonb_typeof(${table.variables}) = 'object') IS TRUE`,
+    ),
+    check(
+      "email_outbox_recipient_canonical_valid",
+      sql`(
+        pg_catalog.encode(
+          pg_catalog.convert_to(${table.toEmail}, 'UTF8'),
+          'hex'
+        ) ~ '^([0-7][0-9a-f])+$'
+        AND pg_catalog.btrim(${table.toEmail}) = ${table.toEmail}
+        AND pg_catalog.lower(${table.toEmail} COLLATE "C") = ${table.toEmail}
+      ) IS TRUE`,
+    ),
+    check(
+      "email_outbox_idempotency_authority_valid",
+      sql`(
+        ${table.idempotencyOriginalPayloadSha256} ~ '^[0-9a-f]{64}$'
+        AND (
+          (${table.idempotencyAuthorityVersion} IN ('event-v1-native', 'event-v1-source-map')
+            AND ${table.idempotencyAuthoritySha256} ~ '^[0-9a-f]{64}$'
+            AND (${table.idempotencyAuthorityVersion} <> 'event-v1-native'
+              OR ${table.idempotencyAuthoritySha256} = ${table.idempotencyKey}))
+          OR (${table.idempotencyAuthorityVersion} IN (
+              'legacy-key-source-one-shot-v1',
+              'legacy-key-terminal-cas-v1',
+              'legacy-key-protocol-retired-v1',
+              'legacy-key-fresh-action-v1',
+              'legacy-key-blocked-v1'
+            )
+            AND ${table.idempotencyAuthoritySha256} IS NULL)
+        )
+      ) IS TRUE`,
+    ),
+    check(
+      "email_outbox_delivery_hold_valid",
+      sql`(${table.deliveryHoldVersion} = 'task7-v1') IS TRUE`,
+    ),
     check(
       "email_outbox_provider_identity_valid",
       sql`${table.providerMessageId} IS NULL OR (${table.adapter} IS NOT NULL AND btrim(${table.adapter}) <> '' AND btrim(${table.providerMessageId}) <> '')`,

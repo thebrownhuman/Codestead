@@ -65,7 +65,7 @@ function fakeScheduler(input: {
   administrator?: { id: string; email: string } | null;
   episodeInsertConflicts?: string[];
   emailInsertConflicts?: string[];
-  durableEmailConflict?: boolean;
+  emailInsertErrors?: Partial<Record<string, Error>>;
 }) {
   const calls: Array<{ statement: string; values: unknown[] }> = [];
   let released = false;
@@ -121,13 +121,10 @@ function fakeScheduler(input: {
     }
     if (statement.startsWith("insert into email_outbox")) {
       const template = String(values[2]);
+      const error = input.emailInsertErrors?.[template];
+      if (error) throw error;
       if (input.emailInsertConflicts?.includes(template)) return { rows: [], rowCount: 0 };
       return { rows: [{ id: `outbox-${template}` }], rowCount: 1 };
-    }
-    if (statement.startsWith("select 1 from email_outbox")) {
-      return input.durableEmailConflict === false
-        ? { rows: [], rowCount: 0 }
-        : { rows: [{ "?column?": 1 }], rowCount: 1 };
     }
     if (statement.startsWith("update inactivity_episode")) return { rows: [], rowCount: 1 };
     throw new Error(`Unexpected scheduler query: ${statement}`);
@@ -307,7 +304,6 @@ describe("inactivity scheduler transaction branches", () => {
       administrator: null,
       episodeInsertConflicts: ["raced"],
       emailInsertConflicts: ["inactivity-reminder"],
-      durableEmailConflict: true,
     });
     await expect(scheduleInactivityReminders(NOW, fake.pool as never)).resolves.toMatchObject({
       opened: 0,
@@ -316,18 +312,57 @@ describe("inactivity scheduler transaction branches", () => {
       adminUnavailable: 1,
     });
     expect(fake.calls.some((call) => call.statement.startsWith("select id, eligible_at"))).toBe(true);
-    expect(fake.calls.some((call) => call.statement.startsWith("select 1 from email_outbox"))).toBe(true);
   });
 
-  it("does not mark delivery when a conflicting outbox key is not durable", async () => {
+  it("repairs the episode marker when durable authority suppresses replay after outbox retention", async () => {
+    const baseline = new Date(NOW.getTime() - FIRST_REMINDER_AFTER_MS);
     const fake = fakeScheduler({
-      candidates: [candidate("not-durable")],
+      administrator: null,
+      candidates: [candidate("retained-authority", {
+        episode_id: TEST_EPISODE_ID,
+        episode_last_activity_at: baseline,
+        eligible_at: NOW,
+        second_eligible_at: new Date(baseline.getTime() + SECOND_REMINDER_AFTER_MS),
+      })],
       emailInsertConflicts: ["inactivity-reminder"],
-      durableEmailConflict: false,
     });
-    await expect(scheduleInactivityReminders(NOW, fake.pool as never)).resolves.toMatchObject({
-      opened: 1, learnerFirst: 0, adminNotices: 0,
+    await expect(
+      scheduleInactivityReminders(NOW, fake.pool as never),
+    ).resolves.toMatchObject({
+      opened: 0,
+      learnerFirst: 1,
+      adminUnavailable: 1,
     });
+    expect(fake.calls.some(
+      (call) => call.statement.startsWith("select 1 from email_outbox"),
+    )).toBe(false);
+    expect(fake.calls.some(
+      (call) => call.statement.includes("set learner_first_queued_at"),
+    )).toBe(true);
+  });
+
+  it("rolls back when durable authority rejects a payload conflict", async () => {
+    const conflict = Object.assign(
+      new Error("email outbox idempotency event payload conflict"),
+      {
+        code: "23505",
+        constraint: "email_outbox_idempotency_authority_pkey",
+      },
+    );
+    const fake = fakeScheduler({
+      candidates: [candidate("payload-conflict")],
+      emailInsertErrors: { "inactivity-reminder": conflict },
+    });
+    await expect(
+      scheduleInactivityReminders(NOW, fake.pool as never),
+    ).rejects.toMatchObject({
+      code: "23505",
+      constraint: "email_outbox_idempotency_authority_pkey",
+    });
+    expect(fake.calls.some((call) => call.statement === "rollback")).toBe(true);
+    expect(fake.calls.some(
+      (call) => call.statement.includes("set learner_first_queued_at"),
+    )).toBe(false);
   });
 
   it("rolls back and releases its client on unsafe URL configuration", async () => {

@@ -157,6 +157,8 @@ readonly mail_outbox_dispatch_binding_boundary_commit=b73788a4b4d213e6423d737050
 readonly mail_outbox_dispatch_binding_capability_path=infra/ops/mail-outbox-dispatch-binding-capability.env
 readonly mail_outbox_dispatch_binding_capability_mode=100644
 readonly mail_outbox_dispatch_binding_capability_blob=ea707715f84608b1e1a33ac1832d533b878b6c07
+readonly mail_outbox_durable_replay_migration_path=drizzle/0067_mail_outbox_durable_replay_authority.sql
+readonly mail_outbox_task7_receipt_denial='0067_mail_outbox_durable_replay_authority requires an approved Task 7 delivery receipt capability'
 readonly dispatch_binding_runtime_contract=exact-adapter-payload-sha256-before-provider-call-v1
 readonly dispatch_binding_privilege_contract=owner-execute-worker-columns-update-only-no-grant-option-trigger-v1
 readonly -a mail_outbox_forward_only_capability_registry=(
@@ -1553,6 +1555,16 @@ if ! git_dirty="$(run_local_evidence_git status \
   fatal "unable to verify that the release checkout is clean"
 fi
 [[ -z "$git_dirty" ]] || fatal "release checkout is dirty; reviewed bytes must match Git HEAD"
+
+release_durable_replay_entry="$(
+  run_local_evidence_git ls-tree "$release_tree" -- \
+    "$mail_outbox_durable_replay_migration_path" 2>/dev/null
+)" || {
+  fatal "unable to verify the trusted 0067 durable replay release tree"
+}
+[[ -z "$release_durable_replay_entry" ]] || {
+  fatal "$mail_outbox_task7_receipt_denial"
+}
 
 public_origin="$(compose_public_origin)"
 readonly public_origin

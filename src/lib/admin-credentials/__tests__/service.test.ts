@@ -75,6 +75,7 @@ vi.mock("@/lib/security/credential-vault", () => ({
 }));
 
 import { emailOutbox } from "@/lib/db/schema";
+import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 import {
   AdminCredentialError,
   adminCredentialErrorCode,
@@ -103,6 +104,7 @@ const base = {
   actorUserId: actor.id,
   learnerPublicId: target.ownerPublicId,
   credentialId: target.id,
+  requestId: "a2000000-0000-4000-8000-000000000001",
   reason: "Repair the learner provider credential configuration.",
 } as const;
 
@@ -213,7 +215,40 @@ describe("atomic administrator credential service", () => {
       userId: target.userId,
       toEmail: target.ownerEmail,
       template: "credential-changed",
+      idempotencyKey: accountMailEventIdempotencyKey({
+        eventId: `${target.id}:disable:${base.requestId}:completed`,
+        template: "credential-changed",
+        userId: target.userId,
+      }),
     }));
+  });
+
+  it("separates mail authority when one request UUID is reused across credential actions", async () => {
+    await performAdminCredentialOperation({ ...base, action: "test" });
+    await performAdminCredentialOperation({
+      ...base,
+      action: "replace",
+      replacementSecret: "replacement-provider-material-5678",
+    });
+
+    const outboxCalls = mocks.outboxValues.mock.calls as unknown as Array<
+      [{ idempotencyKey: string }]
+    >;
+    const keys = outboxCalls.map(([values]) => values.idempotencyKey);
+    const events = [
+      ["test", "requested"],
+      ["test", "completed"],
+      ["replace", "requested"],
+      ["replace", "completed"],
+    ] as const;
+    expect(keys).toEqual(events.map(([action, stage]) =>
+      accountMailEventIdempotencyKey({
+        eventId: `${target.id}:${action}:${base.requestId}:${stage}`,
+        template: "credential-changed",
+        userId: target.userId,
+      }),
+    ));
+    expect(new Set(keys)).toHaveLength(4);
   });
 
   it("validates and seals replacement material but excludes it from audit and notifications", async () => {

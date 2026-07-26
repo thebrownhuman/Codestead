@@ -701,6 +701,7 @@ function constraintExpressionHash(port, database) {
     port,
     database,
     `
+      SET search_path TO pg_catalog,pg_temp;
       SELECT pg_catalog.encode(
                pg_catalog.sha256(
                  pg_catalog.convert_to(
@@ -855,7 +856,7 @@ function proveCatalog(port, database) {
   );
   assert.equal(
     constraintExpressionHash(port, database),
-    "02a5367ba5c5eed54bc69732c38f1517fa05d7321aaad3c11d30200ee6b06dc8",
+    "2594dd57e4115fe9296d03888d8d1771b98e90725bce7e0d66c753eb1f0dba82",
   );
   return routine;
 }

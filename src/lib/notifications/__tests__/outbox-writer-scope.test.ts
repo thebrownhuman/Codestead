@@ -3,6 +3,10 @@ import { relative, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+const DIRECT_OUTBOX_INSERT =
+  /insert\s+into\s+(?:(?:"public"|public)\s*\.\s*)?(?:"email_outbox"|email_outbox\b)/iu;
+const PRODUCTION_SOURCE_FILE = /\.(?:[cm]?[jt]sx?|sh)$/u;
+
 function productionFiles(directory: string, fileNamePattern: RegExp): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = resolve(directory, entry.name);
@@ -17,8 +21,8 @@ describe("production email outbox writer inventory", () => {
   it("keeps every direct writer explicit and account-scoped", () => {
     const repositoryRoot = process.cwd();
     const writers = [
-      ...productionFiles(resolve(repositoryRoot, "src"), /\.[cm]?tsx?$/u),
-      ...productionFiles(resolve(repositoryRoot, "scripts"), /\.(?:[cm]?tsx?|sh)$/u),
+      ...productionFiles(resolve(repositoryRoot, "src"), PRODUCTION_SOURCE_FILE),
+      ...productionFiles(resolve(repositoryRoot, "scripts"), PRODUCTION_SOURCE_FILE),
     ]
       .map((path) => ({
         path,
@@ -26,12 +30,11 @@ describe("production email outbox writer inventory", () => {
         source: readFileSync(path, "utf8"),
       }))
       .filter(({ source }) =>
-        /insert\s+into\s+email_outbox/iu.test(source) || source.includes(".insert(emailOutbox)"),
+        DIRECT_OUTBOX_INSERT.test(source) || source.includes(".insert(emailOutbox)"),
       )
       .sort((left, right) => left.relativePath.localeCompare(right.relativePath));
 
     expect(writers.map(({ relativePath }) => relativePath)).toEqual([
-      "scripts/backup/common.sh",
       "src/lib/admin-credentials/service.ts",
       "src/lib/appeals/admin-service.ts",
       "src/lib/assessment-corrections/worker.ts",
@@ -40,14 +43,20 @@ describe("production email outbox writer inventory", () => {
       "src/lib/notifications/outbox.ts",
     ]);
 
-    for (const writer of writers.filter(({ source }) => /insert\s+into\s+email_outbox/iu.test(source))) {
-      const statements = [...writer.source.matchAll(/insert into email_outbox([\s\S]*?)on conflict/giu)];
+    for (const writer of writers.filter(({ source }) => DIRECT_OUTBOX_INSERT.test(source))) {
+      const statements = [
+        ...writer.source.matchAll(
+          /insert into\s+(?:(?:"public"|public)\s*\.\s*)?(?:"email_outbox"|email_outbox\b)([\s\S]*?)on conflict/giu,
+        ),
+      ];
       expect(statements.length, writer.relativePath).toBeGreaterThan(0);
       for (const statement of statements) {
         expect(statement[1], writer.relativePath).toContain("delivery_scope_key");
-        expect(statement[0], writer.relativePath).toMatch(
-          /'a:'\s*\|\|\s*(?:\$\d+|[a-z_][a-z0-9_.]*)/iu,
-        );
+        if (writer.relativePath !== "src/lib/notifications/outbox.ts") {
+          expect(statement[0], writer.relativePath).toMatch(
+            /'a:'\s*\|\|\s*(?:\$\d+|[a-z_][a-z0-9_.]*)/iu,
+          );
+        }
       }
     }
 
@@ -59,14 +68,23 @@ describe("production email outbox writer inventory", () => {
     const centralWriter = writers.find(({ relativePath }) =>
       relativePath === "src/lib/notifications/outbox.ts");
     expect(centralWriter?.source).toContain("deliveryScopeKey: systemProducer");
-
-    const backupStatusWriter = writers.find(({ relativePath }) =>
-      relativePath === "scripts/backup/common.sh");
-    expect(backupStatusWriter?.source).toMatch(
-      /insert into email_outbox\s*\(\s*operation_id,\s*user_id,\s*delivery_scope_key,/iu,
+    expect(centralWriter?.source).toContain(
+      ": `a:${accountInput!.userId}`",
     );
-    expect(backupStatusWriter?.source).toMatch(
-      /select\s+gen_random_uuid\(\),\s+id,\s+'a:'\s*\|\|\s*id,/iu,
+    expect(centralWriter?.source).toContain("${row.deliveryScopeKey}");
+
+    const backupShell = readFileSync(
+      resolve(repositoryRoot, "scripts/backup/common.sh"),
+      "utf8",
+    );
+    const backupStatusReporter = readFileSync(
+      resolve(repositoryRoot, "scripts/backup/enqueue-backup-status.mjs"),
+      "utf8",
+    );
+    expect(backupShell).not.toMatch(DIRECT_OUTBOX_INSERT);
+    expect(backupStatusReporter).not.toMatch(DIRECT_OUTBOX_INSERT);
+    expect(backupStatusReporter).toContain(
+      "from public.enqueue_backup_status_mail_authority($1::text, $2::text)",
     );
   });
 });

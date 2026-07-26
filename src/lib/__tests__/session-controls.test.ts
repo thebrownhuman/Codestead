@@ -40,11 +40,12 @@ function selectLimit(rows: unknown[]) {
   };
 }
 
-function directTransaction(input: { rows: unknown[]; limited?: boolean }) {
+function directTransaction(input: { rows: unknown[]; limited?: boolean; deleteRows?: unknown[] }) {
   const values = vi.fn();
   const onConflictDoNothing = vi.fn(async () => undefined);
   values.mockReturnValue({ onConflictDoNothing });
-  const whereDelete = vi.fn(async () => undefined);
+  const returningDelete = vi.fn(async () => input.deleteRows ?? input.rows);
+  const whereDelete = vi.fn(() => ({ returning: returningDelete }));
   const whereUpdate = vi.fn(async () => undefined);
   const where = vi.fn(() => input.limited ? { limit: vi.fn(async () => input.rows) } : Promise.resolve(input.rows));
   const tx = {
@@ -53,7 +54,7 @@ function directTransaction(input: { rows: unknown[]; limited?: boolean }) {
     delete: vi.fn(() => ({ where: whereDelete })),
     update: vi.fn(() => ({ set: vi.fn(() => ({ where: whereUpdate })) })),
   };
-  return { tx, values, onConflictDoNothing, whereDelete, whereUpdate };
+  return { tx, values, onConflictDoNothing, returningDelete, whereDelete, whereUpdate };
 }
 
 const T0 = new Date("2026-07-12T12:00:00.000Z");
@@ -242,13 +243,15 @@ describe("session control persistence branches", () => {
     }));
   });
 
-  it("returns false for an unowned session and archives both learner/admin revocations", async () => {
+  it("atomically deletes one owned session before archiving learner/admin revocations", async () => {
     const missing = directTransaction({ rows: [], limited: true });
     mocks.transaction.mockImplementationOnce(async (work) => work(missing.tx));
     await expect(revokeOneOwnedSession({
       userId: "learner", sessionId: "missing", actorUserId: "learner",
       reason: "learner_logout", now: T0,
     })).resolves.toBe(false);
+    expect(missing.tx.select).not.toHaveBeenCalled();
+    expect(missing.returningDelete).toHaveBeenCalledOnce();
     expect(missing.tx.insert).not.toHaveBeenCalled();
 
     for (const actorUserId of ["learner", "admin"]) {
@@ -258,8 +261,9 @@ describe("session control persistence branches", () => {
         userId: "learner", sessionId: activeRow.id, actorUserId,
         reason: actorUserId === "learner" ? "learner_logout" : "admin_revoked", now: T0,
       })).resolves.toBe(true);
+      expect(fake.tx.select).not.toHaveBeenCalled();
+      expect(fake.returningDelete).toHaveBeenCalledOnce();
       expect(fake.tx.insert).toHaveBeenCalledOnce();
-      expect(fake.whereDelete).toHaveBeenCalledOnce();
       expect(fake.whereUpdate).toHaveBeenCalledOnce();
     }
   });

@@ -5,9 +5,12 @@ import test from "node:test";
 
 import {
   REVIEWED_APPLICATION_FUNCTIONS,
+  REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES,
   reviewedApplicationFunctionPrivilegesSql,
 } from "../../scripts/bootstrap-database-roles.mjs";
 
+const REVIEWED_PHASE_0067 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.at(-1);
+assert.equal(REVIEWED_PHASE_0067?.index, 67);
 const root = path.resolve(import.meta.dirname, "../..");
 const read = (file) => readFileSync(path.join(root, file), "utf8");
 
@@ -157,17 +160,24 @@ test("bootstrap and migration share the administration lock without broad reassi
 
 test("bootstrap preserves exact reviewed application routine grants", () => {
   const bootstrap = read("scripts/bootstrap-database-roles.mjs");
-  const reviewedGrantSql = reviewedApplicationFunctionPrivilegesSql();
+  const reviewedGrantSql = reviewedApplicationFunctionPrivilegesSql(
+    REVIEWED_PHASE_0067,
+  );
   const opsRoutineSignatures = REVIEWED_APPLICATION_FUNCTIONS.filter(
     ({ allowedRoles }) => allowedRoles.includes("learncoding_ops"),
   ).map(({ signature }) => signature);
 
   assert.deepEqual(opsRoutineSignatures, [
     "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+    "public.email_outbox_idempotency_coverage_authority(uuid[])",
   ]);
   assert.match(
     reviewedGrantSql,
     /grant execute on function public\.redact_unresolved_email_outbox_authority\(timestamp with time zone,integer\) to learncoding_ops/iu,
+  );
+  assert.match(
+    reviewedGrantSql,
+    /grant execute on function public\.email_outbox_idempotency_coverage_authority\(uuid\[\]\) to learncoding_ops/iu,
   );
   assert.match(
     reviewedGrantSql,

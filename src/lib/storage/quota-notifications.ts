@@ -1,11 +1,8 @@
 import { enqueueEmail } from "@/lib/notifications/outbox";
 
-import type { LearnerStorageQuota } from "./admin-quota";
+import type { LearnerStorageQuotaChange } from "./admin-quota";
 
-export async function emailStorageQuotaChanged(
-  quota: LearnerStorageQuota,
-  idempotencySeed: string,
-) {
+export async function emailStorageQuotaChanged(quota: LearnerStorageQuotaChange) {
   await enqueueEmail({
     to: quota.learnerEmail,
     userId: quota.learnerUserId,
@@ -15,6 +12,6 @@ export async function emailStorageQuotaChanged(
       quota: `${(quota.quotaBytes / 1024 ** 3).toFixed(2)} GiB`,
       url: `${process.env.APP_URL ?? "http://localhost:3000"}/projects`,
     },
-    idempotencySeed,
+    idempotencySeed: quota.requestId,
   });
 }

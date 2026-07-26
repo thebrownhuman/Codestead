@@ -5,8 +5,8 @@ import { pathToFileURL } from "node:url";
 import { Pool } from "pg";
 
 import {
-  BACKUP_STATUS_AUTHORITY_RELATIONS,
-  BACKUP_STATUS_AUTHORITY_ROUTINES,
+  BACKUP_STATUS_AUTHORITY_0065_CONTRACT,
+  BACKUP_STATUS_AUTHORITY_0067_CONTRACT,
   verifyBackupStatusMailAuthorityObjects,
 } from "./verify-backup-status-mail-authority.mjs";
 import { verifyAppliedMigrationLedger as verifyAppliedMigrationLedgerContract } from "./lib/reviewed-migration-ledger.mjs";
@@ -172,7 +172,7 @@ const REVIEWED_0063_APPLICATION_FUNCTIONS = Object.freeze([
     returnsSet: false,
     variadic: false,
     definitionSha256:
-      "67df14d91b1d8f11f1d9627b34e332d14ae871a68482f371d15e149ab81d5853",
+      "43ea2a3bed7514efdb28ee52dfb128af57f39f525bb8842ce49c0eb4fa245466",
   }),
   reviewedRoutine({
     signature: "public.enforce_email_outbox_payload_immutable()",
@@ -232,12 +232,12 @@ export const REVIEWED_0064_APPLICATION_FUNCTIONS = Object.freeze([
   }),
 ]);
 export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY_ROUTINES =
-  BACKUP_STATUS_AUTHORITY_ROUTINES;
+  BACKUP_STATUS_AUTHORITY_0065_CONTRACT.routines;
 export const REVIEWED_0065_APPLICATION_FUNCTIONS = Object.freeze([
   ...REVIEWED_0064_APPLICATION_FUNCTIONS,
   ...REVIEWED_0065_BACKUP_STATUS_AUTHORITY_ROUTINES,
 ]);
-export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
+export const REVIEWED_0066_APPLICATION_FUNCTIONS = Object.freeze([
   ...REVIEWED_0065_APPLICATION_FUNCTIONS,
   reviewedRoutine({
     signature:
@@ -267,6 +267,214 @@ export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
       "afaab6796f97aa0294ff5a761679895f9ccfb78fea21e0be362979c5c4e5ab11",
   }),
 ]);
+export const REVIEWED_0067_BACKUP_STATUS_AUTHORITY_ROUTINES =
+  BACKUP_STATUS_AUTHORITY_0067_CONTRACT.routines;
+const REVIEWED_0067_BACKUP_STATUS_ROUTINE_BY_SIGNATURE = new Map(
+  REVIEWED_0067_BACKUP_STATUS_AUTHORITY_ROUTINES.map((routine) => [
+    routine.signature,
+    routine,
+  ]),
+);
+const REVIEWED_0067_PRE_REPLAY_APPLICATION_FUNCTIONS = Object.freeze(
+  REVIEWED_0066_APPLICATION_FUNCTIONS.map(
+    (routine) =>
+      REVIEWED_0067_BACKUP_STATUS_ROUTINE_BY_SIGNATURE.get(
+        routine.signature,
+      ) ?? routine,
+  ),
+);
+export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
+  ...REVIEWED_0067_PRE_REPLAY_APPLICATION_FUNCTIONS,
+  reviewedRoutine({
+    signature: "public.email_outbox_original_payload_sha256(text,text,text,text,jsonb)",
+    migrationFile: "0067_mail_outbox_durable_replay_authority.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog, pg_temp"],
+    allowedRoles: [],
+    bodySha256:
+      "6b7100af8bd25093520317e67d5a06b40848b192ca94eb4b6c63ef48adcf89a2",
+    language: "sql",
+    kind: "f",
+    volatility: "i",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [
+      "input_user_id",
+      "input_to_email",
+      "input_template",
+      "input_template_version",
+      "input_variables",
+    ],
+    argumentModes: [],
+    argumentTypes: ["text", "text", "text", "text", "jsonb"],
+    inputArgumentCount: 5,
+    argumentDefaultCount: 0,
+    returnType: "text",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "35691db9ef3153adf2e19ebae539341797f7b4fd2a27aec1db215b9533636ed8",
+  }),
+  reviewedRoutine({
+    signature: "public.email_outbox_event_sha256(text,text,text)",
+    migrationFile: "0067_mail_outbox_durable_replay_authority.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog, pg_temp"],
+    allowedRoles: [],
+    bodySha256:
+      "dbb1e105e567de47875c1bdd433b61cc78745fc0bc7953daa68b6f3f2bf83315",
+    language: "sql",
+    kind: "f",
+    volatility: "i",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: ["input_template", "input_scope", "input_event_id"],
+    argumentModes: [],
+    argumentTypes: ["text", "text", "text"],
+    inputArgumentCount: 3,
+    argumentDefaultCount: 0,
+    returnType: "text",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "02d83d883c8f4c0b4fc22c460353834d27a67becdd96d81cee8b74609521f334",
+  }),
+  reviewedRoutine({
+    signature: "public.claim_email_outbox_idempotency_authority()",
+    migrationFile: "0067_mail_outbox_durable_replay_authority.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog, pg_temp"],
+    allowedRoles: [],
+    bodySha256:
+      "70e587220b716395c07d1efcabfb35aed45f9dccf23a0f2ed7e13791774b526c",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [],
+    argumentModes: [],
+    argumentTypes: [],
+    inputArgumentCount: 0,
+    argumentDefaultCount: 0,
+    returnType: "trigger",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "4ddccd9ac5ee3bc0f217c13e146c2dd2ec313e4980c30de8a51deec3dc6088a4",
+  }),
+  reviewedRoutine({
+    signature: "public.persist_email_outbox_idempotency_authority()",
+    migrationFile: "0067_mail_outbox_durable_replay_authority.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog, pg_temp"],
+    allowedRoles: [],
+    bodySha256:
+      "43e5df19b455c36648574e1d7c33c10cb959fc3bddd83e6ed67035031f246cbd",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [],
+    argumentModes: [],
+    argumentTypes: [],
+    inputArgumentCount: 0,
+    argumentDefaultCount: 0,
+    returnType: "trigger",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "4890f478c8d14811e7f6829a3a4977e0da3924c8e8c84b8ca89b64496ac40f53",
+  }),
+  reviewedRoutine({
+    signature: "public.enforce_email_outbox_idempotency_metadata_immutable()",
+    migrationFile: "0067_mail_outbox_durable_replay_authority.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog, pg_temp"],
+    allowedRoles: [],
+    bodySha256:
+      "9e953537c1fc8f4cdceda981731aa20c9412dbd46cefdcc71e433de3eced76c3",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [],
+    argumentModes: [],
+    argumentTypes: [],
+    inputArgumentCount: 0,
+    argumentDefaultCount: 0,
+    returnType: "trigger",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "a26ccda1f7f4d623c7ea2b1611ff9f5c424cee386f79a7a8ffbf2a58c51ce2e9",
+  }),
+  reviewedRoutine({
+    signature: "public.enforce_email_outbox_idempotency_append_only()",
+    migrationFile: "0067_mail_outbox_durable_replay_authority.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog, pg_temp"],
+    allowedRoles: [],
+    bodySha256:
+      "164b71af1bca387a599b64246851b7ba3e66c8a9557a60581dec54eb4d757370",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [],
+    argumentModes: [],
+    argumentTypes: [],
+    inputArgumentCount: 0,
+    argumentDefaultCount: 0,
+    returnType: "trigger",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "2ae733ebe79975ce70fa9427ccb92295ecf8acad75797e8541bbb15bd9318790",
+  }),
+  reviewedRoutine({
+    signature: "public.email_outbox_idempotency_coverage_authority(uuid[])",
+    migrationFile: "0067_mail_outbox_durable_replay_authority.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog, pg_temp"],
+    allowedRoles: [OPS_ROLE],
+    bodySha256:
+      "7957a8c6e5b5e1a87ef22f59b02cda7600c2f902ef2b78700600387ee33e8509",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: ["candidate_ids"],
+    argumentModes: [],
+    argumentTypes: ["uuid[]"],
+    inputArgumentCount: 1,
+    argumentDefaultCount: 0,
+    returnType: "boolean",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "6e7e07cb84083bef2bdf2dcf58578b7fb4e224494fe1a70ba33284bd76358da8",
+  }),
+]);
+
 export const REVIEWED_0064_APPLICATION_TRIGGERS = Object.freeze([
   Object.freeze({
     relation: "public.email_outbox",
@@ -298,63 +506,13 @@ export const REVIEWED_0064_APPLICATION_TRIGGERS = Object.freeze([
     watchedColumns: Object.freeze([]),
   }),
 ]);
-export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY_TRIGGERS = Object.freeze([
-  Object.freeze({
-    relation: "public.backup_status_mail_authority",
-    name: "backup_status_mail_authority_immutable",
-    functionSignature: "public.reject_backup_status_mail_authority_mutation()",
-    enabled: "O",
-    type: 27,
-    predicate: null,
-    arguments: Object.freeze([]),
-    watchedColumns: Object.freeze([]),
-  }),
-  Object.freeze({
-    relation: "public.backup_status_mail_authority",
-    name: "backup_status_mail_authority_no_truncate",
-    functionSignature: "public.reject_backup_status_mail_authority_mutation()",
-    enabled: "O",
-    type: 34,
-    predicate: null,
-    arguments: Object.freeze([]),
-    watchedColumns: Object.freeze([]),
-  }),
-  Object.freeze({
-    relation: 'public."user"',
-    name: "backup_status_mail_admin_insert_lock",
-    functionSignature: "public.lock_backup_status_mail_admin_authority()",
-    enabled: "O",
-    type: 7,
-    predicate: null,
-    arguments: Object.freeze([]),
-    watchedColumns: Object.freeze([]),
-  }),
-  Object.freeze({
-    relation: 'public."user"',
-    name: "backup_status_mail_admin_update_lock",
-    functionSignature: "public.lock_backup_status_mail_admin_authority()",
-    enabled: "O",
-    type: 19,
-    predicate: null,
-    arguments: Object.freeze([]),
-    watchedColumns: Object.freeze(["id", "email", "role", "banned", "status"]),
-  }),
-  Object.freeze({
-    relation: 'public."user"',
-    name: "backup_status_mail_admin_delete_lock",
-    functionSignature: "public.lock_backup_status_mail_admin_authority()",
-    enabled: "O",
-    type: 11,
-    predicate: null,
-    arguments: Object.freeze([]),
-    watchedColumns: Object.freeze([]),
-  }),
-]);
+export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY_TRIGGERS =
+  BACKUP_STATUS_AUTHORITY_0065_CONTRACT.triggers;
 export const REVIEWED_0065_APPLICATION_TRIGGERS = Object.freeze([
   ...REVIEWED_0064_APPLICATION_TRIGGERS,
   ...REVIEWED_0065_BACKUP_STATUS_AUTHORITY_TRIGGERS,
 ]);
-export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
+export const REVIEWED_0066_APPLICATION_TRIGGERS = Object.freeze([
   ...REVIEWED_0065_APPLICATION_TRIGGERS,
   Object.freeze({
     relation: "public.email_outbox",
@@ -368,25 +526,78 @@ export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
     watchedColumns: Object.freeze([]),
   }),
 ]);
-export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY = Object.freeze({
-  relations: BACKUP_STATUS_AUTHORITY_RELATIONS,
-  routines: REVIEWED_0065_BACKUP_STATUS_AUTHORITY_ROUTINES,
-  triggers: REVIEWED_0065_BACKUP_STATUS_AUTHORITY_TRIGGERS,
-  guardState: Object.freeze({
-    relation: "public.backup_status_mail_admin_guard",
-    singletonColumn: "singleton",
-    authorityEpochColumn: "authority_epoch",
-    expectedRows: 1,
-    singletonValue: true,
-    requiresNonZeroAuthorityEpoch: true,
+export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
+  ...REVIEWED_0066_APPLICATION_TRIGGERS,
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_idempotency_claim",
+    functionSignature: "public.claim_email_outbox_idempotency_authority()",
+    enabled: "A",
+    type: 7,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
   }),
-});
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "00_email_outbox_idempotency_persist",
+    functionSignature: "public.persist_email_outbox_idempotency_authority()",
+    enabled: "A",
+    type: 5,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_idempotency_metadata_immutable",
+    functionSignature:
+      "public.enforce_email_outbox_idempotency_metadata_immutable()",
+    enabled: "A",
+    type: 19,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([
+      "idempotency_key",
+      "idempotency_authority_version",
+      "idempotency_authority_sha256",
+      "idempotency_original_payload_sha256",
+    ]),
+  }),
+  Object.freeze({
+    relation: "public.email_outbox_idempotency_authority",
+    name: "email_outbox_idempotency_append_only",
+    functionSignature:
+      "public.enforce_email_outbox_idempotency_append_only()",
+    enabled: "A",
+    type: 27,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: "public.email_outbox_idempotency_authority",
+    name: "email_outbox_idempotency_no_truncate",
+    functionSignature:
+      "public.enforce_email_outbox_idempotency_append_only()",
+    enabled: "A",
+    type: 34,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+]);
+
+export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY =
+  BACKUP_STATUS_AUTHORITY_0065_CONTRACT;
+export const REVIEWED_0067_BACKUP_STATUS_AUTHORITY =
+  BACKUP_STATUS_AUTHORITY_0067_CONTRACT;
 const EMAIL_OUTBOX_DISPATCH_BINDING_CONSTRAINT_NORMALIZED_EXPRESSION = [
   "provider_call_startedISNULLANDadapterISNULLANDprovider_message_idISNULL",
   "ANDdispatch_binding_versionISNULLANDdispatch_binding_sha256ISNULLOR",
   "provider_call_startedISNOTNULLAND(status=ANY(ARRAY[",
-  "'sending'::notification_status,'sent'::notification_status,",
-  "'failed'::notification_status,'quarantined'::notification_status]))AND(",
+  "'sending'::public.notification_status,'sent'::public.notification_status,",
+  "'failed'::public.notification_status,'quarantined'::public.notification_status]))AND(",
   "adapter='gmail'::textAND(dispatch_binding_versionISNULLAND",
   "dispatch_binding_sha256ISNULLOR",
   "dispatch_binding_version='gmail-raw-v1'::textAND",
@@ -397,6 +608,32 @@ const EMAIL_OUTBOX_DISPATCH_BINDING_CONSTRAINT_NORMALIZED_EXPRESSION = [
   "dispatch_binding_sha256~'^[0-9a-f]{64}$'::text))",
 ].join("");
 export const REVIEWED_APPLICATION_CONSTRAINTS = Object.freeze([
+  Object.freeze({
+    relation: "public.email_outbox",
+    relationOwner: OWNER_ROLE,
+    name: "email_outbox_variables_object_valid",
+    type: "c",
+    validated: true,
+    noInherit: false,
+    reviewedSqlExpressionSha256:
+      "474e75e58049be566e89f5e17641091aebefb946928e5ed97987db96bb7d7e33",
+    normalizedExpressionSha256:
+      "9a0d45d473dbe0925bc515e3061a94f53cc9c4684e843565c7ee64946b2521ca",
+    columns: Object.freeze(["variables"]),
+  }),
+  Object.freeze({
+    relation: "public.email_outbox",
+    relationOwner: OWNER_ROLE,
+    name: "email_outbox_recipient_canonical_valid",
+    type: "c",
+    validated: true,
+    noInherit: false,
+    reviewedSqlExpressionSha256:
+      "5a2426a2aafcdec419fc4d534d8558d82110e0759c1445a2c917bbf2ec27b447",
+    normalizedExpressionSha256:
+      "02ba45407386c19b742347bf29e39fa5a5d3d09b8cd8ca74a31bf1c1aeae8a0b",
+    columns: Object.freeze(["to_email"]),
+  }),
   Object.freeze({
     relation: "public.email_outbox",
     relationOwner: OWNER_ROLE,
@@ -421,7 +658,7 @@ export const REVIEWED_APPLICATION_CONSTRAINTS = Object.freeze([
     type: "c",
     validated: true,
     normalizedExpressionSha256:
-      "02a5367ba5c5eed54bc69732c38f1517fa05d7321aaad3c11d30200ee6b06dc8",
+      "2594dd57e4115fe9296d03888d8d1771b98e90725bce7e0d66c753eb1f0dba82",
     columns: Object.freeze([
       "adapter",
       "claim_owner",
@@ -441,8 +678,182 @@ export const REVIEWED_APPLICATION_CONSTRAINTS = Object.freeze([
       "status",
     ]),
   }),
+  Object.freeze({
+    relation: "public.email_outbox",
+    relationOwner: OWNER_ROLE,
+    name: "email_outbox_idempotency_authority_valid",
+    type: "c",
+    validated: true,
+    normalizedExpressionSha256:
+      "3f32ee19567df8889a129cc1e2e95af9f70a8e4e5878c7f7930ec396259ceefc",
+    columns: Object.freeze([
+      "idempotency_authority_sha256",
+      "idempotency_authority_version",
+      "idempotency_key",
+      "idempotency_original_payload_sha256",
+    ]),
+  }),
 ]);
 
+export const REVIEWED_REPLAY_AUTHORITY_RELATIONAL_CONTRACT = Object.freeze({
+  authority: Object.freeze({
+    relation: "public.email_outbox_idempotency_authority",
+    owner: OWNER_ROLE,
+    columns: Object.freeze([
+      Object.freeze({
+        name: "idempotency_sha256",
+        type: "pg_catalog.text",
+        notNull: true,
+      }),
+      Object.freeze({
+        name: "original_payload_sha256",
+        type: "pg_catalog.text",
+        notNull: true,
+      }),
+    ]),
+    primaryKey: Object.freeze({
+      name: "email_outbox_idempotency_authority_pkey",
+      type: "p",
+      validated: true,
+      deferrable: false,
+      initiallyDeferred: false,
+      noInherit: true,
+      columns: Object.freeze(["idempotency_sha256"]),
+      index: Object.freeze({
+        unique: true,
+        valid: true,
+        ready: true,
+        live: true,
+        immediate: true,
+        partial: false,
+        expression: false,
+      }),
+    }),
+    checks: Object.freeze([
+      Object.freeze({
+        name: "email_outbox_idempotency_authority_digest_valid",
+        type: "c",
+        validated: true,
+        noInherit: false,
+        columns: Object.freeze(["idempotency_sha256"]),
+        reviewedSqlExpressionSha256:
+          "e49d21d5f96c0af1e2ddc33bb5c90d5649e9e8354ee8cf1e245fa0fe612ba7cf",
+        normalizedExpressionSha256:
+          "8e6471c0b1bf0fd09c9f9f37b6735e345030506017e78de7c2deba7f79bd6f6d",
+      }),
+      Object.freeze({
+        name: "email_outbox_idempotency_authority_payload_valid",
+        type: "c",
+        validated: true,
+        noInherit: false,
+        columns: Object.freeze(["original_payload_sha256"]),
+        reviewedSqlExpressionSha256:
+          "28dc27e34f97a28cf404f373f75632bbb7a6541476dd1f59efe000b2c066b69b",
+        normalizedExpressionSha256:
+          "aca0ad0a3d605439d115ce9283ef22b98a28c71e85f4e7e89de406e90dee11e6",
+      }),
+    ]),
+  }),
+  deliveryScope: Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_delivery_scope_valid",
+    type: "c",
+    validated: true,
+    noInherit: false,
+    columns: Object.freeze([
+      "delivery_scope_key",
+      "operation_id",
+      "status",
+      "template",
+      "template_version",
+      "to_email",
+      "user_id",
+      "variables",
+    ]),
+    reviewedSqlExpressionSha256:
+      "20f31d55accb3d3e96816fd4f13cf8670eef2fd3746c414329c6f5ad9d12b3c7",
+    normalizedExpressionSha256:
+      "c904768e4ecc145fc108de90adf0d0b5373f3330fb706ec34ff4b07d2711b94f",
+  }),
+  triggerRelations: Object.freeze([
+    "public.email_outbox",
+    "public.email_outbox_idempotency_authority",
+  ]),
+  triggers: Object.freeze(
+    REVIEWED_APPLICATION_TRIGGERS.filter(({ relation }) =>
+      [
+        "public.email_outbox",
+        "public.email_outbox_idempotency_authority",
+      ].includes(relation),
+    ),
+  ),
+  routines: Object.freeze(
+    REVIEWED_APPLICATION_FUNCTIONS.filter(
+      ({ migrationFile }) =>
+        migrationFile ===
+        "0067_mail_outbox_durable_replay_authority.sql",
+    ),
+  ),
+  lookupIndex: Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_idempotency_authority_lookup_idx",
+    accessMethod: "btree",
+    columns: Object.freeze([
+      "idempotency_authority_sha256",
+      "id",
+    ]),
+    unique: false,
+    valid: true,
+    ready: true,
+    live: true,
+    immediate: true,
+    partial: true,
+    expression: false,
+    normalizedPredicate: "idempotency_authority_sha256isnotnull",
+  }),
+  unique: Object.freeze({
+    relation: "public.email_outbox_idempotency_authority",
+    name: "email_outbox_idempotency_authority_payload_unique",
+    type: "u",
+    validated: true,
+    deferrable: false,
+    initiallyDeferred: false,
+    noInherit: true,
+    columns: Object.freeze([
+      "idempotency_sha256",
+      "original_payload_sha256",
+    ]),
+    index: Object.freeze({
+      unique: true,
+      valid: true,
+      ready: true,
+      partial: false,
+      expression: false,
+    }),
+  }),
+  foreignKey: Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_idempotency_authority_fk",
+    persistTriggerName: "00_email_outbox_idempotency_persist",
+    type: "f",
+    validated: true,
+    columns: Object.freeze([
+      "idempotency_authority_sha256",
+      "idempotency_original_payload_sha256",
+    ]),
+    referencedRelation: "public.email_outbox_idempotency_authority",
+    referencedColumns: Object.freeze([
+      "idempotency_sha256",
+      "original_payload_sha256",
+    ]),
+    deferrable: true,
+    initiallyDeferred: true,
+    noInherit: true,
+    matchType: "s",
+    updateAction: "r",
+    deleteAction: "r",
+  }),
+});
 function reviewedCatalogPhase({
   index,
   createdAt,
@@ -452,6 +863,7 @@ function reviewedCatalogPhase({
   triggers,
   requiresWorkerContract,
   requiresProviderEvidence = false,
+  requiresReplayAuthority = false,
   backupStatusAuthority = null,
 }) {
   return Object.freeze({
@@ -463,6 +875,7 @@ function reviewedCatalogPhase({
     triggers,
     requiresWorkerContract,
     requiresProviderEvidence,
+    requiresReplayAuthority,
     backupStatusAuthority,
   });
 }
@@ -515,29 +928,71 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
   }),
   reviewedCatalogPhase({
     index: 66,
-    createdAt: "1784940000000",
+    createdAt: "1784997273087",
     migrationFile: "0066_mail_outbox_provider_correlation_evidence.sql",
     migrationSha256:
       "3d4962ed82c0209245ca7e0a0e9ea667001eab7ae864f89120894cc1fa915ec9",
+    routines: REVIEWED_0066_APPLICATION_FUNCTIONS,
+    triggers: REVIEWED_0066_APPLICATION_TRIGGERS,
+    requiresWorkerContract: true,
+    requiresProviderEvidence: true,
+    requiresReplayAuthority: false,
+    backupStatusAuthority: REVIEWED_0065_BACKUP_STATUS_AUTHORITY,
+  }),
+  reviewedCatalogPhase({
+    index: 67,
+    createdAt: "1785002172253",
+    migrationFile: "0067_mail_outbox_durable_replay_authority.sql",
+    migrationSha256:
+      "4dca7bc11ae7ad6edefc3314545823a0013e4aef0242b74802bdb4ba8b759319",
     routines: REVIEWED_APPLICATION_FUNCTIONS,
     triggers: REVIEWED_APPLICATION_TRIGGERS,
     requiresWorkerContract: true,
     requiresProviderEvidence: true,
-    backupStatusAuthority: REVIEWED_0065_BACKUP_STATUS_AUTHORITY,
+    requiresReplayAuthority: true,
+    backupStatusAuthority: REVIEWED_0067_BACKUP_STATUS_AUTHORITY,
   }),
 ]);
-const REVIEWED_SECURITY_DEFINER_FUNCTIONS = Object.freeze(
-  REVIEWED_APPLICATION_FUNCTIONS
-    .filter(({ securityDefiner }) => securityDefiner)
-    .map(({ signature }) => signature),
+const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASE_BY_INDEX = new Map(
+  REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.map((phase) => [phase.index, phase]),
 );
+
+export function canonicalReviewedMailAuthorityCatalogPhase(phase) {
+  if (phase === null) return null;
+  const canonical = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASE_BY_INDEX.get(
+    phase?.index,
+  );
+  if (canonical === undefined || canonical !== phase) {
+    throw databaseRoleBootstrapInvariantError(
+      "reviewed-mail-authority-catalog-phase-contract",
+    );
+  }
+  return canonical;
+}
+
+function reviewedPhaseRoutines(phase) {
+  return canonicalReviewedMailAuthorityCatalogPhase(phase)?.routines ?? [];
+}
+
+function reviewedSecurityDefinerFunctions(phase) {
+  return reviewedPhaseRoutines(phase)
+    .filter(({ securityDefiner }) => securityDefiner)
+    .map(({ signature, configuration }) => ({ signature, configuration }));
+}
+
+export async function resolveReviewedMailAuthorityCatalogPhase(client) {
+  const appliedPhases = await reviewedMigrationJournalState(client);
+  return canonicalReviewedMailAuthorityCatalogPhase(
+    appliedPhases.at(-1) ?? null,
+  );
+}
 
 function sqlLiteral(value) {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
-export function reviewedApplicationFunctionPrivilegesSql() {
-  return REVIEWED_APPLICATION_FUNCTIONS.map((routine, routineIndex) => {
+export function reviewedApplicationFunctionPrivilegesSql(phase) {
+  return reviewedPhaseRoutines(phase).map((routine, routineIndex) => {
     const blockTag = `codestead_reviewed_function_${routineIndex}`;
     const restrictedRoles = [
       MIGRATOR_ROLE,
@@ -608,6 +1063,9 @@ export const MAIL_WORKER_OUTBOX_COLUMNS = Object.freeze([
   "provider_correlation_version",
   "provider_evidence_version",
   "provider_evidence_sha256",
+  "idempotency_authority_version",
+  "idempotency_authority_sha256",
+  "idempotency_original_payload_sha256",
 ]);
 export const MAIL_WORKER_OUTBOX_INSERT_COLUMNS = Object.freeze([
   "operation_id",
@@ -618,6 +1076,7 @@ export const MAIL_WORKER_OUTBOX_INSERT_COLUMNS = Object.freeze([
   "template_version",
   "variables",
   "idempotency_key",
+  "idempotency_authority_version",
   "status",
   "next_attempt_at",
 ]);
@@ -651,6 +1110,16 @@ const MAIL_WORKER_PROVIDER_EVIDENCE_COLUMNS = Object.freeze([
   "provider_evidence_version",
   "provider_evidence_sha256",
 ]);
+const MAIL_WORKER_IDEMPOTENCY_AUTHORITY_COLUMNS = Object.freeze([
+  "idempotency_authority_version",
+  "idempotency_authority_sha256",
+  "idempotency_original_payload_sha256",
+]);
+export const MAIL_WORKER_OUTBOX_PRE_REPLAY_INSERT_COLUMNS = Object.freeze(
+  MAIL_WORKER_OUTBOX_INSERT_COLUMNS.filter(
+    (column) => !MAIL_WORKER_IDEMPOTENCY_AUTHORITY_COLUMNS.includes(column),
+  ),
+);
 export const MAIL_WORKER_OUTBOX_PRE_EVIDENCE_UPDATE_COLUMNS = Object.freeze(
   MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.filter(
     (column) => !MAIL_WORKER_PROVIDER_EVIDENCE_COLUMNS.includes(column),
@@ -664,8 +1133,66 @@ export const MAIL_WORKER_OUTBOX_PRE_BINDING_UPDATE_COLUMNS = Object.freeze(
   ),
 );
 
+export function managedColumnAclScrubSql() {
+  return `
+    do $codestead_managed_column_acl_scrub$
+    declare
+      column_row record;
+      grantee_row record;
+      grantee_sql text;
+    begin
+      for column_row in
+        select namespace.nspname as schema_name,
+               relation.relname as relation_name,
+               attribute.attname as column_name,
+               attribute.attacl as column_acl
+          from pg_catalog.pg_class relation
+          join pg_catalog.pg_namespace namespace
+            on namespace.oid = relation.relnamespace
+          join pg_catalog.pg_attribute attribute
+            on attribute.attrelid = relation.oid
+           and attribute.attnum > 0
+           and not attribute.attisdropped
+         where namespace.nspname in ('public', 'drizzle')
+           and relation.relkind in ('r', 'p', 'v', 'm', 'f')
+           and attribute.attacl is not null
+         order by relation.oid, attribute.attnum
+      loop
+        for grantee_row in
+          select distinct access.grantee
+            from pg_catalog.aclexplode(column_row.column_acl) access
+           order by access.grantee
+        loop
+          if grantee_row.grantee = 0 then
+            grantee_sql := 'PUBLIC';
+          else
+            select pg_catalog.format('%I', role.rolname)
+              into grantee_sql
+              from pg_catalog.pg_roles role
+             where role.oid = grantee_row.grantee;
+            if grantee_sql is null then
+              raise exception 'managed column ACL grantee is unresolved'
+                using errcode = '42704';
+            end if;
+          end if;
+          execute pg_catalog.format(
+            'REVOKE ALL PRIVILEGES (%I) ON TABLE %I.%I FROM %s CASCADE',
+            column_row.column_name,
+            column_row.schema_name,
+            column_row.relation_name,
+            grantee_sql
+          );
+        end loop;
+      end loop;
+    end
+    $codestead_managed_column_acl_scrub$;
+  `;
+}
+
 export function mailWorkerOutboxPrivilegesSql() {
   const insertColumns = MAIL_WORKER_OUTBOX_INSERT_COLUMNS.join(", ");
+  const preReplayInsertColumns =
+    MAIL_WORKER_OUTBOX_PRE_REPLAY_INSERT_COLUMNS.join(", ");
   const updateColumns = MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.join(", ");
   const preEvidenceUpdateColumns =
     MAIL_WORKER_OUTBOX_PRE_EVIDENCE_UPDATE_COLUMNS.join(", ");
@@ -678,6 +1205,8 @@ export function mailWorkerOutboxPrivilegesSql() {
       binding_column_exact_count integer;
       provider_evidence_column_count integer;
       provider_evidence_column_exact_count integer;
+      idempotency_authority_column_count integer;
+      idempotency_authority_column_exact_count integer;
       existing_columns text;
     begin
       if pg_catalog.to_regrole('learncoding_worker') is not null
@@ -747,6 +1276,53 @@ export function mailWorkerOutboxPrivilegesSql() {
             using errcode = '23514';
         end if;
 
+        select pg_catalog.count(*)::integer,
+               pg_catalog.count(*) filter (
+                 where attribute.atttypid = 'pg_catalog.text'::pg_catalog.regtype
+                   and attribute.atttypmod = -1
+                   and (
+                     (
+                       attribute.attname = 'idempotency_authority_sha256'
+                       and not attribute.attnotnull
+                     )
+                     or (
+                       attribute.attname in (
+                         'idempotency_authority_version',
+                         'idempotency_original_payload_sha256'
+                       )
+                       and attribute.attnotnull
+                     )
+                   )
+                   and not attribute.atthasdef
+                   and attribute.attgenerated = ''
+                   and attribute.attidentity = ''
+                   and not attribute.attisdropped
+               )::integer
+          into idempotency_authority_column_count,
+               idempotency_authority_column_exact_count
+          from pg_catalog.pg_attribute attribute
+         where attribute.attrelid =
+                 pg_catalog.to_regclass('public.email_outbox')
+           and attribute.attname in (
+             'idempotency_authority_version',
+             'idempotency_authority_sha256',
+             'idempotency_original_payload_sha256'
+           )
+           and attribute.attnum > 0;
+
+        if idempotency_authority_column_count not in (0, 3)
+           or (
+             idempotency_authority_column_count = 3
+             and idempotency_authority_column_exact_count <> 3
+           )
+           or (
+             idempotency_authority_column_count = 3
+             and provider_evidence_column_count <> 3
+           ) then
+          raise exception 'email outbox idempotency authority column contract is invalid'
+            using errcode = '23514';
+        end if;
+
         select pg_catalog.string_agg(
                  pg_catalog.format('%I', attribute.attname),
                  ', ' order by attribute.attnum
@@ -768,9 +1344,18 @@ export function mailWorkerOutboxPrivilegesSql() {
         execute ${sqlLiteral(
           "grant select on table public.email_outbox to learncoding_worker",
         )};
-        execute ${sqlLiteral(
-          `grant insert (${insertColumns}) on table public.email_outbox to learncoding_worker`,
-        )};
+        if idempotency_authority_column_count = 3 then
+          execute ${sqlLiteral(
+            `grant insert (${insertColumns}) on table public.email_outbox to learncoding_worker`,
+          )};
+          execute ${sqlLiteral(
+            "grant insert (idempotency_authority_version) on table public.email_outbox to learncoding_app",
+          )};
+        else
+          execute ${sqlLiteral(
+            `grant insert (${preReplayInsertColumns}) on table public.email_outbox to learncoding_worker`,
+          )};
+        end if;
         if provider_evidence_column_count = 3 then
           execute ${sqlLiteral(
             `grant update (${updateColumns}) on table public.email_outbox to learncoding_worker`,
@@ -790,6 +1375,39 @@ export function mailWorkerOutboxPrivilegesSql() {
   `;
 }
 
+export function mailReplayAuthorityPrivilegesSql() {
+  return `
+    do $codestead_mail_replay_authority_acl$
+    declare
+      existing_columns text;
+    begin
+      if pg_catalog.to_regclass(
+           'public.email_outbox_idempotency_authority'
+         ) is not null
+         and pg_catalog.to_regrole('learncoding_owner') is not null
+      then
+        select pg_catalog.string_agg(
+                 pg_catalog.format('%I', attribute.attname),
+                 ', ' order by attribute.attnum
+               )
+          into existing_columns
+          from pg_catalog.pg_attribute attribute
+         where attribute.attrelid = pg_catalog.to_regclass(
+                 'public.email_outbox_idempotency_authority'
+               )
+           and attribute.attnum > 0
+           and not attribute.attisdropped;
+        execute 'revoke all on table public.email_outbox_idempotency_authority from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter';
+        execute pg_catalog.format(
+          'revoke all (%s) on table public.email_outbox_idempotency_authority from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter',
+          existing_columns
+        );
+        execute 'grant all on table public.email_outbox_idempotency_authority to learncoding_owner';
+      end if;
+    end
+    $codestead_mail_replay_authority_acl$;
+  `;
+}
 export function backupStatusAuthorityPrivilegesSql() {
   return `
     revoke all on table
@@ -811,7 +1429,10 @@ export function backupStatusAuthorityPrivilegesSql() {
   `;
 }
 
-export async function reconcileBackupStatusAuthorityPrivileges(client) {
+export async function reconcileBackupStatusAuthorityPrivileges(client, phase) {
+  const expectedContract =
+    canonicalReviewedMailAuthorityCatalogPhase(phase)?.backupStatusAuthority
+    ?? null;
   const presence = await client.query(
     `select
        to_regclass(
@@ -823,9 +1444,12 @@ export async function reconcileBackupStatusAuthorityPrivileges(client) {
   );
   const sourcePresent = presence.rows[0]?.source_present === true;
   const guardPresent = presence.rows[0]?.guard_present === true;
-  if (sourcePresent !== guardPresent) {
+  if (
+    sourcePresent !== guardPresent
+    || sourcePresent !== (expectedContract !== null)
+  ) {
     throw databaseRoleBootstrapInvariantError(
-      "backup-status-authority-partial",
+      "backup-status-authority-phase",
     );
   }
   if (!sourcePresent) return false;
@@ -867,13 +1491,36 @@ function decodeUrlComponent(value) {
   return decoded;
 }
 
+function defaultAclGranteeIdentityExact(entry) {
+  if (entry.grantee === null) {
+    return entry.grantee_oid === null && entry.is_public === null;
+  }
+  if (
+    !Number.isInteger(entry.grantee_oid) ||
+    entry.grantee_oid < 0 ||
+    typeof entry.is_public !== "boolean"
+  ) {
+    return false;
+  }
+  if (entry.grantee_oid === 0) {
+    return entry.is_public === true && entry.grantee === "PUBLIC";
+  }
+  return (
+    entry.is_public === false &&
+    entry.grantee !== "PUBLIC"
+  );
+}
+
 export function validateDatabaseRoleUrls(input) {
   const parsed = {};
   const usernames = new Set();
   const passwords = new Set();
 
   try {
-    if (!/^[a-z_][a-z0-9_]{0,62}$/u.test(input.postgresUser)) {
+    if (
+      !/^[a-z_][a-z0-9_]{0,62}$/u.test(input.postgresUser) ||
+      input.postgresUser === OWNER_ROLE
+    ) {
       throw invalidCredentialConfiguration();
     }
     if (!/^[a-z_][a-z0-9_]{0,62}$/u.test(input.postgresDatabase)) {
@@ -929,6 +1576,7 @@ export function validateDatabaseRoleUrls(input) {
 export function validateOwnershipInventory(input) {
   const allowedOwners = new Set([input.postgresUser, OWNER_ROLE]);
   const applicationSchemas = new Set(["public", "drizzle"]);
+  const repairableGlobalDefaultAclKinds = new Set(["f", "T"]);
   const canonicalSystemDatabases = new Set([
     "postgres",
     "template0",
@@ -968,23 +1616,37 @@ export function validateOwnershipInventory(input) {
       !allowedOwners.has(object.owner),
   );
   const allowedDefaultGrantees = new Set([
-    "PUBLIC",
     ...allowedOwners,
     APP_ROLE,
     WORKER_ROLE,
     OPS_ROLE,
   ]);
   const allowedDirectGrantees = new Set([
+    "PUBLIC",
     ...allowedDefaultGrantees,
     MIGRATOR_ROLE,
     BACKUP_REPORTER_ROLE,
     "pg_database_owner",
   ]);
   const unsafeDefaultAcl = (input.defaultAcls ?? []).some(
-    (entry) =>
-      !applicationSchemas.has(entry.schema) ||
-      !allowedOwners.has(entry.owner) ||
-      !allowedDefaultGrantees.has(entry.grantee),
+    (entry) => {
+      const granteeIdentityExact =
+        defaultAclGranteeIdentityExact(entry);
+      const isRepairableGlobalDefaultAcl =
+        entry.schema === "<global>" &&
+        allowedOwners.has(entry.owner) &&
+        repairableGlobalDefaultAclKinds.has(entry.kind);
+      return (
+        !granteeIdentityExact ||
+        (!isRepairableGlobalDefaultAcl &&
+        (!applicationSchemas.has(entry.schema) ||
+          !allowedOwners.has(entry.owner) ||
+          !(
+            (entry.is_public === true && entry.grantee === "PUBLIC") ||
+            allowedDefaultGrantees.has(entry.grantee)
+          )))
+      );
+    },
   );
 
   const unsafeOwnerDependency =
@@ -1139,19 +1801,22 @@ async function loadOwnershipInventory(client, postgresUser, postgresDatabase) {
       [postgresUser],
     ),
     await client.query(
-      `select coalesce(n.nspname, '*') schema,
+      `select case when a.defaclnamespace = 0 then '<global>'
+                   else n.nspname end schema,
               pg_get_userbyid(a.defaclrole) owner,
-              case when privilege.grantee = 0 then 'PUBLIC'
+              case when privilege.grantee is null then null
+                   when privilege.grantee = 0 then 'PUBLIC'
                    else pg_get_userbyid(privilege.grantee) end grantee,
+              privilege.grantee grantee_oid,
+              case when privilege.grantee is null then null
+                   else privilege.grantee = 0 end is_public,
               a.defaclobjtype::text kind,
               privilege.privilege_type,
               privilege.is_grantable
          from pg_default_acl a
          left join pg_namespace n on n.oid = a.defaclnamespace
-         cross join lateral aclexplode(a.defaclacl) privilege
-        where pg_get_userbyid(a.defaclrole) in ($1, 'learncoding_owner')
+         left join lateral aclexplode(a.defaclacl) privilege on true
         order by 1, 2, 3, 4, 5, 6`,
-      [postgresUser],
     ),
     await client.query(
       `select catalog, object_id
@@ -1413,8 +2078,8 @@ async function rotatePasswords(client, roles) {
   }
 }
 
-async function transferApplicationOwnership(client) {
-  const reviewedSignatures = REVIEWED_APPLICATION_FUNCTIONS.map((routine) =>
+async function transferApplicationOwnership(client, phase) {
+  const reviewedSignatures = reviewedPhaseRoutines(phase).map((routine) =>
     sqlLiteral(routine.signature),
   ).join(", ");
   await client.query(`
@@ -1628,7 +2293,7 @@ async function verifyBackupStatusAuthorityMigrationPhase(client, phase) {
       WORKER_ROLE,
       OPS_ROLE,
       BACKUP_REPORTER_ROLE,
-    ]);
+    ], phase.backupStatusAuthority);
   } catch (error) {
     const invariant = databaseRoleBootstrapInvariantError(
       "backup-status-authority-migration-contract",
@@ -1641,8 +2306,19 @@ async function verifyBackupStatusAuthorityMigrationPhase(client, phase) {
 
 export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
   client,
+  expectedPhase,
 ) {
+  const canonicalExpectedPhase =
+    canonicalReviewedMailAuthorityCatalogPhase(expectedPhase);
   const appliedPhases = await reviewedMigrationJournalState(client);
+  const latestPhase = canonicalReviewedMailAuthorityCatalogPhase(
+    appliedPhases.at(-1) ?? null,
+  );
+  if (latestPhase !== canonicalExpectedPhase) {
+    throw databaseRoleBootstrapInvariantError(
+      "reviewed-pre-reconciliation-phase-drift",
+    );
+  }
   const marker = await client.query(`
     select pg_catalog.count(*) filter (
              where attribute.attname in (
@@ -1685,7 +2361,41 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
                and attribute.attgenerated = ''
                and attribute.attidentity = ''
                and not attribute.attisdropped
-           )::integer post_migration_provider_column_exact_count
+           )::integer post_migration_provider_column_exact_count,
+           pg_catalog.count(*) filter (
+             where attribute.attname in (
+               'idempotency_authority_version',
+               'idempotency_authority_sha256',
+               'idempotency_original_payload_sha256'
+             )
+           )::integer post_migration_replay_column_count,
+           pg_catalog.count(*) filter (
+             where attribute.attname in (
+                     'idempotency_authority_version',
+                     'idempotency_authority_sha256',
+                     'idempotency_original_payload_sha256'
+                   )
+               and attribute.atttypid =
+                     'pg_catalog.text'::pg_catalog.regtype
+               and attribute.atttypmod = -1
+               and (
+                 (
+                   attribute.attname = 'idempotency_authority_sha256'
+                   and not attribute.attnotnull
+                 )
+                 or (
+                   attribute.attname in (
+                     'idempotency_authority_version',
+                     'idempotency_original_payload_sha256'
+                   )
+                   and attribute.attnotnull
+                 )
+               )
+               and not attribute.atthasdef
+               and attribute.attgenerated = ''
+               and attribute.attidentity = ''
+               and not attribute.attisdropped
+           )::integer post_migration_replay_column_exact_count
       from pg_catalog.pg_attribute attribute
      where attribute.attrelid =
              pg_catalog.to_regclass('public.email_outbox')
@@ -1695,15 +2405,21 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
          'dispatch_binding_sha256',
          'provider_correlation_version',
          'provider_evidence_version',
-         'provider_evidence_sha256'
+         'provider_evidence_sha256',
+         'idempotency_authority_version',
+         'idempotency_authority_sha256',
+         'idempotency_original_payload_sha256'
        )`);
+
   const row = marker.rows[0];
   if (
     marker.rows.length !== 1 ||
     !Number.isInteger(row?.post_migration_binding_column_count) ||
     !Number.isInteger(row?.post_migration_binding_column_exact_count) ||
     !Number.isInteger(row?.post_migration_provider_column_count) ||
-    !Number.isInteger(row?.post_migration_provider_column_exact_count)
+    !Number.isInteger(row?.post_migration_provider_column_exact_count) ||
+    !Number.isInteger(row?.post_migration_replay_column_count) ||
+    !Number.isInteger(row?.post_migration_replay_column_exact_count)
   )
     throw databaseRoleBootstrapInvariantError(
       "reviewed-pre-reconciliation-marker",
@@ -1715,21 +2431,26 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
     ![0, 3].includes(row.post_migration_provider_column_count) ||
     row.post_migration_provider_column_exact_count !==
       row.post_migration_provider_column_count ||
+    ![0, 3].includes(row.post_migration_replay_column_count) ||
+    row.post_migration_replay_column_exact_count !==
+      row.post_migration_replay_column_count ||
     (row.post_migration_provider_column_count === 3 &&
-      row.post_migration_binding_column_count !== 2)
+      row.post_migration_binding_column_count !== 2) ||
+    (row.post_migration_replay_column_count === 3 &&
+      row.post_migration_provider_column_count !== 3)
   )
     throw databaseRoleBootstrapInvariantError(
       "reviewed-pre-reconciliation-marker",
     );
 
-  const latestPhase = appliedPhases.at(-1);
   const verifier = await import("./verify-database-role-boundaries.mjs");
-  if (latestPhase === undefined) {
+  if (latestPhase === null) {
     await verifyBackupStatusAuthorityMigrationPhase(client, null);
     await verifier.verifyReviewedMailAuthorityObjectFootprint(client, null);
     if (
       row.post_migration_binding_column_count !== 0
       || row.post_migration_provider_column_count !== 0
+      || row.post_migration_replay_column_count !== 0
     ) {
       throw databaseRoleBootstrapInvariantError(
         "reviewed-pre-reconciliation-lineage",
@@ -1745,7 +2466,11 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
     (latestPhase.requiresProviderEvidence &&
       row.post_migration_provider_column_count !== 3) ||
     (!latestPhase.requiresProviderEvidence &&
-      row.post_migration_provider_column_count !== 0)
+      row.post_migration_provider_column_count !== 0) ||
+    (latestPhase.requiresReplayAuthority &&
+      row.post_migration_replay_column_count !== 3) ||
+    (!latestPhase.requiresReplayAuthority &&
+      row.post_migration_replay_column_count !== 0)
   ) {
     throw databaseRoleBootstrapInvariantError(
       "reviewed-pre-reconciliation-lineage",
@@ -1767,12 +2492,107 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
   await verifier.verifyMailWorkerOutboxContract(client, {
     requiresDispatchBinding: latestPhase.requiresWorkerContract,
     requiresProviderEvidence: latestPhase.requiresProviderEvidence,
+    requiresReplayAuthority: latestPhase.requiresReplayAuthority,
   });
   return 1;
 }
 
-export async function reconcileDatabaseRolePrivileges(client) {
-  await verifyPostMigrationReviewedContractsBeforeReconciliation(client);
+export function globalDefaultAclScrubSql() {
+  return `
+    do $codestead_global_default_acl$
+    declare
+      target record;
+      grantee_index integer;
+      grantee_oids oid[];
+      grantee_is_public boolean[];
+      grantee_names text[];
+      quoted_grantee text;
+    begin
+      for target in
+        select creator.oid creator_oid,
+               creator.rolname creator_name,
+               object_kind.object_type,
+               object_kind.object_class,
+               object_kind.owner_privilege
+          from pg_catalog.pg_roles creator
+          cross join (
+            values
+              ('f'::text, 'routines'::text, 'execute'::text),
+              ('T'::text, 'types'::text, 'usage'::text)
+          ) object_kind(
+            object_type,
+            object_class,
+            owner_privilege
+          )
+         where creator.rolname in ('learncoding_owner', current_user)
+         order by creator.rolname, object_kind.object_type
+      loop
+        select pg_catalog.array_agg(
+                 observed.grantee_oid
+                 order by observed.grantee_oid
+               ),
+               pg_catalog.array_agg(
+                 observed.is_public
+                 order by observed.grantee_oid
+               ),
+               pg_catalog.array_agg(
+                 observed.grantee_name
+                 order by observed.grantee_oid
+               )
+          into grantee_oids, grantee_is_public, grantee_names
+          from (
+            select access.grantee grantee_oid,
+                   access.grantee = 0 is_public,
+                   case when access.grantee = 0 then 'PUBLIC'
+                        else pg_catalog.pg_get_userbyid(access.grantee)
+                   end grantee_name
+              from pg_catalog.pg_default_acl default_acl
+              cross join lateral pg_catalog.aclexplode(
+                default_acl.defaclacl
+              ) access
+             where default_acl.defaclrole = target.creator_oid
+               and default_acl.defaclnamespace = 0
+               and default_acl.defaclobjtype::text =
+                     target.object_type
+            union
+            select 0::pg_catalog.oid, true, 'PUBLIC'
+            union
+            select target.creator_oid, false, target.creator_name
+          ) observed;
+
+        for grantee_index in 1..pg_catalog.array_length(grantee_oids, 1)
+        loop
+          quoted_grantee := case
+            when grantee_is_public[grantee_index] then 'PUBLIC'
+            else pg_catalog.format('%I', grantee_names[grantee_index])
+          end;
+          execute pg_catalog.format(
+            'alter default privileges for role %I revoke all on %s from %s cascade',
+            target.creator_name,
+            target.object_class,
+            quoted_grantee
+          );
+        end loop;
+
+        execute pg_catalog.format(
+          'alter default privileges for role %I grant %s on %s to %I',
+          target.creator_name,
+          target.owner_privilege,
+          target.object_class,
+          target.creator_name
+        );
+      end loop;
+    end
+    $codestead_global_default_acl$`;
+}
+
+export async function reconcileDatabaseRolePrivileges(client, phase) {
+  const canonicalPhase = canonicalReviewedMailAuthorityCatalogPhase(phase);
+  await verifyPostMigrationReviewedContractsBeforeReconciliation(
+    client,
+    canonicalPhase,
+  );
+  await client.query(globalDefaultAclScrubSql());
   await client.query(`
     do $codestead$
     begin
@@ -1825,17 +2645,17 @@ export async function reconcileDatabaseRolePrivileges(client) {
     $codestead_types$;
 
     alter default privileges for role learncoding_owner in schema public
-      revoke all on tables from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+      revoke all on tables from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
     alter default privileges for role learncoding_owner in schema public
-      revoke all on sequences from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+      revoke all on sequences from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
     alter default privileges for role learncoding_owner in schema public
-      revoke all on routines from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-    alter default privileges for role current_user in schema public revoke all on tables from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-    alter default privileges for role current_user in schema public revoke all on sequences from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-    alter default privileges for role current_user in schema public revoke execute on routines from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-    alter default privileges for role current_user in schema public revoke usage on types from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+      revoke all on routines from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
+    alter default privileges for role current_user in schema public revoke all on tables from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
+    alter default privileges for role current_user in schema public revoke all on sequences from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
+    alter default privileges for role current_user in schema public revoke execute on routines from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
+    alter default privileges for role current_user in schema public revoke usage on types from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
     alter default privileges for role learncoding_owner in schema public
-      revoke all on types from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+      revoke all on types from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
     alter default privileges for role learncoding_owner in schema public
       grant select, insert, update, delete on tables to learncoding_app, learncoding_worker, learncoding_ops;
     alter default privileges for role learncoding_owner in schema public
@@ -1843,7 +2663,8 @@ export async function reconcileDatabaseRolePrivileges(client) {
     alter default privileges for role learncoding_owner in schema public
       grant usage on types to learncoding_app, learncoding_worker, learncoding_ops`);
 
-  await client.query(reviewedApplicationFunctionPrivilegesSql());
+  await client.query(managedColumnAclScrubSql());
+  await client.query(reviewedApplicationFunctionPrivilegesSql(canonicalPhase));
 
   const emailOutbox = await client.query(
     "select to_regclass('public.email_outbox') is not null present",
@@ -1852,7 +2673,8 @@ export async function reconcileDatabaseRolePrivileges(client) {
     await client.query(mailWorkerOutboxPrivilegesSql());
   }
 
-  await reconcileBackupStatusAuthorityPrivileges(client);
+  await client.query(mailReplayAuthorityPrivilegesSql());
+  await reconcileBackupStatusAuthorityPrivileges(client, canonicalPhase);
 
   const drizzleExists = await client.query(
     "select exists(select 1 from pg_namespace where nspname = 'drizzle') present",
@@ -1883,17 +2705,17 @@ export async function reconcileDatabaseRolePrivileges(client) {
       end
       $codestead_types$;
       alter default privileges for role learncoding_owner in schema drizzle
-        revoke all on tables from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+        revoke all on tables from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
       alter default privileges for role learncoding_owner in schema drizzle
-        revoke all on sequences from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+        revoke all on sequences from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
       alter default privileges for role learncoding_owner in schema drizzle
-        revoke all on routines from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
+        revoke all on routines from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
       alter default privileges for role learncoding_owner in schema drizzle
-        revoke all on types from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-      alter default privileges for role current_user in schema drizzle revoke all on tables from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-      alter default privileges for role current_user in schema drizzle revoke all on sequences from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-      alter default privileges for role current_user in schema drizzle revoke execute on routines from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-      alter default privileges for role current_user in schema drizzle revoke usage on types from public, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter`);
+        revoke all on types from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
+      alter default privileges for role current_user in schema drizzle revoke all on tables from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
+      alter default privileges for role current_user in schema drizzle revoke all on sequences from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
+      alter default privileges for role current_user in schema drizzle revoke execute on routines from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
+      alter default privileges for role current_user in schema drizzle revoke usage on types from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade`);
   }
 }
 
@@ -1907,7 +2729,11 @@ function databaseRoleBootstrapInvariantError(section, details = []) {
 async function verifyBackupStatusAuthorityAtBoundary(
   client,
   section,
+  phase,
 ) {
+  const contract =
+    canonicalReviewedMailAuthorityCatalogPhase(phase)?.backupStatusAuthority
+    ?? null;
   const presence = await client.query(`
     select (
       pg_catalog.to_regclass(
@@ -1929,12 +2755,21 @@ async function verifyBackupStatusAuthorityAtBoundary(
         'public.backup_status_mail_authorized(uuid)'
       ) is not null
     ) present`);
-  if (presence.rows[0]?.present !== true) return false;
+  if (presence.rows.length !== 1) {
+    throw databaseRoleBootstrapInvariantError(section);
+  }
+  const present = presence.rows[0]?.present;
+  const required = contract !== null && contract !== undefined;
+  if (typeof present !== "boolean" || present !== required) {
+    throw databaseRoleBootstrapInvariantError(section);
+  }
+  if (!required) return false;
 
   try {
     await verifyBackupStatusMailAuthorityObjects(
       client,
       LOGIN_ROLES,
+      contract,
     );
   } catch (error) {
     const invariant = databaseRoleBootstrapInvariantError(
@@ -1946,17 +2781,19 @@ async function verifyBackupStatusAuthorityAtBoundary(
   return true;
 }
 
-export function verifyBackupStatusAuthorityBeforeRepair(client) {
+export function verifyBackupStatusAuthorityBeforeRepair(client, phase) {
   return verifyBackupStatusAuthorityAtBoundary(
     client,
     "backup-status-authority-pre-repair",
+    phase,
   );
 }
 
-export function verifyBackupStatusAuthorityAfterRepair(client) {
+export function verifyBackupStatusAuthorityAfterRepair(client, phase) {
   return verifyBackupStatusAuthorityAtBoundary(
     client,
     "backup-status-authority-post-repair",
+    phase,
   );
 }
 
@@ -1966,12 +2803,144 @@ function failedBooleanInvariantKeys(row) {
     .map(([key]) => key)
     .sort();
 }
+const DEFAULT_ACL_MANAGED_PRIVILEGES = Object.freeze({
+  r: Object.freeze(["DELETE", "INSERT", "SELECT", "UPDATE"]),
+  S: Object.freeze(["SELECT", "UPDATE", "USAGE"]),
+  T: Object.freeze(["USAGE"]),
+});
+const DEFAULT_ACL_OWNER_PRIVILEGES = Object.freeze({
+  f: "EXECUTE",
+  T: "USAGE",
+});
+
+function defaultAclRowKey(owner, schema, kind) {
+  return `${owner}|${schema}|${kind}`;
+}
+
+function defaultAclPrivilegeKey(entry) {
+  return [
+    entry.owner,
+    entry.schema,
+    entry.kind,
+    entry.grantor,
+    entry.grantee,
+    entry.privilege_type,
+    entry.is_grantable,
+  ].join("|");
+}
+
+export function verifyDatabaseDefaultAclState({
+  postgresUser,
+  drizzleExists,
+  entries,
+}) {
+  if (
+    typeof postgresUser !== "string" ||
+    postgresUser.length === 0 ||
+    typeof drizzleExists !== "boolean" ||
+    !Array.isArray(entries)
+  ) {
+    throw databaseRoleBootstrapInvariantError("default-acl-input");
+  }
+
+  void drizzleExists;
+  const creators = [...new Set([OWNER_ROLE, postgresUser])];
+  const expectedDefaultAclRows = new Set([
+    defaultAclRowKey(OWNER_ROLE, "public", "r"),
+    defaultAclRowKey(OWNER_ROLE, "public", "S"),
+    defaultAclRowKey(OWNER_ROLE, "public", "T"),
+    ...creators.flatMap((owner) =>
+      Object.keys(DEFAULT_ACL_OWNER_PRIVILEGES).map((kind) =>
+        defaultAclRowKey(owner, "<global>", kind),
+      ),
+    ),
+  ]);
+  const expectedPrivilegeKeys = new Set(
+    [...expectedDefaultAclRows].flatMap((rowKey) => {
+      const [owner, schema, kind] = rowKey.split("|");
+      const privilege = DEFAULT_ACL_OWNER_PRIVILEGES[kind];
+      return schema !== "<global>" || privilege === undefined
+        ? []
+        : [
+            defaultAclPrivilegeKey({
+              owner,
+              schema,
+              kind,
+              grantor: owner,
+              grantee: owner,
+              privilege_type: privilege,
+              is_grantable: false,
+            }),
+          ];
+    }),
+  );
+  for (const grantee of [APP_ROLE, WORKER_ROLE, OPS_ROLE]) {
+    for (const [kind, privileges] of Object.entries(
+      DEFAULT_ACL_MANAGED_PRIVILEGES,
+    )) {
+      for (const privilege of privileges) {
+        expectedPrivilegeKeys.add(
+          defaultAclPrivilegeKey({
+            owner: OWNER_ROLE,
+            schema: "public",
+            kind,
+            grantor: OWNER_ROLE,
+            grantee,
+            privilege_type: privilege,
+            is_grantable: false,
+          }),
+        );
+      }
+    }
+  }
+
+  const observedDefaultAclRows = new Set();
+  const observedPrivilegeKeys = new Set();
+  let exactPrivilegeCount = 0;
+  for (const entry of entries) {
+    if (!defaultAclGranteeIdentityExact(entry)) {
+      throw databaseRoleBootstrapInvariantError(
+        "default-acl-grantee-identity",
+      );
+    }
+    const rowKey = defaultAclRowKey(entry.owner, entry.schema, entry.kind);
+    if (!expectedDefaultAclRows.has(rowKey)) {
+      throw databaseRoleBootstrapInvariantError("default-acl-rows", [rowKey]);
+    }
+    observedDefaultAclRows.add(rowKey);
+    exactPrivilegeCount += 1;
+    const privilegeKey = defaultAclPrivilegeKey(entry);
+    if (
+      !expectedPrivilegeKeys.has(privilegeKey) ||
+      observedPrivilegeKeys.has(privilegeKey)
+    ) {
+      throw databaseRoleBootstrapInvariantError("default-acls-unexpected", [
+        privilegeKey,
+      ]);
+    }
+    observedPrivilegeKeys.add(privilegeKey);
+  }
+  if (
+    observedDefaultAclRows.size !== expectedDefaultAclRows.size ||
+    exactPrivilegeCount !== expectedPrivilegeKeys.size ||
+    observedPrivilegeKeys.size !== expectedPrivilegeKeys.size
+  ) {
+    throw databaseRoleBootstrapInvariantError("default-acls-cardinality");
+  }
+}
+
 
 export async function verifyDatabaseRoleBootstrapState(
   client,
   postgresDatabase,
   postgresUser,
+  phase,
 ) {
+  const canonicalPhase = canonicalReviewedMailAuthorityCatalogPhase(phase);
+  const phaseRoutines = reviewedPhaseRoutines(canonicalPhase);
+  const phaseSecurityDefiners = reviewedSecurityDefinerFunctions(
+    canonicalPhase,
+  );
   const roles = await client.query(`
     select rolname, rolcanlogin, rolsuper, rolcreatedb, rolcreaterole,
            rolinherit, rolreplication, rolbypassrls, rolconnlimit,
@@ -2154,7 +3123,8 @@ export async function verifyDatabaseRoleBootstrapState(
           where n.nspname = 'public' and c.relkind in ('r','p','v','m','f')
             and c.relname not in (
               'backup_status_mail_authority',
-              'backup_status_mail_admin_guard'
+              'backup_status_mail_admin_guard',
+              'email_outbox_idempotency_authority'
             )
             and (
               not has_table_privilege(role_name, c.oid, 'SELECT')
@@ -2175,7 +3145,8 @@ export async function verifyDatabaseRoleBootstrapState(
             and c.relname not in (
               'email_outbox',
               'backup_status_mail_authority',
-              'backup_status_mail_admin_guard'
+              'backup_status_mail_admin_guard',
+              'email_outbox_idempotency_authority'
             )
             and (
               not has_table_privilege('learncoding_worker', c.oid, 'SELECT')
@@ -2373,7 +3344,8 @@ export async function verifyDatabaseRoleBootstrapState(
        ) routine_execute_exact,
        not exists (
          select 1
-           from pg_catalog.jsonb_array_elements_text($3::jsonb) expected(signature)
+           from pg_catalog.jsonb_to_recordset($3::jsonb)
+                 expected(signature text, configuration text[])
            left join pg_catalog.pg_proc p
              on p.oid = pg_catalog.to_regprocedure(expected.signature)
            left join pg_catalog.pg_roles owner_role
@@ -2382,8 +3354,7 @@ export async function verifyDatabaseRoleBootstrapState(
                 p.prokind <> 'f'
              or owner_role.rolname is distinct from 'learncoding_owner'
              or p.prosecdef is distinct from true
-             or p.proconfig is distinct from
-                array['search_path=pg_catalog']::text[]
+             or p.proconfig is distinct from expected.configuration
           )
        ) routine_security_exact,
        (
@@ -2506,14 +3477,14 @@ export async function verifyDatabaseRoleBootstrapState(
     [
       postgresDatabase,
       JSON.stringify(
-        REVIEWED_APPLICATION_FUNCTIONS.flatMap(({ signature, allowedRoles }) =>
+        phaseRoutines.flatMap(({ signature, allowedRoles }) =>
           allowedRoles.map((allowedRole) => ({
             signature,
             allowed_role: allowedRole,
           })),
         ),
       ),
-      JSON.stringify(REVIEWED_SECURITY_DEFINER_FUNCTIONS),
+      JSON.stringify(phaseSecurityDefiners),
     ],
   );
   if (Object.values(privileges.rows[0] ?? {}).some((value) => value !== true)) {
@@ -2585,59 +3556,41 @@ export async function verifyDatabaseRoleBootstrapState(
     throw databaseRoleBootstrapInvariantError("direct-acls");
   }
 
+  const defaultAclSchemaState = await client.query(
+    `select to_regnamespace('drizzle') is not null drizzle_exists`,
+  );
+  if (
+    defaultAclSchemaState.rows.length !== 1 ||
+    typeof defaultAclSchemaState.rows[0]?.drizzle_exists !== "boolean"
+  ) {
+    throw databaseRoleBootstrapInvariantError("default-acl-schema-state");
+  }
   const defaultAcls = await client.query(
     `
-    select coalesce(n.nspname, '*') schema,
+    select case when a.defaclnamespace = 0 then '<global>'
+                else n.nspname end schema,
            pg_get_userbyid(a.defaclrole) owner,
-           case when privilege.grantee = 0 then 'PUBLIC'
+           case when privilege.grantor is null then null
+                else pg_get_userbyid(privilege.grantor) end grantor,
+           case when privilege.grantee is null then null
+                when privilege.grantee = 0 then 'PUBLIC'
                 else pg_get_userbyid(privilege.grantee) end grantee,
+           privilege.grantee grantee_oid,
+           case when privilege.grantee is null then null
+                else privilege.grantee = 0 end is_public,
            a.defaclobjtype::text kind,
            privilege.privilege_type,
            privilege.is_grantable
       from pg_default_acl a
       left join pg_namespace n on n.oid = a.defaclnamespace
-      cross join lateral aclexplode(a.defaclacl) privilege
-     where pg_get_userbyid(a.defaclrole) in ($1, 'learncoding_owner')
-     order by 1, 2, 3, 4, 5, 6`,
-    [postgresUser],
+      left join lateral aclexplode(a.defaclacl) privilege on true
+     order by 1, 2, 3, 4, 5, 6, 7`,
   );
-  const expectedPrivileges = {
-    r: new Set(["DELETE", "INSERT", "SELECT", "UPDATE"]),
-    S: new Set(["SELECT", "UPDATE", "USAGE"]),
-    T: new Set(["USAGE"]),
-  };
-  const expectedDefaultPrivilegeKeys = new Set(
-    [APP_ROLE, WORKER_ROLE, OPS_ROLE].flatMap((grantee) =>
-      Object.entries(expectedPrivileges).flatMap(([kind, privilegesForKind]) =>
-        [...privilegesForKind].map(
-          (privilege) =>
-            `${OWNER_ROLE}|public|${grantee}|${kind}|${privilege}|false`,
-        ),
-      ),
-    ),
-  );
-  const observedDefaultPrivilegeKeys = new Set();
-  let nonOwnerDefaultPrivilegeCount = 0;
-  for (const entry of defaultAcls.rows) {
-    if (entry.grantee === entry.owner) continue;
-    nonOwnerDefaultPrivilegeCount += 1;
-    const key = `${entry.owner}|${entry.schema}|${entry.grantee}|${entry.kind}|${entry.privilege_type}|${entry.is_grantable}`;
-    if (
-      !expectedDefaultPrivilegeKeys.has(key) ||
-      observedDefaultPrivilegeKeys.has(key)
-    ) {
-      throw databaseRoleBootstrapInvariantError("default-acls-unexpected", [
-        key,
-      ]);
-    }
-    observedDefaultPrivilegeKeys.add(key);
-  }
-  if (
-    nonOwnerDefaultPrivilegeCount !== expectedDefaultPrivilegeKeys.size ||
-    observedDefaultPrivilegeKeys.size !== expectedDefaultPrivilegeKeys.size
-  ) {
-    throw databaseRoleBootstrapInvariantError("default-acls-cardinality");
-  }
+  verifyDatabaseDefaultAclState({
+    postgresUser,
+    drizzleExists: defaultAclSchemaState.rows[0].drizzle_exists,
+    entries: defaultAcls.rows,
+  });
 
   const remainingSessions = await client.query(
     `select count(*)::integer count from pg_stat_activity
@@ -2797,6 +3750,9 @@ export async function runDatabaseRoleBootstrap(options) {
 
   try {
     client = await pool.connect();
+    await client.query(
+      "select pg_catalog.set_config('search_path', 'pg_catalog,pg_temp', false) trusted_search_path",
+    );
     const identity = await client.query(
       `select current_user, current_database(), rolsuper
          from pg_roles
@@ -2824,8 +3780,13 @@ export async function runDatabaseRoleBootstrap(options) {
       options.postgresDatabase,
     );
     validateOwnershipInventory(inventory);
-    await verifyPostMigrationReviewedContractsBeforeReconciliation(client);
-    await verifyBackupStatusAuthorityBeforeRepair(client);
+
+    let reviewedPhase = await resolveReviewedMailAuthorityCatalogPhase(client);
+    await verifyPostMigrationReviewedContractsBeforeReconciliation(
+      client,
+      reviewedPhase,
+    );
+    await verifyBackupStatusAuthorityBeforeRepair(client, reviewedPhase);
     await createAndResetRoles(client);
     const rolePasswords = {
       [MIGRATOR_ROLE]: parsed.migrator,
@@ -2835,25 +3796,64 @@ export async function runDatabaseRoleBootstrap(options) {
       [BACKUP_REPORTER_ROLE]: parsed.backupReporter,
     };
     await rotatePasswords(client, rolePasswords);
-    await transferApplicationOwnership(client);
-    await reconcileDatabaseRolePrivileges(client);
+    await transferApplicationOwnership(client, reviewedPhase);
+    await reconcileDatabaseRolePrivileges(client, reviewedPhase);
+    await verifyPostMigrationReviewedContractsBeforeReconciliation(
+      client,
+      reviewedPhase,
+    );
+    await verifyBackupStatusAuthorityAfterRepair(client, reviewedPhase);
     await verifyDatabaseRoleBootstrapState(
       client,
       options.postgresDatabase,
       options.postgresUser,
+      reviewedPhase,
     );
-    if (options.beforeCommit) await options.beforeCommit(client);
-    await verifyBackupStatusAuthorityAfterRepair(client);
+
+    if (options.beforeCommit) {
+      await options.beforeCommit(client);
+      reviewedPhase = await resolveReviewedMailAuthorityCatalogPhase(client);
+      await verifyPostMigrationReviewedContractsBeforeReconciliation(
+        client,
+        reviewedPhase,
+      );
+      await verifyBackupStatusAuthorityAfterRepair(client, reviewedPhase);
+      await verifyDatabaseRoleBootstrapState(
+        client,
+        options.postgresDatabase,
+        options.postgresUser,
+        reviewedPhase,
+      );
+    }
+
+    const preCommitPhase =
+      await resolveReviewedMailAuthorityCatalogPhase(client);
+    if (preCommitPhase !== reviewedPhase) {
+      throw databaseRoleBootstrapInvariantError(
+        "reviewed-pre-commit-phase-drift",
+      );
+    }
+    await verifyPostMigrationReviewedContractsBeforeReconciliation(
+      client,
+      preCommitPhase,
+    );
+    await verifyBackupStatusAuthorityAfterRepair(client, preCommitPhase);
     await client.query("commit");
     transactionOpen = false;
 
-    await verifyBackupStatusAuthorityAfterRepair(client);
+    const committedPhase =
+      await resolveReviewedMailAuthorityCatalogPhase(client);
+    await verifyPostMigrationReviewedContractsBeforeReconciliation(
+      client,
+      committedPhase,
+    );
+    await verifyBackupStatusAuthorityAfterRepair(client, committedPhase);
     return await verifyDatabaseRoleBootstrapState(
       client,
       options.postgresDatabase,
       options.postgresUser,
-    );
-  } catch (error) {
+      committedPhase,
+    );  } catch (error) {
     destroyClient = true;
     throw error;
   } finally {

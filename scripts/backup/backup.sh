@@ -235,6 +235,10 @@ secure_directory "$BACKUP_STAGE_ROOT" 0700 || die "backup staging root is unsafe
 secure_ephemeral_parent "$BACKUP_EPHEMERAL_ROOT" || die "ephemeral-key root is unsafe"
 acquire_backup_lock
 
+backup_run_key="$(python3 -I -c 'import uuid; print(uuid.uuid4())')" \
+  || die "backup run identity generation failed"
+_valid_canonical_uuid_v4 "$backup_run_key" \
+  || die "backup run identity generation returned an invalid UUID"
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 filename="learncoding-full-${timestamp}.tar.gz.age"
 final_archive="$full_dir/$filename"
@@ -448,7 +452,7 @@ cleanup() {
 
   if ((original_status != 0)); then
     if ((marker_committed == 0)); then
-      if ! enqueue_backup_status failure "$timestamp"; then
+      if ! enqueue_backup_status failure "$backup_run_key"; then
         emit_alert warning backup_report_not_queued \
           "backup failure status could not be queued; inspect protected operations logs"
       fi
@@ -1843,7 +1847,7 @@ run_deadline env BACKUP_LOCK_HELD=1 \
   bash "$SCRIPT_DIR/prune.sh"
 
 resume_captured
-if ! enqueue_backup_status success "$timestamp"; then
+if ! enqueue_backup_status success "$backup_run_key"; then
   emit_alert warning backup_report_not_queued \
     "backup success status could not be queued; inspect protected operations logs"
 fi

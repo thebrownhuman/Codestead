@@ -45,6 +45,7 @@ export function assertBackupStatusMailAuthority0065PostgresProjection(
   assertPostgresCiProjectionContract(
     postgresProjection,
     postgresCiProjectionThrough0065,
+    { allowReviewedSuffix: true },
   );
   const { registrationScript, pg17Command, pg18Command } =
     backupStatusMailAuthority0065CiContract;

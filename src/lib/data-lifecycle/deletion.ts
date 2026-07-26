@@ -10,6 +10,7 @@ import {
   deletionNoticeSecret,
   type AccountDeletionNoticeVariables,
 } from "@/lib/notifications/deletion-notice-capability";
+import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 import { lockUserAuthorityOnPgClient } from "@/lib/security/user-authority-lock";
 
 import {
@@ -25,9 +26,14 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3
 const DELETED_COMMUNITY_POST_TITLE = "Deleted post";
 const DELETED_COMMUNITY_BODY = "[deleted by account owner]";
 type AccountDeletionDependencies = Readonly<{
+  acquireClient?: () => Promise<PoolClient>;
   processFileErasures: typeof processFileErasures;
 }>;
-const defaultAccountDeletionDependencies: AccountDeletionDependencies = { processFileErasures };
+const acquireAccountDeletionClient = () => pool.connect();
+const defaultAccountDeletionDependencies: AccountDeletionDependencies = {
+  acquireClient: acquireAccountDeletionClient,
+  processFileErasures,
+};
 
 const DELETED_COMMUNITY_HASH = createHash("sha256")
   .update("learncoding:deleted-community-content:v1", "utf8")
@@ -268,8 +274,9 @@ async function authorizeAndClaim(input: {
   learnerId: string;
   requestId: string;
   now: Date;
-}) {
-  const client = await pool.connect();
+},
+acquireClient: () => Promise<PoolClient>) {
+  const client = await acquireClient();
   try {
     await client.query("begin");
     await lockUserAuthorityOnPgClient(client, input.learnerId);
@@ -440,11 +447,16 @@ export async function deleteLearnerAccount(input: {
   if (input.reason.trim().length < 8 || input.reason.length > 500) {
     throw new Error("A deletion reason from 8 to 500 characters is required.");
   }
-  const claim = await authorizeAndClaim({ ...input, now });
+  const acquireClient =
+    dependencies.acquireClient ?? acquireAccountDeletionClient;
+  const claim = await authorizeAndClaim(
+    { ...input, now },
+    acquireClient,
+  );
   if (claim.replay) return claim.replay;
   const root = input.objectStorageRoot ?? process.env.OBJECT_STORAGE_PATH ?? "./data/objects";
   try {
-    const client = await pool.connect();
+    const client = await acquireClient();
     try {
       await client.query("begin");
       await lockUserAuthorityOnPgClient(client, input.learnerId);
@@ -955,15 +967,17 @@ export async function deleteLearnerAccount(input: {
          values ($1, $2, $3, $4, $5, $6, $7, 'awaiting_retention_expiry', $8::jsonb)`,
         [tombstoneId, id, identityHash, RETENTION_POLICY_VERSION, input.actorUserId, now, backupRetentionUntil, JSON.stringify(report)],
       );
-      const mailKey = createHash("sha256")
-        .update(`account-deleted:${id}:${claim.runId}`)
-        .digest("hex");
+      const mailKey = accountMailEventIdempotencyKey({
+        eventId: claim.runId,
+        template: "account-deleted",
+        userId: id,
+      });
       const insertedNotice = await client.query<DeletionNoticeOutboxRow>(
         `insert into email_outbox
           (id, operation_id, user_id, delivery_scope_key, to_email, template,
-           template_version, variables, idempotency_key, status)
+           template_version, variables, idempotency_key, idempotency_authority_version, status)
          values ($1, $2, $3, 'a:' || $3, lower(btrim($4)), 'account-deleted',
-                 '1', $5::jsonb, $6, 'pending')
+                 '1', $5::jsonb, $6, 'event-v1-native', 'pending')
          on conflict (idempotency_key) do nothing
          returning id::text, operation_id::text, user_id, delivery_scope_key,
                    to_email, template, template_version, variables, idempotency_key`,

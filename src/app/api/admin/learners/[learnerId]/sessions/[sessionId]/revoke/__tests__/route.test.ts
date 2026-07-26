@@ -111,9 +111,10 @@ describe("administrator session revocation API", () => {
       resourceId: "session-1",
       outcome: "success",
     }));
-    expect(mocks.notifySessionRevoked).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mocks.notifySessionRevoked).toHaveBeenCalledWith({
       userId: "learner-1",
       device: "Chrome on Windows",
-    }));
+      idempotencySeed: "session-1",
+    });
   });
 });

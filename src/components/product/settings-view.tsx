@@ -191,7 +191,7 @@ export function SettingsView({ initialTab = "ai" }: { initialTab?: SettingsTab }
           headers: { "content-type": "application/json" },
           body: JSON.stringify(
             target
-              ? { action: "replace", secret: form.get("secret") }
+              ? { action: "replace", secret: form.get("secret"), requestId: crypto.randomUUID() }
               : { provider: form.get("provider"), label: form.get("label"), secret: form.get("secret"), preferred: form.get("preferred") === "on" },
           ),
         },
@@ -221,7 +221,7 @@ export function SettingsView({ initialTab = "ai" }: { initialTab?: SettingsTab }
     setError(null);
     try {
       if (!(await verifyMfa())) return;
-      const response = await fetch(`/api/credentials/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: value }) });
+      const response = await fetch(`/api/credentials/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: value, requestId: crypto.randomUUID() }) });
       const body = (await response.json().catch(() => ({}))) as { error?: string; code?: string };
       if (!response.ok) {
         if (body.code === "FRESH_MFA_REQUIRED") setMfaFresh(false);
@@ -245,7 +245,11 @@ export function SettingsView({ initialTab = "ai" }: { initialTab?: SettingsTab }
     setError(null);
     try {
       if (!(await verifyMfa())) return;
-      const response = await fetch(`/api/credentials/${target.id}`, { method: "DELETE" });
+      const response = await fetch(`/api/credentials/${target.id}`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ requestId: crypto.randomUUID() }),
+      });
       const body = (await response.json().catch(() => ({}))) as { error?: string; code?: string };
       if (!response.ok) {
         if (body.code === "FRESH_MFA_REQUIRED") setMfaFresh(false);

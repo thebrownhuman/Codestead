@@ -16,6 +16,7 @@ import {
 import { deleteLearnerAccount } from "@/lib/data-lifecycle/deletion";
 import { db, pool } from "@/lib/db/client";
 import { emailOutbox, user } from "@/lib/db/schema";
+import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 import {
   PostgresOutboxStore,
   type EmailOutboxPayload,
@@ -26,6 +27,7 @@ import type {
   OutboxClaim,
   ProviderCallPermit,
 } from "@/lib/notifications/outbox-worker";
+import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
 
 const ADMIN_ID = "mail-race-admin";
 const LEARNER_ID = "mail-race-learner";
@@ -71,6 +73,13 @@ const ZERO_ERASURE_SUMMARY = {
   complete: true,
 } as const;
 
+type DeletionCommitFault =
+  | "rollback-before-final-commit-ack"
+  | "final-commit-ack-lost";
+type DeletionReport = Awaited<ReturnType<typeof deleteLearnerAccount>>;
+type FaultInjectableDeletionDependencies =
+  NonNullable<Parameters<typeof deleteLearnerAccount>[1]>
+  & Readonly<{ acquireClient: () => Promise<PoolClient> }>;
 type QueryRows = Readonly<{
   rows: Record<string, unknown>[];
   rowCount?: number | null;
@@ -288,6 +297,65 @@ class InstrumentedPool implements OutboxPgPool {
   }
 }
 
+/**
+ * RED prerequisite: AccountDeletionDependencies must accept acquireClient and
+ * both authorizeAndClaim plus the erasure/finalizer client acquisition must use
+ * it. The extra structurally-compatible property is deliberately ignored by
+ * the current runtime, so the rollback/ACK-loss tests fail until that seam is
+ * implemented without monkey-patching the process-global pool.
+ */
+class FinalDeletionCommitFault {
+  private consumed = false;
+
+  constructor(private readonly fault: DeletionCommitFault) {}
+
+  get wasConsumed() {
+    return this.consumed;
+  }
+
+  async acquireClient(): Promise<PoolClient> {
+    const client = await pool.connect();
+    let finalCommitArmed = false;
+    return new Proxy(client, {
+      get: (target, property, receiver) => {
+        if (property === "query") {
+          return async (text: string, values: unknown[] = []) => {
+            const sql = normalizeSql(text);
+            if (sql.startsWith("insert into account_deletion_tombstone")) {
+              finalCommitArmed = true;
+            }
+            if (finalCommitArmed && sql === "commit" && !this.consumed) {
+              this.consumed = true;
+              if (this.fault === "rollback-before-final-commit-ack") {
+                await target.query("rollback");
+                throw new Error("forced account-deletion final commit rollback");
+              }
+              await target.query("commit");
+              throw new Error(
+                "forced account-deletion final commit acknowledgement loss",
+              );
+            }
+            return await target.query(text, values);
+          };
+        }
+        const value = Reflect.get(target, property, receiver) as unknown;
+        return typeof value === "function"
+          ? value.bind(target)
+          : value;
+      },
+    });
+  }
+}
+
+function faultInjectableDeletionDependencies(
+  fault: FinalDeletionCommitFault,
+): FaultInjectableDeletionDependencies {
+  return {
+    processFileErasures: async () => ZERO_ERASURE_SUMMARY,
+    acquireClient: () => fault.acquireClient(),
+  };
+}
+
 const liveOutboxPool: OutboxPgPool = {
   async connect() {
     return await pool.connect() as unknown as OutboxPgClient;
@@ -298,10 +366,43 @@ function store(outboxPool: OutboxPgPool = liveOutboxPool) {
   return new PostgresOutboxStore(outboxPool);
 }
 
+function requireDisposableDatabaseUrl(
+  name: "DATABASE_URL" | "DATABASE_OPS_URL",
+) {
+  const raw = process.env[name];
+  let parsed: URL;
+  try {
+    parsed = new URL(raw ?? "");
+  } catch {
+    throw new Error(`${name} must select the disposable integration database.`);
+  }
+  const port = Number(parsed.port);
+  if (
+    parsed.protocol !== "postgresql:"
+    || parsed.hostname !== "127.0.0.1"
+    || parsed.pathname !== "/learncoding_integration"
+    || !Number.isSafeInteger(port)
+    || port < 1
+    || port > 65_535
+    || port === 5_432
+  ) {
+    throw new Error(`${name} must select a non-5432 disposable loopback database.`);
+  }
+  return parsed;
+}
+
 function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (process.env.INTEGRATION_TEST !== "1" || !/\/learncoding_integration(?:\?|$)/.test(connectionString)) {
+  if (process.env.INTEGRATION_TEST !== "1") {
     throw new Error("Mail delivery race tests require the disposable learncoding_integration database.");
+  }
+  const application = requireDisposableDatabaseUrl("DATABASE_URL");
+  const operations = requireDisposableDatabaseUrl("DATABASE_OPS_URL");
+  if (
+    application.hostname !== operations.hostname
+    || application.port !== operations.port
+    || application.pathname !== operations.pathname
+  ) {
+    throw new Error("Mail delivery race roles must select one disposable database.");
   }
 }
 
@@ -313,13 +414,21 @@ async function truncateApplicationTables() {
   `);
   if (!result.rows.length) return;
   const names = result.rows
+    // 0067 intentionally makes this durable replay ledger append-only and
+    // non-truncatable. Every test uses unique event keys and asserts only its
+    // own key, so preserving prior authority is both required and safe.
+    .filter(({ table_name }) => table_name !== "email_outbox_idempotency_authority")
     .map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`)
     .join(", ");
   await pool.query(`truncate table ${names} restart identity cascade`);
 }
 
-async function waitForAdvisoryWaiters(blockerPid: number, expectedCount: number) {
-  const deadline = Date.now() + 3_000;
+async function waitForAdvisoryWaiters(
+  blockerPid: number,
+  expectedCount: number,
+  timeoutMs = 3_000,
+) {
+  const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const waiting = await pool.query<{ waiting: number }>(`
       select count(*)::int waiting
@@ -349,7 +458,12 @@ async function seedOutboxRows(kind: "pending" | "expired-pre-provider", count = 
       template: "credential-changed",
       templateVersion: "1",
       variables: { name: "Mail Race Learner" },
-      idempotencyKey: `mail-race:${kind}:${index}`,
+      idempotencyKey: accountMailEventIdempotencyKey({
+        eventId: `mail-race:${kind}:${index}`,
+        template: "credential-changed",
+        userId: LEARNER_ID,
+      }),
+      idempotencyAuthorityVersion: "event-v1-native",
       operationId: OPERATION_IDS[index]!,
       status: kind === "pending" ? "pending" as const : "sending" as const,
       attemptCount: kind === "pending" ? 0 : 1,
@@ -463,6 +577,200 @@ function zeroErasureDependencies(pause?: QueryPause) {
       return ZERO_ERASURE_SUMMARY;
     },
   };
+}
+
+function twoFinalizerDependencies(rendezvous: Rendezvous) {
+  return {
+    processFileErasures: async () => {
+      await rendezvous.arrive();
+      return ZERO_ERASURE_SUMMARY;
+    },
+  };
+}
+
+async function holdFinalizerUserAuthorityGate() {
+  const client = await pool.connect();
+  let released = false;
+  try {
+    const pid = (await client.query<{ pid: number }>(
+      "select pg_catalog.pg_backend_pid() as pid",
+    )).rows[0]!.pid;
+    await client.query(
+      `select pg_catalog.pg_advisory_lock(
+         pg_catalog.hashtext($1)::pg_catalog.int8
+       )`,
+      [userAuthorityLockKey(LEARNER_ID)],
+    );
+    return {
+      pid,
+      release: async () => {
+        if (released) return;
+        released = true;
+        try {
+          const result = await client.query<{ unlocked: boolean }>(
+            `select pg_catalog.pg_advisory_unlock(
+               pg_catalog.hashtext($1)::pg_catalog.int8
+             ) as unlocked`,
+            [userAuthorityLockKey(LEARNER_ID)],
+          );
+          expect(result.rows[0]?.unlocked).toBe(true);
+        } finally {
+          client.release();
+        }
+      },
+    };
+  } catch (error) {
+    client.release();
+    throw error;
+  }
+}
+
+async function runDeletionFinalizerRace(
+  requestIds: readonly [string, string],
+) {
+  const finalizers = new Rendezvous(2);
+  const dependencies = twoFinalizerDependencies(finalizers);
+  const attempts = requestIds.map((requestId) =>
+    deleteLearnerAccount(
+      deletionInput(objectStorageRoot, requestId),
+      dependencies,
+    ));
+  const outcomes = Promise.allSettled(attempts);
+  let blocker: Awaited<ReturnType<typeof holdFinalizerUserAuthorityGate>> | null =
+    null;
+  try {
+    await within(
+      finalizers.full,
+      "both account-deletion finalizers at the post-checkpoint gate",
+      10_000,
+    );
+    blocker = await holdFinalizerUserAuthorityGate();
+    finalizers.open();
+    await waitForAdvisoryWaiters(blocker.pid, 2, 10_000);
+    await blocker.release();
+    return await within(outcomes, "both account-deletion finalizers", 10_000);
+  } finally {
+    finalizers.open();
+    await blocker?.release();
+    await within(outcomes, "account-deletion finalizer cleanup", 10_000)
+      .catch(() => undefined);
+  }
+}
+
+function requireSingleSuccessfulFinalizer(
+  outcomes: readonly PromiseSettledResult<DeletionReport>[],
+) {
+  const successful = outcomes.filter(
+    (outcome): outcome is PromiseFulfilledResult<DeletionReport> =>
+      outcome.status === "fulfilled",
+  );
+  const rejected = outcomes.filter(
+    (outcome): outcome is PromiseRejectedResult =>
+      outcome.status === "rejected",
+  );
+  expect(successful).toHaveLength(1);
+  expect(rejected).toHaveLength(1);
+  expect(rejected[0]?.reason).toMatchObject({ code: "LEARNER_NOT_FOUND" });
+  return successful[0]!.value;
+}
+
+async function deletionPersistenceState(report: DeletionReport) {
+  if (!report.deletionNotice) {
+    throw new Error("Account deletion report omitted its notice binding.");
+  }
+  const eventKey = accountMailEventIdempotencyKey({
+    eventId: report.runId,
+    template: "account-deleted",
+    userId: LEARNER_ID,
+  });
+  const [notices, tombstones, runs, authorities] = await Promise.all([
+    pool.query<{
+      id: string;
+      operation_id: string;
+      run_id: string;
+      tombstone_id: string;
+      idempotency_key: string;
+    }>(
+      `select id::text, operation_id::text,
+              variables ->> 'deletionRunId' as run_id,
+              variables ->> 'tombstoneId' as tombstone_id,
+              idempotency_key
+         from email_outbox
+        where template = 'account-deleted' and user_id = $1
+        order by id`,
+      [LEARNER_ID],
+    ),
+    pool.query<{
+      id: string;
+      run_id: string;
+      outbox_id: string | null;
+    }>(
+      `select id::text, report ->> 'runId' as run_id,
+              report -> 'deletionNotice' ->> 'outboxId' as outbox_id
+         from account_deletion_tombstone
+        where user_id = $1
+        order by id`,
+      [LEARNER_ID],
+    ),
+    pool.query<{
+      id: string;
+      status: string;
+      idempotency_key: string;
+      error_code: string | null;
+    }>(
+      `select id::text, status, idempotency_key, error_code
+         from data_lifecycle_run
+        where operation = 'account_deletion' and target_user_id = $1
+        order by idempotency_key`,
+      [LEARNER_ID],
+    ),
+    pool.query<{
+      idempotency_sha256: string;
+      original_payload_sha256: string;
+    }>(
+      `select idempotency_sha256, original_payload_sha256
+         from email_outbox_idempotency_authority
+        where idempotency_sha256 = $1`,
+      [eventKey],
+    ),
+  ]);
+  return {
+    eventKey,
+    notices: notices.rows,
+    tombstones: tombstones.rows,
+    runs: runs.rows,
+    authorities: authorities.rows,
+  };
+}
+
+function expectSingleDurableDeletionNotice(
+  report: DeletionReport,
+  state: Awaited<ReturnType<typeof deletionPersistenceState>>,
+  expectedOutboxCount = 1,
+) {
+  if (!report.deletionNotice) {
+    throw new Error("Account deletion report omitted its notice binding.");
+  }
+  expect(state.tombstones).toEqual([{
+    id: report.tombstoneId,
+    run_id: report.runId,
+    outbox_id: report.deletionNotice.outboxId,
+  }]);
+  expect(state.notices).toHaveLength(expectedOutboxCount);
+  if (expectedOutboxCount === 1) {
+    expect(state.notices[0]).toEqual({
+      id: report.deletionNotice.outboxId,
+      operation_id: report.deletionNotice.operationId,
+      run_id: report.runId,
+      tombstone_id: report.tombstoneId,
+      idempotency_key: state.eventKey,
+    });
+  }
+  expect(state.authorities).toHaveLength(1);
+  expect(state.authorities[0]).toEqual({
+    idempotency_sha256: state.eventKey,
+    original_payload_sha256: expect.stringMatching(/^[0-9a-f]{64}$/u),
+  });
 }
 
 const previousDeletionKey = process.env.DELETION_TOMBSTONE_KEY;
@@ -945,5 +1253,140 @@ describe("real PostgreSQL mail delivery races", () => {
     const noticeClaim = await requireClaim(CLAIM_TOKENS[1], "deletion-notice-worker");
     expect(noticeClaim.id).toBe(notices[0]!.id);
     await expect(store().beginProviderCall(noticeClaim, PROVIDER_BOUNDARY_INPUT)).resolves.toMatchObject({ kind: "applied" });
+  });
+
+  it("commits one notice when two same-request finalizers queue on the user-authority lock", async () => {
+    const requestId = "95000000-0000-4000-8000-000000000020";
+    const report = requireSingleSuccessfulFinalizer(
+      await runDeletionFinalizerRace([requestId, requestId]),
+    );
+    const state = await deletionPersistenceState(report);
+
+    expectSingleDurableDeletionNotice(report, state);
+    expect(state.runs).toEqual([{
+      id: report.runId,
+      status: "succeeded",
+      idempotency_key: `account-deletion:${LEARNER_ID}:${requestId}`,
+      error_code: null,
+    }]);
+  });
+
+  it("commits one notice but records the losing distinct request as a failed lifecycle run", async () => {
+    const requestIds = [
+      "95000000-0000-4000-8000-000000000021",
+      "95000000-0000-4000-8000-000000000022",
+    ] as const;
+    const report = requireSingleSuccessfulFinalizer(
+      await runDeletionFinalizerRace(requestIds),
+    );
+    const state = await deletionPersistenceState(report);
+
+    expectSingleDurableDeletionNotice(report, state);
+    expect(state.runs).toHaveLength(2);
+    expect(state.runs.map((run) => run.idempotency_key).sort()).toEqual(
+      requestIds
+        .map((requestId) => `account-deletion:${LEARNER_ID}:${requestId}`)
+        .sort(),
+    );
+    expect(state.runs.filter((run) => run.status === "succeeded")).toEqual([
+      expect.objectContaining({
+        id: report.runId,
+        error_code: null,
+      }),
+    ]);
+    expect(state.runs.filter((run) => run.status === "failed")).toEqual([
+      expect.objectContaining({
+        error_code: "LEARNER_NOT_FOUND",
+      }),
+    ]);
+  });
+
+  it("rolls the final transaction back and lets the same request retry to one notice", async () => {
+    const requestId = "95000000-0000-4000-8000-000000000023";
+    const fault = new FinalDeletionCommitFault(
+      "rollback-before-final-commit-ack",
+    );
+
+    await expect(deleteLearnerAccount(
+      deletionInput(objectStorageRoot, requestId),
+      faultInjectableDeletionDependencies(fault),
+    )).rejects.toThrow("forced account-deletion final commit rollback");
+    expect(fault.wasConsumed).toBe(true);
+
+    const [failedRun] = (await pool.query<{
+      id: string;
+      status: string;
+      error_code: string | null;
+    }>(
+      `select id::text, status, error_code
+         from data_lifecycle_run
+        where operation = 'account_deletion' and target_user_id = $1`,
+      [LEARNER_ID],
+    )).rows;
+    expect(failedRun).toMatchObject({
+      status: "failed",
+      error_code: "ACCOUNT_DELETION_FAILED",
+    });
+    const failedEventKey = accountMailEventIdempotencyKey({
+      eventId: failedRun!.id,
+      template: "account-deleted",
+      userId: LEARNER_ID,
+    });
+    expect((await pool.query(
+      `select id from account_deletion_tombstone where user_id = $1`,
+      [LEARNER_ID],
+    )).rows).toHaveLength(0);
+    expect((await pool.query(
+      `select id from email_outbox
+        where template = 'account-deleted' and user_id = $1`,
+      [LEARNER_ID],
+    )).rows).toHaveLength(0);
+    expect((await pool.query(
+      `select idempotency_sha256 from email_outbox_idempotency_authority
+        where idempotency_sha256 = $1`,
+      [failedEventKey],
+    )).rows).toHaveLength(0);
+
+    const retry = await deleteLearnerAccount(
+      deletionInput(objectStorageRoot, requestId),
+      zeroErasureDependencies(),
+    );
+    expect(retry.runId).toBe(failedRun!.id);
+    expect(retry.replayed).toBe(false);
+    const state = await deletionPersistenceState(retry);
+    expectSingleDurableDeletionNotice(retry, state);
+    expect(state.runs).toEqual([{
+      id: retry.runId,
+      status: "succeeded",
+      idempotency_key: `account-deletion:${LEARNER_ID}:${requestId}`,
+      error_code: null,
+    }]);
+  });
+
+  it("replays the committed tombstone after final-commit acknowledgement loss without another notice", async () => {
+    const requestId = "95000000-0000-4000-8000-000000000024";
+    const fault = new FinalDeletionCommitFault("final-commit-ack-lost");
+
+    await expect(deleteLearnerAccount(
+      deletionInput(objectStorageRoot, requestId),
+      faultInjectableDeletionDependencies(fault),
+    )).rejects.toThrow(
+      "forced account-deletion final commit acknowledgement loss",
+    );
+    expect(fault.wasConsumed).toBe(true);
+
+    const replay = await deleteLearnerAccount(
+      deletionInput(objectStorageRoot, requestId),
+      zeroErasureDependencies(),
+    );
+    expect(replay.replayed).toBe(true);
+    const state = await deletionPersistenceState(replay);
+    expectSingleDurableDeletionNotice(replay, state);
+    expect(state.runs).toEqual([{
+      id: replay.runId,
+      status: "succeeded",
+      idempotency_key: `account-deletion:${LEARNER_ID}:${requestId}`,
+      error_code: null,
+    }]);
   });
 });

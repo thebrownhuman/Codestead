@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 
 import { validateProviderCredential } from "@/lib/ai/credential-validation";
@@ -10,6 +10,7 @@ import {
   providerCredential,
   user,
 } from "@/lib/db/schema";
+import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 import { consentPurposeForProvider, hasCurrentConsent } from "@/lib/privacy/consent";
 import {
   writeAuditEventInTransaction,
@@ -29,6 +30,7 @@ export type AdminCredentialOperation = Readonly<{
   learnerPublicId: string;
   credentialId: string;
   action: AdminCredentialAction;
+  requestId: string;
   reason: string;
   replacementSecret?: string;
 }>;
@@ -106,16 +108,6 @@ type CredentialTarget = Pick<
 
 function appUrl() {
   return process.env.APP_URL ?? "http://localhost:3000";
-}
-
-function outboxIdempotencyKey(input: {
-  template: string;
-  to: string;
-  seed: string;
-}) {
-  return createHash("sha256")
-    .update(`${input.template}:${input.to.toLowerCase()}:${input.seed}`)
-    .digest("hex");
 }
 
 function assertOperationInput(input: AdminCredentialOperation) {
@@ -279,10 +271,11 @@ async function appendCredentialNotice(
   tx: AuditTransaction,
   target: CredentialTarget,
   input: {
+    action: AdminCredentialAction;
     actionText: string;
     title: string;
     summary: string;
-    correlationId: string;
+    requestId: string;
     stage: "requested" | "completed";
   },
 ) {
@@ -308,11 +301,12 @@ async function appendCredentialNotice(
         action: input.actionText,
         url: `${appUrl()}/settings?section=ai`,
       },
-      idempotencyKey: outboxIdempotencyKey({
+      idempotencyKey: accountMailEventIdempotencyKey({
+        eventId: `${target.id}:${input.action}:${input.requestId}:${input.stage}`,
         template: "credential-changed",
-        to: target.ownerEmail,
-        seed: `${target.id}:${input.correlationId}:${input.stage}`,
+        userId: target.userId,
       }),
+      idempotencyAuthorityVersion: "event-v1-native",
     })
     .onConflictDoNothing({ target: emailOutbox.idempotencyKey });
 }
@@ -342,10 +336,11 @@ async function recordValidationIntent(
       metadata: { provider: locked.provider, priorLastFour: locked.lastFour },
     });
     await appendCredentialNotice(tx, locked, {
+      action: input.action,
       actionText,
       title: "Administrator credential check started",
       summary: `An administrator started ${input.action === "test" ? "testing" : "replacement validation for"} your ${locked.provider.replaceAll("_", " ")} credential after fresh MFA.`,
-      correlationId,
+      requestId: input.requestId,
       stage: "requested",
     });
   });
@@ -472,10 +467,11 @@ export async function performAdminCredentialOperation(
     });
 
     await appendCredentialNotice(tx, locked, {
+      action: input.action,
       actionText: actionLabel[input.action],
       title: "AI provider credential changed",
       summary: `Your ${locked.provider.replaceAll("_", " ")} credential was ${actionLabel[input.action]}.`,
-      correlationId: audit.correlationId,
+      requestId: input.requestId,
       stage: "completed",
     });
 

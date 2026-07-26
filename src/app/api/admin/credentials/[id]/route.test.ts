@@ -136,7 +136,7 @@ describe("administrator credential mutation boundary", () => {
           learnerId,
           reason,
           action,
-          ...(action === "test" || action === "replace" ? { requestId } : {}),
+          requestId,
           ...(action === "replace" ? { secret: replacementSecret } : {}),
         }),
         context(),
@@ -144,7 +144,7 @@ describe("administrator credential mutation boundary", () => {
       expect(response.status).toBe(403);
     }
     mocks.authorizePrivilegedAction.mockReturnValueOnce({ allowed: false, code: "FRESH_MFA_REQUIRED" });
-    expect((await DELETE(deleteRequest({ learnerId, reason }), context())).status).toBe(403);
+    expect((await DELETE(deleteRequest({ learnerId, reason, requestId }), context())).status).toBe(403);
     expect(mocks.performAdminCredentialOperation).not.toHaveBeenCalled();
     expect(mocks.authorizePrivilegedAction.mock.calls.map((call) => call[0].action)).toEqual([
       "credential.test",
@@ -172,6 +172,7 @@ describe("administrator credential mutation boundary", () => {
       learnerPublicId: learnerId,
       credentialId,
       action: "replace",
+      requestId,
       reason,
       replacementSecret,
     });
@@ -203,7 +204,7 @@ describe("administrator credential mutation boundary", () => {
   });
 
   it("routes delete through the same owner-bound service and returns no-store metadata only", async () => {
-    const response = await DELETE(deleteRequest({ learnerId, reason }), context());
+    const response = await DELETE(deleteRequest({ learnerId, reason, requestId }), context());
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toContain("no-store");
     expect(await response.json()).toMatchObject({ ok: true, action: "delete", status: "deleted" });
@@ -212,6 +213,7 @@ describe("administrator credential mutation boundary", () => {
       learnerPublicId: learnerId,
       credentialId,
       action: "delete",
+      requestId,
       reason,
     });
   });

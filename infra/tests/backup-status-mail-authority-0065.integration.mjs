@@ -20,6 +20,7 @@ import {
   verifyBackupStatusMailAuthorityObjects,
 } from "../../scripts/verify-backup-status-mail-authority.mjs";
 import {
+  REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES,
   reconcileBackupStatusAuthorityPrivileges,
   verifyBackupStatusAuthorityAfterRepair,
   verifyBackupStatusAuthorityBeforeRepair,
@@ -30,6 +31,10 @@ import { allocateDisposableLoopbackPort } from
 const { Client } = pg;
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(testDirectory, "../..");
+const REVIEWED_PHASE_0065 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
+  ({ index }) => index === 65,
+);
+assert.ok(REVIEWED_PHASE_0065, "reviewed phase 0065 must be registered");
 const executableSuffix = process.platform === "win32" ? ".exe" : "";
 function resolvePostgresRuntime(environment) {
   const canonical = [
@@ -451,7 +456,7 @@ async function main() {
     }
 
     assert.equal(
-      await verifyBackupStatusAuthorityBeforeRepair(admin),
+      await verifyBackupStatusAuthorityBeforeRepair(admin, REVIEWED_PHASE_0065),
       true,
       "a freshly migrated authority must pass the pre-repair boundary",
     );
@@ -604,17 +609,17 @@ async function main() {
         TO learncoding_migrator
     `);
     await assert.rejects(
-      verifyBackupStatusAuthorityBeforeRepair(admin),
+      verifyBackupStatusAuthorityBeforeRepair(admin, REVIEWED_PHASE_0065),
       /backup-status-authority-pre-repair/u,
       "pre-repair verification must expose privilege drift",
     );
     assert.equal(
-      await reconcileBackupStatusAuthorityPrivileges(admin),
+      await reconcileBackupStatusAuthorityPrivileges(admin, REVIEWED_PHASE_0065),
       true,
       "the focused reconciler must detect both authority relations",
     );
     assert.equal(
-      await verifyBackupStatusAuthorityAfterRepair(admin),
+      await verifyBackupStatusAuthorityAfterRepair(admin, REVIEWED_PHASE_0065),
       true,
       "post-repair verification must prove the exact authority contract",
     );
@@ -630,6 +635,7 @@ async function main() {
       verifyBackupStatusMailAuthorityObjects(
         admin,
         restrictedAuthorityRoles,
+        REVIEWED_PHASE_0065.backupStatusAuthority,
       );
     assert.equal(
       await verifyExactAuthority(),

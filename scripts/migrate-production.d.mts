@@ -52,6 +52,7 @@ export interface ProductionMigrationOptions {
   ) => Promise<AppliedMigrationLedgerSummary>;
   requiredPostgresMajor?: 17;
   lockOptions?: MigrationLockOptions;
+  operationTimeoutMs?: number;
   cleanupTimeoutMs?: number;
   unlockTimeoutMs?: number;
 }

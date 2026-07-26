@@ -4,13 +4,13 @@ import { acquireMigrationLock, runProductionMigration } from "../migrate-product
 
 vi.mock("../lib/reviewed-migration-ledger.mjs", () => ({
   verifyReviewedMigrationRepository: vi.fn(() => ({
-    entryCount: 65,
+    entryCount: 68,
     ledgerSha256: "a".repeat(64),
-    tailIndex: 64,
-    tailTag: "0064_mail_outbox_dispatch_binding",
+    tailIndex: 67,
+    tailTag: "0067_mail_outbox_durable_replay_authority",
   })),
   verifyAppliedMigrationLedger: vi.fn(async () => ({
-    appliedCount: 65,
+    appliedCount: 68,
     complete: true,
     ledgerSha256: "a".repeat(64),
   })),
@@ -55,13 +55,13 @@ it("verifies the reviewed repository and applied ledger around the migration bou
   const migrate = vi.fn(async () => undefined);
   const migrationsFolder = "/reviewed/drizzle";
   const verifyReviewedMigrationRepository = vi.fn(() => ({
-    entryCount: 65,
+    entryCount: 68,
     ledgerSha256: "a".repeat(64),
-    tailIndex: 64,
-    tailTag: "0064_mail_outbox_dispatch_binding",
+    tailIndex: 67,
+    tailTag: "0067_mail_outbox_durable_replay_authority",
   }));
   const verifyAppliedMigrationLedger = vi.fn(async () => ({
-    appliedCount: 65,
+    appliedCount: 68,
     complete: true,
     ledgerSha256: "a".repeat(64),
   }));
@@ -517,6 +517,104 @@ describe("production migration", () => {
     expect(migrate).not.toHaveBeenCalled();
   });
 
+  it("destroys the active session when migration exceeds its operation deadline", async () => {
+    const client = {
+      query: roleAwareQuery(),
+      release: vi.fn(),
+    };
+    const pool = {
+      connect: vi.fn(async () => client),
+      end: vi.fn(async () => undefined),
+    };
+    const migrate = vi.fn(() => new Promise<never>(() => undefined));
+    const migration = runProductionMigration({
+      connectionString: "postgresql://test",
+      pool,
+      migrate,
+      drizzle: vi.fn(() => ({})),
+      operationTimeoutMs: 10,
+      cleanupTimeoutMs: 10,
+    });
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    const outcome = await Promise.race([
+      migration.then(
+        () => "resolved",
+        (error: unknown) => (error instanceof Error ? error.name : "unknown"),
+      ),
+      new Promise<string>((resolve) => {
+        watchdog = setTimeout(() => resolve("still pending"), 100);
+      }),
+    ]);
+    if (watchdog) clearTimeout(watchdog);
+
+    expect(outcome).toBe("MigrationOperationTimeoutError");
+    expect(migrate).toHaveBeenCalledOnce();
+    expect(client.release).toHaveBeenCalledWith(true);
+    expect(pool.end).toHaveBeenCalledOnce();
+    const statements = client.query.mock.calls.map(([sql]) => String(sql));
+    expect(statements.some((sql) => sql.includes("RESET ROLE"))).toBe(false);
+    expect(
+      statements.some((sql) => sql.includes("pg_advisory_unlock")),
+    ).toBe(false);
+    expect(migrate.mock.invocationCallOrder[0]).toBeLessThan(
+      client.release.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(client.release.mock.invocationCallOrder[0]).toBeLessThan(
+      pool.end.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("keeps migration timeout primary when forced release and pool shutdown fail", async () => {
+    const releaseError = new Error("forced release failed");
+    const shutdownError = new Error("pool shutdown failed");
+    const client = {
+      query: roleAwareQuery(),
+      release: vi.fn(() => {
+        throw releaseError;
+      }),
+    };
+    const pool = {
+      connect: vi.fn(async () => client),
+      end: vi.fn(async () => {
+        throw shutdownError;
+      }),
+    };
+    const migration = runProductionMigration({
+      connectionString: "postgresql://test",
+      pool,
+      migrate: vi.fn(() => new Promise<never>(() => undefined)),
+      drizzle: vi.fn(() => ({})),
+      operationTimeoutMs: 10,
+      cleanupTimeoutMs: 10,
+    });
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    const outcome = await Promise.race([
+      migration.then(
+        () => undefined,
+        (error: unknown) => error,
+      ),
+      new Promise<string>((resolve) => {
+        watchdog = setTimeout(() => resolve("still pending"), 100);
+      }),
+    ]);
+    if (watchdog) clearTimeout(watchdog);
+
+    expect(outcome).toBeInstanceOf(Error);
+    expect(outcome).toMatchObject({
+      name: "MigrationOperationTimeoutError",
+    });
+    const cause = (
+      outcome as Error & { cause?: unknown }
+    ).cause;
+    expect(cause).toBeInstanceOf(AggregateError);
+    expect((cause as AggregateError).errors).toEqual([
+      releaseError,
+      shutdownError,
+    ]);
+    expect(client.release).toHaveBeenCalledWith(true);
+    expect(pool.end).toHaveBeenCalledOnce();
+  });
+
   it("unlocks and closes resources after migration failure", async () => {
     const client = {
       query: roleAwareQuery(),
@@ -833,5 +931,279 @@ describe("production migration", () => {
     expect(outcome).toBe("MigrationCleanupTimeoutError");
     expect(client.release).toHaveBeenCalledOnce();
     expect(pool.end).toHaveBeenCalledOnce();
+  });
+
+  it("bounds pool checkout inside the production migration operation deadline", async () => {
+    const migrate = vi.fn(async () => undefined);
+    const pool = {
+      connect: vi.fn(() => new Promise<never>(() => undefined)),
+      end: vi.fn(async () => undefined),
+    };
+    const startedAt = performance.now();
+    const migration = runProductionMigration({
+      connectionString: "postgresql://test",
+      pool,
+      migrate,
+      drizzle: vi.fn(() => ({})),
+      operationTimeoutMs: 25,
+      cleanupTimeoutMs: 40,
+    });
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    const outcome = await Promise.race([
+      migration.then(
+        () => undefined,
+        (error: unknown) => error,
+      ),
+      new Promise<string>((resolve) => {
+        watchdog = setTimeout(() => resolve("checkout watchdog expired"), 200);
+      }),
+    ]);
+    if (watchdog) clearTimeout(watchdog);
+
+    expect(outcome).toBeInstanceOf(AggregateError);
+    const aggregate = outcome as AggregateError;
+    expect(aggregate.cause).toMatchObject({
+      name: "MigrationOperationTimeoutError",
+      message: "Timed out during the checked-out production migration operation",
+    });
+    expect(aggregate.errors[0]).toBe(aggregate.cause);
+    expect(aggregate.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "MigrationCleanupTimeoutError" }),
+      ]),
+    );
+    expect(performance.now() - startedAt).toBeLessThan(150);
+    expect(pool.connect).toHaveBeenCalledOnce();
+    expect(pool.end).toHaveBeenCalledOnce();
+    expect(migrate).not.toHaveBeenCalled();
+  });
+
+  it("destroys a checkout that resolves after the operation deadline", async () => {
+    const client = {
+      query: vi.fn(),
+      release: vi.fn(),
+    };
+    let resolveCheckout: ((value: typeof client) => void) | undefined;
+    const pool = {
+      connect: vi.fn(() => new Promise<typeof client>((resolve) => {
+        resolveCheckout = resolve;
+      })),
+      end: vi.fn(async () => undefined),
+    };
+    const migrate = vi.fn(async () => undefined);
+
+    const failure = await runProductionMigration({
+      connectionString: "postgresql://test",
+      pool,
+      migrate,
+      drizzle: vi.fn(() => ({})),
+      operationTimeoutMs: 25,
+      cleanupTimeoutMs: 40,
+    }).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(failure).toBeInstanceOf(AggregateError);
+    const aggregate = failure as AggregateError;
+    expect(aggregate.cause).toMatchObject({
+      name: "MigrationOperationTimeoutError",
+    });
+    expect(aggregate.errors[0]).toBe(aggregate.cause);
+    expect(aggregate.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "MigrationCleanupTimeoutError" }),
+      ]),
+    );
+    expect(resolveCheckout).toBeTypeOf("function");
+    resolveCheckout?.(client);
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+
+    expect(client.release).toHaveBeenCalledOnce();
+    expect(client.release).toHaveBeenCalledWith(true);
+    expect(client.query).not.toHaveBeenCalled();
+    expect(migrate).not.toHaveBeenCalled();
+    expect(pool.end).toHaveBeenCalledOnce();
+  });
+
+  it("preserves a late checkout release failure with the timeout primary", async () => {
+    const releaseError = new Error("late checkout forced release failed");
+    const client = {
+      query: vi.fn(),
+      release: vi.fn(() => {
+        throw releaseError;
+      }),
+    };
+    let resolveCheckout: ((value: typeof client) => void) | undefined;
+    const pool = {
+      connect: vi.fn(() => new Promise<typeof client>((resolve) => {
+        resolveCheckout = resolve;
+      })),
+      end: vi.fn(async () => undefined),
+    };
+    const migrate = vi.fn(async () => undefined);
+    setTimeout(() => resolveCheckout?.(client), 40);
+
+    const failure = await runProductionMigration({
+      connectionString: "postgresql://test",
+      pool,
+      migrate,
+      drizzle: vi.fn(() => ({})),
+      operationTimeoutMs: 25,
+      cleanupTimeoutMs: 100,
+    }).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(failure).toBeInstanceOf(AggregateError);
+    const aggregate = failure as AggregateError;
+    expect(aggregate.cause).toMatchObject({
+      name: "MigrationOperationTimeoutError",
+      message: "Timed out during the checked-out production migration operation",
+    });
+    expect(aggregate.errors[0]).toBe(aggregate.cause);
+    expect(aggregate.errors).toContain(releaseError);
+    expect(client.release).toHaveBeenCalledOnce();
+    expect(client.release).toHaveBeenCalledWith(true);
+    expect(client.query).not.toHaveBeenCalled();
+    expect(migrate).not.toHaveBeenCalled();
+    expect(pool.end).toHaveBeenCalledOnce();
+  });
+
+  it("uses one cleanup deadline across safe session restoration and pool shutdown", async () => {
+    const primaryError = new Error("migration failed before cleanup");
+    const phaseDelayMs = 50;
+    const cleanupBudgetMs = 170;
+    const pause = () => new Promise<void>((resolve) => {
+      setTimeout(resolve, phaseDelayMs);
+    });
+    let ownerRoleAssumed = false;
+    let cleanupStarted = false;
+    const query = vi.fn(async (sql: string) => {
+      if (cleanupStarted) await pause();
+      if (sql.includes("pg_try_advisory_lock")) {
+        return { rows: [{ acquired: true }] };
+      }
+      if (sql.includes("SET ROLE learncoding_owner")) {
+        ownerRoleAssumed = true;
+        return { rows: [] };
+      }
+      if (sql.includes("RESET ROLE")) {
+        ownerRoleAssumed = false;
+        return { rows: [] };
+      }
+      if (sql.includes("current_user") && sql.includes("session_user")) {
+        return {
+          rows: [{
+            current_user: ownerRoleAssumed
+              ? "learncoding_owner"
+              : "learncoding_migrator",
+            session_user: "learncoding_migrator",
+          }],
+        };
+      }
+      if (sql.includes("pg_advisory_unlock")) {
+        return { rows: [{ released: true }] };
+      }
+      return { rows: [] };
+    });
+    const client = { query, release: vi.fn() };
+    const pool = {
+      connect: vi.fn(async () => client),
+      end: vi.fn(async () => {
+        await pause();
+      }),
+    };
+    const migrate = vi.fn(async () => {
+      cleanupStarted = true;
+      throw primaryError;
+    });
+    const startedAt = performance.now();
+
+    const failure = await runProductionMigration({
+      connectionString: "postgresql://test",
+      pool,
+      migrate,
+      drizzle: vi.fn(() => ({})),
+      cleanupTimeoutMs: cleanupBudgetMs,
+    }).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    const elapsedMs = performance.now() - startedAt;
+
+    expect(failure).toBe(primaryError);
+    expect(elapsedMs).toBeLessThan(190);
+    const cause = (failure as Error & { cause?: unknown }).cause;
+    expect(cause).toBeInstanceOf(AggregateError);
+    expect(
+      (cause as AggregateError).errors.some(
+        (error) => (
+          error instanceof Error
+          && error.name === "MigrationCleanupTimeoutError"
+        ),
+      ),
+    ).toBe(true);
+    expect(client.release).toHaveBeenCalledOnce();
+    expect(pool.end).toHaveBeenCalledOnce();
+  });
+
+  it("shares one cleanup deadline between timeout settlement and pool shutdown", async () => {
+    const lateAbortError = new Error("migration rejected after stream abort");
+    let rejectMigration: ((error: Error) => void) | undefined;
+    const migrate = vi.fn(() => new Promise<never>((_resolve, reject) => {
+      rejectMigration = reject;
+    }));
+    const stream = {
+      destroy: vi.fn(() => {
+        setTimeout(() => rejectMigration?.(lateAbortError), 80);
+      }),
+    };
+    const client = {
+      query: roleAwareQuery(),
+      release: vi.fn(),
+      connection: { stream },
+    };
+    const pool = {
+      connect: vi.fn(async () => client),
+      end: vi.fn(() => new Promise<never>(() => undefined)),
+    };
+    const startedAt = performance.now();
+    const migration = runProductionMigration({
+      connectionString: "postgresql://test",
+      pool,
+      migrate,
+      drizzle: vi.fn(() => ({})),
+      operationTimeoutMs: 25,
+      cleanupTimeoutMs: 100,
+    });
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    const outcome = await Promise.race([
+      migration.then(
+        () => undefined,
+        (error: unknown) => error,
+      ),
+      new Promise<string>((resolve) => {
+        watchdog = setTimeout(() => resolve("cleanup watchdog expired"), 300);
+      }),
+    ]);
+    if (watchdog) clearTimeout(watchdog);
+    const elapsedMs = performance.now() - startedAt;
+
+    expect(outcome).toMatchObject({
+      name: "MigrationOperationTimeoutError",
+      message: "Timed out during the checked-out production migration operation",
+    });
+    expect(elapsedMs).toBeLessThan(170);
+    expect(stream.destroy).toHaveBeenCalledOnce();
+    expect(client.release).toHaveBeenCalledWith(true);
+    expect(pool.end).toHaveBeenCalledOnce();
+    expect(
+      client.query.mock.calls.some(
+        ([sql]) => String(sql).includes("RESET ROLE"),
+      ),
+    ).toBe(false);
   });
 });

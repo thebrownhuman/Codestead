@@ -173,6 +173,39 @@ describe("administrator credential ceremony", () => {
     expect(mutationBodies[0]?.requestId).toMatch(/^[0-9a-f-]{36}$/i);
   });
 
+  it("does not retry a disable without a durable server receipt", async () => {
+    let mutationAttempts = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === "/api/security/fresh-mfa") return json({ ok: true });
+      mutationAttempts += 1;
+      throw new TypeError("synthetic lost disable response");
+    }));
+    const user = userEvent.setup();
+    renderManager();
+    await completeCeremony(user);
+    await user.click(screen.getByRole("button", { name: /Disable credential/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/synthetic lost disable response/i);
+    expect(mutationAttempts).toBe(1);
+  });
+
+  it("does not retry a deletion without a durable server receipt", async () => {
+    let mutationAttempts = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === "/api/security/fresh-mfa") return json({ ok: true });
+      mutationAttempts += 1;
+      throw new TypeError("synthetic lost delete response");
+    }));
+    const user = userEvent.setup();
+    renderManager();
+    await completeCeremony(user);
+    await user.click(screen.getByLabelText(/permanently deleted/i));
+    await user.click(screen.getByRole("button", { name: /Delete credential/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/synthetic lost delete response/i);
+    expect(mutationAttempts).toBe(1);
+  });
+
   it("requires explicit deletion confirmation before any network request", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
