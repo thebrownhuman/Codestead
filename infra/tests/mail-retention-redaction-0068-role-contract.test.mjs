@@ -119,6 +119,19 @@ test("0068 has a distinct exact routine manifest", () => {
   );
 });
 
+test("0068 classifier definition hash is exact under the trusted catalog search path", () => {
+  const classifier = REVIEWED_0068_APPLICATION_FUNCTIONS.find(
+    ({ signature }) =>
+      signature ===
+      "public.classify_email_outbox_quarantine_redaction_v2(public.email_outbox,timestamp with time zone)",
+  );
+  assert.equal(
+    classifier?.definitionSha256,
+    "8331736656001b0bb0fa5d303667353846ea4ff39c3f5aeba71979141f2dc612",
+  );
+  assert.equal(classifier?.definitionSha256ByMajor, undefined);
+});
+
 test("0068 has a distinct ALWAYS-trigger manifest", () => {
   const phase0068 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
     ({ index }) => index === 68,

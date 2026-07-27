@@ -41,6 +41,20 @@ const capabilityPath =
   "infra/ops/mail-outbox-guarded-delivery-capability.env";
 const capabilityAbsolutePath = path.join(repoRoot, capabilityPath);
 const boundaryCommit = "7eeafd73c5d41ea49526d908165e0a7cefa92097";
+const guardedDeliveryMigrations = [
+  {
+    path: "drizzle/0068_mail_outbox_quarantine_redaction_authority_v2.sql",
+    mode: "100644",
+    blob: "1188c910c5f89c902110349a1fc7564c6c9b1bfd",
+    prefix: "mail_outbox_quarantine_redaction_migration",
+  },
+  {
+    path: "drizzle/0069_mail_outbox_guarded_delivery_authority.sql",
+    mode: "100644",
+    blob: "a957b7b13445fee8174677c69e7cedb542d74eee",
+    prefix: "mail_outbox_guarded_delivery_migration",
+  },
+];
 const runtime =
   "guarded-prepared-dispatch-tx1-tx2-exact-byte-v1";
 const authority =
@@ -100,6 +114,115 @@ test("0069 capability is one canonical checked-in regular Git blob", () => {
       ),
     );
   }
+});
+
+test("release and rollback bind exact 0068 and 0069 migration blobs before capability or image work", () => {
+  const consumers = [
+    {
+      label: "release",
+      source: release,
+      nextFunction: "derive_guarded_delivery_candidate_capability",
+    },
+    {
+      label: "rollback",
+      source: rollback,
+      nextFunction: "verify_dispatch_binding_rollback_contract",
+    },
+  ];
+
+  for (const { label, source, nextFunction } of consumers) {
+    assert.match(
+      source,
+      new RegExp(
+        String.raw`readonly mail_outbox_guarded_delivery_boundary_commit=${boundaryCommit}`,
+        "u",
+      ),
+      `${label} must preserve the reviewed historical 0069 boundary commit`,
+    );
+    for (const migration of guardedDeliveryMigrations) {
+      assert.match(
+        source,
+        new RegExp(
+          String.raw`readonly ${migration.prefix}_path=${migration.path}`,
+          "u",
+        ),
+        `${label} must pin ${migration.path}`,
+      );
+      assert.match(
+        source,
+        new RegExp(
+          String.raw`readonly ${migration.prefix}_mode=${migration.mode}`,
+          "u",
+        ),
+        `${label} must pin ${migration.path} as a regular Git blob`,
+      );
+      assert.match(
+        source,
+        new RegExp(
+          String.raw`readonly ${migration.prefix}_blob=${migration.blob}`,
+          "u",
+        ),
+        `${label} must pin the exact reviewed blob for ${migration.path}`,
+      );
+    }
+    assert.match(
+      source,
+      /verify_exact_guarded_delivery_migration_blob\(\) \{[\s\S]*?local tree="\$1" label="\$2" expected_path="\$3" expected_mode="\$4" expected_blob="\$5"[\s\S]*?run_local_evidence_git ls-tree "\$tree" -- "\$expected_path"[\s\S]*?"\$mode" == "\$expected_mode"[\s\S]*?"\$object_type" == blob[\s\S]*?"\$object_id" == "\$expected_blob"[\s\S]*?"\$entry_path" == "\$expected_path"[\s\S]*?\n\}/u,
+      `${label} must expose one generic exact migration-blob verifier`,
+    );
+    const loaderStart = source.indexOf(
+      "\nload_guarded_delivery_capability() {\n",
+    );
+    const loaderEnd = source.indexOf(`\n${nextFunction}() {\n`, loaderStart);
+    assert.notEqual(loaderStart, -1, `${label} capability loader is missing`);
+    assert.notEqual(loaderEnd, -1, `${label} capability loader is unbounded`);
+    const loader = source.slice(loaderStart, loaderEnd);
+    const capabilityLookup = loader.indexOf(
+      'run_local_evidence_git ls-tree "$expected_tree" -- \\\n    "$mail_outbox_guarded_delivery_capability_path"',
+    );
+    assert.notEqual(
+      capabilityLookup,
+      -1,
+      `${label} capability blob lookup is missing`,
+    );
+    for (const migration of guardedDeliveryMigrations) {
+      const call = [
+        'verify_exact_guarded_delivery_migration_blob "$expected_tree" "$label"',
+        ` "$${migration.prefix}_path"`,
+        ` "$${migration.prefix}_mode"`,
+        ` "$${migration.prefix}_blob"`,
+      ].join("");
+      const callIndex = loader.indexOf(call);
+      assert.notEqual(callIndex, -1, `${label} is missing ${call}`);
+      assert.ok(
+        callIndex < capabilityLookup,
+        `${label} must verify ${migration.path} before capability work`,
+      );
+    }
+  }
+});
+
+test("--mail-store-cutover requires the previous exact guarded tuple after derivation", () => {
+  const previousDerivation = release.indexOf(
+    "\nderive_guarded_delivery_previous_capability\n",
+  );
+  const exactCutoverGate = release.indexOf(
+    'if [[ "$mail_store_cutover" == true \\\n  && ( "$previous_guarded_delivery_runtime" != "$guarded_delivery_runtime_contract" \\\n    || "$previous_delivery_release_authority" != "$delivery_release_authority_contract" \\\n    || "$previous_guarded_delivery_privilege" != "$guarded_delivery_privilege_contract" ) ]]; then',
+  );
+  assert.notEqual(
+    previousDerivation,
+    -1,
+    "previous guarded capability derivation is missing",
+  );
+  assert.notEqual(
+    exactCutoverGate,
+    -1,
+    "mail-store cutover must fail closed without the previous exact guarded tuple",
+  );
+  assert.ok(
+    previousDerivation < exactCutoverGate,
+    "mail-store cutover must validate the previous tuple after deriving it",
+  );
 });
 
 test("release binds source and previous 0069 trees and writes V4 evidence", () => {

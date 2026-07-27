@@ -131,6 +131,12 @@ readonly mail_outbox_guarded_delivery_boundary_commit=7eeafd73c5d41ea49526d90816
 readonly mail_outbox_guarded_delivery_capability_path=infra/ops/mail-outbox-guarded-delivery-capability.env
 readonly mail_outbox_guarded_delivery_capability_mode=100644
 readonly mail_outbox_guarded_delivery_capability_blob=2b0cd7af4b6d7a39756e94485aa370abfb6e2acf
+readonly mail_outbox_quarantine_redaction_migration_path=drizzle/0068_mail_outbox_quarantine_redaction_authority_v2.sql
+readonly mail_outbox_quarantine_redaction_migration_mode=100644
+readonly mail_outbox_quarantine_redaction_migration_blob=1188c910c5f89c902110349a1fc7564c6c9b1bfd
+readonly mail_outbox_guarded_delivery_migration_path=drizzle/0069_mail_outbox_guarded_delivery_authority.sql
+readonly mail_outbox_guarded_delivery_migration_mode=100644
+readonly mail_outbox_guarded_delivery_migration_blob=a957b7b13445fee8174677c69e7cedb542d74eee
 readonly dispatch_binding_runtime_contract=exact-adapter-payload-sha256-before-provider-call-v1
 readonly dispatch_binding_privilege_contract=owner-execute-worker-columns-update-only-no-grant-option-trigger-v1
 readonly guarded_delivery_runtime_contract=guarded-prepared-dispatch-tx1-tx2-exact-byte-v1
@@ -1248,6 +1254,27 @@ load_dispatch_binding_capability() {
   LOADED_DISPATCH_BINDING_PRIVILEGE="$dispatch_binding_privilege_contract"
 }
 
+verify_exact_guarded_delivery_migration_blob() {
+  local tree="$1" label="$2" expected_path="$3" expected_mode="$4" expected_blob="$5"
+  local entry metadata entry_path entry_extra
+  local mode object_type object_id metadata_extra
+  entry="$(run_local_evidence_git ls-tree "$tree" -- "$expected_path" 2>/dev/null)" || {
+    fatal "$label guarded delivery migration is absent or does not match the reviewed Git blob"
+  }
+  [[ -n "$entry" ]] || {
+    fatal "$label guarded delivery migration is absent or does not match the reviewed Git blob"
+  }
+  IFS=$'\t' read -r metadata entry_path entry_extra <<<"$entry"
+  IFS=' ' read -r mode object_type object_id metadata_extra <<<"$metadata"
+  [[ "$mode" == "$expected_mode" \
+    && "$object_type" == blob \
+    && "$object_id" == "$expected_blob" \
+    && "$entry_path" == "$expected_path" \
+    && -z "$entry_extra" && -z "$metadata_extra" ]] || {
+    fatal "$label guarded delivery migration is absent or does not match the reviewed Git blob"
+  }
+}
+
 load_guarded_delivery_capability() {
   local commit="$1" expected_tree="$2" label="$3" entry metadata entry_path entry_extra
   local tree_from_commit
@@ -1266,6 +1293,8 @@ load_guarded_delivery_capability() {
   [[ "$tree_from_commit" == "$expected_tree" ]] || {
     fatal "$label guarded delivery capability tree does not match repository objects"
   }
+  verify_exact_guarded_delivery_migration_blob "$expected_tree" "$label" "$mail_outbox_quarantine_redaction_migration_path" "$mail_outbox_quarantine_redaction_migration_mode" "$mail_outbox_quarantine_redaction_migration_blob"
+  verify_exact_guarded_delivery_migration_blob "$expected_tree" "$label" "$mail_outbox_guarded_delivery_migration_path" "$mail_outbox_guarded_delivery_migration_mode" "$mail_outbox_guarded_delivery_migration_blob"
   entry="$(run_local_evidence_git ls-tree "$expected_tree" -- \
     "$mail_outbox_guarded_delivery_capability_path" 2>/dev/null)" || {
     fatal "unable to verify $label guarded delivery capability"

@@ -2073,6 +2073,7 @@ test("requires the exact reviewed 0062 through 0069 routine contracts in applica
   assert.match(routineQueries[0], /p\.protrftypes/iu);
   assert.match(routineQueries[0], /p\.prosqlbody/iu);
   assert.match(routineQueries[0], /p\.prorettype/iu);
+  assert.doesNotMatch(routineQueries[0], /server_version_num|\$29::jsonb/iu);
   assert.doesNotMatch(routineQueries[0], /pg_catalog\.md5/iu);
   const routineQueryIndex = verified.clients
     .get("learncoding_ops")

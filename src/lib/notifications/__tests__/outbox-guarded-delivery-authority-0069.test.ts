@@ -369,7 +369,6 @@ describe("0069 guarded delivery release authority", () => {
       "29ee2d3b4bf45322c9c68a3bc612084a460bfca3e54e7c2c044081d195fbe2b7",
       "c5e22b06c168cb1aa4099f3b3c66cc959b4a0b116313d2bce8fa3a3d9d77197b",
       "4890f478c8d14811e7f6829a3a4977e0da3924c8e8c84b8ca89b64496ac40f53",
-      "35691db9ef3153adf2e19ebae539341797f7b4fd2a27aec1db215b9533636ed8",
       "365bd47aab3ce58ca2b894c7eb77ed12cb759fc3683599ef5ae987e4414f1d3c",
       "02d83d883c8f4c0b4fc22c460353834d27a67becdd96d81cee8b74609521f334",
     ]) {
@@ -377,6 +376,12 @@ describe("0069 guarded delivery release authority", () => {
       expect(terminal).toContain(definitionHash);
     }
     for (const contract of [preflight, terminal]) {
+      for (const defaultSearchPathHash of [
+        "2e98006d2d087f895f3aa14f6b58b3a3870c17ecd093dd8043c8f21339948bde",
+        "35691db9ef3153adf2e19ebae539341797f7b4fd2a27aec1db215b9533636ed8",
+      ]) {
+        expect(contract).not.toContain(defaultSearchPathHash);
+      }
       expect(contract).toContain("pg_catalog.pg_get_functiondef");
       expect(contract).toContain("expected_digest_helpers");
       expect(contract).toContain("email_outbox_original_payload_sha256");

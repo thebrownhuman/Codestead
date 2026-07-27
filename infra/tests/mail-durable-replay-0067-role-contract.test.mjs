@@ -153,7 +153,7 @@ const routineContracts = new Map([
       bodySha256:
         "6b7100af8bd25093520317e67d5a06b40848b192ca94eb4b6c63ef48adcf89a2",
       definitionSha256:
-        "35691db9ef3153adf2e19ebae539341797f7b4fd2a27aec1db215b9533636ed8",
+        "365bd47aab3ce58ca2b894c7eb77ed12cb759fc3683599ef5ae987e4414f1d3c",
       language: "sql",
       volatility: "i",
       argumentNames: [
@@ -463,6 +463,19 @@ test("0067 original-payload reviewed body hash follows the migration bytes", () 
     expected.bodySha256,
     "reviewed body hash must be regenerated from the exact migration body",
   );
+});
+
+test("0067 original-payload definition hash is exact under the trusted catalog search path", () => {
+  const routine = REVIEWED_APPLICATION_FUNCTIONS.find(
+    ({ signature }) =>
+      signature ===
+      "public.email_outbox_original_payload_sha256(text,text,text,text,jsonb)",
+  );
+  assert.equal(
+    routine?.definitionSha256,
+    "365bd47aab3ce58ca2b894c7eb77ed12cb759fc3683599ef5ae987e4414f1d3c",
+  );
+  assert.equal(routine?.definitionSha256ByMajor, undefined);
 });
 
 test("the catalog reporter uses the production verifier normalization", () => {

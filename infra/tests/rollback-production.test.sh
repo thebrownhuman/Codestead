@@ -79,6 +79,10 @@ dispatch_binding_registry_row="0064_mail_outbox_dispatch_binding|$dispatch_bindi
 guarded_delivery_boundary_commit=7eeafd73c5d41ea49526d908165e0a7cefa92097
 guarded_delivery_capability_path=infra/ops/mail-outbox-guarded-delivery-capability.env
 guarded_delivery_capability_blob=2b0cd7af4b6d7a39756e94485aa370abfb6e2acf
+guarded_delivery_redaction_migration_path=drizzle/0068_mail_outbox_quarantine_redaction_authority_v2.sql
+guarded_delivery_redaction_migration_blob=1188c910c5f89c902110349a1fc7564c6c9b1bfd
+guarded_delivery_migration_path=drizzle/0069_mail_outbox_guarded_delivery_authority.sql
+guarded_delivery_migration_blob=a957b7b13445fee8174677c69e7cedb542d74eee
 guarded_delivery_runtime_capability=guarded-prepared-dispatch-tx1-tx2-exact-byte-v1
 delivery_release_authority_contract=append-only-task7-release-receipt-v1
 guarded_delivery_privilege_contract=owner-app-worker-release-receipt-least-privilege-v1
@@ -374,6 +378,28 @@ GIT_INDEX_FILE="$guarded_delivery_index" \
 GIT_INDEX_FILE="$guarded_delivery_index" \
   git -C "$work/repo" update-index --add --cacheinfo \
     100644 "$guarded_delivery_capability_blob" "$guarded_delivery_capability_path"
+guarded_delivery_stale_migration_tree="$(
+  GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE="$guarded_delivery_index" \
+    git -C "$work/repo" write-tree --missing-ok
+)"
+guarded_delivery_actual_redaction_migration_entry="$(
+  git -C "$work/repo" ls-tree "$guarded_delivery_stale_migration_tree" -- \
+    "$guarded_delivery_redaction_migration_path"
+)"
+[[ "$guarded_delivery_actual_redaction_migration_entry" == \
+  "100644 blob $guarded_delivery_redaction_migration_blob"$'\t'"$guarded_delivery_redaction_migration_path" ]] || {
+  fail "guarded delivery rollback fixture omits the reviewed 0068 migration blob"
+}
+guarded_delivery_actual_migration_blob="$(
+  git -C "$work/repo" hash-object -w -- \
+    "$repo_root/$guarded_delivery_migration_path"
+)"
+[[ "$guarded_delivery_actual_migration_blob" == "$guarded_delivery_migration_blob" ]] || {
+  fail "checked-in guarded delivery migration does not match the reviewed blob"
+}
+GIT_INDEX_FILE="$guarded_delivery_index" \
+  git -C "$work/repo" update-index --add --cacheinfo \
+    100644 "$guarded_delivery_migration_blob" "$guarded_delivery_migration_path"
 guarded_delivery_exact_tree="$(
   GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE="$guarded_delivery_index" \
     git -C "$work/repo" write-tree --missing-ok
@@ -388,14 +414,38 @@ guarded_delivery_exact_source_commit="$(
     | git -C "$work/repo" commit-tree "$guarded_delivery_exact_tree" \
       -p "$guarded_delivery_exact_target_commit"
 )"
+guarded_delivery_stale_source_commit="$(
+  printf '%s\n' 'fixture 0069 rollback source with stale guarded migration' \
+    | git -C "$work/repo" commit-tree "$guarded_delivery_stale_migration_tree" \
+      -p "$guarded_delivery_exact_target_commit"
+)"
+guarded_delivery_stale_target_commit="$(
+  printf '%s\n' 'fixture 0069 rollback target with stale guarded migration' \
+    | git -C "$work/repo" commit-tree "$guarded_delivery_stale_migration_tree" \
+      -p "$guarded_delivery_boundary_commit"
+)"
+guarded_delivery_exact_over_stale_target_commit="$(
+  printf '%s\n' 'fixture exact 0069 source over stale guarded migration target' \
+    | git -C "$work/repo" commit-tree "$guarded_delivery_exact_tree" \
+      -p "$guarded_delivery_stale_target_commit"
+)"
+GIT_INDEX_FILE="$guarded_delivery_index" \
+  git -C "$work/repo" read-tree "$guarded_delivery_exact_tree"
+GIT_INDEX_FILE="$guarded_delivery_index" \
+  git -C "$work/repo" update-index --force-remove \
+    "$guarded_delivery_capability_path"
+guarded_delivery_missing_tree="$(
+  GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE="$guarded_delivery_index" \
+    git -C "$work/repo" write-tree --missing-ok
+)"
 guarded_delivery_missing_target_commit="$(
   printf '%s\n' 'fixture 0069 rollback target without guarded capability' \
-    | git -C "$work/repo" commit-tree "$guarded_delivery_boundary_tree" \
+    | git -C "$work/repo" commit-tree "$guarded_delivery_missing_tree" \
       -p "$guarded_delivery_boundary_commit"
 )"
 guarded_delivery_missing_source_commit="$(
   printf '%s\n' 'fixture 0069 rollback source without guarded capability' \
-    | git -C "$work/repo" commit-tree "$guarded_delivery_boundary_tree" \
+    | git -C "$work/repo" commit-tree "$guarded_delivery_missing_tree" \
       -p "$guarded_delivery_missing_target_commit"
 )"
 guarded_delivery_missing_previous_source_commit="$(
@@ -413,7 +463,7 @@ guarded_delivery_tampered_blob="$(
     | git -C "$work/repo" hash-object -w --stdin
 )"
 GIT_INDEX_FILE="$guarded_delivery_index" \
-  git -C "$work/repo" read-tree "$guarded_delivery_boundary_tree"
+  git -C "$work/repo" read-tree "$guarded_delivery_exact_tree"
 GIT_INDEX_FILE="$guarded_delivery_index" \
   git -C "$work/repo" update-index --add --cacheinfo \
     100644 "$guarded_delivery_tampered_blob" "$guarded_delivery_capability_path"
@@ -438,14 +488,29 @@ guarded_delivery_tampered_previous_source_commit="$(
 )"
 for guarded_delivery_commit in \
     "$guarded_delivery_exact_source_commit" "$guarded_delivery_exact_target_commit" \
+    "$guarded_delivery_stale_source_commit" "$guarded_delivery_stale_target_commit" \
+    "$guarded_delivery_exact_over_stale_target_commit" \
     "$guarded_delivery_missing_source_commit" "$guarded_delivery_missing_target_commit" \
     "$guarded_delivery_missing_previous_source_commit" \
     "$guarded_delivery_tampered_source_commit" "$guarded_delivery_tampered_target_commit" \
     "$guarded_delivery_tampered_previous_source_commit"; do
   [[ "$(git -C "$work/repo" ls-tree -r --name-only "$guarded_delivery_commit" -- \
-    drizzle/0069_mail_outbox_guarded_delivery_authority.sql)" == \
-    drizzle/0069_mail_outbox_guarded_delivery_authority.sql ]] || {
+    "$guarded_delivery_migration_path")" == \
+    "$guarded_delivery_migration_path" ]] || {
     fail "guarded delivery rollback fixture omits the reviewed 0069 migration"
+  }
+done
+for guarded_delivery_exact_migration_commit in \
+    "$guarded_delivery_exact_source_commit" "$guarded_delivery_exact_target_commit" \
+    "$guarded_delivery_exact_over_stale_target_commit" \
+    "$guarded_delivery_missing_source_commit" "$guarded_delivery_missing_target_commit" \
+    "$guarded_delivery_missing_previous_source_commit" \
+    "$guarded_delivery_tampered_source_commit" "$guarded_delivery_tampered_target_commit" \
+    "$guarded_delivery_tampered_previous_source_commit"; do
+  [[ "$(git -C "$work/repo" ls-tree "$guarded_delivery_exact_migration_commit" -- \
+    "$guarded_delivery_migration_path")" == \
+    "100644 blob $guarded_delivery_migration_blob"$'\t'"$guarded_delivery_migration_path" ]] || {
+    fail "guarded delivery capability fixture does not retain the reviewed 0069 migration blob"
   }
 done
 rm -f -- "$guarded_delivery_index"
@@ -1454,7 +1519,7 @@ check_guarded_delivery_refusal() {
   cmp -s "$work/records/latest-candidate.env" "$candidate_before" || case_failed=true
   snapshot_guarded_delivery_evidence >"$evidence_after"
   cmp -s "$evidence_before" "$evidence_after" || case_failed=true
-  grep -Eq '0069_mail_outbox_guarded_delivery_authority|guarded delivery capability' \
+  grep -Eq '0069_mail_outbox_guarded_delivery_authority|guarded delivery (capability|migration)' \
     "$ROLLBACK_CASE/stderr" || case_failed=true
   grep -Fq "$expected_image" "$ROLLBACK_CASE/stderr" || case_failed=true
   if grep -Fq 'rollback override is malformed' "$ROLLBACK_CASE/stderr" \
@@ -1470,8 +1535,8 @@ check_guarded_delivery_refusal() {
 }
 
 check_guarded_delivery_refusal guarded-delivery-capability-missing \
-  "$guarded_delivery_missing_source_commit" "$guarded_delivery_boundary_tree" \
-  "$guarded_delivery_missing_target_commit" "$guarded_delivery_boundary_tree" \
+  "$guarded_delivery_missing_source_commit" "$guarded_delivery_missing_tree" \
+  "$guarded_delivery_missing_target_commit" "$guarded_delivery_missing_tree" \
   'source image'
 check_guarded_delivery_refusal guarded-delivery-capability-tampered \
   "$guarded_delivery_tampered_source_commit" "$guarded_delivery_tampered_tree" \
@@ -1479,17 +1544,25 @@ check_guarded_delivery_refusal guarded-delivery-capability-tampered \
   'source image'
 check_guarded_delivery_refusal guarded-delivery-previous-capability-missing \
   "$guarded_delivery_missing_previous_source_commit" "$guarded_delivery_exact_tree" \
-  "$guarded_delivery_missing_target_commit" "$guarded_delivery_boundary_tree" \
+  "$guarded_delivery_missing_target_commit" "$guarded_delivery_missing_tree" \
   'previous image'
 check_guarded_delivery_refusal guarded-delivery-previous-capability-tampered \
   "$guarded_delivery_tampered_previous_source_commit" "$guarded_delivery_exact_tree" \
   "$guarded_delivery_tampered_target_commit" "$guarded_delivery_tampered_tree" \
   'previous image'
+check_guarded_delivery_refusal guarded-delivery-source-migration-stale \
+  "$guarded_delivery_stale_source_commit" "$guarded_delivery_stale_migration_tree" \
+  "$guarded_delivery_exact_target_commit" "$guarded_delivery_exact_tree" \
+  'source image'
+check_guarded_delivery_refusal guarded-delivery-previous-migration-stale \
+  "$guarded_delivery_exact_over_stale_target_commit" "$guarded_delivery_exact_tree" \
+  "$guarded_delivery_stale_target_commit" "$guarded_delivery_stale_migration_tree" \
+  'previous image'
 
 (( guarded_delivery_refusal_failures == 0 )) || {
   fail "$guarded_delivery_refusal_failures unsafe guarded delivery rollback cases reached mutation or lacked an explicit refusal"
 }
-echo "ok - rollback fails closed for missing or tampered source and previous 0069 capabilities"
+echo "ok - rollback fails closed for stale migration, missing, or tampered source and previous 0069 evidence"
 set_rollback_git_evidence \
   "$dispatch_binding_unknown_capability_commit" "$dispatch_binding_unknown_capability_tree" \
   "$dispatch_binding_compatible_target_commit" "$dispatch_binding_compatible_target_tree"

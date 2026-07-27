@@ -36,7 +36,7 @@ test("reviewed mail authority catalog registers the exact guarded 0069 phase", (
       createdAt: "1785009372253",
       migrationFile: "0069_mail_outbox_guarded_delivery_authority.sql",
       migrationSha256:
-        "cae4ad59e4058b60fa6e0a24704414b8a8b15575a302a65f1155ec04fa8fdcd7",
+        "da33b7f35d6fe75c750e8ffdea9717e0c27098b7bb2a6a2e458cc9c7e2e9ec9c",
       requiresWorkerContract: true,
       requiresProviderEvidence: true,
       requiresReplayAuthority: true,
@@ -137,8 +137,8 @@ test("0069 has a distinct exact guarded-delivery routine manifest", () => {
     [
       "public.attest_email_outbox_delivery_release_lineage(text)",
       [
-        "5963663f65d5be7e4e44c1ab1b1daa17a04d4bd711a9af9abc5bf2d1bb62bd91",
-        "261d8137a8ad635af563b6e5478ad3ebc7579c68c5693ff87a7e2fe517e5dbbf",
+        "ef2bcb7f6642b27b9e30fd0c91a9d3d031f8d5a5e0f3647a9f7a57cab7bdc57a",
+        "57e575a169040050c389d00c766cc35e32e0b32fae9c4f369e598f506aceb21d",
         ["learncoding_worker"],
       ],
     ],

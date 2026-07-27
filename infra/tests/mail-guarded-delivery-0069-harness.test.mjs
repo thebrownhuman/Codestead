@@ -722,9 +722,9 @@ test("0069 installs and live-proves a closed-world lineage attestor", () => {
     "migrationJournalDigest",
   );
   const attestorProsrcFingerprint =
-    "5963663f65d5be7e4e44c1ab1b1daa17a04d4bd711a9af9abc5bf2d1bb62bd91";
+    "ef2bcb7f6642b27b9e30fd0c91a9d3d031f8d5a5e0f3647a9f7a57cab7bdc57a";
   const attestorDefinitionFingerprint =
-    "261d8137a8ad635af563b6e5478ad3ebc7579c68c5693ff87a7e2fe517e5dbbf";
+    "57e575a169040050c389d00c766cc35e32e0b32fae9c4f369e598f506aceb21d";
   for (const marker of [
     signature,
     "routine.prosrc",

@@ -316,7 +316,7 @@ export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
     returnsSet: false,
     variadic: false,
     definitionSha256:
-      "35691db9ef3153adf2e19ebae539341797f7b4fd2a27aec1db215b9533636ed8",
+      "365bd47aab3ce58ca2b894c7eb77ed12cb759fc3683599ef5ae987e4414f1d3c",
   }),
   reviewedRoutine({
     signature: "public.email_outbox_event_sha256(text,text,text)",
@@ -793,7 +793,7 @@ export const REVIEWED_0069_APPLICATION_FUNCTIONS = Object.freeze([
     configuration: ["search_path=pg_catalog, pg_temp"],
     allowedRoles: [WORKER_ROLE],
     bodySha256:
-      "5963663f65d5be7e4e44c1ab1b1daa17a04d4bd711a9af9abc5bf2d1bb62bd91",
+      "ef2bcb7f6642b27b9e30fd0c91a9d3d031f8d5a5e0f3647a9f7a57cab7bdc57a",
     language: "plpgsql",
     kind: "f",
     volatility: "s",
@@ -825,7 +825,7 @@ export const REVIEWED_0069_APPLICATION_FUNCTIONS = Object.freeze([
     returnsSet: true,
     variadic: false,
     definitionSha256:
-      "261d8137a8ad635af563b6e5478ad3ebc7579c68c5693ff87a7e2fe517e5dbbf",
+      "57e575a169040050c389d00c766cc35e32e0b32fae9c4f369e598f506aceb21d",
   }),
   reviewed0069TriggerRoutine({
     signature: "public.enforce_email_outbox_delivery_release_commit_exact()",
@@ -1651,7 +1651,7 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     createdAt: "1785009372253",
     migrationFile: "0069_mail_outbox_guarded_delivery_authority.sql",
     migrationSha256:
-      "cae4ad59e4058b60fa6e0a24704414b8a8b15575a302a65f1155ec04fa8fdcd7",
+      "da33b7f35d6fe75c750e8ffdea9717e0c27098b7bb2a6a2e458cc9c7e2e9ec9c",
     routines: REVIEWED_0069_APPLICATION_FUNCTIONS,
     triggers: REVIEWED_0069_APPLICATION_TRIGGERS,
     requiresWorkerContract: true,

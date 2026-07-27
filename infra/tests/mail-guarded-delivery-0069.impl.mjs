@@ -1784,9 +1784,7 @@ function proveOutboxGuardedColumnCatalogTamperRollback(
 
 function assertDigestHelperCatalog(port) {
   const originalDefinitionSha256 =
-    expectedMajor === "18"
-      ? "365bd47aab3ce58ca2b894c7eb77ed12cb759fc3683599ef5ae987e4414f1d3c"
-      : "35691db9ef3153adf2e19ebae539341797f7b4fd2a27aec1db215b9533636ed8";
+    "365bd47aab3ce58ca2b894c7eb77ed12cb759fc3683599ef5ae987e4414f1d3c";
   assert.equal(
     scalar(
       port,
@@ -1969,12 +1967,12 @@ function assertLineageAttestorCatalog(port) {
               routine.prosrc,
               'UTF8'
             )), 'hex') =
-              '5963663f65d5be7e4e44c1ab1b1daa17a04d4bd711a9af9abc5bf2d1bb62bd91'
+              'ef2bcb7f6642b27b9e30fd0c91a9d3d031f8d5a5e0f3647a9f7a57cab7bdc57a'
         AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
               pg_catalog.pg_get_functiondef(routine.oid),
               'UTF8'
             )), 'hex') =
-              '261d8137a8ad635af563b6e5478ad3ebc7579c68c5693ff87a7e2fe517e5dbbf'
+              '57e575a169040050c389d00c766cc35e32e0b32fae9c4f369e598f506aceb21d'
         AND (
               SELECT pg_catalog.count(*)
                 FROM pg_catalog.pg_proc AS overload
@@ -2373,9 +2371,7 @@ function assertCatalogAndAcl(port) {
       "public.email_outbox_event_sha256(text,text,text)":
         "02d83d883c8f4c0b4fc22c460353834d27a67becdd96d81cee8b74609521f334",
       "public.email_outbox_original_payload_sha256(text,text,text,text,jsonb)":
-        expectedMajor === "18"
-          ? "365bd47aab3ce58ca2b894c7eb77ed12cb759fc3683599ef5ae987e4414f1d3c"
-          : "35691db9ef3153adf2e19ebae539341797f7b4fd2a27aec1db215b9533636ed8",
+        "365bd47aab3ce58ca2b894c7eb77ed12cb759fc3683599ef5ae987e4414f1d3c",
     },
     indexes: [
       {

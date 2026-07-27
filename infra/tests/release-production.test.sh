@@ -17,6 +17,11 @@ dispatch_binding_runtime_capability=exact-adapter-payload-sha256-before-provider
 dispatch_binding_privilege_contract=owner-execute-worker-columns-update-only-no-grant-option-trigger-v1
 dispatch_binding_registry_row="0064_mail_outbox_dispatch_binding|$dispatch_binding_boundary_commit|$dispatch_binding_capability_path|100644|$dispatch_binding_capability_blob|SCHEMA_VERSION=1|OUTBOX_WORKER_MODE=fenced-postgres-v1|DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability|DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract"
 guarded_delivery_boundary_commit=7eeafd73c5d41ea49526d908165e0a7cefa92097
+guarded_delivery_redaction_migration_path=drizzle/0068_mail_outbox_quarantine_redaction_authority_v2.sql
+guarded_delivery_redaction_migration_blob=1188c910c5f89c902110349a1fc7564c6c9b1bfd
+guarded_delivery_migration_path=drizzle/0069_mail_outbox_guarded_delivery_authority.sql
+guarded_delivery_migration_blob=a957b7b13445fee8174677c69e7cedb542d74eee
+guarded_delivery_migration_diagnostic='guarded delivery migration is absent or does not match the reviewed Git blob'
 guarded_delivery_capability_path=infra/ops/mail-outbox-guarded-delivery-capability.env
 guarded_delivery_capability_blob=2b0cd7af4b6d7a39756e94485aa370abfb6e2acf
 guarded_delivery_runtime_capability=guarded-prepared-dispatch-tx1-tx2-exact-byte-v1
@@ -1047,6 +1052,66 @@ git -C "$guarded_delivery_missing_repo" checkout --quiet \
   "$guarded_delivery_capability_path")" ]] || {
   fail "0069 missing-capability fixture unexpectedly contains the capability"
 }
+[[ "$(git -C "$guarded_delivery_missing_repo" ls-tree HEAD -- \
+  "$guarded_delivery_redaction_migration_path")" == \
+  "100644 blob $guarded_delivery_redaction_migration_blob"$'\t'"$guarded_delivery_redaction_migration_path" ]] || {
+  fail "historical 0069 fixture does not retain the reviewed 0068 migration"
+}
+[[ "$(git -C "$guarded_delivery_missing_repo" ls-tree HEAD -- \
+  "$guarded_delivery_migration_path")" != \
+  "100644 blob $guarded_delivery_migration_blob"$'\t'"$guarded_delivery_migration_path" ]] || {
+  fail "historical 0069 fixture unexpectedly contains the corrected migration"
+}
+/usr/bin/python3 "$fixture_generator" \
+  --source "$guarded_delivery_missing_repo" \
+  --packager "$guarded_delivery_missing_repo/infra/ops/package-release-tree.py" \
+  --destination "$work/guarded-delivery-stale-package" \
+  >/dev/null || fail "unable to package the stale 0069 migration fixture"
+
+guarded_delivery_stale_records="$work/guarded-delivery-stale-records"
+RUN_REPO_ROOT="$guarded_delivery_missing_repo" \
+  RUN_RECORD_ROOT="$guarded_delivery_stale_records" RUN_STAGE_TIMEOUT=30 \
+  run_release guarded-delivery-migration-stale
+unset RUN_REPO_ROOT RUN_RECORD_ROOT RUN_STAGE_TIMEOUT
+[[ "$RELEASE_STATUS" != 0 ]] || {
+  fail "release accepted the historical stale 0069 migration"
+}
+assert_only_early_quarantine \
+  "$RELEASE_CASE_DIR/docker.log" "stale 0069 migration refusal" \
+  "$guarded_delivery_missing_repo/compose.yaml"
+[[ ! -s "$RELEASE_CASE_DIR/smoke.log" ]] || {
+  fail "stale 0069 migration refusal reached smoke"
+}
+if find "$guarded_delivery_stale_records" -mindepth 2 -maxdepth 2 \
+    -name mail-outbox-contract.env -print -quit | grep -q .; then
+  fail "stale 0069 migration refusal wrote mail outbox contract evidence"
+fi
+[[ ! -e "$guarded_delivery_stale_records/current-release.env" \
+  && ! -e "$guarded_delivery_stale_records/latest-candidate.env" ]] || {
+  fail "stale 0069 migration refusal advanced a release pointer"
+}
+grep -Fq "$guarded_delivery_migration_diagnostic" \
+  "$RELEASE_CASE_DIR/stderr" || {
+  cat "$RELEASE_CASE_DIR/stderr" >&2
+  fail "stale 0069 migration refusal was not explicit"
+}
+if grep -Eq '[0-9a-f]{40}|[0-9a-f]{64}' \
+    "$RELEASE_CASE_DIR/stdout" "$RELEASE_CASE_DIR/stderr"; then
+  fail "stale 0069 migration refusal disclosed Git or capability hashes"
+fi
+echo "ok - release rejects the historical 0069 SQL before capability or image work"
+
+cp "$repo_root/$guarded_delivery_migration_path" \
+  "$guarded_delivery_missing_repo/$guarded_delivery_migration_path"
+chmod 0644 "$guarded_delivery_missing_repo/$guarded_delivery_migration_path"
+git -C "$guarded_delivery_missing_repo" add "$guarded_delivery_migration_path"
+git -C "$guarded_delivery_missing_repo" commit -qm \
+  'fixture corrected guarded delivery migration'
+[[ "$(git -C "$guarded_delivery_missing_repo" ls-tree HEAD -- \
+  "$guarded_delivery_migration_path")" == \
+  "100644 blob $guarded_delivery_migration_blob"$'\t'"$guarded_delivery_migration_path" ]] || {
+  fail "corrected 0069 fixture does not contain the reviewed migration blob"
+}
 /usr/bin/python3 "$fixture_generator" \
   --source "$guarded_delivery_missing_repo" \
   --packager "$guarded_delivery_missing_repo/infra/ops/package-release-tree.py" \
@@ -1716,10 +1781,18 @@ grep -Eq '^sudo .*rollback-production\.sh.*--schema-backward-compatible$' \
 }
 echo "ok - dual-write release records its fenced claimant contract"
 
-printf '%s\n' '# reviewed mail store cutover release' >>"$work/repo/compose.yaml"
-git -C "$work/repo" add compose.yaml
-git -C "$work/repo" commit -qm 'fixture mail store cutover release'
-regenerate_release_fixture
+printf '%s\n' '# reviewed mail store cutover release' \
+  >>"$guarded_delivery_exact_repo/compose.yaml"
+git -C "$guarded_delivery_exact_repo" add compose.yaml
+git -C "$guarded_delivery_exact_repo" commit -qm 'fixture mail store cutover release'
+/usr/bin/python3 "$fixture_generator" \
+  --source "$guarded_delivery_exact_repo" \
+  --packager "$guarded_delivery_exact_repo/infra/ops/package-release-tree.py" \
+  --destination "$work/guarded-delivery-cutover-package" \
+  >/dev/null || fail "unable to package the exact guarded delivery cutover fixture"
+[[ -z "$(git -C "$guarded_delivery_exact_repo" status --porcelain=v1 --untracked-files=all)" ]] || {
+  fail "guarded delivery cutover fixture is not a clean Git tree"
+}
 
 set_mail_release_contract() {
   local phase="$1" mode="$2"
@@ -1729,13 +1802,15 @@ set_mail_release_contract() {
 set_mail_release_contract store-v1 fenced-postgres-v1
 
 mail_cutover_base="$work/mail-cutover-base"
-cp -a "$shared_records" "$mail_cutover_base"
+cp -a "$guarded_delivery_exact_records" "$mail_cutover_base"
 
 mail_flag_records="$work/mail-cutover-flag-conflict"
 cp -a "$mail_cutover_base" "$mail_flag_records"
-RUN_RECORD_ROOT="$mail_flag_records" run_release mail-cutover-success \
+RUN_REPO_ROOT="$guarded_delivery_exact_repo" \
+  RUN_RECORD_ROOT="$mail_flag_records" RUN_STAGE_TIMEOUT=30 \
+  run_release mail-cutover-success \
   --mail-store-cutover --schema-backward-compatible
-unset RUN_RECORD_ROOT
+unset RUN_REPO_ROOT RUN_RECORD_ROOT RUN_STAGE_TIMEOUT
 [[ "$RELEASE_STATUS" != 0 ]] || fail "mail cutover accepted generic automatic rollback"
 grep -Fq 'mutually exclusive' "$RELEASE_CASE_DIR/stderr" || {
   fail "mail cutover/schema rollback flag conflict was not explicit"
@@ -1745,8 +1820,10 @@ echo "ok - mail cutover cannot enable legacy automatic rollback"
 mail_backup_records="$work/mail-cutover-backup-lock"
 cp -a "$mail_cutover_base" "$mail_backup_records"
 cp "$mail_backup_records/current-release.env" "$work/mail-backup-pointer-before.env"
-RUN_RECORD_ROOT="$mail_backup_records" run_release mail-backup-lock-busy --mail-store-cutover
-unset RUN_RECORD_ROOT
+RUN_REPO_ROOT="$guarded_delivery_exact_repo" \
+  RUN_RECORD_ROOT="$mail_backup_records" RUN_STAGE_TIMEOUT=30 \
+  run_release mail-backup-lock-busy --mail-store-cutover
+unset RUN_REPO_ROOT RUN_RECORD_ROOT RUN_STAGE_TIMEOUT
 [[ "$RELEASE_STATUS" != 0 ]] || fail "mail cutover ignored the active host backup writer lock"
 grep -Fq 'host backup writer lock' "$RELEASE_CASE_DIR/stderr" || {
   fail "host backup writer lock refusal was not explicit"
@@ -1762,8 +1839,10 @@ echo "ok - mail cutover fences the independent host backup writer first"
 mail_drain_records="$work/mail-cutover-drain-failure"
 cp -a "$mail_cutover_base" "$mail_drain_records"
 cp "$mail_drain_records/current-release.env" "$work/mail-drain-pointer-before.env"
-RUN_RECORD_ROOT="$mail_drain_records" run_release mail-drain-failure --mail-store-cutover
-unset RUN_RECORD_ROOT
+RUN_REPO_ROOT="$guarded_delivery_exact_repo" \
+  RUN_RECORD_ROOT="$mail_drain_records" RUN_STAGE_TIMEOUT=30 \
+  run_release mail-drain-failure --mail-store-cutover
+unset RUN_REPO_ROOT RUN_RECORD_ROOT RUN_STAGE_TIMEOUT
 [[ "$RELEASE_STATUS" != 0 ]] || fail "mail cutover accepted an in-flight pre-cutover claim"
 grep -Fq 'pre-cutover mail claims did not drain' "$RELEASE_CASE_DIR/stderr" || {
   fail "pre-cutover mail drain refusal was not explicit"
@@ -1779,8 +1858,10 @@ echo "ok - mail cutover drains the pre-cutover claimant before 0059"
 mail_contract_records="$work/mail-cutover-contract-failure"
 cp -a "$mail_cutover_base" "$mail_contract_records"
 cp "$mail_contract_records/current-release.env" "$work/mail-contract-pointer-before.env"
-RUN_RECORD_ROOT="$mail_contract_records" run_release mail-contract-failure --mail-store-cutover
-unset RUN_RECORD_ROOT
+RUN_REPO_ROOT="$guarded_delivery_exact_repo" \
+  RUN_RECORD_ROOT="$mail_contract_records" RUN_STAGE_TIMEOUT=30 \
+  run_release mail-contract-failure --mail-store-cutover
+unset RUN_REPO_ROOT RUN_RECORD_ROOT RUN_STAGE_TIMEOUT
 [[ "$RELEASE_STATUS" != 0 ]] || fail "mail cutover accepted an incomplete 0059 contract"
 grep -Fq '0059 delivery-scope contract is incomplete' "$RELEASE_CASE_DIR/stderr" || {
   fail "0059 contract refusal was not explicit"
@@ -1795,23 +1876,35 @@ echo "ok - mail cutover requires the completed 0059 catch-up contract"
 
 mail_success_records="$work/mail-cutover-success"
 cp -a "$mail_cutover_base" "$mail_success_records"
-RUN_RECORD_ROOT="$mail_success_records" run_release mail-cutover-success --mail-store-cutover
-unset RUN_RECORD_ROOT
+RUN_REPO_ROOT="$guarded_delivery_exact_repo" \
+  RUN_RECORD_ROOT="$mail_success_records" RUN_STAGE_TIMEOUT=30 \
+  run_release mail-cutover-success --mail-store-cutover
+unset RUN_REPO_ROOT RUN_RECORD_ROOT RUN_STAGE_TIMEOUT
 [[ "$RELEASE_STATUS" == 0 ]] || {
   cat "$RELEASE_CASE_DIR/stderr" >&2
   fail "gated mail store cutover failed"
 }
 mail_success_id="$(sed -n 's/^release_id=//p' "$mail_success_records/current-release.env")"
 mail_success_record="$mail_success_records/$mail_success_id"
-cat >"$work/expected-mail-cutover-contract.env" <<'EOF'
-SCHEMA_VERSION=2
+cat >"$work/expected-mail-cutover-contract.env" <<EOF
+SCHEMA_VERSION=4
 MAIL_OUTBOX_PHASE=store-v1
 OUTBOX_WORKER_MODE=fenced-postgres-v1
 OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability
+DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract
+GUARDED_DELIVERY_RUNTIME=$guarded_delivery_runtime_capability
+DELIVERY_RELEASE_AUTHORITY=$delivery_release_authority_contract
+GUARDED_DELIVERY_PRIVILEGE=$guarded_delivery_privilege_contract
 STORE_CUTOVER=true
 PREVIOUS_MAIL_OUTBOX_PHASE=dual-write-v1
 PREVIOUS_OUTBOX_WORKER_MODE=fenced-postgres-v1
 PREVIOUS_OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+PREVIOUS_DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability
+PREVIOUS_DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract
+PREVIOUS_GUARDED_DELIVERY_RUNTIME=$guarded_delivery_runtime_capability
+PREVIOUS_DELIVERY_RELEASE_AUTHORITY=$delivery_release_authority_contract
+PREVIOUS_GUARDED_DELIVERY_PRIVILEGE=$guarded_delivery_privilege_contract
 PREVIOUS_RUNTIME_COMPATIBLE=false
 FORWARD_ONLY_MIGRATION=none
 EOF

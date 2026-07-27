@@ -97,7 +97,7 @@ function validatePackageManifest(source) {
   }
   const check = scripts.check;
   if (typeof check !== "string"
-    || !check.startsWith("npm run production-load:release-gates && npm run lint")) {
+    || !check.startsWith("npm run production-load:release-gates && ")) {
     fail("portable production-load release gates are not first in npm check");
   }
 }

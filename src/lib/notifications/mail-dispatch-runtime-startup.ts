@@ -19,7 +19,7 @@ const FAILURE_MESSAGE = "Mail dispatch requires PostgreSQL 17 or newer.";
 const DELIVERY_AUTHORITY_FAILURE_MESSAGE =
   "Mail delivery authority is unavailable.";
 const GUARDED_DELIVERY_MIGRATION_SHA256 =
-  "cae4ad59e4058b60fa6e0a24704414b8a8b15575a302a65f1155ec04fa8fdcd7";
+  "da33b7f35d6fe75c750e8ffdea9717e0c27098b7bb2a6a2e458cc9c7e2e9ec9c";
 
 type RuntimeVersionRow = {
   readonly server_version_num: unknown;
@@ -234,11 +234,11 @@ export async function requireMailDeliveryAuthorityRuntime(
             AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
               attestor.prosrc, 'UTF8'
             )), 'hex') =
-              '5963663f65d5be7e4e44c1ab1b1daa17a04d4bd711a9af9abc5bf2d1bb62bd91'
+              'ef2bcb7f6642b27b9e30fd0c91a9d3d031f8d5a5e0f3647a9f7a57cab7bdc57a'
             AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
               pg_catalog.pg_get_functiondef(attestor.oid), 'UTF8'
             )), 'hex') =
-              '261d8137a8ad635af563b6e5478ad3ebc7579c68c5693ff87a7e2fe517e5dbbf'
+              '57e575a169040050c389d00c766cc35e32e0b32fae9c4f369e598f506aceb21d'
             AND (
               SELECT pg_catalog.count(*)
                 FROM pg_catalog.pg_proc AS overload
