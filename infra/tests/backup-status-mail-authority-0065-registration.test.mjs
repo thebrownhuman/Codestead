@@ -60,12 +60,27 @@ const {
 assert.equal(scripts[registrationScript], registrationCommand);
 assert.equal(scripts[harnessScript], harnessCommand);
 assert.equal(
+  scripts["test:backup-status-mail-authority:contract"],
+  "node --test scripts/verify-backup-status-mail-authority.test.mjs",
+);
+assert.equal(
   scripts.check
     .split(" && ")
     .filter((command) => command === `npm run ${registrationScript}`).length,
   1,
   "npm run check must execute the 0065 registration guard exactly once",
 );
+for (const command of [
+  "npm run test:database-role-boundaries",
+  "npm run test:backup-status-mail-authority:contract",
+]) {
+  assert.equal(
+    scripts.check.split(" && ").filter((candidate) => candidate === command)
+      .length,
+    1,
+    `npm run check must execute ${command} exactly once`,
+  );
+}
 
 assert.equal(reviewedLedgerThrough0065.length, 66);
 assert.equal(reviewedLedgerThrough0065.at(-1)?.idx, 65);

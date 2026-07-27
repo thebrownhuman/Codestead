@@ -24,6 +24,8 @@ jobs:
       - run: npm run test:github-runner-context:registration
       - run: npm run test:mail-guarded-delivery-0069:release-rollback
       - run: npm run test:migration-ledger
+      - run: npm run test:database-role-boundaries
+      - run: npm run test:backup-status-mail-authority:contract
       - run: npm run test:email-outbox-writer-inventory
       - run: npm run production-load:ci-registration
       - run: npm run production-load:test-control:bundle

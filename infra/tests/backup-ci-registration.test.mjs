@@ -575,6 +575,8 @@ const expectedApplicationRuns = [
   "npm run test:github-runner-context:registration",
   releaseRollbackRun,
   "npm run test:migration-ledger",
+  "npm run test:database-role-boundaries",
+  "npm run test:backup-status-mail-authority:contract",
   "npm run test:email-outbox-writer-inventory",
   "npm run production-load:ci-registration",
   "npm run production-load:test-control:bundle",

@@ -6,7 +6,9 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  MAIL_APP_OUTBOX_INSERT_COLUMNS,
   MAIL_WORKER_OUTBOX_INSERT_COLUMNS,
+  MAIL_WORKER_OUTBOX_PRE_REQUEST_UPDATE_COLUMNS,
   MAIL_WORKER_OUTBOX_UPDATE_COLUMNS,
   REVIEWED_APPLICATION_CONSTRAINTS,
   REVIEWED_APPLICATION_FUNCTIONS,
@@ -20,6 +22,7 @@ import {
   mailWorkerOutboxPrivilegesSql,
   reconcileDatabaseRolePrivileges,
   reviewedApplicationFunctionPrivilegesSql,
+  reviewedExactAclRelationNames,
   verifyBackupStatusAuthorityAfterRepair,
   verifyBackupStatusAuthorityBeforeRepair,
   verifyPostMigrationReviewedContractsBeforeReconciliation,
@@ -42,12 +45,34 @@ function reviewedPhase(index) {
   return phase;
 }
 
+const REVIEWED_PHASE_0062 = reviewedPhase(62);
+const REVIEWED_PHASE_0063 = reviewedPhase(63);
 const REVIEWED_PHASE_0064 = reviewedPhase(64);
 const REVIEWED_PHASE_0065 = reviewedPhase(65);
 const REVIEWED_PHASE_0066 = reviewedPhase(66);
 const REVIEWED_PHASE_0067 = reviewedPhase(67);
 const REVIEWED_PHASE_0068 = reviewedPhase(68);
 const REVIEWED_PHASE_0069 = reviewedPhase(69);
+const REPLAY_AUTHORITY_CONSTRAINT_HASHES_BY_POSTGRES_MAJOR = Object.freeze({
+  17: "2cc426fbe12df9a29707bbad22a3addf50fa483f0ad8f4c76c778ad25bf6748e",
+  18: "3f32ee19567df8889a129cc1e2e95af9f70a8e4e5878c7f7930ec396259ceefc",
+});
+const GUARDED_REPLAY_TRIGGER_ADDITIONS = Object.freeze([
+  "email_outbox_delivery_hold_final",
+  "email_outbox_delivery_release_commit_exact",
+  "email_outbox_delivery_release_delete_exact",
+  "email_outbox_delivery_release_insert_xid",
+  "email_outbox_delivery_release_insert_xid_immutable",
+  "email_outbox_provider_request_body_immutable",
+  "zz_email_outbox_delivery_release_identity",
+  "zz_email_outbox_delivery_release_insert_final",
+]);
+const GUARDED_RECEIPT_TRIGGER_NAMES = Object.freeze([
+  "mail_delivery_release_receipt_insert_authority",
+  "mail_delivery_release_receipt_append_only",
+  "mail_delivery_release_receipt_no_truncate",
+  "mail_delivery_release_receipt_delete_exact",
+]);
 
 function reviewedPhaseForOptions(options) {
   if (
@@ -401,8 +426,14 @@ test("rejects direct, effective, marker, receipt, and membership ACL reopenings"
     );
   }
 });
-test("selects guarded-delivery presence only for reviewed phase 0069", async () => {
+test("runs exact outbox ACL verification for every reviewed phase", async () => {
   for (const [phase, expected] of [
+    [REVIEWED_PHASE_0062, false],
+    [REVIEWED_PHASE_0063, false],
+    [REVIEWED_PHASE_0064, false],
+    [REVIEWED_PHASE_0065, false],
+    [REVIEWED_PHASE_0066, false],
+    [REVIEWED_PHASE_0067, false],
     [REVIEWED_PHASE_0068, false],
     [REVIEWED_PHASE_0069, true],
   ]) {
@@ -416,6 +447,93 @@ test("selects guarded-delivery presence only for reviewed phase 0069", async () 
     assert.notEqual(index, -1);
     assert.equal(client.queryParameters[index].at(-1), expected);
   }
+});
+test("rejects historical app and ops outbox ACL drift", async () => {
+  for (const phase of [
+    REVIEWED_PHASE_0062,
+    REVIEWED_PHASE_0063,
+    REVIEWED_PHASE_0064,
+    REVIEWED_PHASE_0065,
+    REVIEWED_PHASE_0066,
+  ]) {
+    for (const guardedDeliveryAclTamper of [
+      "outbox_runtime_table_direct_acl_exact",
+      "outbox_runtime_effective_acl_exact",
+    ]) {
+      await assert.rejects(
+        verifyReviewedMailAuthorityCatalogContracts(
+          makeClient("learncoding_ops", "learncoding", {
+            appliedMigrationIndex: phase.index,
+            guardedDeliveryAclTamper,
+          }),
+          phase,
+        ),
+        (error) =>
+          error instanceof DatabaseRoleBoundaryError &&
+          error.message.includes(guardedDeliveryAclTamper),
+      );
+    }
+  }
+});
+test("binds phase 0069 to full worker ACLs and a fail-closed PG-major digest", async () => {
+  const client = makeClient("learncoding_ops", "learncoding", {
+    appliedMigrationIndex: 69,
+  });
+  await verifyPostMigrationReviewedContractsBeforeReconciliation(
+    client,
+    REVIEWED_PHASE_0069,
+  );
+  const workerQueryIndex = client.queries.findIndex((sql) =>
+    sql.includes("worker_column_direct_acl_exact"),
+  );
+  assert.notEqual(workerQueryIndex, -1);
+  assert.deepEqual(
+    client.queryParameters[workerQueryIndex]?.[0],
+    MAIL_WORKER_OUTBOX_INSERT_COLUMNS,
+  );
+  assert.deepEqual(
+    client.queryParameters[workerQueryIndex]?.[1],
+    MAIL_WORKER_OUTBOX_UPDATE_COLUMNS,
+  );
+  assert.equal(
+    client.queryParameters[workerQueryIndex]?.[27],
+    JSON.stringify(REPLAY_AUTHORITY_CONSTRAINT_HASHES_BY_POSTGRES_MAJOR),
+  );
+  const workerQuery = client.queries[workerQueryIndex];
+  assert.match(
+    workerQuery,
+    /case\s+pg_catalog\.current_setting\(\s*'server_version_num'\s*\)::integer\s*\/\s*10000\s+when 17 then \$28::jsonb ->> '17'\s+when 18 then \$28::jsonb ->> '18'\s+else null\s+end/iu,
+  );
+  assert.doesNotMatch(workerQuery, /=\s*any\s*\(\s*\$28::text\[\]\s*\)/iu);
+  const replayQueryIndex = client.queries.findIndex((sql) =>
+    sql.includes("authority_constraint_set_exact"),
+  );
+  assert.notEqual(replayQueryIndex, -1);
+  assert.equal(client.queryParameters[replayQueryIndex]?.[72], 2);
+  assert.deepEqual(
+    client.queryParameters[replayQueryIndex]?.[73],
+    MAIL_APP_OUTBOX_INSERT_COLUMNS,
+  );
+  assert.deepEqual(
+    client.queryParameters[replayQueryIndex]?.[74],
+    MAIL_DELIVERY_RELEASE_RECEIPT_WORKER_SELECT_COLUMNS,
+  );
+  assert.deepEqual(client.queryParameters[replayQueryIndex]?.[65], [
+    ...REVIEWED_REPLAY_AUTHORITY_RELATIONAL_CONTRACT.triggerRelations,
+    "public.mail_delivery_release_receipt",
+  ]);
+  assert.deepEqual(
+    JSON.parse(client.queryParameters[replayQueryIndex]?.[66])
+      .map(({ name }) => name)
+      .sort(),
+    [
+      ...REVIEWED_REPLAY_AUTHORITY_RELATIONAL_CONTRACT.triggers.map(
+        ({ name }) => name,
+      ),
+      ...GUARDED_REPLAY_TRIGGER_ADDITIONS,
+      ...GUARDED_RECEIPT_TRIGGER_NAMES,
+    ].sort(),
+  );
 });
 test("rejects exact guarded-delivery relation catalog drift", async () => {
   const verified = makeClient("learncoding_ops", "learncoding", {
@@ -434,6 +552,14 @@ test("rejects exact guarded-delivery relation catalog drift", async () => {
   assert.match(catalogQuery, /pg_catalog\.pg_rewrite/iu);
   assert.match(catalogQuery, /pg_catalog\.pg_inherits/iu);
   assert.match(catalogQuery, /pg_catalog\.pg_policy/iu);
+  assert.match(
+    catalogQuery,
+    /index_row\.indkey::pg_catalog\.text\s*=\s*'1 15'::pg_catalog\.text/iu,
+  );
+  assert.doesNotMatch(
+    catalogQuery,
+    /index_row\.indkey::int2\[\]\s*=\s*array\[1,\s*15\]::int2\[\]/iu,
+  );
 
   for (const guardedDeliveryCatalogTamper of [
     "guarded_delivery_catalog_phase_exact",
@@ -775,6 +901,54 @@ test("re-verifies the reviewed ACL catalog after privilege reconciliation", () =
   assert.ok(postReconciliationVerify > reconcile);
   assert.ok(stateVerify > postReconciliationVerify);
 });
+test("keeps every phase-specific exact-ACL relation out of coarse full-CRUD scans", () => {
+  assert.deepEqual(reviewedExactAclRelationNames(null), ["email_outbox"]);
+  assert.deepEqual(reviewedExactAclRelationNames(REVIEWED_PHASE_0062), [
+    "email_outbox",
+  ]);
+  assert.deepEqual(reviewedExactAclRelationNames(REVIEWED_PHASE_0063), [
+    "email_outbox",
+  ]);
+  assert.deepEqual(reviewedExactAclRelationNames(REVIEWED_PHASE_0064), [
+    "email_outbox",
+  ]);
+  assert.deepEqual(reviewedExactAclRelationNames(REVIEWED_PHASE_0067), [
+    "email_outbox",
+  ]);
+  assert.deepEqual(reviewedExactAclRelationNames(REVIEWED_PHASE_0068), [
+    "email_outbox",
+  ]);
+  assert.deepEqual(reviewedExactAclRelationNames(REVIEWED_PHASE_0069), [
+    "email_outbox",
+    "mail_delivery_release_receipt",
+  ]);
+
+  const source = readFileSync(
+    new URL("./bootstrap-database-roles.mjs", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf(
+    "export async function verifyDatabaseRoleBootstrapState(",
+  );
+  const end = source.indexOf(
+    "export async function runDatabaseRoleBootstrap(",
+    start,
+  );
+  const verifier = source.slice(start, end);
+  assert.match(verifier, /reviewedExactAclRelationNames\(canonicalPhase\)/u);
+  assert.match(
+    verifier,
+    /to_regclass\('public\.email_outbox'\)[\s\S]*canonicalPhase !== null[\s\S]*outboxPresenceRow\.outbox_present !== true[\s\S]*await import\("\.\/verify-database-role-boundaries\.mjs"\)[\s\S]*verifyMailWorkerOutboxContract\(client, \{[\s\S]*requiresDispatchBinding:\s*canonicalPhase\?\.requiresWorkerContract \?\? false,[\s\S]*requiresProviderEvidence:\s*canonicalPhase\?\.requiresProviderEvidence \?\? false,[\s\S]*requiresReplayAuthority:\s*canonicalPhase\?\.requiresReplayAuthority \?\? false,[\s\S]*requiresProviderRequest:\s*canonicalPhase\?\.requiresGuardedDelivery \?\? false,[\s\S]*requiresGuardedDelivery:\s*canonicalPhase\?\.requiresGuardedDelivery \?\? false,/u,
+  );
+  assert.equal(
+    verifier.match(/c\.relname <> all\(\$4::text\[\]\)/gu)?.length,
+    2,
+  );
+  assert.match(
+    verifier,
+    /\[\s*postgresDatabase,[\s\S]*exactAclRelationNames,\s*\]/u,
+  );
+});
 
 test("accepts only the exact five distinct restricted-role URLs", () => {
   const parsed = validateDatabaseRoleBoundaryUrls(validInput());
@@ -926,6 +1100,14 @@ function makeClient(role, database, options) {
           "authenticated_guarded_delivery_privileges_exact",
         )
       ) {
+        if (
+          options.guardedSchemaResolutionDenied === true &&
+          role === "learncoding_migrator"
+        ) {
+          throw Object.assign(new Error("redacted schema lookup rejection"), {
+            code: "42501",
+          });
+        }
         return {
           rows: [
             {
@@ -1112,6 +1294,15 @@ function makeClient(role, database, options) {
         };
       }
       if (normalized.includes("triggers_exact")) {
+        if (
+          options.restrictedGuardReadDenied === true &&
+          role === "learncoding_ops" &&
+          normalized.includes("backup_status_mail_admin_guard")
+        ) {
+          throw Object.assign(new Error("redacted protected guard rejection"), {
+            code: "42501",
+          });
+        }
         return {
           rows: [
             {
@@ -1538,16 +1729,38 @@ function makeClient(role, database, options) {
         normalized.includes("from pg_class c") &&
         normalized.includes("c.relkind = 'r'")
       ) {
+        const selectsSharedCrudTable = [
+          "select",
+          "insert",
+          "update",
+          "delete",
+        ].every((privilege) =>
+          normalized.includes(
+            `has_table_privilege( role_name, c.oid, '${privilege}' )`,
+          ),
+        );
         return {
           rows: [
             {
               schema_name: "public",
-              object_name: "sample",
+              object_name:
+                options.protectedTableSortsFirst === true &&
+                !selectsSharedCrudTable
+                  ? "backup_status_mail_admin_guard"
+                  : "sample",
               object_oid: 16_384,
               column_name: "id",
             },
           ],
         };
+      }
+      if (
+        normalized.startsWith("explain (format json)") &&
+        normalized.includes('"backup_status_mail_admin_guard"')
+      ) {
+        throw Object.assign(new Error("redacted protected table rejection"), {
+          code: "42501",
+        });
       }
       if (
         normalized.includes("from pg_class c") &&
@@ -1744,6 +1957,33 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
     exact.queries.filter((query) => query.includes("triggers_exact")).length,
     1,
   );
+  const exactReplayQueryIndex = exact.queries.findIndex((query) =>
+    query.includes("authority_constraint_set_exact"),
+  );
+  assert.notEqual(exactReplayQueryIndex, -1);
+  assert.deepEqual(
+    exact.queryParameters[exactReplayQueryIndex]?.[65],
+    REVIEWED_REPLAY_AUTHORITY_RELATIONAL_CONTRACT.triggerRelations,
+  );
+  assert.deepEqual(
+    exact.queryParameters[exactReplayQueryIndex]?.[71],
+    MAIL_WORKER_OUTBOX_PRE_REQUEST_UPDATE_COLUMNS,
+  );
+  assert.equal(exact.queryParameters[exactReplayQueryIndex]?.[72], 1);
+  assert.deepEqual(
+    exact.queryParameters[exactReplayQueryIndex]?.[73],
+    MAIL_APP_OUTBOX_INSERT_COLUMNS,
+  );
+  assert.deepEqual(exact.queryParameters[exactReplayQueryIndex]?.[74], []);
+  assert.deepEqual(
+    JSON.parse(exact.queryParameters[exactReplayQueryIndex]?.[66]),
+    REVIEWED_REPLAY_AUTHORITY_RELATIONAL_CONTRACT.triggers.map(
+      ({ relation, name }) => ({
+        relation,
+        name,
+      }),
+    ),
+  );
 
   for (const appliedMigrationIndex of [62, 63]) {
     const priorPhase = makeClient("learncoding_ops", "learncoding", {
@@ -1804,7 +2044,7 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
       "email_outbox_idempotency_authority_valid",
       "c",
       true,
-      "3f32ee19567df8889a129cc1e2e95af9f70a8e4e5878c7f7930ec396259ceefc",
+      JSON.stringify(REPLAY_AUTHORITY_CONSTRAINT_HASHES_BY_POSTGRES_MAJOR),
       reviewedApplicationConstraint("email_outbox_idempotency_authority_valid")
         .columns,
       false,
@@ -1979,7 +2219,7 @@ test("proves application-object access without mutating application rows", async
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 105,
+    positiveChecks: 104,
     negativeChecks: 29,
   });
   for (const role of [
@@ -2010,22 +2250,74 @@ test("proves application-object access without mutating application rows", async
   );
 });
 
-test("authenticates guarded-delivery privileges as every restricted role", async () => {
-  const verified = makePoolHarness();
+test("discovers only a table with shared runtime CRUD authority", async () => {
+  const harness = makePoolHarness({ protectedTableSortsFirst: true });
+  await verifyDatabaseRoleBoundaries({
+    ...validInput(),
+    poolFactory: harness.factory,
+    lockTimeoutMs: 50,
+    requireApplicationObjects: true,
+  });
+
+  for (const role of [
+    "learncoding_app",
+    "learncoding_worker",
+    "learncoding_ops",
+  ]) {
+    const queries = harness.clients.get(role).queries;
+    assert.equal(
+      queries.some((sql) =>
+        sql.includes('"backup_status_mail_admin_guard"'),
+      ),
+      false,
+    );
+    assert.equal(queries.some((sql) => sql.includes('"sample"')), true);
+  }
+});
+
+test("boundary verification never reads the protected backup guard", async () => {
+  const harness = makePoolHarness({ restrictedGuardReadDenied: true });
+  await verifyDatabaseRoleBoundaries({
+    ...validInput(),
+    poolFactory: harness.factory,
+    lockTimeoutMs: 50,
+    requireApplicationObjects: true,
+  });
+  assert.equal(
+    harness.clients
+      .get("learncoding_ops")
+      .queries.some((sql) =>
+        sql.includes("backup_status_mail_admin_guard"),
+      ),
+    false,
+  );
+});
+
+test("authenticates guarded-delivery privileges only with schema usage", async () => {
+  const verified = makePoolHarness({ guardedSchemaResolutionDenied: true });
   await verifyDatabaseRoleBoundaries({
     ...validInput(),
     poolFactory: verified.factory,
     lockTimeoutMs: 50,
     requireApplicationObjects: true,
   });
-  for (const client of verified.clients.values()) {
+  for (const [role, client] of verified.clients.entries()) {
     assert.equal(
       client.queries.some((query) =>
         query.includes("authenticated_guarded_delivery_privileges_exact"),
       ),
-      true,
+      role !== "learncoding_migrator",
     );
   }
+  const workerProbe = verified.clients
+    .get("learncoding_worker")
+    .queries.find((query) =>
+      query.includes("authenticated_guarded_delivery_privileges_exact"),
+    );
+  assert.match(
+    workerProbe,
+    /current_user = 'learncoding_worker'\s+and privilege\.privilege_type = 'update'\s+and attribute\.attname = any\(array\[\s*'provider_request_body_sha256',\s*'provider_request_body_length'/u,
+  );
   await assert.rejects(
     verifyDatabaseRoleBoundaries({
       ...validInput(),
@@ -2049,7 +2341,7 @@ test("requires the exact reviewed 0062 through 0069 routine contracts in applica
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 105,
+    positiveChecks: 104,
     negativeChecks: 29,
   });
   const routineQueries = verified.clients
@@ -2259,7 +2551,7 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
   });
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 105,
+    positiveChecks: 104,
     negativeChecks: 29,
   });
 
@@ -2369,8 +2661,7 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
     "email_outbox_idempotency_authority_valid",
     "c",
     true,
-    reviewedApplicationConstraint("email_outbox_idempotency_authority_valid")
-      .normalizedExpressionSha256,
+    JSON.stringify(REPLAY_AUTHORITY_CONSTRAINT_HASHES_BY_POSTGRES_MAJOR),
     reviewedApplicationConstraint("email_outbox_idempotency_authority_valid")
       .columns,
     true,
@@ -2981,7 +3272,7 @@ test("grounds PostgreSQL's successful no-op GRANT in unchanged effective and cat
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 105,
+    positiveChecks: 104,
     negativeChecks: 29,
   });
   for (const role of [

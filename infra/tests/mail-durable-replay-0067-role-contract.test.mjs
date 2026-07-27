@@ -550,7 +550,7 @@ test("0067 exact routines are frozen with owner, body, definition, and ACL", () 
   }
 });
 
-test("0067 trigger and constraint manifests freeze the live PG18 catalog", () => {
+test("0067 trigger and constraint manifests freeze the live PG17/PG18 catalogs", () => {
   const expectedTriggers = [
     {
       relation: "public.email_outbox_idempotency_authority",
@@ -628,7 +628,8 @@ test("0067 trigger and constraint manifests freeze the live PG18 catalog", () =>
           relationOwner: constraint.relationOwner,
           type: constraint.type,
           validated: constraint.validated,
-          normalizedExpressionSha256: constraint.normalizedExpressionSha256,
+          normalizedExpressionSha256ByPostgresMajor:
+            constraint.normalizedExpressionSha256ByPostgresMajor,
           columns: constraint.columns,
         }
       : null,
@@ -637,8 +638,10 @@ test("0067 trigger and constraint manifests freeze the live PG18 catalog", () =>
       relationOwner: "learncoding_owner",
       type: "c",
       validated: true,
-      normalizedExpressionSha256:
-        "3f32ee19567df8889a129cc1e2e95af9f70a8e4e5878c7f7930ec396259ceefc",
+      normalizedExpressionSha256ByPostgresMajor: {
+        17: "2cc426fbe12df9a29707bbad22a3addf50fa483f0ad8f4c76c778ad25bf6748e",
+        18: "3f32ee19567df8889a129cc1e2e95af9f70a8e4e5878c7f7930ec396259ceefc",
+      },
       columns: [
         "idempotency_authority_sha256",
         "idempotency_authority_version",

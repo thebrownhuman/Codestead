@@ -10,6 +10,7 @@ import {
   BACKUP_STATUS_AUTHORITY_ROUTINES,
   BACKUP_STATUS_AUTHORITY_TRIGGERS,
   BackupStatusMailAuthorityContractError,
+  verifyBackupStatusMailAuthorityCatalogObjects,
   verifyBackupStatusMailAuthorityObjects,
 } from "./verify-backup-status-mail-authority.mjs";
 
@@ -121,6 +122,37 @@ function exactClient(tamper = "") {
     },
   };
 }
+
+test("metadata verification never reads protected guard state", async () => {
+  const delegate = exactClient();
+  const client = {
+    calls: delegate.calls,
+    async query(sql, parameters = []) {
+      const normalized = String(sql).replace(/\s+/gu, " ").trim().toLowerCase();
+      if (normalized.includes("backup_status_mail_admin_guard")) {
+        throw Object.assign(new Error("protected guard read rejected"), {
+          code: "42501",
+        });
+      }
+      return delegate.query(sql, parameters);
+    },
+  };
+
+  assert.equal(
+    await verifyBackupStatusMailAuthorityCatalogObjects(
+      client,
+      restrictedRoles,
+      BACKUP_STATUS_AUTHORITY_0065_CONTRACT,
+    ),
+    7,
+  );
+  assert.equal(
+    client.calls.some(({ normalized }) =>
+      normalized.includes("backup_status_mail_admin_guard"),
+    ),
+    false,
+  );
+});
 
 test("verifies the exact owner-inclusive 0065 security manifest", async () => {
   const client = exactClient();

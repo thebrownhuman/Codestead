@@ -1369,8 +1369,10 @@ export const REVIEWED_APPLICATION_CONSTRAINTS = Object.freeze([
     name: "email_outbox_idempotency_authority_valid",
     type: "c",
     validated: true,
-    normalizedExpressionSha256:
-      "3f32ee19567df8889a129cc1e2e95af9f70a8e4e5878c7f7930ec396259ceefc",
+    normalizedExpressionSha256ByPostgresMajor: Object.freeze({
+      17: "2cc426fbe12df9a29707bbad22a3addf50fa483f0ad8f4c76c778ad25bf6748e",
+      18: "3f32ee19567df8889a129cc1e2e95af9f70a8e4e5878c7f7930ec396259ceefc",
+    }),
     columns: Object.freeze([
       "idempotency_authority_sha256",
       "idempotency_authority_version",
@@ -1676,6 +1678,16 @@ export function canonicalReviewedMailAuthorityCatalogPhase(phase) {
     );
   }
   return canonical;
+}
+
+export function reviewedExactAclRelationNames(phase) {
+  const canonical = canonicalReviewedMailAuthorityCatalogPhase(phase);
+  return Object.freeze([
+    "email_outbox",
+    ...(canonical?.requiresGuardedDelivery
+      ? ["mail_delivery_release_receipt"]
+      : []),
+  ]);
 }
 
 function reviewedPhaseRoutines(phase) {
@@ -3420,6 +3432,7 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
     requiresDispatchBinding: latestPhase.requiresWorkerContract,
     requiresProviderEvidence: latestPhase.requiresProviderEvidence,
     requiresReplayAuthority: latestPhase.requiresReplayAuthority,
+    requiresProviderRequest: latestPhase.requiresGuardedDelivery,
     requiresGuardedDelivery: latestPhase.requiresGuardedDelivery,
   });
   return 1;
@@ -3857,6 +3870,8 @@ export async function verifyDatabaseRoleBootstrapState(
   const phaseRoutines = reviewedPhaseRoutines(canonicalPhase);
   const phaseSecurityDefiners =
     reviewedSecurityDefinerFunctions(canonicalPhase);
+  const exactAclRelationNames =
+    reviewedExactAclRelationNames(canonicalPhase);
   const roles = await client.query(`
     select rolname, rolcanlogin, rolsuper, rolcreatedb, rolcreaterole,
            rolinherit, rolreplication, rolbypassrls, rolconnlimit,
@@ -4042,6 +4057,7 @@ export async function verifyDatabaseRoleBootstrapState(
               'backup_status_mail_admin_guard',
               'email_outbox_idempotency_authority'
             )
+            and c.relname <> all($4::text[])
             and (
               not has_table_privilege(role_name, c.oid, 'SELECT')
               or not has_table_privilege(role_name, c.oid, 'INSERT')
@@ -4064,6 +4080,7 @@ export async function verifyDatabaseRoleBootstrapState(
               'backup_status_mail_admin_guard',
               'email_outbox_idempotency_authority'
             )
+            and c.relname <> all($4::text[])
             and (
               not has_table_privilege('learncoding_worker', c.oid, 'SELECT')
               or not has_table_privilege('learncoding_worker', c.oid, 'INSERT')
@@ -4401,6 +4418,7 @@ export async function verifyDatabaseRoleBootstrapState(
         ),
       ),
       JSON.stringify(phaseSecurityDefiners),
+      exactAclRelationNames,
     ],
   );
   if (Object.values(privileges.rows[0] ?? {}).some((value) => value !== true)) {
@@ -4408,6 +4426,32 @@ export async function verifyDatabaseRoleBootstrapState(
       "privileges",
       failedBooleanInvariantKeys(privileges.rows[0]),
     );
+  }
+  const outboxPresence = await client.query(`
+    select pg_catalog.to_regclass('public.email_outbox') is not null
+           as outbox_present`);
+  const outboxPresenceRow = outboxPresence.rows[0];
+  if (
+    outboxPresence.rows.length !== 1 ||
+    typeof outboxPresenceRow?.outbox_present !== "boolean" ||
+    (canonicalPhase !== null && outboxPresenceRow.outbox_present !== true)
+  ) {
+    throw databaseRoleBootstrapInvariantError("outbox-presence");
+  }
+  if (outboxPresenceRow.outbox_present) {
+    const verifier = await import("./verify-database-role-boundaries.mjs");
+    await verifier.verifyMailWorkerOutboxContract(client, {
+      requiresDispatchBinding:
+        canonicalPhase?.requiresWorkerContract ?? false,
+      requiresProviderEvidence:
+        canonicalPhase?.requiresProviderEvidence ?? false,
+      requiresReplayAuthority:
+        canonicalPhase?.requiresReplayAuthority ?? false,
+      requiresProviderRequest:
+        canonicalPhase?.requiresGuardedDelivery ?? false,
+      requiresGuardedDelivery:
+        canonicalPhase?.requiresGuardedDelivery ?? false,
+    });
   }
 
   const unexpectedDirectAcls = await client.query(

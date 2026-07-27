@@ -1069,7 +1069,12 @@ async function verifyRoutine(client, routine, restrictedRoles) {
   }
 }
 
-async function verifyTriggers(client, contract) {
+async function verifyTriggers(
+  client,
+  contract,
+  { requireGuardState = true } = {},
+) {
+  if (typeof requireGuardState !== "boolean") fail("triggers:guard-state-mode");
   const expectedTriggers = contract.triggers.map((trigger) => ({
     relation_name: trigger.relation,
     trigger_name: trigger.name,
@@ -1095,6 +1100,47 @@ async function verifyTriggers(client, contract) {
     ({ relation }) => relation === 'public."user"',
   );
   if (userTrigger === undefined) fail("contract:triggers:user");
+  const guardStateProjection = requireGuardState
+    ? `,
+            (
+              $5::text =
+                'public.backup_status_mail_admin_guard'
+              and $6::name = 'singleton'::name
+              and $7::name = 'authority_epoch'::name
+              and (
+              select pg_catalog.count(*) = $8::integer
+                     and pg_catalog.bool_and(
+                       (
+                         pg_catalog.to_jsonb(authority_guard) ->> $6::text
+                       )::boolean is not distinct from $9::boolean
+                       and (
+                         not $10::boolean
+                         or (
+                           pg_catalog.to_jsonb(authority_guard) ->> $7::text
+                         )::uuid <>
+                           '00000000-0000-0000-0000-000000000000'::uuid
+                       )
+                     )
+                from public.backup_status_mail_admin_guard authority_guard
+              )
+            ) guard_state_exact`
+    : "";
+  const parameters = [
+    JSON.stringify(expectedTriggers),
+    authorityTriggerRelations,
+    userTrigger.relation,
+    "backup_status_mail_admin_",
+    ...(requireGuardState
+      ? [
+          contract.guardState.relation,
+          contract.guardState.singletonColumn,
+          contract.guardState.authorityEpochColumn,
+          contract.guardState.expectedRows,
+          contract.guardState.singletonValue,
+          contract.guardState.requiresNonZeroAuthorityEpoch,
+        ]
+      : []),
+  ];
 
   const result = await client.query(
     `
@@ -1191,29 +1237,8 @@ async function verifyTriggers(client, contract) {
                  ) relation_name
                 where pg_catalog.to_regclass(relation_name) is null
              )
-           ) relations_present,
-           (
-             $5::text =
-               'public.backup_status_mail_admin_guard'
-             and $6::name = 'singleton'::name
-             and $7::name = 'authority_epoch'::name
-             and (
-             select pg_catalog.count(*) = $8::integer
-                    and pg_catalog.bool_and(
-                      (
-                        pg_catalog.to_jsonb(authority_guard) ->> $6::text
-                      )::boolean is not distinct from $9::boolean
-                      and (
-                        not $10::boolean
-                        or (
-                          pg_catalog.to_jsonb(authority_guard) ->> $7::text
-                        )::uuid <>
-                          '00000000-0000-0000-0000-000000000000'::uuid
-                      )
-                    )
-               from public.backup_status_mail_admin_guard authority_guard
-             )
-           ) guard_state_exact,
+           ) relations_present
+           ${guardStateProjection},
            not exists (
              select 1
                from (
@@ -1222,33 +1247,23 @@ async function verifyTriggers(client, contract) {
                  (select * from expected except all select * from observed)
                ) difference
            ) triggers_exact`,
-    [
-      JSON.stringify(expectedTriggers),
-      authorityTriggerRelations,
-      userTrigger.relation,
-      "backup_status_mail_admin_",
-      contract.guardState.relation,
-      contract.guardState.singletonColumn,
-      contract.guardState.authorityEpochColumn,
-      contract.guardState.expectedRows,
-      contract.guardState.singletonValue,
-      contract.guardState.requiresNonZeroAuthorityEpoch,
-    ],
+    parameters,
   );
   if (
     result.rows.length !== 1 ||
     !exactTrueRow(result.rows[0], [
       "relations_present",
-      "guard_state_exact",
+      ...(requireGuardState ? ["guard_state_exact"] : []),
       "triggers_exact",
     ])
   )
     fail("triggers");
 }
-export async function verifyBackupStatusMailAuthorityObjects(
+async function verifyBackupStatusMailAuthorityObjectsInternal(
   client,
   restrictedRoles,
   contract,
+  requireGuardState,
 ) {
   const canonicalContract = canonicalBackupStatusAuthorityContract(contract);
   if (
@@ -1274,8 +1289,34 @@ export async function verifyBackupStatusMailAuthorityObjects(
   for (const routine of canonicalContract.routines) {
     await verifyRoutine(client, routine, restrictedRoles);
   }
-  await verifyTriggers(client, canonicalContract);
+  await verifyTriggers(client, canonicalContract, { requireGuardState });
   return (
     canonicalContract.relations.length + canonicalContract.routines.length + 1
+  );
+}
+
+export function verifyBackupStatusMailAuthorityCatalogObjects(
+  client,
+  restrictedRoles,
+  contract,
+) {
+  return verifyBackupStatusMailAuthorityObjectsInternal(
+    client,
+    restrictedRoles,
+    contract,
+    false,
+  );
+}
+
+export function verifyBackupStatusMailAuthorityObjects(
+  client,
+  restrictedRoles,
+  contract,
+) {
+  return verifyBackupStatusMailAuthorityObjectsInternal(
+    client,
+    restrictedRoles,
+    contract,
+    true,
   );
 }

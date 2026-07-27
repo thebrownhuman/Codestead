@@ -17,11 +17,12 @@ import {
   REVIEWED_APPLICATION_CONSTRAINTS,
   REVIEWED_APPLICATION_FUNCTIONS,
   REVIEWED_APPLICATION_TRIGGERS,
+  REVIEWED_0069_APPLICATION_TRIGGERS,
   REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES,
   REVIEWED_REPLAY_AUTHORITY_RELATIONAL_CONTRACT,
   canonicalReviewedMailAuthorityCatalogPhase,
 } from "./bootstrap-database-roles.mjs";
-import { verifyBackupStatusMailAuthorityObjects } from "./verify-backup-status-mail-authority.mjs";
+import { verifyBackupStatusMailAuthorityCatalogObjects } from "./verify-backup-status-mail-authority.mjs";
 
 export const DATABASE_ADMIN_LOCK_NAME = "codestead:database-administration:v1";
 const MIN_PASSWORD_BYTES = 32;
@@ -306,6 +307,28 @@ async function discoverApplicationObjects(client) {
          limit 1
       ) a on true
      where n.nspname = 'public' and c.relkind = 'r'
+       and not exists (
+         select 1
+           from pg_catalog.unnest(
+             array[
+               'learncoding_app',
+               'learncoding_worker',
+               'learncoding_ops'
+             ]::text[]
+           ) role_name
+          where not pg_catalog.has_table_privilege(
+                      role_name, c.oid, 'SELECT'
+                    )
+             or not pg_catalog.has_table_privilege(
+                      role_name, c.oid, 'INSERT'
+                    )
+             or not pg_catalog.has_table_privilege(
+                      role_name, c.oid, 'UPDATE'
+                    )
+             or not pg_catalog.has_table_privilege(
+                      role_name, c.oid, 'DELETE'
+                    )
+       )
      order by c.relname
      limit 1`);
   const sequence = await client.query(`
@@ -679,7 +702,23 @@ export async function verifyReviewedApplicationTriggers(
   return verified;
 }
 
-export async function verifyMailReplayAuthorityTableContract(client) {
+export async function verifyMailReplayAuthorityTableContract(
+  client,
+  {
+    requiresGuardedDelivery = false,
+    expectedAppInsertColumns,
+    expectedWorkerUpdateColumns,
+  } = {},
+) {
+  const canonicalWorkerUpdateColumns = requiresGuardedDelivery
+    ? MAIL_WORKER_OUTBOX_UPDATE_COLUMNS
+    : MAIL_WORKER_OUTBOX_PRE_REQUEST_UPDATE_COLUMNS;
+  if (
+    typeof requiresGuardedDelivery !== "boolean" ||
+    expectedAppInsertColumns !== MAIL_APP_OUTBOX_INSERT_COLUMNS ||
+    expectedWorkerUpdateColumns !== canonicalWorkerUpdateColumns
+  )
+    fail();
   const {
     authority,
     deliveryScope,
@@ -693,6 +732,20 @@ export async function verifyMailReplayAuthorityTableContract(client) {
   const persistTrigger = triggers.find(
     ({ name }) => name === foreignKey.persistTriggerName,
   );
+  const expectedInboundAuthorityForeignKeyCount = requiresGuardedDelivery
+    ? 2
+    : 1;
+  const expectedReceiptWorkerSelectColumns = requiresGuardedDelivery
+    ? MAIL_DELIVERY_RELEASE_RECEIPT_WORKER_SELECT_COLUMNS
+    : [];
+  const expectedTriggerRelations = requiresGuardedDelivery
+    ? [...triggerRelations, "public.mail_delivery_release_receipt"]
+    : triggerRelations;
+  const expectedTriggers = requiresGuardedDelivery
+    ? REVIEWED_0069_APPLICATION_TRIGGERS.filter(({ relation }) =>
+        expectedTriggerRelations.includes(relation),
+      )
+    : triggers;
   if (
     authority.relation !== unique.relation ||
     authority.owner !== "learncoding_owner" ||
@@ -798,7 +851,7 @@ export async function verifyMailReplayAuthorityTableContract(client) {
                 and authority_constraint.contype <> 'n'
            )
            and (
-             select pg_catalog.count(*) = 1
+             select pg_catalog.count(*) = $73::integer
                from pg_catalog.pg_constraint inbound_constraint
               where inbound_constraint.confrelid =
                       pg_catalog.to_regclass($39::text)
@@ -1161,23 +1214,34 @@ export async function verifyMailReplayAuthorityTableContract(client) {
                 where namespace.nspname in ('public', 'drizzle')
                   and relation.relkind in ('r', 'p', 'v', 'm', 'f')
              ), expected_entry(
+               relation_name,
                column_name,
                privilege_type,
                grantee_name
              ) as (
-               select reviewed.column_name, 'INSERT'::text,
+               select 'public.email_outbox'::text,
+                      reviewed.column_name, 'INSERT'::text,
                       'learncoding_worker'::text
                  from pg_catalog.unnest($71::text[])
                       reviewed(column_name)
                union all
-               select reviewed.column_name, 'UPDATE'::text,
+               select 'public.email_outbox'::text,
+                      reviewed.column_name, 'UPDATE'::text,
                       'learncoding_worker'::text
                  from pg_catalog.unnest($72::text[])
                       reviewed(column_name)
                union all
-               select 'idempotency_authority_version'::text,
-                      'INSERT'::text,
+               select 'public.email_outbox'::text,
+                      reviewed.column_name, 'INSERT'::text,
                       'learncoding_app'::text
+                 from pg_catalog.unnest($74::text[])
+                      reviewed(column_name)
+               union all
+               select 'public.mail_delivery_release_receipt'::text,
+                      reviewed.column_name, 'SELECT'::text,
+                      'learncoding_worker'::text
+                 from pg_catalog.unnest($75::text[])
+                      reviewed(column_name)
              ), expected_column_acl(
                relation_oid,
                column_name,
@@ -1186,17 +1250,16 @@ export async function verifyMailReplayAuthorityTableContract(client) {
                privilege_type,
                is_grantable
              ) as (
-               select outbox_relation.oid,
+               select expected_relation.oid,
                       expected_entry.column_name,
                       owner_role.oid,
                       grantee_role.oid,
                       expected_entry.privilege_type,
                       false
                  from expected_entry
-                 join pg_catalog.pg_class outbox_relation
-                   on outbox_relation.oid = pg_catalog.to_regclass(
-                        'public.email_outbox'
-                      )
+                 join pg_catalog.pg_class expected_relation
+                   on expected_relation.oid =
+                        pg_catalog.to_regclass(expected_entry.relation_name)
                  join pg_catalog.pg_roles owner_role
                    on owner_role.rolname = 'learncoding_owner'
                  join pg_catalog.pg_roles grantee_role
@@ -2159,9 +2222,9 @@ export async function verifyMailReplayAuthorityTableContract(client) {
       deliveryScope.noInherit,
       deliveryScope.columns,
       deliveryScope.normalizedExpressionSha256,
-      triggerRelations,
+      expectedTriggerRelations,
       JSON.stringify(
-        triggers.map(({ relation, name }) => ({ relation, name })),
+        expectedTriggers.map(({ relation, name }) => ({ relation, name })),
       ),
       routines.map(({ signature }) =>
         signature.slice(signature.indexOf(".") + 1, signature.indexOf("(")),
@@ -2169,7 +2232,10 @@ export async function verifyMailReplayAuthorityTableContract(client) {
       routines.map(({ signature }) => signature),
       foreignKey.persistTriggerName,
       MAIL_WORKER_OUTBOX_INSERT_COLUMNS,
-      MAIL_WORKER_OUTBOX_UPDATE_COLUMNS,
+      expectedWorkerUpdateColumns,
+      expectedInboundAuthorityForeignKeyCount,
+      expectedAppInsertColumns,
+      expectedReceiptWorkerSelectColumns,
     ],
   );
 
@@ -2249,6 +2315,8 @@ export async function verifyMailWorkerOutboxContract(
   const replayAuthorityConstraint = REVIEWED_APPLICATION_CONSTRAINTS.find(
     ({ name }) => name === "email_outbox_idempotency_authority_valid",
   );
+  const replayAuthorityConstraintHashes =
+    replayAuthorityConstraint?.normalizedExpressionSha256ByPostgresMajor;
   if (
     !variablesObjectConstraint ||
     !recipientCanonicalConstraint ||
@@ -2272,8 +2340,12 @@ export async function verifyMailWorkerOutboxContract(
     !/^[0-9a-f]{64}$/u.test(
       providerEvidenceConstraint.normalizedExpressionSha256,
     ) ||
-    !/^[0-9a-f]{64}$/u.test(
-      replayAuthorityConstraint.normalizedExpressionSha256,
+    typeof replayAuthorityConstraintHashes !== "object" ||
+    replayAuthorityConstraintHashes === null ||
+    !Object.isFrozen(replayAuthorityConstraintHashes) ||
+    Object.keys(replayAuthorityConstraintHashes).sort().join(",") !== "17,18" ||
+    Object.values(replayAuthorityConstraintHashes).some(
+      (value) => !/^[0-9a-f]{64}$/u.test(value),
     )
   )
     fail();
@@ -2616,7 +2688,14 @@ export async function verifyMailWorkerOutboxContract(
                          )
                        ),
                        'hex'
-                     ) is not distinct from $28::text
+                     ) is not distinct from case
+                      pg_catalog.current_setting(
+                        'server_version_num'
+                      )::integer / 10000
+                      when 17 then $28::jsonb ->> '17'
+                      when 18 then $28::jsonb ->> '18'
+                      else null
+                    end
                  and (
                    select pg_catalog.array_agg(
                             attribute.attname::text order by attribute.attname
@@ -2784,7 +2863,7 @@ export async function verifyMailWorkerOutboxContract(
       replayAuthorityConstraint.name,
       replayAuthorityConstraint.type,
       replayAuthorityConstraint.validated,
-      replayAuthorityConstraint.normalizedExpressionSha256,
+      JSON.stringify(replayAuthorityConstraintHashes),
       replayAuthorityConstraint.columns,
       requiresReplayAuthority,
       JSON.stringify(reviewed0067CheckConstraints),
@@ -2813,14 +2892,18 @@ export async function verifyMailWorkerOutboxContract(
     fail(`mail-worker-outbox-contract:${mismatches}`);
   }
   if (requiresReplayAuthority) {
-    await verifyMailReplayAuthorityTableContract(client);
-    await verifyMailGuardedDeliveryAclContract(client, {
-      expectedAppInsertColumns,
-      expectedWorkerInsertColumns: expectedInsertColumns,
-      expectedWorkerUpdateColumns: expectedUpdateColumns,
+    await verifyMailReplayAuthorityTableContract(client, {
       requiresGuardedDelivery,
+      expectedAppInsertColumns,
+      expectedWorkerUpdateColumns: expectedUpdateColumns,
     });
   }
+  await verifyMailGuardedDeliveryAclContract(client, {
+    expectedAppInsertColumns,
+    expectedWorkerInsertColumns: expectedInsertColumns,
+    expectedWorkerUpdateColumns: expectedUpdateColumns,
+    requiresGuardedDelivery,
+  });
   return 1;
 }
 async function verifyMailGuardedDeliveryCatalogContract(
@@ -2954,7 +3037,8 @@ async function verifyMailGuardedDeliveryCatalogContract(
            and index_relation.relnamespace = 'public'::pg_catalog.regnamespace
            and index_relation.relname = 'email_outbox_delivery_release_parent_unique'
            and pg_catalog.pg_get_userbyid(index_relation.relowner) = 'learncoding_owner'
-           and access_method.amname = 'btree' and index_row.indkey::int2[] = array[1,15]::int2[]
+           and access_method.amname = 'btree'
+           and index_row.indkey::pg_catalog.text = '1 15'::pg_catalog.text
            and index_row.indisunique and not index_row.indisprimary
            and index_row.indisvalid and index_row.indisready and index_row.indislive
            and index_row.indpred is null and index_row.indexprs is null
@@ -3788,10 +3872,20 @@ async function verifyAuthenticatedGuardedDeliveryPrivileges(client) {
         where pg_catalog.has_column_privilege(
           current_user, outbox.oid, attribute.attnum, privilege.privilege_type
         ) is distinct from (
-          current_user = any(array[
-            'learncoding_app','learncoding_worker','learncoding_ops'
-          ]::text[])
-          and privilege.privilege_type = 'SELECT'
+          (
+            current_user = any(array[
+              'learncoding_app','learncoding_worker','learncoding_ops'
+            ]::text[])
+            and privilege.privilege_type = 'SELECT'
+          )
+          or (
+            current_user = 'learncoding_worker'
+            and privilege.privilege_type = 'UPDATE'
+            and attribute.attname = any(array[
+              'provider_request_body_sha256',
+              'provider_request_body_length'
+            ]::text[])
+          )
         )
       )
       and not exists (
@@ -3872,7 +3966,10 @@ async function verifyRole({
     fail();
   positiveChecks += 1;
 
-  if (requiresGuardedDelivery === true) {
+  if (
+    requiresGuardedDelivery === true &&
+    privileges.rows[0].schema_usage === true
+  ) {
     positiveChecks += await verifyAuthenticatedGuardedDeliveryPrivileges(client);
   }
 
@@ -3975,7 +4072,7 @@ export async function verifyDatabaseRoleBoundaries(options) {
         reviewedPhase,
       );
       positiveChecks += catalog.totalVerified;
-      positiveChecks += await verifyBackupStatusMailAuthorityObjects(
+      positiveChecks += await verifyBackupStatusMailAuthorityCatalogObjects(
         lockClient,
         RESTRICTED_ROLE_NAMES,
         reviewedPhase.backupStatusAuthority,
