@@ -1,29 +1,52 @@
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
 
-import { pool } from "../src/lib/db/client";
-import { materializeDeliveryVariables } from "../src/lib/notifications/delivery-variables";
-import { scheduleInactivityReminders } from "../src/lib/notifications/inactivity";
 import {
-  requireMailDeliveryAuthorityRuntime,
-  requireMailDispatchPostgresRuntime,
+  materializeDeliveryWithAuthorityEvidence,
+} from "../src/lib/notifications/delivery-variables";
+import {
+  createMaterializedDispatch,
+  type PreparedDispatchRuntimePlan,
+} from "../src/lib/notifications/guarded-prepared-dispatch";
+import { scheduleInactivityReminders } from
+  "../src/lib/notifications/inactivity";
+import {
+  startMailDispatchHardWatchdog,
+  type MailDispatchHardWatchdog,
+} from "../src/lib/notifications/mail-dispatch-hard-watchdog";
+import {
+  createMailDispatchBootstrapResources,
+  type MailDispatchBootstrapResources,
+} from "../src/lib/notifications/mail-dispatch-pool";
+import { planMailDispatchRuntime } from
+  "../src/lib/notifications/mail-dispatch-runtime-policy";
+import {
+  inspectMailDispatchRuntime,
+  type MailDispatchRuntimeStartupInspection,
 } from "../src/lib/notifications/mail-dispatch-runtime-startup";
 import {
-  classifyMailDeliveryError,
-  prepareEmail,
-  sendPreparedEmail,
-  type PreparedEmail,
-} from "../src/lib/notifications/mailer";
+  captureMailTransportConfiguration,
+  type MailAdapter,
+  type MailTransportConfiguration,
+} from "../src/lib/notifications/mailer-transport-internal";
 import { outboxMessageId } from
   "../src/lib/notifications/provider-correlation";
 import {
-  resolveEmailTemplateAuthorityPolicy,
-} from "../src/lib/notifications/template-authority-policy";
-import {
+  authorizeCommittedPreparedDispatch,
+  captureMailDispatchApplicationOrigin,
+  discardCommittedPreparedDispatchReceipt,
+  discardGuardedPreparedDispatch,
+  mailDispatchApplicationUrl,
+  mailDispatchPreparedRuntimePlan,
   PostgresOutboxStore,
   type EmailOutboxPayload,
 } from "../src/lib/notifications/postgres-outbox-store";
-import { scheduleSmartReminders } from "../src/lib/notifications/smart-reminders";
+import {
+  scheduleSmartRemindersWithDatabase,
+} from "../src/lib/notifications/smart-reminders";
+import {
+  resolveEmailTemplateAuthorityPolicy,
+} from "../src/lib/notifications/template-authority-policy";
 import {
   processOutboxBatch,
   type ItemOutcome,
@@ -36,42 +59,22 @@ import { createWorkerHealthReporter } from "./lib/worker-health";
 
 const BATCH_SIZE = 10;
 const MATERIALIZE_LEASE_MS = 60_000;
-const PROVIDER_LEASE_MS = 300_000;
 const MAX_MATERIALIZE_ATTEMPTS = 8;
 const MAX_RETRY_DELAY_MS = 6 * 60 * 60_000;
 const TERMINAL_PERSISTENCE_ATTEMPTS = 3;
 const FENCED_WORKER_MODE = "fenced-postgres-v1";
+const DEFAULT_MAIL_FROM = "Codestead <noreply@example.com>";
+const TERMINATION_SIGNALS = ["SIGTERM", "SIGINT"] as const;
+const APPLICATION_DRAIN_TIMEOUT_CODE = "APPLICATION_DRAIN_TIMEOUT";
+const APPLICATION_STOP_TIMEOUT_CODE = "APPLICATION_STOP_TIMEOUT";
+const FALLBACK_SHUTDOWN_TIMEOUTS = planMailDispatchRuntime().timeouts;
 const MAIL_WORKER_ERROR_CODES = new Set([
   "MAIL_WORKER_FAILED",
-  "MAIL_DELIVERY_AUTHORITY_UNAVAILABLE",
   "OUTBOX_WORKER_MODE_INVALID",
   "POOL_SHUTDOWN_FAILED",
   "POOL_SHUTDOWN_TIMEOUT",
-  "POSTGRES_RUNTIME_UNSUPPORTED",
+  "WATCHDOG_SHUTDOWN_FAILED",
 ] as const);
-
-function mailWorkerErrorCode(error: unknown) {
-  return allowlistedOperationalErrorCode(
-    error,
-    MAIL_WORKER_ERROR_CODES,
-  ) ?? "MAIL_WORKER_FAILED";
-}
-
-class OutboxWorkerModeError extends Error {
-  constructor() {
-    super(`OUTBOX_WORKER_MODE must be exactly ${FENCED_WORKER_MODE}.`);
-    this.name = "OUTBOX_WORKER_MODE_INVALID";
-  }
-}
-class MailDeliveryAuthorityUnavailableError extends Error {
-  constructor() {
-    super("Mail delivery authority is unavailable.");
-    this.name = "MAIL_DELIVERY_AUTHORITY_UNAVAILABLE";
-  }
-}
-
-const POOL_SHUTDOWN_TIMEOUT_MS = 5_000;
-const TERMINATION_SIGNALS = ["SIGTERM", "SIGINT"] as const;
 
 const workerHost = hostname()
   .replace(/[^A-Za-z0-9._:-]/g, "-")
@@ -80,8 +83,34 @@ const claimOwner =
   `mail-worker:${workerHost}:${process.pid}:${randomUUID()}`.slice(0, 128);
 
 let healthReporter: ReturnType<typeof createWorkerHealthReporter> | undefined;
+let resources: MailDispatchBootstrapResources | undefined;
+let startupInspection: MailDispatchRuntimeStartupInspection | undefined;
+let watchdog: MailDispatchHardWatchdog | undefined;
 let stopping = false;
 let finishPollWait: (() => void) | undefined;
+let drainDeadline: ReturnType<typeof setTimeout> | undefined;
+let applicationStopDeadline: ReturnType<typeof setTimeout> | undefined;
+let cleanupPromise: Promise<void> | undefined;
+let applicationDrainTimedOut = false;
+
+const terminationRuntime = Object.freeze({
+  schedule(callback: () => void, timeoutMs: number) {
+    return setTimeout(callback, timeoutMs);
+  },
+  cancel(timer: ReturnType<typeof setTimeout>) {
+    clearTimeout(timer);
+  },
+  failStop() {
+    process.exit(1);
+  },
+});
+
+class OutboxWorkerModeError extends Error {
+  constructor() {
+    super(`OUTBOX_WORKER_MODE must be exactly ${FENCED_WORKER_MODE}.`);
+    this.name = "OUTBOX_WORKER_MODE_INVALID";
+  }
+}
 
 class PoolShutdownTimeoutError extends Error {
   constructor() {
@@ -90,15 +119,77 @@ class PoolShutdownTimeoutError extends Error {
   }
 }
 
+function mailWorkerErrorCode(error: unknown) {
+  return allowlistedOperationalErrorCode(
+    error,
+    MAIL_WORKER_ERROR_CODES,
+  ) ?? "MAIL_WORKER_FAILED";
+}
+
+function shutdownTimeouts() {
+  return startupInspection?.plan.timeouts ?? FALLBACK_SHUTDOWN_TIMEOUTS;
+}
+
+function beginCleanup() {
+  cleanupPromise ??= cleanup();
+  return cleanupPromise;
+}
+
+function finishApplicationLifecycle() {
+  if (drainDeadline !== undefined) {
+    terminationRuntime.cancel(drainDeadline);
+    drainDeadline = undefined;
+  }
+  if (applicationStopDeadline !== undefined) {
+    terminationRuntime.cancel(applicationStopDeadline);
+    applicationStopDeadline = undefined;
+  }
+  removeTerminationHandlers();
+}
+
+function markApplicationDrainTimeout() {
+  if (applicationDrainTimedOut) return;
+  applicationDrainTimedOut = true;
+  process.exitCode = 1;
+  console.error(JSON.stringify({
+    event: "email.worker_drain_timeout",
+    code: APPLICATION_DRAIN_TIMEOUT_CODE,
+  }));
+}
+function failStopApplication() {
+  applicationStopDeadline = undefined;
+  process.exitCode = 1;
+  console.error(JSON.stringify({
+    event: "email.worker_stop_timeout",
+    code: APPLICATION_STOP_TIMEOUT_CODE,
+  }));
+  removeTerminationHandlers();
+  terminationRuntime.failStop();
+}
+
+function startApplicationStopDeadlines() {
+  const timeouts = shutdownTimeouts();
+  drainDeadline = terminationRuntime.schedule(() => {
+    drainDeadline = undefined;
+    markApplicationDrainTimeout();
+    void beginCleanup();
+  }, timeouts.drainMs);
+  applicationStopDeadline = terminationRuntime.schedule(
+    failStopApplication,
+    timeouts.stopMs,
+  );
+}
+
 function requestStop() {
   if (stopping) return;
   stopping = true;
   finishPollWait?.();
+  startApplicationStopDeadlines();
 }
 
 function installTerminationHandlers() {
   for (const signal of TERMINATION_SIGNALS) {
-    process.once(signal, requestStop);
+    process.on(signal, requestStop);
   }
 }
 
@@ -125,13 +216,61 @@ function waitForNextPoll(milliseconds: number) {
   });
 }
 
-async function endPoolWithinDeadline() {
+function configuredSeconds(input: Readonly<{
+  name: "OUTBOX_POLL_SECONDS" | "INACTIVITY_SCHEDULE_SECONDS";
+  fallback: string;
+  minimum: number;
+  maximum: number;
+}>) {
+  const raw = process.env[input.name] ?? input.fallback;
+  if (!/^[1-9][0-9]*$/.test(raw)) {
+    throw new Error(
+      `${input.name} must be an integer from ${input.minimum} to ${input.maximum}.`,
+    );
+  }
+  const seconds = Number(raw);
+  if (
+    !Number.isSafeInteger(seconds)
+    || seconds < input.minimum
+    || seconds > input.maximum
+  ) {
+    throw new Error(
+      `${input.name} must be an integer from ${input.minimum} to ${input.maximum}.`,
+    );
+  }
+  return seconds;
+}
+
+function configuredAdapter(): MailAdapter {
+  const adapter = process.env.MAIL_ADAPTER ?? "console";
+  if (adapter !== "console" && adapter !== "gmail") {
+    throw new Error("MAIL_ADAPTER must be either console or gmail.");
+  }
+  return adapter;
+}
+
+function configuredFromAddress() {
+  const from = process.env.MAIL_FROM ?? DEFAULT_MAIL_FROM;
+  if (
+    !from.trim()
+    || from.length > 512
+    || /[\r\n\0]/.test(from)
+  ) {
+    throw new Error("MAIL_FROM is invalid.");
+  }
+  return from;
+}
+
+async function endPoolWithinDeadline(
+  activeResources: MailDispatchBootstrapResources,
+  timeoutMs: number,
+) {
   let timeout: ReturnType<typeof setTimeout> | undefined;
-  const close = Promise.resolve().then(() => pool.end());
+  const close = Promise.resolve().then(() => activeResources.pool.end());
   const expired = new Promise<never>((_, reject) => {
     timeout = setTimeout(
       () => reject(new PoolShutdownTimeoutError()),
-      POOL_SHUTDOWN_TIMEOUT_MS,
+      timeoutMs,
     );
   });
 
@@ -143,57 +282,44 @@ async function endPoolWithinDeadline() {
 }
 
 async function cleanup() {
-  removeTerminationHandlers();
-  try {
-    await endPoolWithinDeadline();
-  } catch (error) {
-    process.exitCode = 1;
-    console.error(
-      JSON.stringify({
-        event: "email.worker_cleanup_failed",
-        code: error instanceof PoolShutdownTimeoutError
-          ? "POOL_SHUTDOWN_TIMEOUT"
-          : "POOL_SHUTDOWN_FAILED",
-      }),
-    );
-    if (error instanceof PoolShutdownTimeoutError) {
-      process.exit(1);
+  let cleanupCode:
+    | "WATCHDOG_SHUTDOWN_FAILED"
+    | "POOL_SHUTDOWN_TIMEOUT"
+    | "POOL_SHUTDOWN_FAILED"
+    | undefined;
+
+  if (watchdog) {
+    try {
+      await watchdog.close();
+    } catch {
+      cleanupCode = "WATCHDOG_SHUTDOWN_FAILED";
     }
   }
-}
 
-function configuredAdapter(): "console" | "gmail" {
-  const adapter = process.env.MAIL_ADAPTER ?? "console";
-  if (adapter !== "console" && adapter !== "gmail") {
-    throw new Error("MAIL_ADAPTER must be either console or gmail.");
-  }
-  return adapter;
-}
-
-async function requireRunnableMailDeliveryAuthority() {
-  try {
-    const verdict = await requireMailDeliveryAuthorityRuntime(pool);
-    if (
-      typeof verdict !== "object"
-      || verdict === null
-      || typeof verdict.holdCatalogExact !== "boolean"
-      || typeof verdict.deliveryReleaseCapabilityExact !== "boolean"
-      || (
-        verdict.holdCatalogExact
-        !== verdict.deliveryReleaseCapabilityExact
-      )
-    ) {
-      throw new MailDeliveryAuthorityUnavailableError();
+  if (resources) {
+    try {
+      const poolCloseMs = startupInspection?.plan.timeouts.poolCloseMs ?? 5_000;
+      await endPoolWithinDeadline(resources, poolCloseMs);
+    } catch (error) {
+      cleanupCode = error instanceof PoolShutdownTimeoutError
+        ? "POOL_SHUTDOWN_TIMEOUT"
+        : "POOL_SHUTDOWN_FAILED";
     }
-  } catch {
-    throw new MailDeliveryAuthorityUnavailableError();
   }
+
+  if (!cleanupCode) return;
+  process.exitCode = 1;
+  console.error(JSON.stringify({
+    event: "email.worker_cleanup_failed",
+    code: cleanupCode,
+  }));
+  if (cleanupCode === "POOL_SHUTDOWN_TIMEOUT") process.exit(1);
 }
 
-function retryMaterialization(input: {
+function retryMaterialization(input: Readonly<{
   attempt: number;
   now: Date;
-}): (
+}>): (
   | { readonly kind: "retry"; readonly code: string; readonly retryAt: Date }
   | { readonly kind: "failed"; readonly code: string }
 ) {
@@ -211,12 +337,18 @@ function retryMaterialization(input: {
   };
 }
 
-async function processBatch(
-  store: PostgresOutboxStore,
-  adapter: "console" | "gmail",
-) {
-  return processOutboxBatch<EmailOutboxPayload, PreparedEmail>({
-    store,
+function processBatch(input: Readonly<{
+  store: PostgresOutboxStore;
+  adapter: MailAdapter;
+  from: string;
+  applicationUrl: string;
+  transportConfiguration: MailTransportConfiguration;
+  preparedRuntimePlan: PreparedDispatchRuntimePlan;
+  watchdog: MailDispatchHardWatchdog;
+}>) {
+  const clock = Object.freeze({ now: () => new Date() });
+  return processOutboxBatch<EmailOutboxPayload>({
+    store: input.store,
     materialize: async (claim) => {
       const resolvedPolicy = resolveEmailTemplateAuthorityPolicy(
         claim.payload.template,
@@ -225,67 +357,71 @@ async function processBatch(
       if (!resolvedPolicy) {
         return { kind: "suppressed", code: "TEMPLATE_POLICY_INVALID" };
       }
-      const template = resolvedPolicy.template;
-      const variables = await materializeDeliveryVariables({
-        template,
-        variables: { ...claim.payload.variables },
-        now: new Date(),
+
+      const sourceVariables = Object.freeze({ ...claim.payload.variables });
+      const delivery = await materializeDeliveryWithAuthorityEvidence({
+        applicationUrl: input.applicationUrl,
+        template: resolvedPolicy.template,
+        templateVersion: claim.payload.templateVersion,
+        variables: { ...sourceVariables },
+        now: clock.now(),
       });
-      if (!variables) {
+      if (!delivery) {
         return {
           kind: "suppressed",
           code: "DELIVERY_PROOF_UNAVAILABLE",
         };
       }
-      return {
-        kind: "ready",
-        message: prepareEmail({
-          to: claim.payload.to,
-          template,
-          variables,
-        }, {
-          adapter,
+
+      const materializedInput = {
+        source: Object.freeze({
+          applicationUrl: input.applicationUrl,
+          outboxId: claim.id,
           operationId: claim.operationId,
-          messageId: outboxMessageId(claim.operationId),
+          claimToken: claim.claimToken,
+          claimOwner: claim.claimOwner,
+          claimVersion: claim.claimVersion,
+          deliveryScopeKey: claim.deliveryScopeKey,
+          recipient: claim.payload.to,
+          template: resolvedPolicy.template,
+          templateVersion: claim.payload.templateVersion,
+          variables: sourceVariables,
         }),
+        adapter: input.adapter,
+        from: input.from,
+        messageId: outboxMessageId(claim.operationId),
+        runtimePlan: input.preparedRuntimePlan,
+        transportConfiguration: input.transportConfiguration,
+        ...(delivery.authorityEvidence === null
+          ? {}
+          : {
+              delivery: Object.freeze({
+                authorityEvidence: delivery.authorityEvidence,
+                variables: delivery.variables,
+              }),
+            }),
+      };
+      return {
+        kind: "ready" as const,
+        materialized: createMaterializedDispatch(materializedInput),
       };
     },
-    provider: {
-      adapter,
-      send: async (message, context) => {
-        try {
-          if (
-            message.operationId !== context.operationId
-            || message.messageId !== context.messageId
-          ) {
-            return {
-              kind: "definitely-rejected" as const,
-              code: "PAYLOAD_DIGEST_MISMATCH",
-            };
-          }
-          const receipt = await sendPreparedEmail(message);
-          return {
-            kind: "accepted" as const,
-            providerMessageId: receipt.providerId,
-          };
-        } catch (error) {
-          const failure = classifyMailDeliveryError(error);
-          return failure.kind === "definitely-rejected"
-            ? {
-                kind: "definitely-rejected" as const,
-                code: failure.code,
-              }
-            : {
-                kind: "ambiguous" as const,
-                code: failure.code,
-              };
-        }
-      },
-    },
+    adapter: input.adapter,
+    authorize: (receipt) =>
+      authorizeCommittedPreparedDispatch(input.store, receipt),
+    discardReceipt: (permit, receipt) =>
+      discardCommittedPreparedDispatchReceipt(
+        input.store,
+        permit,
+        receipt,
+      ),
+    discardGuard: (permit, guarded) =>
+      discardGuardedPreparedDispatch(input.store, permit, guarded),
+    watchdog: input.watchdog,
     claimOwner,
     newClaimToken: randomUUID,
     shouldStop: () => stopping,
-    clock: { now: () => new Date() },
+    clock,
     retryPolicy: {
       unexpectedMaterializeError: ({ attempt, now }) =>
         retryMaterialization({ attempt, now }),
@@ -293,7 +429,6 @@ async function processBatch(
     policy: {
       batchSize: BATCH_SIZE,
       materializeLeaseMs: MATERIALIZE_LEASE_MS,
-      providerLeaseMs: PROVIDER_LEASE_MS,
       maxMaterializeAttempts: MAX_MATERIALIZE_ATTEMPTS,
       maxRetryDelayMs: MAX_RETRY_DELAY_MS,
       terminalPersistenceAttempts: TERMINAL_PERSISTENCE_ATTEMPTS,
@@ -363,34 +498,35 @@ async function main() {
     throw new OutboxWorkerModeError();
   }
 
-  const pollSeconds = Number.parseInt(
-    process.env.OUTBOX_POLL_SECONDS ?? "10",
-    10,
-  );
-  if (
-    !Number.isInteger(pollSeconds)
-    || pollSeconds < 1
-    || pollSeconds > 3_600
-  ) {
-    throw new Error("OUTBOX_POLL_SECONDS must be an integer from 1 to 3600.");
-  }
-  const inactivityScheduleSeconds = Number.parseInt(
-    process.env.INACTIVITY_SCHEDULE_SECONDS ?? "60",
-    10,
-  );
-  if (
-    !Number.isInteger(inactivityScheduleSeconds)
-    || inactivityScheduleSeconds < 10
-    || inactivityScheduleSeconds > 3_600
-  ) {
-    throw new Error(
-      "INACTIVITY_SCHEDULE_SECONDS must be an integer from 10 to 3600.",
-    );
-  }
-  await requireMailDispatchPostgresRuntime(pool);
-  await requireRunnableMailDeliveryAuthority();
+  const pollSeconds = configuredSeconds({
+    name: "OUTBOX_POLL_SECONDS",
+    fallback: "10",
+    minimum: 1,
+    maximum: 3_600,
+  });
+  const inactivityScheduleSeconds = configuredSeconds({
+    name: "INACTIVITY_SCHEDULE_SECONDS",
+    fallback: "60",
+    minimum: 10,
+    maximum: 3_600,
+  });
+
+  resources = createMailDispatchBootstrapResources();
+  const inspection = await inspectMailDispatchRuntime(resources.pool);
+  startupInspection = inspection;
+  const applicationOrigin = captureMailDispatchApplicationOrigin(inspection);
+  const applicationUrl = mailDispatchApplicationUrl(applicationOrigin);
   const adapter = configuredAdapter();
-  const store = new PostgresOutboxStore(pool);
+  const from = configuredFromAddress();
+  const transportConfiguration = captureMailTransportConfiguration(adapter);
+  const store = new PostgresOutboxStore(
+    resources.pool,
+    inspection,
+    applicationOrigin,
+  );
+  const preparedRuntimePlan = mailDispatchPreparedRuntimePlan(store);
+  watchdog = await startMailDispatchHardWatchdog();
+
   const once = process.argv.includes("--once");
   healthReporter = createWorkerHealthReporter({ worker: "mail-worker" });
   let lastInactivityScheduleAt = 0;
@@ -402,7 +538,10 @@ async function main() {
       scheduleAt - lastInactivityScheduleAt
       >= inactivityScheduleSeconds * 1_000
     ) {
-      const schedule = await scheduleInactivityReminders(new Date(scheduleAt));
+      const schedule = await scheduleInactivityReminders(
+        new Date(scheduleAt),
+        resources.pool,
+      );
       lastInactivityScheduleAt = scheduleAt;
       console.info(JSON.stringify({ event: "inactivity.schedule", ...schedule }));
     }
@@ -411,14 +550,25 @@ async function main() {
       scheduleAt - lastSmartReminderScheduleAt
       >= inactivityScheduleSeconds * 1_000
     ) {
-      const schedule = await scheduleSmartReminders(new Date(scheduleAt));
+      const schedule = await scheduleSmartRemindersWithDatabase(
+        resources.database,
+        new Date(scheduleAt),
+      );
       lastSmartReminderScheduleAt = scheduleAt;
       console.info(
         JSON.stringify({ event: "smart_reminder.schedule", ...schedule }),
       );
     }
     if (stopping) break;
-    const result = await processBatch(store, adapter);
+    const result = await processBatch({
+      store,
+      adapter,
+      from,
+      applicationUrl,
+      transportConfiguration,
+      preparedRuntimePlan,
+      watchdog,
+    });
     console.info(JSON.stringify(batchLog(result)));
     healthReporter.success();
     if (once || stopping) break;
@@ -433,12 +583,13 @@ main()
   .catch((error) => {
     healthReporter?.retry(error);
     healthReporter?.terminalFailure(error);
-    console.error(
-      JSON.stringify({
-        event: "email.worker_failed",
-        code: mailWorkerErrorCode(error),
-      }),
-    );
+    console.error(JSON.stringify({
+      event: "email.worker_failed",
+      code: mailWorkerErrorCode(error),
+    }));
     process.exitCode = 1;
   })
-  .finally(cleanup);
+  .finally(async () => {
+    await beginCleanup();
+    finishApplicationLifecycle();
+  });

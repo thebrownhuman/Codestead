@@ -3,7 +3,10 @@ import type { Pool, PoolClient } from "pg";
 import { pool } from "@/lib/db/client";
 import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
-import type { EmailTemplate } from "./outbox";
+import {
+  assertEmailOutboxDeliveryRelease,
+  type EmailTemplate,
+} from "./outbox";
 import {
   createInactivitySourceVariables,
   INACTIVITY_MAIL_POLICY_VERSION,
@@ -135,16 +138,50 @@ async function persistEmail(
     template: input.template,
     userId: input.userId,
   });
-  await client.query(
+  const inserted = await client.query<{
+    id: string;
+    operation_id: string;
+    idempotency_authority_sha256: string;
+    idempotency_original_payload_sha256: string;
+    delivery_hold_version: string;
+  }>(
     `insert into email_outbox
       (user_id,delivery_scope_key,to_email,template,template_version,variables,idempotency_key,idempotency_authority_version,status,next_attempt_at)
      values ($1,'a:' || $1,$2,$3,'2',$4::jsonb,$5,'event-v1-native','pending',now())
      on conflict (idempotency_key) do nothing
-     returning id`,
+     returning id, operation_id, idempotency_authority_sha256, idempotency_original_payload_sha256, delivery_hold_version`,
     [input.userId, to, input.template, JSON.stringify(input.variables), idempotencyKey],
   );
   // Migration 0067 suppresses an exact, payload-bound replay by returning
   // no row from its BEFORE INSERT trigger. Conflicting payloads still raise.
+  const outbox = inserted.rows[0];
+  if (outbox) {
+    const released = await client.query<{
+      outbox_id: string;
+      operation_id: string;
+    }>(
+      `select released.outbox_id::text as outbox_id,
+              released.operation_id::text as operation_id
+         from public.release_email_outbox_delivery(
+        $1::uuid,
+        $2::uuid,
+        $3::text,
+        $4::text,
+        $5::text
+      ) as released`,
+      [
+        outbox.id,
+        outbox.operation_id,
+        outbox.idempotency_authority_sha256,
+        outbox.idempotency_original_payload_sha256,
+        outbox.delivery_hold_version,
+      ],
+    );
+    assertEmailOutboxDeliveryRelease(released, {
+      outboxId: outbox.id,
+      operationId: outbox.operation_id,
+    });
+  }
   return true;
 }
 

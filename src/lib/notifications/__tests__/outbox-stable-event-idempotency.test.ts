@@ -1,18 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PgDialect } from "drizzle-orm/pg-core";
 
 const mocks = vi.hoisted(() => {
-  const execute = vi.fn(async (statement: unknown) => {
+  const execute = vi.fn(async (statement: unknown): Promise<unknown> => {
     void statement;
+    return undefined;
   });
   const values = vi.fn((row: unknown) => {
     void row;
   });
-  return { execute, values };
+  const transaction = vi.fn(
+    async (callback: (tx: { execute: typeof execute }) => Promise<unknown>) =>
+      callback({ execute }),
+  );
+  return { execute, transaction, values };
 });
 
 vi.mock("@/lib/db/client", () => ({
   db: {
     execute: mocks.execute,
+    transaction: mocks.transaction,
   },
 }));
 
@@ -22,11 +29,37 @@ import { capturedOutboxRow } from "./outbox-sql-test-support";
 type EnqueueInput = Parameters<typeof enqueueEmail>[0];
 type SystemInputWithAudience = EnqueueInput & { audienceId: string };
 
+const dialect = new PgDialect();
+const OUTBOX_ID = "82000000-0000-4000-8000-000000000001";
+const AUTHORITY_SHA256 = "a".repeat(64);
+const PAYLOAD_SHA256 = "b".repeat(64);
+
 describe("email producer-event replay authority", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    let operationId: string | undefined;
     mocks.execute.mockImplementation(async (statement) => {
-      mocks.values(capturedOutboxRow(statement));
+      const rendered = dialect.sqlToQuery(statement as never);
+      if (rendered.sql.includes("release_email_outbox_delivery")) {
+        if (!operationId) throw new Error("Release ran before insert.");
+        return {
+          rowCount: 1,
+          rows: [{ outbox_id: OUTBOX_ID, operation_id: operationId }],
+        };
+      }
+      const row = capturedOutboxRow(statement);
+      operationId = String(row.operationId);
+      mocks.values(row);
+      return {
+        rowCount: 1,
+        rows: [{
+          id: OUTBOX_ID,
+          operation_id: operationId,
+          idempotency_authority_sha256: AUTHORITY_SHA256,
+          idempotency_original_payload_sha256: PAYLOAD_SHA256,
+          delivery_hold_version: "task7-v1",
+        }],
+      };
     });
   });
 

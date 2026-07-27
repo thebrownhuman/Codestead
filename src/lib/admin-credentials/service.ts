@@ -5,12 +5,11 @@ import { validateProviderCredential } from "@/lib/ai/credential-validation";
 import type { CredentialValidationStatus } from "@/lib/ai/credential-validation";
 import { db } from "@/lib/db/client";
 import {
-  emailOutbox,
   notification,
   providerCredential,
   user,
 } from "@/lib/db/schema";
-import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
+import { enqueueEmailInTransaction } from "@/lib/notifications/outbox";
 import { consentPurposeForProvider, hasCurrentConsent } from "@/lib/privacy/consent";
 import {
   writeAuditEventInTransaction,
@@ -287,28 +286,18 @@ async function appendCredentialNotice(
     body: input.summary,
     actionUrl: "/settings?section=ai",
   });
-  await tx
-    .insert(emailOutbox)
-    .values({
-      userId: target.userId,
-      deliveryScopeKey: `a:${target.userId}`,
-      toEmail: target.ownerEmail.toLowerCase(),
-      template: "credential-changed",
-      templateVersion: "1",
-      variables: {
-        name: target.ownerName,
-        provider,
-        action: input.actionText,
-        url: `${appUrl()}/settings?section=ai`,
-      },
-      idempotencyKey: accountMailEventIdempotencyKey({
-        eventId: `${target.id}:${input.action}:${input.requestId}:${input.stage}`,
-        template: "credential-changed",
-        userId: target.userId,
-      }),
-      idempotencyAuthorityVersion: "event-v1-native",
-    })
-    .onConflictDoNothing({ target: emailOutbox.idempotencyKey });
+  await enqueueEmailInTransaction(tx, {
+    to: target.ownerEmail,
+    userId: target.userId,
+    template: "credential-changed",
+    variables: {
+      name: target.ownerName,
+      provider,
+      action: input.actionText,
+      url: `${appUrl()}/settings?section=ai`,
+    },
+    idempotencySeed: `${target.id}:${input.action}:${input.requestId}:${input.stage}`,
+  });
 }
 
 async function recordValidationIntent(

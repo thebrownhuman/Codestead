@@ -321,30 +321,67 @@ describe("0067 Task 5 delivery hold contract", () => {
       "\"delete from email_outbox where user_id = $1 or lower(to_email) = lower($2)\"",
     );
     expect(normalizedRetention).toContain(
+      "from public.redact_quarantined_email_outbox_authority_v2(",
+    );
+    expect(normalizedRetention).toContain(
+      "public.email_outbox_idempotency_coverage_authority(",
+    );
+    expect(normalizedRetention).toContain(
+      "and adapter = 'gmail' and provider_message_id is not null",
+    );
+    expect(normalizedRetention).toContain(
+      "and adapter = 'console' and provider_message_id is null",
+    );
+    expect(normalizedRetention).not.toContain(
       "status = 'quarantined' and provider_call_started is not null and provider_message_id is null",
     );
   });
 
-  it("places an independent deny-all hold gate on every delivery mutation", () => {
+  it("places an independent exact-release gate on every delivery mutation", () => {
+    const releaseGate = sourceBlock(
+      normalizedStore,
+      "function exactdeliveryreleasesql(",
+      "const candidate_exact_delivery_release_sql",
+    );
+    for (const predicate of [
+      "${alias}.delivery_hold_version = 'task7-v1'",
+      "${alias}.delivery_release_insert_xid is null",
+      "${alias}.delivery_release_insert_system_identifier is null",
+      "from only public.mail_delivery_release_receipt as release",
+      "release.outbox_id = ${alias}.id",
+      "release.operation_id = ${alias}.operation_id",
+      "release.idempotency_authority_version = ${alias}.idempotency_authority_version",
+      "release.idempotency_authority_sha256 = ${alias}.idempotency_authority_sha256",
+      "release.idempotency_original_payload_sha256 = ${alias}.idempotency_original_payload_sha256",
+      "release.release_version = ${alias}.delivery_hold_version",
+      "release.release_receipt_sha256 = ${exactdeliveryreleasereceiptsql(alias)}",
+    ]) {
+      expect(releaseGate).toContain(predicate);
+    }
+    expect(releaseGate).not.toMatch(/\bor\b/u);
+
     const claim = sourceBlock(
       normalizedStore,
       "async claimnext(",
       "async beginprovidercall(",
     );
-    const holdPredicates =
-      claim.match(/delivery_hold_version is null/gu) ?? [];
-    expect(holdPredicates).toHaveLength(2);
-    const candidateHold = claim.indexOf(
-      "candidate.delivery_hold_version is null",
+    expect(
+      claim.match(/\$\{candidate_exact_delivery_release_sql\}/gu) ?? [],
+    ).toHaveLength(1);
+    expect(
+      claim.match(/\$\{outbox_exact_delivery_release_sql\}/gu) ?? [],
+    ).toHaveLength(2);
+    const candidateRelease = claim.indexOf(
+      "${candidate_exact_delivery_release_sql}",
     );
     const outerLimit = claim.indexOf("limit 16");
-    const casHold = claim.indexOf(
-      "delivery_hold_version is null",
+    const casRelease = claim.indexOf(
+      "${outbox_exact_delivery_release_sql}",
       outerLimit,
     );
-    expect(candidateHold).toBeGreaterThanOrEqual(0);
-    expect(candidateHold).toBeLessThan(outerLimit);
-    expect(casHold).toBeGreaterThan(outerLimit);
+    expect(candidateRelease).toBeGreaterThanOrEqual(0);
+    expect(candidateRelease).toBeLessThan(outerLimit);
+    expect(casRelease).toBeGreaterThan(outerLimit);
     expect(claim).not.toContain(
       "active.delivery_hold_version is null",
     );
@@ -357,26 +394,26 @@ describe("0067 Task 5 delivery hold contract", () => {
       "async function providerboundarydecision(",
       "function claimfromrow(",
     );
-    expect(decision).toContain(
-      "and outbox.delivery_hold_version is null",
-    );
+    expect(decision).toContain("${outbox_exact_delivery_release_sql}");
     const providerStart = sourceBlock(
       normalizedStore,
       "async beginprovidercall(",
       "async finishbeforeprovider(",
     );
-    expect(providerStart).toContain(
-      "and outbox.delivery_hold_version is null",
-    );
+    expect(
+      providerStart.match(/\$\{outbox_exact_delivery_release_sql\}/gu) ?? [],
+    ).toHaveLength(2);
 
     const reconciliationDiscovery = sourceBlock(
       normalizedStore,
       "async findgmailreconciliationfence(",
       "async finalizegmailreconciliation(",
     );
-    expect(reconciliationDiscovery).toContain(
-      "delivery_hold_version is null",
-    );
+    expect(
+      reconciliationDiscovery.match(
+        /\$\{outbox_exact_delivery_release_sql\}/gu,
+      ) ?? [],
+    ).toHaveLength(1);
     const reconciliationFinalization = sourceBlock(
       normalizedStore,
       "async finalizegmailreconciliation(",
@@ -384,15 +421,15 @@ describe("0067 Task 5 delivery hold contract", () => {
     );
     expect(
       reconciliationFinalization.match(
-        /delivery_hold_version is null/gu,
-      )?.length,
-    ).toBeGreaterThanOrEqual(2);
+        /\$\{outbox_exact_delivery_release_sql\}/gu,
+      ) ?? [],
+    ).toHaveLength(2);
     const sweep = tailBlock(
       normalizedStore,
       "async quarantineabandoned(",
     );
     expect(
-      sweep.match(/delivery_hold_version is null/gu),
+      sweep.match(/\$\{outbox_exact_delivery_release_sql\}/gu) ?? [],
     ).toHaveLength(2);
 
     const audience = sourceBlock(
@@ -405,14 +442,7 @@ describe("0067 Task 5 delivery hold contract", () => {
     expect(audience).not.toContain(
       "idempotency_original_payload_sha256",
     );
-    expect(decision).not.toMatch(
-      /delivery_hold_version is null\s+or\s+outbox\.idempotency_/u,
-    );
-    expect(providerStart).not.toMatch(
-      /delivery_hold_version is null\s+or\s+outbox\.idempotency_/u,
-    );
   });
-
   it("requires deterministic live PG17/PG18 evidence for all bypasses", () => {
     const holdProof = javascriptFunctionBlock(
       liveHarness,

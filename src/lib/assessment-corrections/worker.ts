@@ -11,6 +11,7 @@ import { EXAM_MASTERY_RULE_VERSION, examModuleMasterySlug } from "@/lib/achievem
 import { hashAppealEvidence } from "@/lib/appeals/evidence";
 import { pool } from "@/lib/db/client";
 import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
+import { assertEmailOutboxDeliveryRelease } from "@/lib/notifications/outbox";
 import { runtimeByLanguage } from "@/lib/runner/client";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
 import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
@@ -582,17 +583,46 @@ async function persistOutcome(job: ClaimedJob, correctedResult: ExamResult, runn
         template: "assessment-corrected",
         userId: job.userId,
       });
-      await client.query(
+      const insertedOutbox = await client.query<{
+        id: string;
+        operation_id: string;
+        idempotency_authority_sha256: string;
+        idempotency_original_payload_sha256: string;
+        delivery_hold_version: string;
+      }>(
         `insert into email_outbox
           (user_id, delivery_scope_key, to_email, template, template_version, variables, idempotency_key, idempotency_authority_version, status)
          values ($1,'a:' || $1,lower($2),'assessment-corrected','1',$3::jsonb,$4,'event-v1-native','pending')
-         on conflict (idempotency_key) do nothing`,
+         on conflict (idempotency_key) do nothing
+         returning id, operation_id, idempotency_authority_sha256,
+                   idempotency_original_payload_sha256, delivery_hold_version`,
         [job.userId, learnerAuthority.rows[0].email, JSON.stringify({
           name: learnerAuthority.rows[0].name,
           outcome: correctedResult.outcome,
           url: `${appUrl}${actionPath}`,
         }), mailKey],
       );
+      const outboxRow = insertedOutbox.rows[0];
+      if (outboxRow) {
+        const released = await client.query<{
+          outbox_id: string;
+          operation_id: string;
+        }>(
+          `select released.outbox_id::text as outbox_id,
+                  released.operation_id::text as operation_id
+             from public.release_email_outbox_delivery(
+             $1::uuid, $2::uuid, $3::text, $4::text, $5::text
+           ) as released`,
+          [outboxRow.id, outboxRow.operation_id,
+            outboxRow.idempotency_authority_sha256,
+            outboxRow.idempotency_original_payload_sha256,
+            outboxRow.delivery_hold_version],
+        );
+        assertEmailOutboxDeliveryRelease(released, {
+          outboxId: outboxRow.id,
+          operationId: outboxRow.operation_id,
+        });
+      }
     }
     await appendCorrectionEvent(client, {
       correctionId: job.correctionId,

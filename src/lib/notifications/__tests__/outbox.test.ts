@@ -3,17 +3,25 @@ import { DrizzleQueryError } from "drizzle-orm/errors";
 import { PgDialect } from "drizzle-orm/pg-core";
 
 const mocks = vi.hoisted(() => {
-  const execute = vi.fn(async (_statement: unknown) => {
+  const execute = vi.fn(async (_statement: unknown): Promise<unknown> => {
     void _statement;
+    return undefined;
   });
+  const transaction = vi.fn(
+    async (callback: (tx: { execute: typeof execute }) => Promise<unknown>) =>
+      callback({ execute }),
+  );
   const values = vi.fn((_value: Record<string, unknown>) => {
     void _value;
   });
-  return { execute, values };
+  return { execute, transaction, values };
 });
 
 vi.mock("@/lib/db/client", () => ({
-  db: { execute: mocks.execute },
+  db: {
+    execute: mocks.execute,
+    transaction: mocks.transaction,
+  },
 }));
 
 import {
@@ -24,16 +32,57 @@ import {
 import { accountMailEventIdempotencyKey } from "../idempotency-authority";
 
 const dialect = new PgDialect();
+const INSERTED_OUTBOX_RELEASE = Object.freeze({
+  id: "11111111-1111-4111-8111-111111111111",
+  operation_id: "22222222-2222-4222-8222-222222222222",
+  idempotency_authority_sha256: "a".repeat(64),
+  idempotency_original_payload_sha256: "b".repeat(64),
+  delivery_hold_version: "task7-v1",
+});
 
 function renderStatement(statement: unknown) {
   return dialect.sqlToQuery(statement as never);
 }
 
+function executedStatementContaining(fragment: string) {
+  return mocks.execute.mock.calls
+    .map(([statement]) => statement)
+    .find((statement) =>
+      renderStatement(statement)
+        .sql.replace(/\s+/gu, " ")
+        .trim()
+        .toLowerCase()
+        .includes(fragment),
+    );
+}
+
 describe("email outbox", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.transaction.mockImplementation(
+      async (
+        callback: (tx: { execute: typeof mocks.execute }) => Promise<unknown>,
+      ) => callback({ execute: mocks.execute }),
+    );
+    let insertedOperationId: string = INSERTED_OUTBOX_RELEASE.operation_id;
     mocks.execute.mockImplementation(async (statement) => {
-      const { params } = renderStatement(statement);
+      const rendered = renderStatement(statement);
+      const normalizedSql = rendered.sql
+        .replace(/\s+/gu, " ")
+        .trim()
+        .toLowerCase();
+      if (normalizedSql.includes("release_email_outbox_delivery")) {
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              outbox_id: INSERTED_OUTBOX_RELEASE.id,
+              operation_id: insertedOperationId,
+            },
+          ],
+        };
+      }
+      const { params } = rendered;
       const [
         operationId,
         userId,
@@ -45,6 +94,7 @@ describe("email outbox", () => {
         idempotencyKey,
         idempotencyAuthorityVersion,
       ] = params;
+      insertedOperationId = String(operationId);
       mocks.values({
         operationId,
         userId,
@@ -56,10 +106,286 @@ describe("email outbox", () => {
         idempotencyKey,
         idempotencyAuthorityVersion,
       });
+      return {
+        rowCount: 1,
+        rows: [
+          {
+            ...INSERTED_OUTBOX_RELEASE,
+            operation_id: String(operationId),
+          },
+        ],
+      };
     });
   });
   afterEach(() => vi.restoreAllMocks());
 
+  it("issues release authority from exact database-returned fields before yielding the caller transaction", async () => {
+    const execute = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [INSERTED_OUTBOX_RELEASE],
+      })
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            outbox_id: INSERTED_OUTBOX_RELEASE.id,
+            operation_id: INSERTED_OUTBOX_RELEASE.operation_id,
+          },
+        ],
+      });
+
+    await enqueueEmailInTransaction({ execute } as never, {
+      to: "learner@example.invalid",
+      template: "verify-email",
+      variables: {
+        name: "Learner",
+        url: "https://example.invalid/verify",
+      },
+      userId: "learner-release-1",
+      idempotencySeed: "verify-release-1",
+    });
+
+    expect(execute).toHaveBeenCalledTimes(2);
+    const insert = renderStatement(execute.mock.calls[0]![0]);
+    expect(insert.sql.replace(/\s+/gu, " ").trim().toLowerCase()).toContain(
+      "returning id::pg_catalog.text as id, operation_id::pg_catalog.text as operation_id, idempotency_authority_sha256, idempotency_original_payload_sha256, delivery_hold_version",
+    );
+    const release = renderStatement(execute.mock.calls[1]![0]);
+    expect(release.sql.replace(/\s+/gu, " ").trim().toLowerCase()).toContain(
+      "from public.release_email_outbox_delivery",
+    );
+    expect(release.params).toEqual([
+      INSERTED_OUTBOX_RELEASE.id,
+      INSERTED_OUTBOX_RELEASE.operation_id,
+      INSERTED_OUTBOX_RELEASE.idempotency_authority_sha256,
+      INSERTED_OUTBOX_RELEASE.idempotency_original_payload_sha256,
+      INSERTED_OUTBOX_RELEASE.delivery_hold_version,
+    ]);
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("owns the standalone insert-and-release transaction", async () => {
+    const transactionExecute = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [INSERTED_OUTBOX_RELEASE],
+      })
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{
+          outbox_id: INSERTED_OUTBOX_RELEASE.id,
+          operation_id: INSERTED_OUTBOX_RELEASE.operation_id,
+        }],
+      });
+    mocks.transaction.mockImplementationOnce(
+      async (
+        callback: (tx: {
+          execute: typeof transactionExecute;
+        }) => Promise<unknown>,
+      ) => callback({ execute: transactionExecute }),
+    );
+
+    await enqueueEmail({
+      to: "learner@example.invalid",
+      template: "verify-email",
+      variables: {
+        name: "Learner",
+        url: "https://example.invalid/verify",
+      },
+      userId: "learner-release-standalone",
+      idempotencySeed: "verify-release-standalone",
+    });
+
+    expect(mocks.transaction).toHaveBeenCalledTimes(1);
+    expect(transactionExecute).toHaveBeenCalledTimes(2);
+    expect(mocks.execute).not.toHaveBeenCalled();
+    expect(
+      renderStatement(transactionExecute.mock.calls[1]![0]).params,
+    ).toEqual([
+      INSERTED_OUTBOX_RELEASE.id,
+      INSERTED_OUTBOX_RELEASE.operation_id,
+      INSERTED_OUTBOX_RELEASE.idempotency_authority_sha256,
+      INSERTED_OUTBOX_RELEASE.idempotency_original_payload_sha256,
+      INSERTED_OUTBOX_RELEASE.delivery_hold_version,
+    ]);
+  });
+
+  it.each([
+    ["zero rows", { rowCount: 0, rows: [] }],
+    [
+      "multiple rows",
+      {
+        rowCount: 2,
+        rows: [
+          {
+            outbox_id: INSERTED_OUTBOX_RELEASE.id,
+            operation_id: INSERTED_OUTBOX_RELEASE.operation_id,
+          },
+          {
+            outbox_id: INSERTED_OUTBOX_RELEASE.id,
+            operation_id: INSERTED_OUTBOX_RELEASE.operation_id,
+          },
+        ],
+      },
+    ],
+    [
+      "a different outbox",
+      {
+        rowCount: 1,
+        rows: [{
+          outbox_id: "33333333-3333-4333-8333-333333333333",
+          operation_id: INSERTED_OUTBOX_RELEASE.operation_id,
+        }],
+      },
+    ],
+    [
+      "a different operation",
+      {
+        rowCount: 1,
+        rows: [{
+          outbox_id: INSERTED_OUTBOX_RELEASE.id,
+          operation_id: "44444444-4444-4444-8444-444444444444",
+        }],
+      },
+    ],
+  ] as const)(
+    "rejects and aborts the standalone transaction when release returns %s",
+    async (_label, invalidRelease) => {
+      const execute = vi
+        .fn()
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [INSERTED_OUTBOX_RELEASE],
+        })
+        .mockResolvedValueOnce(invalidRelease);
+      let transactionRejection: unknown;
+      mocks.transaction.mockImplementationOnce(
+        async (
+          callback: (tx: { execute: typeof execute }) => Promise<unknown>,
+        ) => {
+          try {
+            return await callback({ execute });
+          } catch (error) {
+            transactionRejection = error;
+            throw error;
+          }
+        },
+      );
+
+      const observed = await enqueueEmail({
+        to: "learner@example.invalid",
+        template: "verify-email",
+        variables: {
+          name: "Learner",
+          url: "https://example.invalid/verify",
+        },
+        userId: "learner-release-invalid",
+        idempotencySeed: "verify-release-invalid",
+      }).catch((error: unknown) => error);
+
+      expect(observed).toMatchObject({
+        name: "EmailOutboxPersistenceError",
+        code: "EMAIL_OUTBOX_PERSISTENCE_FAILED",
+        message: "Email outbox persistence failed.",
+      });
+      expect(transactionRejection).toMatchObject({
+        name: "EmailOutboxReleaseReceiptError",
+        code: "EMAIL_OUTBOX_RELEASE_RECEIPT_INVALID",
+      });
+      expect(execute).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("skips release issuance when the exact replay inserts no row", async () => {
+    const execute = vi.fn().mockResolvedValueOnce({
+      rowCount: 0,
+      rows: [],
+    });
+
+    await enqueueEmailInTransaction({ execute } as never, {
+      to: "learner@example.invalid",
+      template: "verify-email",
+      variables: {
+        name: "Learner",
+        url: "https://example.invalid/verify",
+      },
+      userId: "learner-release-replay",
+      idempotencySeed: "verify-release-replay",
+    });
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(
+      renderStatement(execute.mock.calls[0]![0])
+        .sql.replace(/\s+/gu, " ")
+        .trim()
+        .toLowerCase(),
+    ).not.toContain("release_email_outbox_delivery");
+  });
+
+  it.each(["standalone", "transaction"] as const)(
+    "rejects the owning transaction when release issuance fails (%s)",
+    async (mode) => {
+      const secret = "release-authority-secret-that-must-not-escape";
+      const releaseFailure = new Error(secret);
+      const execute = vi
+        .fn()
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [INSERTED_OUTBOX_RELEASE],
+        })
+        .mockRejectedValueOnce(releaseFailure);
+      let transactionRejection: unknown;
+      if (mode === "standalone") {
+        mocks.transaction.mockImplementationOnce(
+          async (
+            callback: (tx: { execute: typeof execute }) => Promise<unknown>,
+          ) => {
+            try {
+              return await callback({ execute });
+            } catch (error) {
+              transactionRejection = error;
+              throw error;
+            }
+          },
+        );
+      }
+      const input = {
+        to: "learner@example.invalid",
+        template: "verify-email" as const,
+        variables: {
+          name: "Learner",
+          url: "https://example.invalid/verify",
+        },
+        userId: "learner-release-failure",
+        idempotencySeed: `verify-release-failure:${mode}`,
+      };
+
+      const observed =
+        mode === "standalone"
+          ? await enqueueEmail(input).catch((error: unknown) => error)
+          : await enqueueEmailInTransaction({ execute } as never, input).catch(
+              (error: unknown) => error,
+            );
+
+      expect(observed).toMatchObject({
+        name: "EmailOutboxPersistenceError",
+        code: "EMAIL_OUTBOX_PERSISTENCE_FAILED",
+        message: "Email outbox persistence failed.",
+      });
+      expect(execute).toHaveBeenCalledTimes(2);
+      expect(String(observed)).not.toContain(secret);
+      expect((observed as Error).stack ?? "").not.toContain(secret);
+      if (mode === "standalone") {
+        expect(mocks.transaction).toHaveBeenCalledTimes(1);
+        expect(transactionRejection).toBe(releaseFailure);
+      } else {
+        expect(mocks.transaction).not.toHaveBeenCalled();
+      }
+    },
+  );
   it.each(["standalone", "transaction"] as const)(
     "renders only the canonical worker-granted insert columns (%s)",
     async (mode) => {
@@ -84,7 +410,9 @@ describe("email outbox", () => {
         await enqueueEmail(input);
       }
 
-      const statement = mocks.execute.mock.calls.at(-1)?.[0];
+      const statement = executedStatementContaining(
+        "insert into public.email_outbox",
+      );
       expect(statement).toBeDefined();
       const rendered = renderStatement(statement);
       const normalizedSql = rendered.sql
@@ -95,7 +423,9 @@ describe("email outbox", () => {
         /^insert into public[.]email_outbox [(]([^)]*)[)] values/u,
       )?.[1];
       expect(targetList).toBeDefined();
-      const targetColumns = targetList?.split(",").map((column) => column.trim());
+      const targetColumns = targetList
+        ?.split(",")
+        .map((column) => column.trim());
       expect(targetColumns).toEqual([
         "operation_id",
         "user_id",
@@ -139,13 +469,15 @@ describe("email outbox", () => {
       );
       expect(normalizedSql).not.toContain("worker.writer@example.invalid");
       expect(normalizedSql).not.toContain("must-stay-parameterized");
-      expect(rendered.params).toEqual(expect.arrayContaining([
-        "worker.writer@example.invalid",
-        "verify-email",
-        "1",
-        "event-v1-native",
-        JSON.stringify(input.variables),
-      ]));
+      expect(rendered.params).toEqual(
+        expect.arrayContaining([
+          "worker.writer@example.invalid",
+          "verify-email",
+          "1",
+          "event-v1-native",
+          JSON.stringify(input.variables),
+        ]),
+      );
     },
   );
 
@@ -175,11 +507,12 @@ describe("email outbox", () => {
       }),
     );
     expect(expected).not.toContain("one-time-secret");
-    const statement = mocks.execute.mock.calls.at(-1)?.[0];
-    expect(renderStatement(statement).sql.replace(/\s+/gu, " ").toLowerCase())
-      .toContain(
-        "on conflict (idempotency_key) do nothing",
-      );
+    const statement = executedStatementContaining(
+      "insert into public.email_outbox",
+    );
+    expect(
+      renderStatement(statement).sql.replace(/\s+/gu, " ").toLowerCase(),
+    ).toContain("on conflict (idempotency_key) do nothing");
   });
 
   it("uses distinct keys for different templates or business events", async () => {
@@ -220,8 +553,8 @@ describe("email outbox", () => {
       const recipient = "private.learner+reset@example.invalid";
       const resetToken = "reset-token-that-must-never-escape";
       const resetUrl =
-        `https://codestead.example.invalid/reset-password?token=${resetToken}`
-        + "&callbackUrl=%2Fsettings%3Fsection%3Dsecurity";
+        `https://codestead.example.invalid/reset-password?token=${resetToken}` +
+        "&callbackUrl=%2Fsettings%3Fsection%3Dsecurity";
       const variables = {
         name: "Private Learner",
         url: resetUrl,
@@ -302,8 +635,7 @@ describe("email outbox", () => {
 
   it("sanitizes every other nested Drizzle persistence failure", async () => {
     const recipient = "private.learner@example.invalid";
-    const rawSql =
-      'insert into "email_outbox" ("operation_id") values ($1)';
+    const rawSql = 'insert into "email_outbox" ("operation_id") values ($1)';
     const unrelated = new DrizzleQueryError(
       rawSql,
       [recipient],
@@ -333,16 +665,11 @@ describe("email outbox", () => {
     expect((observed as Error).stack ?? "").not.toContain(rawSql);
   });
 
-  it.each([
-    "raw-driver",
-    "hostile-cause-getter",
-    "hostile-prototype",
-  ] as const)(
+  it.each(["raw-driver", "hostile-cause-getter", "hostile-prototype"] as const)(
     "sanitizes non-authoritative persistence failures (%s)",
     async (failureKind) => {
       const secret = "driver-secret-that-must-not-escape";
-      const rawSql =
-        "insert into public.email_outbox (to_email) values ($1)";
+      const rawSql = "insert into public.email_outbox (to_email) values ($1)";
       let failure: unknown;
       if (failureKind === "raw-driver") {
         failure = new Error(`${secret}:${rawSql}`);
@@ -360,11 +687,14 @@ describe("email outbox", () => {
         });
         failure = wrapped;
       } else {
-        failure = new Proxy({}, {
-          getPrototypeOf() {
-            throw new Error(`${secret}:hostile-prototype`);
+        failure = new Proxy(
+          {},
+          {
+            getPrototypeOf() {
+              throw new Error(`${secret}:hostile-prototype`);
+            },
           },
-        });
+        );
       }
       mocks.execute.mockRejectedValueOnce(failure);
 

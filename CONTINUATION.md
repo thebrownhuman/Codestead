@@ -1,5 +1,17 @@
 # Codestead continuation handoff
 
+## Current superseding checkpoint - 2026-07-27 (Task 7)
+
+This section supersedes the older task and Git state below; the historical material remains for provenance.
+
+- Active branch: `main`; the Task 7 completion commit is the commit containing this update, based on `d4bc135` (`feat(mail): add guarded delivery authority`).
+- Task 7 composes the permanent `task7-v1` hold with an exact database-owned delivery-release receipt, atomically issues that receipt from all five physical producers and the delegated backup authority, and makes every claim, TX1, TX2, settlement, reconciliation, and sweep path revalidate it.
+- Production mail now carries an opaque one-shot prepared-dispatch capability through bounded TX1 and guarded TX2. TX2 holds the scope advisory lock and checked-out database lease through the exact-byte provider call and terminal commit acknowledgement; commit-unknown and persistence-unknown outcomes fail closed into durable reconciliation instead of authorizing another send.
+- Dedicated mail pools have bounded connection, query, statement, lock, idle-transaction, idle-client, and shutdown behavior. Checked-out and idle-client error lifecycles, late client acquisition, provider deadlines, hard-watchdog termination, Gmail evidence correlation, redacted reconciliation, and shutdown cleanup are covered by behavioral tests.
+- Native PostgreSQL 18 verification passed with the sole output `mail_guarded_delivery_0069=PASS`. It exercised the raw 0069 migration, hostile ACL/catalog convergence, release authority, guarded runtime, exact-byte send, commit-ack uncertainty, reconciliation, redaction/deletion compatibility, and listener/PID-gated cleanup on a disposable non-5432 cluster. No listener, temp root, or PostgreSQL process remained.
+- Repository verification passed: 955/955 broad mail/runtime Vitest tests, 29/29 repaired predecessor/successor contract tests, 26/26 authoritative writer-inventory tests (`runtime:5:catalog:1:delegated:1`), 13/13 static 0069 harness tests, typecheck, changed-file ESLint, and `git diff --check`.
+- PostgreSQL 17 is not installed locally and was not claimed. Task 8 must register 0068/0069 in the journal/reviewed ledger, finish exact role/CI/restore/rollback integration, and run the registered PostgreSQL 17 and 18 gates. Task 9 remains the complete live race matrix; Task 10 remains the full release-gate run and repair pass; P3-2 broad database-privilege narrowing remains unresolved.
+- Real Gmail, NUC, Cloudflare, Google Drive, reboot, and supervised power-cut evidence remains external and unproven. Repository evidence does not make the product production-ready.
 ## Current superseding checkpoint - 2026-07-27
 
 This section supersedes the older task and Git state below; the historical material remains for provenance.

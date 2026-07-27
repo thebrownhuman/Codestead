@@ -34,53 +34,42 @@ function write(root, relativePath, source) {
   writeFileSync(target, source);
 }
 
+function exactRawPgWriter(functionName) {
+  return `import type { PoolClient } from "pg";
+   export async function ${functionName}(client: PoolClient) {
+     await client.query("begin");
+     const inserted = await client.query(
+       \`insert into email_outbox (id) values ($1)
+         on conflict (id) do nothing
+         returning id, operation_id, idempotency_authority_sha256,
+                   idempotency_original_payload_sha256,
+                   delivery_hold_version\`,
+       [1],
+     );
+     const release = inserted.rows[0];
+     if (release) {
+       await client.query(
+         \`select * from public.release_email_outbox_delivery(
+            $1::uuid, $2::uuid, $3::text, $4::text, $5::text
+          )\`,
+         [
+           release.id,
+           release.operation_id,
+           release.idempotency_authority_sha256,
+           release.idempotency_original_payload_sha256,
+           release.delivery_hold_version,
+         ],
+       );
+     }
+     await client.query("commit");
+   }`;
+}
 function exactFixture(root) {
   const files = new Map([
-    [
-      "src/lib/admin-credentials/service.ts",
-      `import { emailOutbox as outbox } from "@/lib/db/schema";
-       import type { AuditTransaction as Tx } from "@/lib/security/audit-writer";
-       async function appendCredentialNotice(tx: Tx) {
-         await tx.insert(outbox).values({});
-       }
-       export async function performAdminCredentialOperation(tx: Tx) {
-         await appendCredentialNotice(tx);
-       }`,
-    ],
-    [
-      "src/lib/appeals/admin-service.ts",
-      `import type { PoolClient } from "pg";
-       export async function decideAppeal(client: PoolClient) {
-         await client.query(\`insert into email_outbox (id) values ($1)\`, [1]);
-       }`,
-    ],
-    [
-      "src/lib/assessment-corrections/worker.ts",
-      `import type { PoolClient } from "pg";
-       async function persistOutcome(client: PoolClient) {
-         await client.query(\`insert into email_outbox (id) values ($1)\`, [1]);
-       }
-       export async function processOneAssessmentRegrade(client: PoolClient) {
-         await persistOutcome(client);
-       }`,
-    ],
-    [
-      "src/lib/data-lifecycle/deletion.ts",
-      `import type { PoolClient } from "pg";
-       export async function deleteLearnerAccount(client: PoolClient) {
-         await client.query(\`insert into email_outbox (id) values ($1)\`, [1]);
-       }`,
-    ],
-    [
-      "src/lib/notifications/inactivity.ts",
-      `import type { PoolClient } from "pg";
-       async function persistEmail(client: PoolClient) {
-         await client.query(\`insert into email_outbox (id) values ($1)\`, [1]);
-       }
-       export async function scheduleInactivityReminders(client: PoolClient) {
-         await persistEmail(client);
-       }`,
-    ],
+    ["src/lib/appeals/admin-service.ts", exactRawPgWriter("decideAppeal")],
+    ["src/lib/assessment-corrections/worker.ts", exactRawPgWriter("persistOutcome")],
+    ["src/lib/data-lifecycle/deletion.ts", exactRawPgWriter("deleteLearnerAccount")],
+    ["src/lib/notifications/inactivity.ts", exactRawPgWriter("persistEmail")],
     [
       "src/lib/notifications/outbox.ts",
       `import { db as database } from "@/lib/db/client";
@@ -88,15 +77,35 @@ function exactFixture(root) {
        type OutboxTransaction =
          Parameters<Parameters<typeof database.transaction>[0]>[0];
        function queuedEmailInsert(value: string) {
-         return statement\`insert into public.email_outbox (id) values (\${value})\`;
+         return statement\`insert into public.email_outbox (id) values (\${value})
+           on conflict (id) do nothing
+           returning id, operation_id, idempotency_authority_sha256,
+                     idempotency_original_payload_sha256,
+                     delivery_hold_version\`;
+       }
+       async function persistQueuedEmail(
+         tx: OutboxTransaction,
+       ) {
+         const inserted = await tx.execute(queuedEmailInsert("1"));
+         const release = inserted.rows[0];
+         if (!release) return;
+         await tx.execute(statement\`
+           select * from public.release_email_outbox_delivery(
+             \${release.id},
+             \${release.operation_id},
+             \${release.idempotency_authority_sha256},
+             \${release.idempotency_original_payload_sha256},
+             \${release.delivery_hold_version}
+           )
+         \`);
        }
        export async function enqueueEmailInTransaction(
          tx: OutboxTransaction,
        ) {
-         await tx.execute(queuedEmailInsert("1"));
+         await persistQueuedEmail(tx);
        }
        export async function enqueueEmail() {
-         await database.execute(queuedEmailInsert("1"));
+         await database.transaction((tx) => persistQueuedEmail(tx));
        }`,
     ],
     [
@@ -126,7 +135,7 @@ function expectInventoryFailure(root, paths, pattern) {
   );
 }
 
-test("accepts exactly six receiver-bound runtime sinks and one delegated edge", () => {
+test("accepts exactly five release-composed runtime sinks and one delegated edge", () => {
   const root = fixtureRoot();
   try {
     const paths = exactFixture(root);
@@ -134,13 +143,114 @@ test("accepts exactly six receiver-bound runtime sinks and one delegated edge", 
     assert.deepEqual(verifyWriterInventory({ repositoryRoot: root, paths }), {
       catalogWriters: 1,
       delegatedEdges: 1,
-      runtimeWriters: 6,
+      runtimeWriters: 5,
     });
   } finally {
     rmSync(root, { force: true, recursive: true });
   }
 });
 
+test("requires every physical runtime writer to compose the 0069 release", () => {
+  assert.throws(
+    () =>
+      analyzeAstSource(
+        "src/lib/appeals/admin-service.ts",
+        `import type { PoolClient } from "pg";
+         export async function decideAppeal(client: PoolClient) {
+           await client.query("begin");
+           await client.query(
+             \`insert into email_outbox (id) values ($1)
+               returning id, operation_id, idempotency_authority_sha256,
+                         idempotency_original_payload_sha256,
+                         delivery_hold_version\`,
+             [1],
+           );
+           await client.query("commit");
+         }`,
+      ),
+    /release-composition/u,
+  );
+});
+test("rejects post-commit, recomputed, wrong-client, incomplete, and unbounded releases", () => {
+  const exact = exactRawPgWriter("decideAppeal");
+  assert.equal(analyzeAstSource("src/lib/appeals/admin-service.ts", exact).length, 1);
+
+  const postCommit = exact.replace(
+    "     if (release) {",
+    '     await client.query("commit");\n     if (release) {',
+  );
+  const recomputedDigest = exact.replace(
+    "           release.idempotency_authority_sha256,",
+    "           sha256(release.idempotency_authority_sha256),",
+  );
+  const wrongClient = exact
+    .replace("(client: PoolClient)", "(client: PoolClient, other: PoolClient)")
+    .replace(
+      "       await client.query(\n         `select * from",
+      "       await other.query(\n         `select * from",
+    );
+  const incompleteReturning = exact.replace(
+    "                   idempotency_original_payload_sha256,\n",
+    "",
+  );
+  const noTransaction = exact.replace('     await client.query("begin");\n', "");
+
+  for (const [caseName, source] of [
+    ["post-commit", postCommit],
+    ["recomputed digest", recomputedDigest],
+    ["wrong client", wrongClient],
+    ["incomplete RETURNING", incompleteReturning],
+    ["missing transaction", noTransaction],
+  ]) {
+    assert.notEqual(source, exact, caseName);
+    assert.throws(
+      () => analyzeAstSource("src/lib/appeals/admin-service.ts", source),
+      /release-composition/u,
+      caseName,
+    );
+  }
+});
+test("a nondominating release-row guard cannot authorize delivery", () => {
+  const exact = exactRawPgWriter("decideAppeal");
+  const nondominating = exact
+    .replace(
+      "     if (release) {\n       await client.query(",
+      "     if (false) {\n       if (!release) return;\n     }\n     await client.query(",
+    )
+    .replace(
+      '       );\n     }\n     await client.query("commit");',
+      '       );\n     await client.query("commit");',
+    );
+  assert.notEqual(nondominating, exact);
+  assert.throws(
+    () => analyzeAstSource("src/lib/appeals/admin-service.ts", nondominating),
+    /release-composition/u,
+  );
+});
+
+test("a conditional transaction control cannot bound an unconditional writer", () => {
+  const exact = exactRawPgWriter("decideAppeal");
+  const conditionalBegin = exact.replace(
+    '     await client.query("begin");',
+    '     if (false) {\n       await client.query("begin");\n     }',
+  );
+  assert.notEqual(conditionalBegin, exact);
+  assert.throws(
+    () => analyzeAstSource("src/lib/appeals/admin-service.ts", conditionalBegin),
+    /release-composition/u,
+  );
+});
+test("zero-argument application execute callbacks are not SQL executors", () => {
+  assert.deepEqual(
+    analyzeAstSource(
+      "src/lib/ai/provider-operation-idempotency.ts",
+      `export async function run(input: { execute(): Promise<void> }) {
+         await input.execute();
+       }`,
+    ),
+    [],
+  );
+});
 test("a receiver merely named client cannot satisfy a physical writer", () => {
   assert.throws(
     () =>
@@ -166,16 +276,18 @@ test("a receiver merely named client cannot satisfy a physical writer", () => {
 });
 
 test("only an exact imported pg pool connect chain establishes a client", () => {
-  const observed = analyzeAstSource(
-    "src/lib/appeals/admin-service.ts",
-    `import { pool as databasePool } from "@/lib/db/client";
+  assert.throws(
+    () =>
+      analyzeAstSource(
+        "src/lib/appeals/admin-service.ts",
+        `import { pool as databasePool } from "@/lib/db/client";
      export async function decideAppeal() {
        const client = await databasePool.connect();
        await client.query("insert into email_outbox (id) values (1)");
      }`,
+      ),
+    /release-composition/u,
   );
-  assert.equal(observed.length, 1);
-  assert.equal(observed[0].receiver, "pg-client");
 
   assert.throws(
     () =>
@@ -221,15 +333,10 @@ function optionalClientFactoryWriter({
 }
 
 test("an exact typed optional pg-client factory establishes a client", () => {
-  const observed = analyzeAstSource(
-    "src/lib/data-lifecycle/deletion.ts",
-    optionalClientFactoryWriter(),
+  assert.throws(
+    () => analyzeAstSource("src/lib/data-lifecycle/deletion.ts", optionalClientFactoryWriter()),
+    /release-composition/u,
   );
-
-  assert.equal(observed.length, 1);
-  assert.equal(observed[0].functionName, "deleteLearnerAccount");
-  assert.equal(observed[0].kind, "sql-executor");
-  assert.equal(observed[0].receiver, "pg-client");
 });
 
 test("optional pg-client factories reject every untrusted trust edge", () => {
@@ -277,16 +384,18 @@ test("optional pg-client factories reject every untrusted trust edge", () => {
 });
 
 test("split-token array/join SQL is recovered, while unresolved target dataflow fails", () => {
-  const observed = analyzeAstSource(
-    "src/lib/appeals/admin-service.ts",
-    `import type { PoolClient } from "pg";
+  assert.throws(
+    () =>
+      analyzeAstSource(
+        "src/lib/appeals/admin-service.ts",
+        `import type { PoolClient } from "pg";
      const statement = ["in", "sert into ", "email_", "outbox", " (id) values (1)"].join("");
      export async function decideAppeal(client: PoolClient) {
        await client.query(statement);
      }`,
+      ),
+    /release-composition/u,
   );
-  assert.equal(observed.length, 1);
-  assert.equal(observed[0].kind, "sql-executor");
 
   assert.throws(
     () =>
@@ -399,18 +508,20 @@ test("inert, unexecuted, unreachable, and statically dead sinks never count", ()
 });
 
 test("Drizzle schema aliases remain structural and receiver-bound", () => {
-  const observed = analyzeAstSource(
-    "src/lib/admin-credentials/service.ts",
-    `import * as schema from "@/lib/db/schema";
+  assert.throws(
+    () =>
+      analyzeAstSource(
+        "src/lib/admin-credentials/service.ts",
+        `import * as schema from "@/lib/db/schema";
      import type { AuditTransaction as Tx } from "@/lib/security/audit-writer";
      const { emailOutbox: first } = schema;
      const second = first;
      export async function appendCredentialNotice(tx: Tx) {
        await tx.insert(second).values({});
      }`,
+      ),
+    /release-composition/u,
   );
-  assert.equal(observed.length, 1);
-  assert.equal(observed[0].receiver, "drizzle-transaction");
 
   assert.throws(
     () =>
@@ -471,7 +582,7 @@ test("known non-writer text types are read, unknown types fail closed", () => {
     }
     assert.deepEqual(
       verifyWriterInventory({ repositoryRoot: root, paths: paths.sort() }),
-      { catalogWriters: 1, delegatedEdges: 1, runtimeWriters: 6 },
+      { catalogWriters: 1, delegatedEdges: 1, runtimeWriters: 5 },
     );
     write(root, "assets/opaque.wat", "safe");
     expectInventoryFailure(
@@ -503,6 +614,67 @@ test("known binary files are inspected for ASCII writer and routine tokens", () 
   }
 });
 
+test("the exact 0069 backup successor remains a reviewed routine wrapper", () => {
+  const root = fixtureRoot();
+  try {
+    const relativePath = "drizzle/0069_mail_outbox_guarded_delivery_authority.sql";
+    write(
+      root,
+      relativePath,
+      `create or replace function public.enqueue_backup_status_mail_authority(
+         p_run_key text,
+         p_outcome text
+       ) returns void language plpgsql as $function$
+       begin
+         perform *
+           from public.enqueue_backup_status_mail_authority_unreleased_0067(
+             p_run_key,
+             p_outcome
+           );
+         perform *
+           from public.release_email_outbox_delivery(
+             candidate.id,
+             candidate.operation_id,
+             candidate.idempotency_authority_sha256,
+             candidate.idempotency_original_payload_sha256,
+             candidate.delivery_hold_version
+           );
+       end
+       $function$;`,
+    );
+    assert.throws(
+      () => verifyWriterInventory({ repositoryRoot: root, paths: [relativePath] }),
+      /manifest:/u,
+    );
+    write(
+      root,
+      relativePath,
+      `create or replace function public.enqueue_backup_status_mail_authority()
+       returns void language sql as $function$
+       select * from public.enqueue_backup_status_mail_authority_unreleased_0067('', '');
+       select * from public.release_email_outbox_delivery(null, null, null, null, null);
+       insert into public.email_outbox (id) values (null);
+       $function$;`,
+    );
+    expectInventoryFailure(
+      root,
+      [relativePath],
+      /reviewed-sql-wrapper-direct-writer/u,
+    );
+    write(
+      root,
+      relativePath,
+      `create or replace function public.enqueue_backup_status_mail_authority()
+       returns void language sql as $function$
+       select * from public.enqueue_backup_status_mail_authority_unreleased_0067('', '');
+       $function$;`,
+    );
+    expectInventoryFailure(root, [relativePath], /reviewed-sql-wrapper-shape/u);
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+});
+
 test("only the two exact reviewed SQL paths may carry one physical writer", () => {
   const root = fixtureRoot();
   try {
@@ -515,7 +687,7 @@ test("only the two exact reviewed SQL paths may carry one physical writer", () =
     paths.push("drizzle/0065_backup_status_mail_authority.sql");
     assert.deepEqual(
       verifyWriterInventory({ repositoryRoot: root, paths: paths.sort() }),
-      { catalogWriters: 1, delegatedEdges: 1, runtimeWriters: 6 },
+      { catalogWriters: 1, delegatedEdges: 1, runtimeWriters: 5 },
     );
     write(
       root,
@@ -707,14 +879,7 @@ test("an extra trusted writer or a missing manifest writer is rejected", () => {
   try {
     const paths = exactFixture(root);
     const extra = "src/lib/extra.ts";
-    write(
-      root,
-      extra,
-      `import type { PoolClient } from "pg";
-       export async function extraWriter(client: PoolClient) {
-         await client.query("insert into email_outbox (id) values (1)");
-       }`,
-    );
+    write(root, extra, exactRawPgWriter("extraWriter"));
     expectInventoryFailure(
       root,
       [...paths, extra].sort(),
@@ -723,9 +888,7 @@ test("an extra trusted writer or a missing manifest writer is rejected", () => {
     rmSync(path.join(root, "src", "lib", "extra.ts"));
     expectInventoryFailure(
       root,
-      paths.filter(
-        (candidate) => candidate !== "src/lib/appeals/admin-service.ts",
-      ),
+      paths.filter((candidate) => candidate !== "src/lib/appeals/admin-service.ts"),
       /src\/lib\/appeals\/admin-service\.ts:sql-executor:pg-client:decideAppeal:expected=1:observed=0/u,
     );
   } finally {

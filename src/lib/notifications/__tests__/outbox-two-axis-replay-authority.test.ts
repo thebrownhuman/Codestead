@@ -205,9 +205,19 @@ describe("0067 two-axis replay identity and permanent delivery hold", () => {
       /set\s+delivery_hold_version\s*=\s*null/u,
     );
     expect(normalized).not.toContain("delivery_release_receipt");
+    expect(store).not.toContain("delivery_hold_version is null");
+    expect(store).toContain("delivery_hold_version = 'task7-v1'");
+    expect(store).toContain(
+      "from only public.mail_delivery_release_receipt as release",
+    );
+    expect(store).toContain(
+      "release.release_receipt_sha256 = ${exactdeliveryreleasereceiptsql(alias)}",
+    );
     expect(
-      store.match(/delivery_hold_version is null/gu)?.length ?? 0,
-    ).toBeGreaterThanOrEqual(8);
+      store.match(
+        /\$\{(?:candidate|outbox)_exact_delivery_release_sql\}/gu,
+      ) ?? [],
+    ).toHaveLength(18);
   });
 
   it("rejects caller-supplied delivery state before assigning the hold", () => {

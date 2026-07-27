@@ -61,7 +61,17 @@ describe("PostgresOutboxStore delivery authority", () => {
     expect(normalized).toContain("account_user.email_verified");
     expect(normalized).toContain("account_user.banned");
     expect(normalized).not.toContain("'exam-result'");
-    expect(normalized).not.toContain("outbox.template not in");
+    const accountPredicate = source
+      .slice(
+        source.indexOf("function accountMailAuthorityPredicate"),
+        source.indexOf("type SystemMailAuthorityParameters"),
+      )
+      .toLowerCase();
+    expect(accountPredicate).not.toContain("template not in");
+    expect(normalized).toContain("outbox.template not in");
+    expect(source).toContain(
+      "${DELETION_NOTICE_TEMPLATE_SQL}, ${BACKUP_STATUS_TEMPLATE_SQL}",
+    );
   });
 
   it("derives specialized template/version checks without literal policy copies", () => {

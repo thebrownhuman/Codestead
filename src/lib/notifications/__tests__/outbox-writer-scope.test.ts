@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 const DIRECT_OUTBOX_INSERT =
   /insert\s+into\s+(?:(?:"public"|public)\s*\.\s*)?(?:"email_outbox"|email_outbox\b)/iu;
 const PRODUCTION_SOURCE_FILE = /\.(?:[cm]?[jt]sx?|sh)$/u;
+const TEST_PATH =
+  /(?:^|\/)(?:__fixtures__|__tests__|fixtures|test|tests)(?:\/|$)|\.(?:spec|test)\.[^/]+$/iu;
 
 function productionFiles(directory: string, fileNamePattern: RegExp): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -29,13 +31,14 @@ describe("production email outbox writer inventory", () => {
         relativePath: relative(repositoryRoot, path).replaceAll("\\", "/"),
         source: readFileSync(path, "utf8"),
       }))
+      .filter(({ relativePath }) => !TEST_PATH.test(relativePath))
       .filter(({ source }) =>
         DIRECT_OUTBOX_INSERT.test(source) || source.includes(".insert(emailOutbox)"),
       )
       .sort((left, right) => left.relativePath.localeCompare(right.relativePath));
 
     expect(writers.map(({ relativePath }) => relativePath)).toEqual([
-      "src/lib/admin-credentials/service.ts",
+
       "src/lib/appeals/admin-service.ts",
       "src/lib/assessment-corrections/worker.ts",
       "src/lib/data-lifecycle/deletion.ts",
@@ -60,10 +63,14 @@ describe("production email outbox writer inventory", () => {
       }
     }
 
-    const credentialWriter = writers.find(({ relativePath }) =>
-      relativePath === "src/lib/admin-credentials/service.ts");
-    expect(credentialWriter?.source).toMatch(
-      /\.insert\(emailOutbox\)[\s\S]{0,300}?deliveryScopeKey:\s*`a:\$\{target\.userId\}`/u,
+    const credentialSource = readFileSync(
+      resolve(repositoryRoot, "src/lib/admin-credentials/service.ts"),
+      "utf8",
+    );
+    expect(credentialSource).not.toMatch(DIRECT_OUTBOX_INSERT);
+    expect(credentialSource).not.toContain(".insert(emailOutbox)");
+    expect(credentialSource).toMatch(
+      /await enqueueEmailInTransaction\(tx,\s*\{/u,
     );
     const centralWriter = writers.find(({ relativePath }) =>
       relativePath === "src/lib/notifications/outbox.ts");

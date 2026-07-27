@@ -16,8 +16,26 @@ const mocks = vi.hoisted(() => {
       | "mail_quarantined_unresolved"
       | "mail_sending_with_provider_id"
       | "mail_quarantined_resolved"
-      | "notice_conflict_mismatch",
+      | "notice_conflict_mismatch"
+      | "notice_conflict_exact"
+      | "release_failure",
+    noticeInsertValues: undefined as unknown[] | undefined,
+    releaseResultMode: "success" as
+      | "success"
+      | "zero"
+      | "multiple"
+      | "mismatch_outbox"
+      | "mismatch_operation",
+    verificationResultMode: "success" as
+      | "success"
+      | "zero"
+      | "multiple"
+      | "mismatch_outbox"
+      | "mismatch_operation",
   };
+  const authoritySha256 = "a".repeat(64);
+  const originalPayloadSha256 = "b".repeat(64);
+  const releaseReceiptSha256 = "c".repeat(64);
   const query = vi.fn(async (statement: string, values: unknown[] = []) => {
     const sql = statement.replace(/\s+/g, " ").trim().toLowerCase();
     if (sql.includes('select role, status from "user"')) {
@@ -140,7 +158,11 @@ const mocks = vi.hoisted(() => {
       && sql.includes("(id, operation_id")
       && sql.includes("'account-deleted'")
     ) {
-      if (state.mode === "notice_conflict_mismatch") {
+      state.noticeInsertValues = [...values];
+      if (
+        state.mode === "notice_conflict_mismatch"
+        || state.mode === "notice_conflict_exact"
+      ) {
         return { rows: [], rowCount: 0 };
       }
       const [id, operationId, userId, toEmail, rawVariables, idempotencyKey] = values;
@@ -155,6 +177,9 @@ const mocks = vi.hoisted(() => {
           template_version: "1",
           variables: JSON.parse(String(rawVariables)),
           idempotency_key: idempotencyKey,
+          idempotency_authority_sha256: authoritySha256,
+          idempotency_original_payload_sha256: originalPayloadSha256,
+          delivery_hold_version: "task7-v1",
         }],
         rowCount: 1,
       };
@@ -164,6 +189,27 @@ const mocks = vi.hoisted(() => {
       && sql.includes("from email_outbox")
       && sql.includes("idempotency_key")
     ) {
+      if (state.mode === "notice_conflict_exact") {
+        const [id, operationId, userId, toEmail, rawVariables, idempotencyKey] =
+          state.noticeInsertValues ?? [];
+        return {
+          rows: [{
+            id,
+            operation_id: operationId,
+            user_id: userId,
+            delivery_scope_key: `a:${String(userId)}`,
+            to_email: String(toEmail).toLowerCase(),
+            template: "account-deleted",
+            template_version: "1",
+            variables: JSON.parse(String(rawVariables)),
+            idempotency_key: idempotencyKey,
+            idempotency_authority_sha256: authoritySha256,
+            idempotency_original_payload_sha256: originalPayloadSha256,
+            delivery_hold_version: "task7-v1",
+          }],
+          rowCount: 1,
+        };
+      }
       return {
         rows: [{
           id: "c3000000-0000-4000-8000-000000000099",
@@ -179,9 +225,73 @@ const mocks = vi.hoisted(() => {
             deletionRunId: "run-1",
           },
           idempotency_key: values[0],
+          idempotency_authority_sha256: authoritySha256,
+          idempotency_original_payload_sha256: originalPayloadSha256,
+          delivery_hold_version: "task7-v1",
         }],
         rowCount: 1,
       };
+    }
+    if (sql.includes("from public.verify_email_outbox_delivery_release(")) {
+      const [outboxId, operationId] = values;
+      const defaultRows = [{
+        outbox_id: outboxId,
+        operation_id: operationId,
+      }];
+      const rows = state.verificationResultMode === "zero"
+        ? []
+        : state.verificationResultMode === "multiple"
+          ? [...defaultRows, ...defaultRows]
+          : state.verificationResultMode === "mismatch_outbox"
+            ? [{
+                ...defaultRows[0],
+                outbox_id: "c3000000-0000-4000-8000-000000000097",
+              }]
+            : state.verificationResultMode === "mismatch_operation"
+              ? [{
+                  ...defaultRows[0],
+                  operation_id: "c4000000-0000-4000-8000-000000000097",
+                }]
+              : defaultRows;
+      return { rows, rowCount: rows.length };
+    }
+    if (sql.includes("from public.release_email_outbox_delivery(")) {
+      if (state.mode === "release_failure") {
+        throw new Error("Deletion notice delivery release failed.");
+      }
+      const [
+        outboxId,
+        operationId,
+        idempotencyAuthoritySha256,
+        idempotencyOriginalPayloadSha256,
+        releaseVersion,
+      ] = values;
+      const defaultRows = [{
+          outbox_id: outboxId,
+          operation_id: operationId,
+          idempotency_authority_version: "event-v1-native",
+          idempotency_authority_sha256: idempotencyAuthoritySha256,
+          idempotency_original_payload_sha256: idempotencyOriginalPayloadSha256,
+          release_version: releaseVersion,
+          release_receipt_sha256: releaseReceiptSha256,
+          released_at: new Date("2026-07-12T00:00:00.000Z"),
+        }];
+      const rows = state.releaseResultMode === "zero"
+        ? []
+        : state.releaseResultMode === "multiple"
+          ? [...defaultRows, ...defaultRows]
+          : state.releaseResultMode === "mismatch_outbox"
+            ? [{
+                ...defaultRows[0],
+                outbox_id: "c3000000-0000-4000-8000-000000000098",
+              }]
+            : state.releaseResultMode === "mismatch_operation"
+              ? [{
+                  ...defaultRows[0],
+                  operation_id: "c4000000-0000-4000-8000-000000000098",
+                }]
+              : defaultRows;
+      return { rows, rowCount: rows.length };
     }
     return { rows: [], rowCount: 1 };
   });
@@ -244,6 +354,9 @@ describe("account deletion runtime orchestration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.state.mode = "success";
+    mocks.state.noticeInsertValues = undefined;
+    mocks.state.releaseResultMode = "success";
+    mocks.state.verificationResultMode = "success";
     mocks.unlink.mockResolvedValue(undefined);
     mocks.poolQuery.mockResolvedValue({ rows: [], rowCount: 1 });
     mocks.enqueueFileErasures.mockResolvedValue(1);
@@ -320,6 +433,9 @@ describe("account deletion runtime orchestration", () => {
     expect(deletionNoticeInsert).toContain("id, operation_id, user_id, delivery_scope_key");
     expect(deletionNoticeInsert).toContain("'a:' || $3");
     expect(deletionNoticeInsert).toContain("returning id::text, operation_id::text");
+    expect(deletionNoticeInsert).toContain("idempotency_authority_sha256");
+    expect(deletionNoticeInsert).toContain("idempotency_original_payload_sha256");
+    expect(deletionNoticeInsert).toContain("delivery_hold_version");
     expect(deletionNoticeInsert).not.toContain("values (null");
     const deletionNoticeCall = (
       mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>
@@ -346,6 +462,28 @@ describe("account deletion runtime orchestration", () => {
       payloadSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
     });
     expect(deletionNotice.recipientHmacSha256).not.toContain("learner@example.test");
+    const releaseCall = (
+      mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>
+    ).find(([sql]) => (
+      String(sql).includes("from public.release_email_outbox_delivery(")
+    ));
+    expect(releaseCall?.[0].replace(/\s+/g, " ").trim()).toBe(
+      "select released.outbox_id::text as outbox_id, released.operation_id::text as operation_id from public.release_email_outbox_delivery($1::uuid, $2::uuid, $3::text, $4::text, $5::text) as released",
+    );
+    expect(releaseCall?.[1]).toEqual([
+      deletionNotice.outboxId,
+      deletionNotice.operationId,
+      "a".repeat(64),
+      "b".repeat(64),
+      "task7-v1",
+    ]);
+    const releaseIndex = normalizedStatements.findIndex((sql) =>
+      sql.includes("from public.release_email_outbox_delivery("));
+    expect(releaseIndex).toBeGreaterThan(
+      normalizedStatements.findIndex((sql) =>
+        sql.startsWith("insert into email_outbox") && sql.includes("'account-deleted'")),
+    );
+    expect(releaseIndex).toBeLessThan(normalizedStatements.lastIndexOf("commit"));
     const tombstoneInsert = (
       mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>
     ).find(([sql]) => String(sql).includes("insert into account_deletion_tombstone"));
@@ -504,8 +642,151 @@ describe("account deletion runtime orchestration", () => {
       && sql.includes("for update")
     ))).toBe(true);
     expect(statements).toContain("rollback");
+    expect(statements.some((sql) => (
+      sql.includes("from public.release_email_outbox_delivery(")
+    ))).toBe(false);
     expect(statements.some((sql) => sql.includes("status = 'succeeded'"))).toBe(false);
     expect(mocks.purgeCompletedFileErasureJobs).not.toHaveBeenCalled();
+  });
+
+  it("verifies an exact existing notice receipt without reissuing delivery authority", async () => {
+    mocks.state.mode = "notice_conflict_exact";
+
+    await expect(deleteLearnerAccount(input)).resolves.toMatchObject({
+      learnerNotificationQueued: true,
+      replayed: false,
+    });
+
+    const calls = mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>;
+    const statements = calls.map(([sql]) => String(sql).replace(/\s+/g, " ").trim());
+    const lookupIndex = statements.findIndex((sql) => (
+      sql.startsWith("select id::text, operation_id::text, user_id")
+      && sql.includes("from email_outbox")
+      && sql.includes("for update")
+    ));
+    const verificationIndex = statements.findIndex((sql) =>
+      sql.includes("from public.verify_email_outbox_delivery_release("));
+    expect(lookupIndex).toBeGreaterThan(-1);
+    expect(verificationIndex).toBeGreaterThan(lookupIndex);
+    expect(verificationIndex).toBeLessThan(statements.lastIndexOf("commit"));
+    expect(calls[verificationIndex]?.[1]).toEqual([
+      mocks.state.noticeInsertValues?.[0],
+      mocks.state.noticeInsertValues?.[1],
+      "a".repeat(64),
+      "b".repeat(64),
+      "task7-v1",
+    ]);
+    expect(statements.some((sql) =>
+      sql.includes("from public.release_email_outbox_delivery(")
+    )).toBe(false);
+  });
+
+  it.each([
+    "zero",
+    "multiple",
+    "mismatch_outbox",
+    "mismatch_operation",
+  ] as const)(
+    "rolls back an exact notice replay when receipt verification returns %s",
+    async (verificationResultMode) => {
+      mocks.state.mode = "notice_conflict_exact";
+      mocks.state.verificationResultMode = verificationResultMode;
+
+      await expect(deleteLearnerAccount(input)).rejects.toMatchObject({
+        name: "EmailOutboxReleaseReceiptError",
+        code: "EMAIL_OUTBOX_RELEASE_RECEIPT_INVALID",
+      });
+
+      const statements = mocks.query.mock.calls
+        .map(([sql]) => String(sql).replace(/\s+/g, " ").trim().toLowerCase());
+      const verificationIndex = statements.findIndex((sql) =>
+        sql.includes("from public.verify_email_outbox_delivery_release("));
+      const rollbackIndex = statements.reduce(
+        (latest, sql, index) => sql === "rollback" ? index : latest,
+        -1,
+      );
+      expect(verificationIndex).toBeGreaterThanOrEqual(0);
+      expect(rollbackIndex).toBeGreaterThan(verificationIndex);
+      expect(statements.some((sql) =>
+        sql.includes("from public.release_email_outbox_delivery(")
+      )).toBe(false);
+      expect(statements.some(
+        (sql) => sql.includes("status = 'succeeded'"),
+      )).toBe(false);
+      expect(mocks.purgeCompletedFileErasureJobs).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    "zero",
+    "multiple",
+    "mismatch_outbox",
+    "mismatch_operation",
+  ] as const)(
+    "rolls back before lifecycle success when delivery release returns %s",
+    async (releaseResultMode) => {
+      mocks.state.releaseResultMode = releaseResultMode;
+
+      await expect(deleteLearnerAccount(input)).rejects.toMatchObject({
+        name: "EmailOutboxReleaseReceiptError",
+        code: "EMAIL_OUTBOX_RELEASE_RECEIPT_INVALID",
+      });
+
+      const statements = mocks.query.mock.calls
+        .map(([sql]) => String(sql).replace(/\s+/g, " ").trim().toLowerCase());
+      const tombstoneIndex = statements.findIndex((sql) =>
+        sql.startsWith("insert into account_deletion_tombstone"));
+      const releaseIndex = statements.findIndex((sql) =>
+        sql.includes("public.release_email_outbox_delivery("));
+      const rollbackIndex = statements.reduce(
+        (latest, sql, index) => sql === "rollback" ? index : latest,
+        -1,
+      );
+      expect(tombstoneIndex).toBeGreaterThanOrEqual(0);
+      expect(releaseIndex).toBeGreaterThan(tombstoneIndex);
+      expect(rollbackIndex).toBeGreaterThan(releaseIndex);
+      expect(statements.slice(releaseIndex + 1)).not.toContain("commit");
+      expect(statements.some(
+        (sql) => sql.includes("status = 'succeeded'"),
+      )).toBe(false);
+      expect(mocks.purgeCompletedFileErasureJobs).not.toHaveBeenCalled();
+      expect(mocks.poolQuery).toHaveBeenCalledWith(
+        expect.stringContaining("status = 'failed'"),
+        expect.arrayContaining(["run-1", "ACCOUNT_DELETION_FAILED"]),
+      );
+    },
+  );
+
+  it("rolls back the final lifecycle mutation when delivery release fails", async () => {
+    mocks.state.mode = "release_failure";
+
+    await expect(deleteLearnerAccount(input)).rejects.toThrow(
+      "Deletion notice delivery release failed.",
+    );
+
+    const statements = mocks.query.mock.calls
+      .map(([sql]) => String(sql).replace(/\s+/g, " ").trim().toLowerCase());
+    const pseudonymizeIndex = statements.findIndex((sql) =>
+      sql.includes("name = 'deleted learner'"));
+    const tombstoneIndex = statements.findIndex((sql) =>
+      sql.startsWith("insert into account_deletion_tombstone"));
+    const releaseIndex = statements.findIndex((sql) =>
+      sql.includes("from public.release_email_outbox_delivery("));
+    const rollbackIndex = statements.reduce(
+      (latest, sql, index) => sql === "rollback" ? index : latest,
+      -1,
+    );
+    expect(pseudonymizeIndex).toBeGreaterThan(-1);
+    expect(tombstoneIndex).toBeGreaterThan(pseudonymizeIndex);
+    expect(releaseIndex).toBeGreaterThan(tombstoneIndex);
+    expect(rollbackIndex).toBeGreaterThan(releaseIndex);
+    expect(statements.slice(releaseIndex + 1)).not.toContain("commit");
+    expect(statements.some((sql) => sql.includes("status = 'succeeded'"))).toBe(false);
+    expect(mocks.purgeCompletedFileErasureJobs).not.toHaveBeenCalled();
+    expect(mocks.poolQuery).toHaveBeenCalledWith(
+      expect.stringContaining("status = 'failed'"),
+      expect.arrayContaining(["run-1", "ACCOUNT_DELETION_FAILED"]),
+    );
   });
 
   it("rejects possibly dispatched runner work before claiming deletion or erasing files", async () => {

@@ -9,6 +9,7 @@ import {
 } from "@/lib/exams/contracts";
 import { pool } from "@/lib/db/client";
 import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
+import { assertEmailOutboxDeliveryRelease } from "@/lib/notifications/outbox";
 import { queueProjectReviewCorrectionWithClient } from "@/lib/projects/review-correction-service";
 
 import { hashAppealEvidence } from "./evidence";
@@ -678,11 +679,19 @@ export async function decideAppeal(input: {
       template: "appeal-updated",
       userId: row.user_id,
     });
-    await client.query(
+    const outbox = await client.query<{
+      id: string;
+      operation_id: string;
+      idempotency_authority_sha256: string;
+      idempotency_original_payload_sha256: string;
+      delivery_hold_version: string;
+    }>(
       `insert into email_outbox
         (user_id, delivery_scope_key, to_email, template, template_version, variables, idempotency_key, idempotency_authority_version, status)
        values ($1, 'a:' || $1, lower($2), 'appeal-updated', '1', $3::jsonb, $4, 'event-v1-native', 'pending')
-       on conflict (idempotency_key) do nothing`,
+       on conflict (idempotency_key) do nothing
+       returning id, operation_id, idempotency_authority_sha256,
+                 idempotency_original_payload_sha256, delivery_hold_version`,
       [
         row.user_id,
         row.learner_email,
@@ -694,6 +703,28 @@ export async function decideAppeal(input: {
         mailKey,
       ],
     );
+    const releaseIdentity = outbox.rows[0];
+    if (releaseIdentity) {
+      const released = await client.query<{
+        outbox_id: string;
+        operation_id: string;
+      }>(
+        `select released.outbox_id::text as outbox_id,
+                released.operation_id::text as operation_id
+           from public.release_email_outbox_delivery($1, $2, $3, $4, $5) as released`,
+        [
+          releaseIdentity.id,
+          releaseIdentity.operation_id,
+          releaseIdentity.idempotency_authority_sha256,
+          releaseIdentity.idempotency_original_payload_sha256,
+          releaseIdentity.delivery_hold_version,
+        ],
+      );
+      assertEmailOutboxDeliveryRelease(released, {
+        outboxId: releaseIdentity.id,
+        operationId: releaseIdentity.operation_id,
+      });
+    }
     const report = await currentDecisionReport(client, appealId, false);
     await client.query("commit");
     return report;

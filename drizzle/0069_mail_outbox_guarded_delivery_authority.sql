@@ -1531,6 +1531,8 @@ BEGIN
       ('public.enforce_mail_delivery_release_receipt_append_only()'),
       ('public.enforce_mail_delivery_release_receipt_insert()'),
       ('public.release_email_outbox_delivery(uuid,uuid,text,text,text)'),
+      ('public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)'),
+      ('public.attest_email_outbox_delivery_release_lineage(text)'),
       ('public.enforce_email_outbox_delivery_release_commit_exact()'),
       ('public.enforce_mail_delivery_release_receipt_delete_exact()'),
       ('public.enforce_email_outbox_delivery_release_delete_exact()'),
@@ -1810,7 +1812,7 @@ BEGIN
     END IF;
   ELSIF successor_relation IS NOT NULL
         AND successor_columns = 4
-        AND successor_routines = 12
+        AND successor_routines = 14
         AND successor_triggers = 12
         AND successor_constraints = 4
   THEN
@@ -2259,8 +2261,8 @@ BEGIN
 
   IF current_user IS NOT DISTINCT FROM 'learncoding_owner'
      AND session_user IN (
-       'learncoding_app', 'learncoding_owner',
-       'learncoding_backup_reporter'
+       'learncoding_app', 'learncoding_worker',
+       'learncoding_owner', 'learncoding_backup_reporter'
      )
      AND OLD.delivery_release_insert_xid IS NOT NULL
      AND OLD.delivery_release_insert_xid
@@ -2465,6 +2467,7 @@ BEGIN
   IF current_user IS DISTINCT FROM 'learncoding_owner'
      OR session_user NOT IN (
        'learncoding_app',
+       'learncoding_worker',
        'learncoding_owner',
        'learncoding_backup_reporter'
      )
@@ -2600,6 +2603,7 @@ BEGIN
   IF current_user IS DISTINCT FROM 'learncoding_owner'
      OR session_user NOT IN (
        'learncoding_app',
+       'learncoding_worker',
        'learncoding_owner',
        'learncoding_backup_reporter'
      )
@@ -2853,6 +2857,728 @@ BEGIN
   END IF;
 
   RETURN issued_receipt;
+END
+$function$;--> statement-breakpoint
+
+CREATE OR REPLACE FUNCTION public.verify_email_outbox_delivery_release(
+  requested_outbox_id pg_catalog.uuid,
+  requested_operation_id pg_catalog.uuid,
+  requested_authority_sha256 pg_catalog.text,
+  requested_original_payload_sha256 pg_catalog.text,
+  requested_release_version pg_catalog.text
+)
+RETURNS TABLE (
+  outbox_id pg_catalog.uuid,
+  operation_id pg_catalog.uuid
+)
+LANGUAGE plpgsql
+VOLATILE
+PARALLEL UNSAFE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $function$
+DECLARE
+  candidate public.email_outbox%ROWTYPE;
+  existing_receipt public.mail_delivery_release_receipt%ROWTYPE;
+  conflicting_receipts pg_catalog.int4;
+BEGIN
+  IF current_user IS DISTINCT FROM 'learncoding_owner'
+     OR session_user NOT IN (
+       'learncoding_app',
+       'learncoding_owner'
+     )
+  THEN
+    RAISE EXCEPTION 'email outbox delivery release verifier caller is invalid'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF requested_outbox_id IS NULL
+     OR requested_operation_id IS NULL
+     OR requested_authority_sha256 IS NULL
+     OR requested_authority_sha256 !~ '^[0-9a-f]{64}$'
+     OR requested_original_payload_sha256 IS NULL
+     OR requested_original_payload_sha256 !~ '^[0-9a-f]{64}$'
+     OR requested_release_version IS DISTINCT FROM 'task7-v1'
+  THEN
+    RAISE EXCEPTION 'email outbox delivery release verifier arguments are invalid'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT pg_catalog.count(*)::pg_catalog.int4
+    INTO conflicting_receipts
+    FROM ONLY public.mail_delivery_release_receipt AS release
+   WHERE release.outbox_id = requested_outbox_id
+      OR release.operation_id = requested_operation_id;
+
+  IF conflicting_receipts <> 1 THEN
+    RAISE EXCEPTION 'email outbox delivery release verifier receipt is missing or conflicts'
+      USING ERRCODE = '23514';
+  END IF;
+
+  SELECT outbox.*
+    INTO candidate
+    FROM ONLY public.email_outbox AS outbox
+   WHERE outbox.id = requested_outbox_id
+     AND outbox.operation_id = requested_operation_id
+   FOR SHARE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'email outbox delivery release verifier candidate is missing'
+      USING ERRCODE = 'P0002';
+  END IF;
+
+  SELECT release.*
+    INTO existing_receipt
+    FROM ONLY public.mail_delivery_release_receipt AS release
+   WHERE release.outbox_id = requested_outbox_id
+     AND release.operation_id = requested_operation_id
+   FOR SHARE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'email outbox delivery release verifier receipt is missing'
+      USING ERRCODE = 'P0002';
+  END IF;
+
+  IF candidate.delivery_release_insert_xid IS NOT NULL
+     OR candidate.delivery_release_insert_system_identifier IS NOT NULL
+     OR candidate.idempotency_authority_version NOT IN (
+       'event-v1-native', 'event-v1-source-map'
+     )
+     OR candidate.idempotency_authority_sha256
+          IS DISTINCT FROM requested_authority_sha256
+     OR candidate.idempotency_original_payload_sha256
+          IS DISTINCT FROM requested_original_payload_sha256
+     OR candidate.idempotency_original_payload_sha256 IS DISTINCT FROM
+          public.email_outbox_original_payload_sha256(
+            candidate.user_id,
+            candidate.to_email,
+            candidate.template,
+            candidate.template_version,
+            candidate.variables
+          )
+     OR candidate.delivery_hold_version
+          IS DISTINCT FROM requested_release_version
+     OR existing_receipt.outbox_id IS DISTINCT FROM candidate.id
+     OR existing_receipt.operation_id
+          IS DISTINCT FROM candidate.operation_id
+     OR existing_receipt.idempotency_authority_version
+          IS DISTINCT FROM candidate.idempotency_authority_version
+     OR existing_receipt.idempotency_authority_sha256
+          IS DISTINCT FROM candidate.idempotency_authority_sha256
+     OR existing_receipt.idempotency_original_payload_sha256
+          IS DISTINCT FROM candidate.idempotency_original_payload_sha256
+     OR existing_receipt.release_version
+          IS DISTINCT FROM candidate.delivery_hold_version
+     OR existing_receipt.release_version
+          IS DISTINCT FROM requested_release_version
+     OR existing_receipt.release_receipt_sha256 IS DISTINCT FROM
+          public.mail_delivery_release_receipt_sha256(
+            candidate.id,
+            candidate.operation_id,
+            candidate.idempotency_authority_version,
+            candidate.idempotency_authority_sha256,
+            candidate.idempotency_original_payload_sha256,
+            candidate.delivery_hold_version
+          )
+     OR pg_catalog.isfinite(existing_receipt.released_at)
+          IS DISTINCT FROM true
+     OR NOT EXISTS (
+       SELECT 1
+         FROM ONLY public.email_outbox_idempotency_authority AS authority
+        WHERE authority.idempotency_sha256 =
+                candidate.idempotency_authority_sha256
+          AND authority.original_payload_sha256 =
+                candidate.idempotency_original_payload_sha256
+     )
+  THEN
+    RAISE EXCEPTION 'email outbox delivery release verifier identity is invalid'
+      USING ERRCODE = '23514';
+  END IF;
+
+  outbox_id := candidate.id;
+  operation_id := candidate.operation_id;
+  RETURN NEXT;
+END
+$function$;--> statement-breakpoint
+
+CREATE OR REPLACE FUNCTION
+  public.attest_email_outbox_delivery_release_lineage(
+    candidate_migration_sha256 pg_catalog.text
+  )
+RETURNS TABLE (
+  phase_0066_count pg_catalog.int4,
+  phase_0067_count pg_catalog.int4,
+  phase_0068_count pg_catalog.int4,
+  phase_0069_count pg_catalog.int4,
+  candidate_hash_count pg_catalog.int4,
+  lineage_window_count pg_catalog.int4
+)
+LANGUAGE plpgsql
+STABLE
+PARALLEL UNSAFE
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'pg_temp'
+AS $function$
+DECLARE
+  journal_schema_oid pg_catalog.oid :=
+    pg_catalog.to_regnamespace('drizzle');
+  journal_oid pg_catalog.oid :=
+    pg_catalog.to_regclass('drizzle.__drizzle_migrations');
+  journal_sequence_oid pg_catalog.oid :=
+    pg_catalog.to_regclass('drizzle.__drizzle_migrations_id_seq');
+BEGIN
+  IF current_user IS DISTINCT FROM 'learncoding_owner'
+     OR session_user NOT IN (
+       'learncoding_owner',
+       'learncoding_worker'
+     )
+  THEN
+    RAISE EXCEPTION 'email outbox delivery lineage attestor caller is invalid'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF candidate_migration_sha256 IS NULL
+     OR candidate_migration_sha256 !~ '^[0-9a-f]{64}$'
+  THEN
+    RAISE EXCEPTION 'email outbox delivery lineage candidate is invalid'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF journal_schema_oid IS NULL
+     OR journal_oid IS NULL
+     OR journal_sequence_oid IS NULL
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_namespace AS namespace
+         JOIN pg_catalog.pg_class AS journal
+           ON journal.oid = journal_oid
+          AND journal.relnamespace = namespace.oid
+         JOIN pg_catalog.pg_class AS journal_sequence
+           ON journal_sequence.oid = journal_sequence_oid
+          AND journal_sequence.relnamespace = namespace.oid
+        WHERE namespace.oid = journal_schema_oid
+          AND namespace.nspname = 'drizzle'
+          AND pg_catalog.pg_get_userbyid(namespace.nspowner) =
+                'learncoding_owner'
+          AND journal.relname = '__drizzle_migrations'
+          AND journal.relkind = 'r'
+          AND journal.relpersistence = 'p'
+          AND pg_catalog.pg_get_userbyid(journal.relowner) =
+                'learncoding_owner'
+          AND journal.relnatts = 3
+          AND NOT journal.relrowsecurity
+          AND NOT journal.relforcerowsecurity
+          AND NOT journal.relispartition
+          AND journal.relpartbound IS NULL
+          AND journal.reloftype = 0
+          AND NOT journal.relhasrules
+          AND NOT journal.relhastriggers
+          AND NOT journal.relhassubclass
+          AND journal.reloptions IS NULL
+          AND journal.relreplident = 'd'
+          AND journal.relam = (
+            SELECT access_method.oid
+              FROM pg_catalog.pg_am AS access_method
+             WHERE access_method.amname = 'heap'
+               AND access_method.amtype = 't'
+          )
+          AND journal_sequence.relname =
+                '__drizzle_migrations_id_seq'
+          AND journal_sequence.relkind = 'S'
+          AND journal_sequence.relpersistence = 'p'
+          AND pg_catalog.pg_get_userbyid(journal_sequence.relowner) =
+                'learncoding_owner'
+          AND journal_sequence.reloptions IS NULL
+     )
+     OR (
+       SELECT COALESCE(
+                pg_catalog.array_agg(
+                  pg_catalog.concat_ws(
+                    '|',
+                    CASE
+                      WHEN access.grantee = 0 THEN 'PUBLIC'
+                      ELSE pg_catalog.pg_get_userbyid(access.grantee)
+                    END,
+                    CASE
+                      WHEN access.grantor = 0 THEN 'PUBLIC'
+                      ELSE pg_catalog.pg_get_userbyid(access.grantor)
+                    END,
+                    pg_catalog.lower(access.privilege_type),
+                    access.is_grantable::pg_catalog.text
+                  )
+                  ORDER BY
+                    CASE
+                      WHEN access.grantee = 0 THEN 'PUBLIC'
+                      ELSE pg_catalog.pg_get_userbyid(access.grantee)
+                    END,
+                    CASE
+                      WHEN access.grantor = 0 THEN 'PUBLIC'
+                      ELSE pg_catalog.pg_get_userbyid(access.grantor)
+                    END,
+                    pg_catalog.lower(access.privilege_type),
+                    access.is_grantable
+                ),
+                ARRAY[]::pg_catalog.text[]
+              )
+         FROM pg_catalog.pg_namespace AS namespace
+         CROSS JOIN LATERAL pg_catalog.aclexplode(
+           COALESCE(
+             namespace.nspacl,
+             pg_catalog.acldefault('n', namespace.nspowner)
+           )
+         ) AS access
+        WHERE namespace.oid = journal_schema_oid
+     ) IS DISTINCT FROM ARRAY[
+       'learncoding_owner|learncoding_owner|create|false',
+       'learncoding_owner|learncoding_owner|usage|false'
+     ]::pg_catalog.text[]
+     OR (
+       SELECT COALESCE(
+                pg_catalog.array_agg(
+                  pg_catalog.concat_ws(
+                    '|',
+                    CASE
+                      WHEN access.grantee = 0 THEN 'PUBLIC'
+                      ELSE pg_catalog.pg_get_userbyid(access.grantee)
+                    END,
+                    CASE
+                      WHEN access.grantor = 0 THEN 'PUBLIC'
+                      ELSE pg_catalog.pg_get_userbyid(access.grantor)
+                    END,
+                    pg_catalog.lower(access.privilege_type),
+                    access.is_grantable::pg_catalog.text
+                  )
+                  ORDER BY
+                    CASE
+                      WHEN access.grantee = 0 THEN 'PUBLIC'
+                      ELSE pg_catalog.pg_get_userbyid(access.grantee)
+                    END,
+                    CASE
+                      WHEN access.grantor = 0 THEN 'PUBLIC'
+                      ELSE pg_catalog.pg_get_userbyid(access.grantor)
+                    END,
+                    pg_catalog.lower(access.privilege_type),
+                    access.is_grantable
+                ),
+                ARRAY[]::pg_catalog.text[]
+              )
+         FROM pg_catalog.pg_class AS relation
+         CROSS JOIN LATERAL pg_catalog.aclexplode(
+           COALESCE(
+             relation.relacl,
+             pg_catalog.acldefault('r', relation.relowner)
+           )
+         ) AS access
+        WHERE relation.oid = journal_oid
+     ) IS DISTINCT FROM ARRAY[
+       'learncoding_owner|learncoding_owner|delete|false',
+       'learncoding_owner|learncoding_owner|insert|false',
+       'learncoding_owner|learncoding_owner|maintain|false',
+       'learncoding_owner|learncoding_owner|references|false',
+       'learncoding_owner|learncoding_owner|select|false',
+       'learncoding_owner|learncoding_owner|trigger|false',
+       'learncoding_owner|learncoding_owner|truncate|false',
+       'learncoding_owner|learncoding_owner|update|false'
+     ]::pg_catalog.text[]
+     OR (
+       SELECT COALESCE(
+                pg_catalog.array_agg(
+                  pg_catalog.concat_ws(
+                    '|',
+                    CASE
+                      WHEN access.grantee = 0 THEN 'PUBLIC'
+                      ELSE pg_catalog.pg_get_userbyid(access.grantee)
+                    END,
+                    CASE
+                      WHEN access.grantor = 0 THEN 'PUBLIC'
+                      ELSE pg_catalog.pg_get_userbyid(access.grantor)
+                    END,
+                    pg_catalog.lower(access.privilege_type),
+                    access.is_grantable::pg_catalog.text
+                  )
+                  ORDER BY
+                    CASE
+                      WHEN access.grantee = 0 THEN 'PUBLIC'
+                      ELSE pg_catalog.pg_get_userbyid(access.grantee)
+                    END,
+                    CASE
+                      WHEN access.grantor = 0 THEN 'PUBLIC'
+                      ELSE pg_catalog.pg_get_userbyid(access.grantor)
+                    END,
+                    pg_catalog.lower(access.privilege_type),
+                    access.is_grantable
+                ),
+                ARRAY[]::pg_catalog.text[]
+              )
+         FROM pg_catalog.pg_class AS relation
+         CROSS JOIN LATERAL pg_catalog.aclexplode(
+           COALESCE(
+             relation.relacl,
+             pg_catalog.acldefault('s', relation.relowner)
+           )
+         ) AS access
+        WHERE relation.oid = journal_sequence_oid
+     ) IS DISTINCT FROM ARRAY[
+       'learncoding_owner|learncoding_owner|select|false',
+       'learncoding_owner|learncoding_owner|update|false',
+       'learncoding_owner|learncoding_owner|usage|false'
+     ]::pg_catalog.text[]
+     OR EXISTS (
+       SELECT 1
+         FROM (
+           SELECT *
+             FROM (VALUES
+               (
+                 'id'::pg_catalog.name,
+                 1::pg_catalog.int2,
+                 'pg_catalog.int4'::pg_catalog.regtype::pg_catalog.oid,
+                 true,
+                 true,
+                 'nextval(''drizzle.__drizzle_migrations_id_seq''::regclass)'::pg_catalog.text,
+                 0::pg_catalog.oid,
+                 0::pg_catalog.int2,
+                 ''::"char"
+               ),
+               (
+                 'hash',
+                 2::pg_catalog.int2,
+                 'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
+                 true,
+                 false,
+                 NULL::pg_catalog.text,
+                 'pg_catalog."default"'::pg_catalog.regcollation::pg_catalog.oid,
+                 0::pg_catalog.int2,
+                 ''::"char"
+               ),
+               (
+                 'created_at',
+                 3::pg_catalog.int2,
+                 'pg_catalog.int8'::pg_catalog.regtype::pg_catalog.oid,
+                 false,
+                 false,
+                 NULL::pg_catalog.text,
+                 0::pg_catalog.oid,
+                 0::pg_catalog.int2,
+                 ''::"char"
+               )
+             ) AS expected(
+               column_name,
+               attribute_number,
+               type_oid,
+               is_not_null,
+               has_default,
+               default_expression,
+               collation_oid,
+               dimensions,
+               compression
+             )
+           EXCEPT ALL
+           SELECT
+             attribute.attname,
+             attribute.attnum,
+             attribute.atttypid,
+             attribute.attnotnull,
+             attribute.atthasdef,
+             pg_catalog.pg_get_expr(
+               default_row.adbin,
+               default_row.adrelid
+             ),
+             attribute.attcollation,
+             attribute.attndims,
+             attribute.attcompression
+             FROM pg_catalog.pg_attribute AS attribute
+             LEFT JOIN pg_catalog.pg_attrdef AS default_row
+               ON default_row.adrelid = attribute.attrelid
+              AND default_row.adnum = attribute.attnum
+            WHERE attribute.attrelid = journal_oid
+              AND attribute.attnum > 0
+              AND NOT attribute.attisdropped
+              AND attribute.atttypmod = -1
+              AND attribute.attidentity = ''
+              AND attribute.attgenerated = ''
+              AND NOT attribute.atthasmissing
+              AND attribute.attmissingval IS NULL
+              AND attribute.attislocal
+              AND attribute.attinhcount = 0
+              AND attribute.attoptions IS NULL
+              AND attribute.attfdwoptions IS NULL
+              AND attribute.attacl IS NULL
+         ) AS missing_or_inexact_columns
+     )
+     OR (
+       SELECT pg_catalog.count(*)
+         FROM pg_catalog.pg_attrdef AS default_row
+        WHERE default_row.adrelid = journal_oid
+          AND default_row.adnum = 1
+          AND pg_catalog.pg_get_expr(
+                default_row.adbin,
+                default_row.adrelid
+              ) =
+                'nextval(''drizzle.__drizzle_migrations_id_seq''::regclass)'
+     ) <> 1
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_constraint AS constraint_row
+         JOIN pg_catalog.pg_index AS index_row
+           ON index_row.indexrelid = constraint_row.conindid
+          AND index_row.indrelid = constraint_row.conrelid
+         JOIN pg_catalog.pg_class AS index_relation
+           ON index_relation.oid = constraint_row.conindid
+        WHERE constraint_row.conrelid = journal_oid
+          AND constraint_row.connamespace = journal_schema_oid
+          AND constraint_row.contype = 'p'
+          AND constraint_row.conname = '__drizzle_migrations_pkey'
+          AND constraint_row.conkey = ARRAY[1]::pg_catalog.int2[]
+          AND constraint_row.confrelid = 0
+          AND constraint_row.convalidated
+          AND constraint_row.coninhcount = 0
+          AND constraint_row.conparentid = 0
+          AND NOT constraint_row.condeferrable
+          AND NOT constraint_row.condeferred
+          AND index_relation.relname = '__drizzle_migrations_pkey'
+          AND index_relation.relnamespace = journal_schema_oid
+          AND index_relation.relkind = 'i'
+          AND index_relation.relpersistence = 'p'
+          AND pg_catalog.pg_get_userbyid(index_relation.relowner) =
+                'learncoding_owner'
+          AND index_relation.relam = (
+            SELECT access_method.oid
+              FROM pg_catalog.pg_am AS access_method
+             WHERE access_method.amname = 'btree'
+               AND access_method.amtype = 'i'
+          )
+          AND index_relation.reloptions IS NULL
+          AND index_row.indisunique
+          AND index_row.indisprimary
+          AND index_row.indisvalid
+          AND index_row.indisready
+          AND index_row.indislive
+          AND index_row.indimmediate
+          AND NOT index_row.indisclustered
+          AND NOT index_row.indisreplident
+          AND NOT index_row.indcheckxmin
+          AND index_row.indnkeyatts = 1
+          AND index_row.indnatts = 1
+          AND ARRAY(
+                SELECT key_column.attnum
+                  FROM pg_catalog.unnest(
+                         index_row.indkey::pg_catalog.int2[]
+                       ) WITH ORDINALITY AS key_column(attnum, ordinality)
+                 ORDER BY key_column.ordinality
+              )::pg_catalog.int2[] = ARRAY[1]::pg_catalog.int2[]
+          AND index_row.indexprs IS NULL
+          AND index_row.indpred IS NULL
+          AND pg_catalog.pg_get_constraintdef(
+                constraint_row.oid,
+                false
+              ) = 'PRIMARY KEY (id)'
+     )
+     OR (
+       SELECT pg_catalog.count(*)
+         FROM pg_catalog.pg_constraint AS constraint_row
+        WHERE constraint_row.conrelid = journal_oid
+          AND constraint_row.contype <> 'n'
+     ) <> 1
+     OR (
+       pg_catalog.current_setting('server_version_num')::pg_catalog.int4 >=
+         180000
+       AND (
+         (
+           SELECT pg_catalog.count(DISTINCT constraint_row.conkey[1])
+             FROM pg_catalog.pg_constraint AS constraint_row
+            WHERE constraint_row.conrelid = journal_oid
+              AND constraint_row.contype = 'n'
+              AND pg_catalog.cardinality(constraint_row.conkey) = 1
+              AND constraint_row.conkey[1] IN (1, 2)
+              AND constraint_row.convalidated
+              AND constraint_row.conislocal
+              AND constraint_row.coninhcount = 0
+              AND constraint_row.conparentid = 0
+              AND NOT constraint_row.connoinherit
+              AND NOT constraint_row.condeferrable
+              AND NOT constraint_row.condeferred
+              AND constraint_row.contypid = 0
+              AND constraint_row.conindid = 0
+              AND constraint_row.confrelid = 0
+              AND COALESCE(
+                    (
+                      pg_catalog.to_jsonb(constraint_row)
+                        ->> 'conenforced'
+                    )::pg_catalog.bool,
+                    true
+                  )
+         ) <> 2
+         OR (
+           SELECT pg_catalog.count(*)
+             FROM pg_catalog.pg_constraint AS constraint_row
+            WHERE constraint_row.conrelid = journal_oid
+              AND constraint_row.contype = 'n'
+         ) <> 2
+       )
+     )
+     OR (
+       pg_catalog.current_setting('server_version_num')::pg_catalog.int4 <
+         180000
+       AND EXISTS (
+         SELECT 1
+           FROM pg_catalog.pg_constraint AS constraint_row
+          WHERE constraint_row.conrelid = journal_oid
+            AND constraint_row.contype = 'n'
+       )
+     )
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_sequence AS sequence_row
+        WHERE sequence_row.seqrelid = journal_sequence_oid
+          AND sequence_row.seqtypid =
+                'pg_catalog.int4'::pg_catalog.regtype
+          AND sequence_row.seqstart = 1
+          AND sequence_row.seqincrement = 1
+          AND sequence_row.seqmin = 1
+          AND sequence_row.seqmax = 2147483647
+          AND sequence_row.seqcache = 1
+          AND NOT sequence_row.seqcycle
+     )
+     OR NOT EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_depend AS dependency
+        WHERE dependency.classid = 'pg_catalog.pg_class'::pg_catalog.regclass
+          AND dependency.objid = journal_sequence_oid
+          AND dependency.objsubid = 0
+          AND dependency.refclassid =
+                'pg_catalog.pg_class'::pg_catalog.regclass
+          AND dependency.refobjid = journal_oid
+          AND dependency.refobjsubid = 1
+          AND dependency.deptype = 'a'
+     )
+     OR EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_policy AS policy
+        WHERE policy.polrelid = journal_oid
+     )
+     OR EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_rewrite AS rewrite
+        WHERE rewrite.ev_class = journal_oid
+     )
+     OR EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_inherits AS inheritance
+        WHERE inheritance.inhrelid = journal_oid
+           OR inheritance.inhparent = journal_oid
+     )
+     OR EXISTS (
+       SELECT 1
+         FROM pg_catalog.pg_roles AS managed
+         JOIN pg_catalog.pg_roles AS owner_role
+           ON owner_role.rolname = 'learncoding_owner'
+        WHERE managed.rolname IN (
+                'learncoding_app',
+                'learncoding_worker',
+                'learncoding_ops',
+                'learncoding_backup_reporter'
+              )
+          AND pg_catalog.pg_has_role(
+                managed.oid,
+                owner_role.oid,
+                'MEMBER'
+              )
+     )
+     OR EXISTS (
+       SELECT 1
+         FROM (VALUES
+           (0::pg_catalog.oid),
+           ((SELECT oid FROM pg_catalog.pg_roles WHERE rolname = 'learncoding_app')),
+           ((SELECT oid FROM pg_catalog.pg_roles WHERE rolname = 'learncoding_worker')),
+           ((SELECT oid FROM pg_catalog.pg_roles WHERE rolname = 'learncoding_ops')),
+           ((SELECT oid FROM pg_catalog.pg_roles WHERE rolname = 'learncoding_backup_reporter'))
+         ) AS principal(role_oid)
+        WHERE pg_catalog.has_schema_privilege(
+                principal.role_oid, journal_schema_oid, 'USAGE'
+              )
+           OR pg_catalog.has_schema_privilege(
+                principal.role_oid, journal_schema_oid, 'CREATE'
+              )
+           OR pg_catalog.has_table_privilege(
+                principal.role_oid, journal_oid, 'SELECT'
+              )
+           OR pg_catalog.has_table_privilege(
+                principal.role_oid, journal_oid, 'INSERT'
+              )
+           OR pg_catalog.has_table_privilege(
+                principal.role_oid, journal_oid, 'UPDATE'
+              )
+           OR pg_catalog.has_table_privilege(
+                principal.role_oid, journal_oid, 'DELETE'
+              )
+           OR pg_catalog.has_table_privilege(
+                principal.role_oid, journal_oid, 'TRUNCATE'
+              )
+           OR pg_catalog.has_table_privilege(
+                principal.role_oid, journal_oid, 'REFERENCES'
+              )
+           OR pg_catalog.has_table_privilege(
+                principal.role_oid, journal_oid, 'TRIGGER'
+              )
+           OR pg_catalog.has_table_privilege(
+                principal.role_oid, journal_oid, 'MAINTAIN'
+              )
+           OR pg_catalog.has_any_column_privilege(
+                principal.role_oid, journal_oid, 'SELECT'
+              )
+           OR pg_catalog.has_any_column_privilege(
+                principal.role_oid, journal_oid, 'INSERT'
+              )
+           OR pg_catalog.has_any_column_privilege(
+                principal.role_oid, journal_oid, 'UPDATE'
+              )
+           OR pg_catalog.has_any_column_privilege(
+                principal.role_oid, journal_oid, 'REFERENCES'
+              )
+           OR pg_catalog.has_sequence_privilege(
+                principal.role_oid, journal_sequence_oid, 'USAGE'
+              )
+           OR pg_catalog.has_sequence_privilege(
+                principal.role_oid, journal_sequence_oid, 'SELECT'
+              )
+           OR pg_catalog.has_sequence_privilege(
+                principal.role_oid, journal_sequence_oid, 'UPDATE'
+              )
+     )
+  THEN
+    RAISE EXCEPTION 'email outbox delivery lineage journal authority is invalid'
+      USING ERRCODE = '23514';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    pg_catalog.count(*) FILTER (
+      WHERE migration.created_at = 1784997273087
+        AND migration.hash =
+              '3d4962ed82c0209245ca7e0a0e9ea667001eab7ae864f89120894cc1fa915ec9'
+    )::pg_catalog.int4,
+    pg_catalog.count(*) FILTER (
+      WHERE migration.created_at = 1785002172253
+        AND migration.hash =
+              'ccb3e093847fb875ded41ec0c36d0ff8405c04d1546ba9dd21696e86a73a6817'
+    )::pg_catalog.int4,
+    pg_catalog.count(*) FILTER (
+      WHERE migration.created_at = 1785005772253
+        AND migration.hash =
+              '68cf968578070a0cc6e61df91c941215f0208ec9c6a3180c5010b626868a0ee1'
+    )::pg_catalog.int4,
+    pg_catalog.count(*) FILTER (
+      WHERE migration.created_at = 1785009372253
+        AND migration.hash = candidate_migration_sha256
+    )::pg_catalog.int4,
+    pg_catalog.count(*) FILTER (
+      WHERE migration.hash = candidate_migration_sha256
+    )::pg_catalog.int4,
+    pg_catalog.count(*) FILTER (
+      WHERE migration.created_at >= 1784997273087
+        AND migration.created_at <= 1785009372253
+    )::pg_catalog.int4
+    FROM ONLY drizzle.__drizzle_migrations AS migration;
 END
 $function$;--> statement-breakpoint
 
@@ -4512,6 +5238,16 @@ ALTER FUNCTION public.release_email_outbox_delivery(
   pg_catalog.text,
   pg_catalog.text
 ) OWNER TO learncoding_owner;--> statement-breakpoint
+ALTER FUNCTION public.verify_email_outbox_delivery_release(
+  pg_catalog.uuid,
+  pg_catalog.uuid,
+  pg_catalog.text,
+  pg_catalog.text,
+  pg_catalog.text
+) OWNER TO learncoding_owner;--> statement-breakpoint
+ALTER FUNCTION public.attest_email_outbox_delivery_release_lineage(
+  pg_catalog.text
+) OWNER TO learncoding_owner;--> statement-breakpoint
 ALTER FUNCTION public.enforce_email_outbox_delivery_release_commit_exact()
   OWNER TO learncoding_owner;--> statement-breakpoint
 ALTER FUNCTION public.enforce_mail_delivery_release_receipt_delete_exact()
@@ -4570,6 +5306,12 @@ BEGIN
     )::pg_catalog.oid,
     pg_catalog.to_regprocedure(
       'public.release_email_outbox_delivery(uuid,uuid,text,text,text)'
+    )::pg_catalog.oid,
+    pg_catalog.to_regprocedure(
+      'public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)'
+    )::pg_catalog.oid,
+    pg_catalog.to_regprocedure(
+      'public.attest_email_outbox_delivery_release_lineage(text)'
     )::pg_catalog.oid,
     pg_catalog.to_regprocedure(
       'public.enforce_email_outbox_provider_request_body_immutable()'
@@ -4794,6 +5536,33 @@ GRANT EXECUTE ON FUNCTION public.release_email_outbox_delivery(
   pg_catalog.text,
   pg_catalog.text,
   pg_catalog.text
+) TO learncoding_worker;--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION public.release_email_outbox_delivery(
+  pg_catalog.uuid,
+  pg_catalog.uuid,
+  pg_catalog.text,
+  pg_catalog.text,
+  pg_catalog.text
+) TO learncoding_owner;--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION public.verify_email_outbox_delivery_release(
+  pg_catalog.uuid,
+  pg_catalog.uuid,
+  pg_catalog.text,
+  pg_catalog.text,
+  pg_catalog.text
+) TO learncoding_app;--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION public.verify_email_outbox_delivery_release(
+  pg_catalog.uuid,
+  pg_catalog.uuid,
+  pg_catalog.text,
+  pg_catalog.text,
+  pg_catalog.text
+) TO learncoding_owner;--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION public.attest_email_outbox_delivery_release_lineage(
+  pg_catalog.text
+) TO learncoding_worker;--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION public.attest_email_outbox_delivery_release_lineage(
+  pg_catalog.text
 ) TO learncoding_owner;--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION
   public.enforce_email_outbox_delivery_release_insert_xid()
@@ -4834,6 +5603,14 @@ GRANT EXECUTE ON FUNCTION public.mail_delivery_release_receipt_sha256(
   pg_catalog.text,
   pg_catalog.text
 ) TO learncoding_owner;--> statement-breakpoint
+GRANT EXECUTE ON FUNCTION public.mail_delivery_release_receipt_sha256(
+  pg_catalog.uuid,
+  pg_catalog.uuid,
+  pg_catalog.text,
+  pg_catalog.text,
+  pg_catalog.text,
+  pg_catalog.text
+) TO learncoding_worker;--> statement-breakpoint
 GRANT EXECUTE ON FUNCTION
   public.reject_backup_status_mail_authority_mutation()
   TO learncoding_owner;--> statement-breakpoint
@@ -4856,6 +5633,194 @@ GRANT EXECUTE ON FUNCTION public.backup_status_mail_authorized(
 GRANT EXECUTE ON FUNCTION public.backup_status_mail_authorized(
   pg_catalog.uuid
 ) TO learncoding_worker;--> statement-breakpoint
+
+DO $verify_lineage_attestor_catalog$
+DECLARE
+  attestor_oid pg_catalog.oid := pg_catalog.to_regprocedure(
+    'public.attest_email_outbox_delivery_release_lineage(text)'
+  );
+  journal_oid pg_catalog.oid :=
+    pg_catalog.to_regclass('drizzle.__drizzle_migrations');
+  direct_acl pg_catalog.text[];
+BEGIN
+  IF attestor_oid IS NULL OR journal_oid IS NULL THEN
+    RAISE EXCEPTION '0069 lineage attestor prerequisite is missing'
+      USING ERRCODE = '23514';
+  END IF;
+
+  SELECT COALESCE(
+           pg_catalog.array_agg(
+             pg_catalog.concat_ws(
+               '|',
+               CASE
+                 WHEN access.grantee = 0 THEN 'PUBLIC'
+                 ELSE pg_catalog.pg_get_userbyid(access.grantee)
+               END,
+               CASE
+                 WHEN access.grantor = 0 THEN 'PUBLIC'
+                 ELSE pg_catalog.pg_get_userbyid(access.grantor)
+               END,
+               pg_catalog.lower(access.privilege_type),
+               access.is_grantable::pg_catalog.text
+             )
+             ORDER BY
+               CASE
+                 WHEN access.grantee = 0 THEN 'PUBLIC'
+                 ELSE pg_catalog.pg_get_userbyid(access.grantee)
+               END,
+               CASE
+                 WHEN access.grantor = 0 THEN 'PUBLIC'
+                 ELSE pg_catalog.pg_get_userbyid(access.grantor)
+               END,
+               pg_catalog.lower(access.privilege_type),
+               access.is_grantable
+           ),
+           ARRAY[]::pg_catalog.text[]
+         )
+    INTO direct_acl
+    FROM pg_catalog.pg_proc AS routine
+    CROSS JOIN LATERAL pg_catalog.aclexplode(
+      COALESCE(
+        routine.proacl,
+        pg_catalog.acldefault('f', routine.proowner)
+      )
+    ) AS access
+   WHERE routine.oid = attestor_oid;
+
+  IF NOT EXISTS (
+    SELECT 1
+      FROM pg_catalog.pg_proc AS routine
+      JOIN pg_catalog.pg_language AS language
+        ON language.oid = routine.prolang
+     WHERE routine.oid = attestor_oid
+       AND pg_catalog.pg_get_userbyid(routine.proowner) =
+             'learncoding_owner'
+       AND language.lanname = 'plpgsql'
+       AND routine.prokind = 'f'
+       AND routine.prorettype =
+             'pg_catalog.record'::pg_catalog.regtype
+       AND routine.proretset
+       AND routine.provolatile = 's'
+       AND routine.prosecdef
+       AND NOT routine.proleakproof
+       AND NOT routine.proisstrict
+       AND routine.proparallel = 'u'
+       AND routine.proconfig =
+             ARRAY['search_path=pg_catalog, pg_temp']::pg_catalog.text[]
+       AND routine.pronargs = 1
+       AND routine.pronargdefaults = 0
+       AND routine.proargdefaults IS NULL
+       AND routine.proargnames = ARRAY[
+             'candidate_migration_sha256',
+             'phase_0066_count',
+             'phase_0067_count',
+             'phase_0068_count',
+             'phase_0069_count',
+             'candidate_hash_count',
+             'lineage_window_count'
+           ]::pg_catalog.text[]
+       AND ARRAY(
+             SELECT input_type::pg_catalog.oid
+               FROM pg_catalog.unnest(routine.proargtypes) AS input_type
+           )::pg_catalog.oid[] = ARRAY[
+             'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid
+           ]::pg_catalog.oid[]
+       AND routine.proallargtypes = ARRAY[
+             'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
+             'pg_catalog.int4'::pg_catalog.regtype::pg_catalog.oid,
+             'pg_catalog.int4'::pg_catalog.regtype::pg_catalog.oid,
+             'pg_catalog.int4'::pg_catalog.regtype::pg_catalog.oid,
+             'pg_catalog.int4'::pg_catalog.regtype::pg_catalog.oid,
+             'pg_catalog.int4'::pg_catalog.regtype::pg_catalog.oid,
+             'pg_catalog.int4'::pg_catalog.regtype::pg_catalog.oid
+           ]::pg_catalog.oid[]
+       AND ARRAY(
+             SELECT argument_mode::pg_catalog.text
+               FROM pg_catalog.unnest(routine.proargmodes) AS argument_mode
+           )::pg_catalog.text[] =
+             ARRAY['i', 't', 't', 't', 't', 't', 't']::pg_catalog.text[]
+       AND routine.protrftypes IS NULL
+       AND routine.provariadic = 0
+       AND routine.prosupport = 0
+       AND routine.procost = 100
+       AND routine.prorows = 1000
+       AND routine.probin IS NULL
+       AND routine.prosqlbody IS NULL
+       AND pg_catalog.encode(
+             pg_catalog.sha256(
+               pg_catalog.convert_to(routine.prosrc, 'UTF8')
+             ),
+             'hex'
+           ) =
+             '5963663f65d5be7e4e44c1ab1b1daa17a04d4bd711a9af9abc5bf2d1bb62bd91'
+       AND pg_catalog.encode(
+             pg_catalog.sha256(
+               pg_catalog.convert_to(
+                 pg_catalog.pg_get_functiondef(routine.oid),
+                 'UTF8'
+               )
+             ),
+             'hex'
+           ) =
+             '261d8137a8ad635af563b6e5478ad3ebc7579c68c5693ff87a7e2fe517e5dbbf'
+       AND (
+             SELECT pg_catalog.count(*)
+               FROM pg_catalog.pg_proc AS overload
+              WHERE overload.pronamespace =
+                    'public'::pg_catalog.regnamespace
+                AND overload.proname =
+                    'attest_email_outbox_delivery_release_lineage'
+           ) = 1
+  )
+     OR direct_acl IS DISTINCT FROM ARRAY[
+          'learncoding_owner|learncoding_owner|execute|false',
+          'learncoding_worker|learncoding_owner|execute|false'
+        ]::pg_catalog.text[]
+     OR NOT pg_catalog.has_function_privilege(
+          'learncoding_owner', attestor_oid, 'EXECUTE'
+        )
+     OR NOT pg_catalog.has_function_privilege(
+          'learncoding_worker', attestor_oid, 'EXECUTE'
+        )
+     OR pg_catalog.has_function_privilege(
+          'learncoding_app', attestor_oid, 'EXECUTE'
+        )
+     OR pg_catalog.has_function_privilege(
+          'learncoding_migrator', attestor_oid, 'EXECUTE'
+        )
+     OR pg_catalog.has_function_privilege(
+          'learncoding_ops', attestor_oid, 'EXECUTE'
+        )
+     OR pg_catalog.has_function_privilege(
+          'learncoding_backup_reporter', attestor_oid, 'EXECUTE'
+        )
+     OR pg_catalog.has_function_privilege(
+          0, attestor_oid, 'EXECUTE'
+        )
+     OR pg_catalog.has_schema_privilege(
+          'learncoding_worker', 'drizzle', 'USAGE'
+        )
+     OR pg_catalog.has_schema_privilege(
+          'learncoding_worker', 'drizzle', 'CREATE'
+        )
+     OR pg_catalog.has_table_privilege(
+          'learncoding_worker', journal_oid, 'SELECT'
+        )
+     OR pg_catalog.has_table_privilege(
+          'learncoding_worker', journal_oid, 'INSERT'
+        )
+     OR pg_catalog.has_table_privilege(
+          'learncoding_worker', journal_oid, 'UPDATE'
+        )
+     OR pg_catalog.has_table_privilege(
+          'learncoding_worker', journal_oid, 'DELETE'
+        )
+  THEN
+    RAISE EXCEPTION '0069 lineage attestor catalog contract is invalid'
+      USING ERRCODE = '42501';
+  END IF;
+END
+$verify_lineage_attestor_catalog$;--> statement-breakpoint
 
 DO $verify_terminal_catalog$
 DECLARE
@@ -5432,50 +6397,105 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  IF (
-    SELECT pg_catalog.count(*)
-      FROM pg_catalog.pg_attribute AS attribute
-     WHERE attribute.attrelid = 'public.email_outbox'::pg_catalog.regclass
-       AND attribute.attnum > 0
-       AND NOT attribute.attisdropped
-       AND NOT attribute.attnotnull
-       AND (
-         attribute.attname,
-         attribute.atttypid
-       ) IN (
-         ('delivery_release_insert_xid',
-          'pg_catalog.xid8'::pg_catalog.regtype),
-         ('delivery_release_insert_system_identifier',
-          'pg_catalog.int8'::pg_catalog.regtype),
-         ('provider_request_body_sha256',
-          'pg_catalog.text'::pg_catalog.regtype),
-         ('provider_request_body_length',
-          'pg_catalog.int8'::pg_catalog.regtype)
-       )
-       AND attribute.attnum = CASE attribute.attname
-         WHEN 'delivery_release_insert_xid' THEN 34
-         WHEN 'delivery_release_insert_system_identifier' THEN 37
-         WHEN 'provider_request_body_sha256' THEN 35
-         WHEN 'provider_request_body_length' THEN 36
-       END
-       AND attribute.atttypmod = -1
-       AND attribute.attcollation = CASE
-         WHEN attribute.atttypid = 'pg_catalog.text'::pg_catalog.regtype
-           THEN (
-             SELECT type_row.typcollation
-               FROM pg_catalog.pg_type AS type_row
-              WHERE type_row.oid = 'pg_catalog.text'::pg_catalog.regtype
-           )
-         ELSE 0
-       END
-       AND NOT attribute.atthasdef
-       AND attribute.attidentity = ''
-       AND attribute.attgenerated = ''
-       AND NOT attribute.atthasmissing
-       AND attribute.attmissingval IS NULL
-       AND attribute.attislocal
-       AND attribute.attinhcount = 0
-  ) <> 4
+  IF EXISTS (
+    WITH expected_guarded_outbox_columns(
+      column_name,
+      attribute_number,
+      type_oid,
+      type_modifier,
+      is_not_null,
+      exact_shape
+    ) AS (
+      VALUES
+        (
+          'delivery_release_insert_xid'::pg_catalog.text,
+          34::pg_catalog.int2,
+          'pg_catalog.xid8'::pg_catalog.regtype::pg_catalog.oid,
+          (-1)::pg_catalog.int4,
+          false,
+          true
+        ),
+        (
+          'provider_request_body_sha256',
+          35::pg_catalog.int2,
+          'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
+          (-1)::pg_catalog.int4,
+          false,
+          true
+        ),
+        (
+          'provider_request_body_length',
+          36::pg_catalog.int2,
+          'pg_catalog.int8'::pg_catalog.regtype::pg_catalog.oid,
+          (-1)::pg_catalog.int4,
+          false,
+          true
+        ),
+        (
+          'delivery_release_insert_system_identifier',
+          37::pg_catalog.int2,
+          'pg_catalog.int8'::pg_catalog.regtype::pg_catalog.oid,
+          (-1)::pg_catalog.int4,
+          false,
+          true
+        )
+    ),
+    actual_guarded_outbox_columns AS (
+      SELECT
+        attribute.attname::pg_catalog.text AS column_name,
+        attribute.attnum AS attribute_number,
+        attribute.atttypid AS type_oid,
+        attribute.atttypmod AS type_modifier,
+        attribute.attnotnull AS is_not_null,
+        (
+          attribute.attcollation = type_row.typcollation
+          AND attribute.attlen = type_row.typlen
+          AND attribute.attbyval = type_row.typbyval
+          AND attribute.attalign = type_row.typalign
+          AND attribute.attstorage = type_row.typstorage
+          AND attribute.attcompression = ''::"char"
+          AND attribute.attstattarget IS NULL
+          AND attribute.attndims = 0
+          AND NOT attribute.atthasdef
+          AND attribute.attidentity = ''
+          AND attribute.attgenerated = ''
+          AND NOT attribute.atthasmissing
+          AND attribute.attmissingval IS NULL
+          AND attribute.attislocal
+          AND attribute.attinhcount = 0
+          AND attribute.attoptions IS NULL
+          AND attribute.attfdwoptions IS NULL
+        ) AS exact_shape
+        FROM pg_catalog.pg_attribute AS attribute
+        JOIN pg_catalog.pg_type AS type_row
+          ON type_row.oid = attribute.atttypid
+       WHERE attribute.attrelid = 'public.email_outbox'::pg_catalog.regclass
+         AND attribute.attname IN (
+           'delivery_release_insert_xid',
+           'delivery_release_insert_system_identifier',
+           'provider_request_body_sha256',
+           'provider_request_body_length'
+         )
+         AND attribute.attnum > 0
+         AND NOT attribute.attisdropped
+    ),
+    guarded_outbox_column_delta AS (
+      SELECT *
+        FROM (
+          SELECT * FROM expected_guarded_outbox_columns
+          EXCEPT ALL
+          SELECT * FROM actual_guarded_outbox_columns
+        ) AS missing_guarded_outbox_columns
+      UNION ALL
+      SELECT *
+        FROM (
+          SELECT * FROM actual_guarded_outbox_columns
+          EXCEPT ALL
+          SELECT * FROM expected_guarded_outbox_columns
+        ) AS unexpected_guarded_outbox_columns
+    )
+    SELECT 1 FROM guarded_outbox_column_delta
+  )
      OR EXISTS (
        SELECT 1
          FROM pg_catalog.pg_attrdef AS default_row
@@ -5633,7 +6653,7 @@ BEGIN
           false,
           'pg_catalog.trigger'::pg_catalog.regtype,
           ARRAY['search_path=pg_catalog, pg_temp']::pg_catalog.text[],
-          '4456db88d8d8be63e64f6acb591e2042711877224b22310339d09b1d83fa5ef8'
+          'a76581c119a10ce8943cd7a60e674938d7163f8a3fe444e83f49751a7c116e46'
         ),
         (
           'identity',
@@ -5685,7 +6705,7 @@ BEGIN
           false,
           'pg_catalog.trigger'::pg_catalog.regtype,
           ARRAY['search_path=pg_catalog, pg_temp']::pg_catalog.text[],
-          '1a3ca3d458e1e6fd07ba42ab679936804bdb6b9dd6b0c0070c9da5cdc6df6eca'
+          '5214d841459e6be0d0ab80d2a61299ddee7669d535814c287dfbc3b91c6b8225'
         ),
         (
           'issuer',
@@ -5698,7 +6718,20 @@ BEGIN
           false,
           receipt_row_type,
           ARRAY['search_path=pg_catalog, pg_temp']::pg_catalog.text[],
-          'be0b3c8669d514b6190db62901f4e04462a858e3a528bb6b96961c3026a3e48b'
+          'b90df49087aa1ca69e80fc18a4963d5fc724d91db8612b338c2d2b98f2a3db0f'
+        ),
+        (
+          'verifier',
+          'public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)',
+          'plpgsql',
+          'v'::"char",
+          false,
+          true,
+          'u'::"char",
+          true,
+          'pg_catalog.record'::pg_catalog.regtype,
+          ARRAY['search_path=pg_catalog, pg_temp']::pg_catalog.text[],
+          'b3277feeb2ed099406e17a3fe548bae580f978f5cd94a7f55f28687c81d9042c'
         ),
         (
           'commit_exact',
@@ -5844,7 +6877,7 @@ BEGIN
              ),
              'hex'
            ) = expected.source_sha256
-  ) <> 15
+  ) <> 16
   THEN
     RAISE EXCEPTION '0069 terminal catalog contract is invalid'
       USING ERRCODE = '42501';
@@ -6914,7 +7947,7 @@ BEGIN
           0::pg_catalog.int2,
           100::pg_catalog.float4,
           0::pg_catalog.float4,
-          '592bd06a7f1aa82123fa346a477e44dc307a6ecf69d5dc65686bed56b3252a35',
+          'b766a3512540a3d511a8126d87e9cbcd40847a87ea82ce27bdb2838290d97ec3',
           true
         ),
         (
@@ -6962,7 +7995,7 @@ BEGIN
           0::pg_catalog.int2,
           100::pg_catalog.float4,
           0::pg_catalog.float4,
-          'e08ba6e4387055ee70796ddf2313365cfcfa5236ad12b4ebd26e295c64ff63fd',
+          '295db3f75181663dd4491b4a84d53617179965e2a0a156995b721e53ab9c5fb1',
           true
         ),
         (
@@ -7106,7 +8139,41 @@ BEGIN
           5::pg_catalog.int2,
           100::pg_catalog.float4,
           0::pg_catalog.float4,
-          'f79daaa0b08b8d3a84a55fe553af8d60576f3ae8a18b3638b4a530c020a4c6ee',
+          '9516f96ef9133bdf61f6db352422d521cf4616c6bd5b365888f1c614670ed409',
+          true
+        ),
+        (
+          'verify_email_outbox_delivery_release',
+          ARRAY[
+            'pg_catalog.uuid'::pg_catalog.regtype::pg_catalog.oid,
+            'pg_catalog.uuid'::pg_catalog.regtype::pg_catalog.oid,
+            'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
+            'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
+            'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid
+          ]::pg_catalog.oid[],
+          ARRAY[
+            'requested_outbox_id', 'requested_operation_id',
+            'requested_authority_sha256',
+            'requested_original_payload_sha256',
+            'requested_release_version',
+            'outbox_id', 'operation_id'
+          ]::pg_catalog.text[],
+          ARRAY[
+            'pg_catalog.uuid'::pg_catalog.regtype::pg_catalog.oid,
+            'pg_catalog.uuid'::pg_catalog.regtype::pg_catalog.oid,
+            'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
+            'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
+            'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
+            'pg_catalog.uuid'::pg_catalog.regtype::pg_catalog.oid,
+            'pg_catalog.uuid'::pg_catalog.regtype::pg_catalog.oid
+          ]::pg_catalog.oid[],
+          ARRAY[
+            'i', 'i', 'i', 'i', 'i', 't', 't'
+          ]::pg_catalog.text[],
+          5::pg_catalog.int2,
+          100::pg_catalog.float4,
+          1000::pg_catalog.float4,
+          '8e50e51aae34e3657a6a2d9d90fc546025512f2678b083e824a5cc0f8457ee5f',
           true
         )
     ),
@@ -7271,6 +8338,9 @@ BEGIN
        )::pg_catalog.oid),
       ('request_guard', pg_catalog.to_regprocedure(
          'public.enforce_email_outbox_provider_request_body_immutable()'
+       )::pg_catalog.oid),
+      ('verifier', pg_catalog.to_regprocedure(
+         'public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)'
        )::pg_catalog.oid)
     ) AS reviewed(label, routine_oid)
     JOIN pg_catalog.pg_proc AS routine
@@ -7293,17 +8363,21 @@ BEGIN
        'backup_wrapper|learncoding_owner|learncoding_owner|execute|false',
        'commit_exact|learncoding_owner|learncoding_owner|execute|false',
        'hash|learncoding_owner|learncoding_owner|execute|false',
+       'hash|learncoding_worker|learncoding_owner|execute|false',
        'hold|learncoding_owner|learncoding_owner|execute|false',
        'identity|learncoding_owner|learncoding_owner|execute|false',
        'insert_final|learncoding_owner|learncoding_owner|execute|false',
        'issuer|learncoding_app|learncoding_owner|execute|false',
        'issuer|learncoding_owner|learncoding_owner|execute|false',
+       'issuer|learncoding_worker|learncoding_owner|execute|false',
        'marker|learncoding_owner|learncoding_owner|execute|false',
        'outbox_delete_exact|learncoding_owner|learncoding_owner|execute|false',
        'payload|learncoding_owner|learncoding_owner|execute|false',
        'receipt_delete_exact|learncoding_owner|learncoding_owner|execute|false',
        'receipt_insert|learncoding_owner|learncoding_owner|execute|false',
-       'request_guard|learncoding_owner|learncoding_owner|execute|false'
+       'request_guard|learncoding_owner|learncoding_owner|execute|false',
+       'verifier|learncoding_app|learncoding_owner|execute|false',
+       'verifier|learncoding_owner|learncoding_owner|execute|false'
      ]::pg_catalog.text[]
   THEN
     RAISE EXCEPTION '0069 terminal catalog contract is invalid'
@@ -8127,6 +9201,10 @@ BEGIN
         ('request_guard',
          pg_catalog.to_regprocedure(
            'public.enforce_email_outbox_provider_request_body_immutable()'
+         )::pg_catalog.oid),
+        ('verifier',
+         pg_catalog.to_regprocedure(
+           'public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)'
          )::pg_catalog.oid)
     ),    expected_effective_function_authority AS (
       SELECT
@@ -8139,12 +9217,24 @@ BEGIN
             AND routine.routine_label = 'issuer'
           )
           OR (
+            principal.principal_name = 'learncoding_app'
+            AND routine.routine_label = 'verifier'
+          )
+          OR (
+            principal.principal_name = 'learncoding_worker'
+            AND routine.routine_label = 'issuer'
+          )
+          OR (
             principal.principal_name = 'learncoding_backup_reporter'
             AND routine.routine_label = 'backup_wrapper'
           )
           OR (
             principal.principal_name = 'learncoding_worker'
             AND routine.routine_label = 'backup_authorized'
+          )
+          OR (
+            principal.principal_name = 'learncoding_worker'
+            AND routine.routine_label = 'hash'
           )
         ) AS permitted
         FROM managed_principals AS principal

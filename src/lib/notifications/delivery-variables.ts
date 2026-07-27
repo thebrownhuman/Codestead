@@ -15,7 +15,9 @@ export type MaterializedDeliveryVariables = Readonly<{
  * evidence must never be persisted back to email_outbox or included in logs.
  */
 export async function materializeDeliveryWithAuthorityEvidence(input: {
+  applicationUrl: string;
   template: EmailTemplate;
+  templateVersion: string;
   variables: Record<string, string>;
   now?: Date;
 }): Promise<MaterializedDeliveryVariables | null> {
@@ -26,9 +28,9 @@ export async function materializeDeliveryWithAuthorityEvidence(input: {
     });
   }
   const parsed = parseRevocableSourceVariables({
-    applicationUrl: process.env.APP_URL ?? "http://localhost:3000",
+    applicationUrl: input.applicationUrl,
     template: input.template,
-    templateVersion: "1",
+    templateVersion: input.templateVersion,
     variables: input.variables,
   });
   if (parsed?.kind !== "lost-device-proof") return null;
@@ -39,9 +41,11 @@ export async function materializeDeliveryWithAuthorityEvidence(input: {
   });
 }
 
-/** Variables-only compatibility adapter; live authority integration remains pending. */
+/** Variables-only compatibility adapter retained for non-worker callers. */
 export async function materializeDeliveryVariables(input: {
+  applicationUrl: string;
   template: EmailTemplate;
+  templateVersion: string;
   variables: Record<string, string>;
   now?: Date;
 }): Promise<Record<string, string> | null> {

@@ -44,6 +44,9 @@ export type GmailReconciliationFence = Readonly<{
   providerCorrelationVersion: ProviderCorrelationVersion;
   providerEvidenceVersion: "gmail-header-evidence-v1" | null;
   providerEvidenceSha256: string | null;
+  providerRequestBodySha256: string | null;
+  providerRequestBodyLength: number | null;
+  releaseReceiptSha256: string | null;
   quarantinedAt: string;
   lastErrorCode: string;
 }>;
@@ -55,6 +58,10 @@ export function gmailReconciliationAuthority(
     if (
       fence.providerEvidenceVersion !== null
       || fence.providerEvidenceSha256 !== null
+      || fence.providerRequestBodySha256 !== null
+      || fence.providerRequestBodyLength !== null
+      || typeof fence.releaseReceiptSha256 !== "string"
+      || !LOWERCASE_SHA256.test(fence.releaseReceiptSha256)
     ) return null;
     if (
       fence.dispatchBindingVersion === null
@@ -80,6 +87,12 @@ export function gmailReconciliationAuthority(
     || fence.providerEvidenceVersion !== "gmail-header-evidence-v1"
     || typeof fence.providerEvidenceSha256 !== "string"
     || !LOWERCASE_SHA256.test(fence.providerEvidenceSha256)
+    || typeof fence.providerRequestBodySha256 !== "string"
+    || !LOWERCASE_SHA256.test(fence.providerRequestBodySha256)
+    || !Number.isSafeInteger(fence.providerRequestBodyLength)
+    || fence.providerRequestBodyLength! < 0
+    || typeof fence.releaseReceiptSha256 !== "string"
+    || !LOWERCASE_SHA256.test(fence.releaseReceiptSha256)
   ) return null;
   return {
     kind: "opaque-header-v1",

@@ -123,4 +123,58 @@ describe("account deletion tombstone identity", () => {
     expect(reports).toBeGreaterThan(receipts);
     expect(posts).toBeGreaterThan(receipts);
   });
+
+  it("releases the validated deletion notice with database-issued authority before commit", () => {
+    const source = readFileSync(path.join(process.cwd(), "src/lib/data-lifecycle/deletion.ts"), "utf8");
+    const insertReturning = source.indexOf("idempotency_authority_sha256");
+    const exactValidation = source.indexOf(
+      "if (!isExactDeletionNoticeRow(insertedRelease",
+    );
+    const release = source.indexOf("public.release_email_outbox_delivery");
+    const finalCommit = source.lastIndexOf('await client.query("commit")');
+    const releaseValidation = source.indexOf(
+      "assertEmailOutboxDeliveryRelease",
+      release,
+    );
+
+    expect(insertReturning).toBeGreaterThan(-1);
+    expect(source).toContain("idempotency_original_payload_sha256");
+    expect(source).toContain("delivery_hold_version");
+    expect(release).toBeGreaterThan(exactValidation);
+    expect(release).toBeLessThan(finalCommit);
+    expect(releaseValidation).toBeGreaterThan(release);
+    expect(releaseValidation).toBeLessThan(finalCommit);
+    expect(source.slice(release, finalCommit)).toContain(
+      "$1::uuid, $2::uuid, $3::text, $4::text, $5::text",
+    );
+  });
+  it("issues only a direct insert receipt and verifies an exact replay separately", () => {
+    const source = readFileSync(
+      path.join(process.cwd(), "src/lib/data-lifecycle/deletion.ts"),
+      "utf8",
+    );
+    const insertedAlias = source.indexOf(
+      "const insertedRelease = insertedNotice.rows[0]",
+    );
+    const directGuard = source.indexOf("if (insertedRelease)");
+    const issuer = source.indexOf("public.release_email_outbox_delivery");
+    const verifier = source.indexOf(
+      "public.verify_email_outbox_delivery_release",
+    );
+    const issuerOccurrences = source.match(
+      /public\.release_email_outbox_delivery/gu,
+    ) ?? [];
+
+    expect(insertedAlias).toBeGreaterThan(-1);
+    expect(directGuard).toBeGreaterThan(insertedAlias);
+    expect(issuer).toBeGreaterThan(directGuard);
+    expect(issuerOccurrences).toHaveLength(1);
+    expect(source.slice(directGuard, issuer + 600)).toContain(
+      "insertedRelease.id",
+    );
+    expect(source.slice(directGuard, issuer + 600)).toContain(
+      "insertedRelease.operation_id",
+    );
+    expect(verifier).toBeGreaterThan(issuer);
+  });
 });

@@ -3,7 +3,7 @@ export const MAIL_DISPATCH_RUNTIME_LIMITS = Object.freeze({
   maximumConcurrency: 10,
   schedulerReserveConnections: 1,
   maintenanceReserveConnections: 1,
-  gmailReconciliationServerReserveConnections: 1,
+  gmailReconciliationServerReserveConnections: 3,
   maximumPoolAcquireMs: 5_000,
   maximumPoolIdleMs: 30_000,
   maximumLockMs: 5_000,
@@ -14,7 +14,9 @@ export const MAIL_DISPATCH_RUNTIME_LIMITS = Object.freeze({
   maximumPostProviderInitiationIdleInTransactionSessionTimeoutMs: 60_000,
   maximumAggregateTx2PhaseMs: 15_000,
   minimumPostProviderDatabaseFallbackLeadMs: 5_000,
+  minimumHardWatchdogLeadMs: 5_000,
   maximumWatchdogArmAckMs: 2_000,
+  maximumWatchdogTeardownConfirmationMs: 2_000,
   maximumWatchdogDisarmDeliveryMs: 2_000,
   maximumHardWatchdogMs: 55_000,
   maximumProviderRequestMs: 20_000,
@@ -30,16 +32,26 @@ export const MAIL_DISPATCH_RUNTIME_LIMITS = Object.freeze({
   maximumPlatformStopMs: 135_000,
 });
 
+export const MAIL_DISPATCH_RUNTIME_BOOTSTRAP = Object.freeze({
+  productionConcurrency: 1,
+  poolMaximumConnections: 3,
+  poolAcquireTimeoutMs: 2_000,
+  poolIdleTimeoutMs: 30_000,
+  otherProcessPoolMaximumConnections: 80,
+});
+
 export const MAIL_DISPATCH_RUNTIME_DEFAULTS = Object.freeze({
-  concurrency: 1,
+  concurrency: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.productionConcurrency,
   schedulerReserveConnections: 1,
   maintenanceReserveConnections: 1,
-  gmailReconciliationServerReserveConnections: 1,
+  gmailReconciliationServerReserveConnections:
+    MAIL_DISPATCH_RUNTIME_LIMITS.gmailReconciliationServerReserveConnections,
   serverMaximumConnections: 100,
   serverAdminReserveConnections: 3,
-  otherProcessPoolMaximumConnections: 80,
-  poolAcquireTimeoutMs: 5_000,
-  poolIdleTimeoutMs: 30_000,
+  otherProcessPoolMaximumConnections:
+    MAIL_DISPATCH_RUNTIME_BOOTSTRAP.otherProcessPoolMaximumConnections,
+  poolAcquireTimeoutMs: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolAcquireTimeoutMs,
+  poolIdleTimeoutMs: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolIdleTimeoutMs,
   lockTimeoutMs: 2_000,
   statementTimeoutMs: 5_000,
   queryTimeoutMs: 6_000,
@@ -55,6 +67,7 @@ export const MAIL_DISPATCH_RUNTIME_DEFAULTS = Object.freeze({
   preProviderTx2PhaseBudgetMs: 6_000,
   postProviderTx2PhaseBudgetMs: 6_000,
   watchdogArmAckTimeoutMs: 2_000,
+  watchdogTeardownConfirmationTimeoutMs: 2_000,
   watchdogDisarmDeliveryTimeoutMs: 2_000,
   hardWatchdogMs: 55_000,
   persistenceMarginMs: 5_000,
@@ -93,6 +106,7 @@ export type MailDispatchRuntimeOverrides = Readonly<{
   preProviderTx2PhaseBudgetMs?: number;
   postProviderTx2PhaseBudgetMs?: number;
   watchdogArmAckTimeoutMs?: number;
+  watchdogTeardownConfirmationTimeoutMs?: number;
   watchdogDisarmDeliveryTimeoutMs?: number;
   hardWatchdogMs?: number;
   persistenceMarginMs?: number;
@@ -120,6 +134,8 @@ export type MailDispatchRuntimePlan = Readonly<{
     perDispatchWatchdogArmAckRequiredBeforePoolAcquire: true;
     hardWatchdogTimerStartsBeforeArmedAck: true;
     watchdogArmAckTimeoutIsBounded: true;
+    postReleaseWatchdogTeardownConfirmationIsBounded: true;
+    watchdogDisarmRequiresConfirmedTx2Teardown: true;
     preProviderInitiationDatabaseTimeoutsDisabled: true;
     preProviderTx2PhaseBudgetIsAggregateDeadline: true;
     tx2LocksAndFinalLiveFenceBeforeProviderInitiation: true;
@@ -152,6 +168,7 @@ export type MailDispatchRuntimePlan = Readonly<{
     "startAggregatePostProviderPhaseDeadline",
     "persistTerminalOutcome",
     "commitAndReleaseTx2",
+    "confirmTx2TeardownWithinDeadline",
     "sendPostReleaseWatchdogDisarm",
     "childClearsHardTimerWithinDeadline",
   ];
@@ -202,19 +219,22 @@ export type MailDispatchRuntimePlan = Readonly<{
    * If the fatal terminator returns or throws, integration must enter a
    * non-returning park with the TX2 client and locks retained and the watchdog
    * armed, never reaching release or DISARM. Only a private non-production
-   * test sentinel may escape that park. The watchdog covers both bounded
-   * control-plane deliveries, the bounded pool checkout,
-   * and TX2. The pre-provider and post-provider phase budgets are aggregate
-   * runtime deadlines, not aliases for a per-query timeout; integration must
-   * enforce each across all statements in its phase.
+   * test sentinel may escape that park. The default watchdog proof is ARM/ACK
+   * 2s + pool checkout 2s + TX2 42s + teardown confirmation 2s + DISARM
+   * delivery 2s = 50s, retaining 5s before the 55s hard watchdog. A longer
+   * explicit pool checkout remains valid only when reduced phase budgets
+   * preserve that same lead. Phase budgets are aggregate runtime deadlines,
+   * not aliases for a per-query timeout; integration must enforce each across
+   * all statements in its phase.
    *
    * The PostgreSQL 17 transaction timer begins when the finite value is SET
    * after provider initiation, not at BEGIN or fetch; the independent watchdog
    * remains the authoritative hard cap.
    *
-   * The parent sends DISARM only after safe TX2 completion, COMMIT, and client
-   * release. The child must receive it and clear the timer within the returned
-   * DISARM delivery bound.
+   * After safe TX2 completion, COMMIT, and client release, the parent must
+   * confirm teardown within the returned bound before sending DISARM. The child
+   * must receive DISARM and clear the timer within its separate returned
+   * delivery bound.
    *
    * oauthDeadlineMs is the aggregate OAuth request-and-abort-settlement
    * deadline. Integration must enforce one absolute deadline across both
@@ -269,6 +289,7 @@ export type MailDispatchRuntimePlan = Readonly<{
     preProviderTx2PhaseBudgetMs: number;
     postProviderTx2PhaseBudgetMs: number;
     watchdogArmAckMs: number;
+    watchdogTeardownConfirmationMs: number;
     watchdogDisarmDeliveryMs: number;
     hardWatchdogMs: number;
     drainMs: number;
@@ -299,9 +320,9 @@ function isDeeplyFrozenDataGraph(
   for (const key of Reflect.ownKeys(value)) {
     const descriptor = Object.getOwnPropertyDescriptor(value, key);
     if (
-      descriptor === undefined
-      || !("value" in descriptor)
-      || !isDeeplyFrozenDataGraph(descriptor.value, visited)
+      descriptor === undefined ||
+      !("value" in descriptor) ||
+      !isDeeplyFrozenDataGraph(descriptor.value, visited)
     ) {
       return false;
     }
@@ -316,10 +337,12 @@ function isDeeplyFrozenDataGraph(
 export function isMailDispatchRuntimePlan(
   value: unknown,
 ): value is MailDispatchRuntimePlan {
-  return value !== null
-    && typeof value === "object"
-    && issuedMailDispatchRuntimePlans.has(value)
-    && isDeeplyFrozenDataGraph(value, new WeakSet<object>());
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    issuedMailDispatchRuntimePlans.has(value) &&
+    isDeeplyFrozenDataGraph(value, new WeakSet<object>())
+  );
 }
 
 const OVERRIDE_KEYS = Object.freeze([
@@ -348,6 +371,7 @@ const OVERRIDE_KEYS = Object.freeze([
   "preProviderTx2PhaseBudgetMs",
   "postProviderTx2PhaseBudgetMs",
   "watchdogArmAckTimeoutMs",
+  "watchdogTeardownConfirmationTimeoutMs",
   "watchdogDisarmDeliveryTimeoutMs",
   "hardWatchdogMs",
   "persistenceMarginMs",
@@ -369,9 +393,9 @@ function hasOwn(value: object, key: PropertyKey): boolean {
 
 function assertKnownOverrides(overrides: MailDispatchRuntimeOverrides): void {
   if (
-    overrides === null
-    || typeof overrides !== "object"
-    || Array.isArray(overrides)
+    overrides === null ||
+    typeof overrides !== "object" ||
+    Array.isArray(overrides)
   ) {
     throw new Error(
       "Mail dispatch runtime overrides must be a plain own-property object.",
@@ -385,10 +409,12 @@ function assertKnownOverrides(overrides: MailDispatchRuntimeOverrides): void {
 
   for (const key of Reflect.ownKeys(overrides)) {
     if (
-      typeof key !== "string"
-      || !OVERRIDE_KEYS.includes(key as OverrideKey)
+      typeof key !== "string" ||
+      !OVERRIDE_KEYS.includes(key as OverrideKey)
     ) {
-      throw new Error(`Unknown mail dispatch runtime override: ${String(key)}.`);
+      throw new Error(
+        `Unknown mail dispatch runtime override: ${String(key)}.`,
+      );
     }
   }
 }
@@ -410,11 +436,7 @@ function assertPositiveInteger(value: number, label: string): void {
   }
 }
 
-function assertMaximum(
-  value: number,
-  maximum: number,
-  label: string,
-): void {
+function assertMaximum(value: number, maximum: number, label: string): void {
   if (value > maximum) {
     throw new Error(`${label} must not exceed ${maximum}ms.`);
   }
@@ -431,11 +453,13 @@ export function planMailDispatchRuntime(
 
   const concurrency = configured(overrides, "concurrency");
   if (
-    !Number.isSafeInteger(concurrency)
-    || concurrency < MAIL_DISPATCH_RUNTIME_LIMITS.minimumConcurrency
-    || concurrency > MAIL_DISPATCH_RUNTIME_LIMITS.maximumConcurrency
+    !Number.isSafeInteger(concurrency) ||
+    concurrency < MAIL_DISPATCH_RUNTIME_LIMITS.minimumConcurrency ||
+    concurrency > MAIL_DISPATCH_RUNTIME_LIMITS.maximumConcurrency
   ) {
-    throw new Error("Mail dispatch concurrency must be an integer from 1 to 10.");
+    throw new Error(
+      "Mail dispatch concurrency must be an integer from 1 to 10.",
+    );
   }
 
   const schedulerReserveConnections = configured(
@@ -443,8 +467,8 @@ export function planMailDispatchRuntime(
     "schedulerReserveConnections",
   );
   if (
-    schedulerReserveConnections
-    !== MAIL_DISPATCH_RUNTIME_LIMITS.schedulerReserveConnections
+    schedulerReserveConnections !==
+    MAIL_DISPATCH_RUNTIME_LIMITS.schedulerReserveConnections
   ) {
     throw new Error("Mail scheduler reserve must be exactly one connection.");
   }
@@ -453,36 +477,33 @@ export function planMailDispatchRuntime(
     "maintenanceReserveConnections",
   );
   if (
-    maintenanceReserveConnections
-    !== MAIL_DISPATCH_RUNTIME_LIMITS.maintenanceReserveConnections
+    maintenanceReserveConnections !==
+    MAIL_DISPATCH_RUNTIME_LIMITS.maintenanceReserveConnections
   ) {
-    throw new Error(
-      "Mail maintenance reserve must be exactly one connection.",
-    );
+    throw new Error("Mail maintenance reserve must be exactly one connection.");
   }
   const gmailReconciliationServerReserveConnections = configured(
     overrides,
     "gmailReconciliationServerReserveConnections",
   );
   if (
-    gmailReconciliationServerReserveConnections
-    !== MAIL_DISPATCH_RUNTIME_LIMITS
-      .gmailReconciliationServerReserveConnections
+    gmailReconciliationServerReserveConnections !==
+    MAIL_DISPATCH_RUNTIME_LIMITS.gmailReconciliationServerReserveConnections
   ) {
     throw new Error(
-      "Mail server-global Gmail reconciliation reserve must be exactly one connection.",
+      "Mail server-global Gmail reconciliation reserve must be exactly three connections.",
     );
   }
 
-  const reservedConnections = schedulerReserveConnections
-    + maintenanceReserveConnections;
+  const reservedConnections =
+    schedulerReserveConnections + maintenanceReserveConnections;
   const expectedPoolMaximum = concurrency + reservedConnections;
   const poolMaximumConnections = hasOwn(overrides, "poolMaximumConnections")
-    ? (overrides as Record<string, unknown>).poolMaximumConnections as number
+    ? ((overrides as Record<string, unknown>).poolMaximumConnections as number)
     : expectedPoolMaximum;
   if (
-    !Number.isSafeInteger(poolMaximumConnections)
-    || poolMaximumConnections !== expectedPoolMaximum
+    !Number.isSafeInteger(poolMaximumConnections) ||
+    poolMaximumConnections !== expectedPoolMaximum
   ) {
     throw new Error(
       "Mail dispatch pool maximum must equal concurrency plus two reserves.",
@@ -514,14 +535,15 @@ export function planMailDispatchRuntime(
 
   const sumProcessPoolMaximumConnections =
     otherProcessPoolMaximumConnections + poolMaximumConnections;
-  const remainingConnections = serverMaximumConnections
-    - serverAdminReserveConnections
-    - sumProcessPoolMaximumConnections
-    - gmailReconciliationServerReserveConnections;
+  const remainingConnections =
+    serverMaximumConnections -
+    serverAdminReserveConnections -
+    sumProcessPoolMaximumConnections -
+    gmailReconciliationServerReserveConnections;
   if (
-    !Number.isSafeInteger(sumProcessPoolMaximumConnections)
-    || !Number.isSafeInteger(remainingConnections)
-    || remainingConnections < 0
+    !Number.isSafeInteger(sumProcessPoolMaximumConnections) ||
+    !Number.isSafeInteger(remainingConnections) ||
+    remainingConnections < 0
   ) {
     throw new Error(
       "Mail server capacity must retain the Gmail reconciliation reserve.",
@@ -534,32 +556,17 @@ export function planMailDispatchRuntime(
   const statementTimeoutMs = configured(overrides, "statementTimeoutMs");
   const queryTimeoutMs = configured(overrides, "queryTimeoutMs");
   const tx1TimeoutMs = configured(overrides, "tx1TimeoutMs");
-  const oauthDeadlineMs = configured(
-    overrides,
-    "oauthDeadlineMs",
-  );
-  assertPositiveInteger(
-    oauthDeadlineMs,
-    "Mail OAuth deadline",
-  );
-  if (
-    oauthDeadlineMs
-    > MAIL_DISPATCH_RUNTIME_LIMITS.maximumProviderRequestMs
-  ) {
+  const oauthDeadlineMs = configured(overrides, "oauthDeadlineMs");
+  assertPositiveInteger(oauthDeadlineMs, "Mail OAuth deadline");
+  if (oauthDeadlineMs > MAIL_DISPATCH_RUNTIME_LIMITS.maximumProviderRequestMs) {
     throw new Error("Mail OAuth deadline must not exceed 20000ms.");
   }
 
-  const guardedSendDeadlineMs = configured(
-    overrides,
-    "guardedSendDeadlineMs",
-  );
-  assertPositiveInteger(
-    guardedSendDeadlineMs,
-    "Mail guarded send deadline",
-  );
+  const guardedSendDeadlineMs = configured(overrides, "guardedSendDeadlineMs");
+  assertPositiveInteger(guardedSendDeadlineMs, "Mail guarded send deadline");
   if (
-    guardedSendDeadlineMs
-    > MAIL_DISPATCH_RUNTIME_LIMITS.maximumProviderRequestMs
+    guardedSendDeadlineMs >
+    MAIL_DISPATCH_RUNTIME_LIMITS.maximumProviderRequestMs
   ) {
     throw new Error("Mail guarded send deadline must not exceed 20000ms.");
   }
@@ -573,8 +580,8 @@ export function planMailDispatchRuntime(
     "Mail provider abort settlement timeout",
   );
   if (
-    providerAbortSettlementTimeoutMs
-    > MAIL_DISPATCH_RUNTIME_LIMITS.maximumProviderAbortSettlementMs
+    providerAbortSettlementTimeoutMs >
+    MAIL_DISPATCH_RUNTIME_LIMITS.maximumProviderAbortSettlementMs
   ) {
     throw new Error(
       "Mail provider abort settlement timeout must not exceed 5000ms.",
@@ -582,13 +589,9 @@ export function planMailDispatchRuntime(
   }
 
   const fatalExitMarginMs = configured(overrides, "fatalExitMarginMs");
-  assertPositiveInteger(
-    fatalExitMarginMs,
-    "Mail fatal exit margin",
-  );
+  assertPositiveInteger(fatalExitMarginMs, "Mail fatal exit margin");
   if (
-    fatalExitMarginMs
-    > MAIL_DISPATCH_RUNTIME_LIMITS.maximumFatalExitMarginMs
+    fatalExitMarginMs > MAIL_DISPATCH_RUNTIME_LIMITS.maximumFatalExitMarginMs
   ) {
     throw new Error("Mail fatal exit margin must not exceed 5000ms.");
   }
@@ -621,6 +624,10 @@ export function planMailDispatchRuntime(
     overrides,
     "watchdogArmAckTimeoutMs",
   );
+  const watchdogTeardownConfirmationTimeoutMs = configured(
+    overrides,
+    "watchdogTeardownConfirmationTimeoutMs",
+  );
   const watchdogDisarmDeliveryTimeoutMs = configured(
     overrides,
     "watchdogDisarmDeliveryTimeoutMs",
@@ -638,9 +645,7 @@ export function planMailDispatchRuntime(
   const platformStopMs = configured(overrides, "platformStopMs");
 
   if (preProviderInitiationIdleInTransactionSessionTimeoutMs !== 0) {
-    throw new Error(
-      "Mail pre-provider idle timeout must be exactly zero.",
-    );
+    throw new Error("Mail pre-provider idle timeout must be exactly zero.");
   }
   if (preProviderInitiationTransactionTimeoutMs !== 0) {
     throw new Error(
@@ -663,16 +668,20 @@ export function planMailDispatchRuntime(
       "Mail post-provider idle-in-transaction session timeout",
       postProviderInitiationIdleInTransactionSessionTimeoutMs,
     ],
-    ["Mail pre-provider aggregate TX2 phase budget", preProviderTx2PhaseBudgetMs],
-    ["Mail post-provider aggregate TX2 phase budget", postProviderTx2PhaseBudgetMs],
     [
-      "Mail watchdog ARM acknowledgement timeout",
-      watchdogArmAckTimeoutMs,
+      "Mail pre-provider aggregate TX2 phase budget",
+      preProviderTx2PhaseBudgetMs,
     ],
     [
-      "Mail watchdog DISARM delivery timeout",
-      watchdogDisarmDeliveryTimeoutMs,
+      "Mail post-provider aggregate TX2 phase budget",
+      postProviderTx2PhaseBudgetMs,
     ],
+    ["Mail watchdog ARM acknowledgement timeout", watchdogArmAckTimeoutMs],
+    [
+      "Mail watchdog teardown confirmation timeout",
+      watchdogTeardownConfirmationTimeoutMs,
+    ],
+    ["Mail watchdog DISARM delivery timeout", watchdogDisarmDeliveryTimeoutMs],
     ["Mail hard watchdog", hardWatchdogMs],
     ["Mail persistence margin", persistenceMarginMs],
     ["Mail post-COMMIT provider lease", postCommitProviderLeaseMs],
@@ -685,15 +694,14 @@ export function planMailDispatchRuntime(
     assertPositiveInteger(value, label);
   }
 
-  const expectedProviderLeaseStampMs = tx1TimeoutMs
-    + postCommitProviderLeaseMs;
+  const expectedProviderLeaseStampMs = tx1TimeoutMs + postCommitProviderLeaseMs;
   if (!Number.isSafeInteger(expectedProviderLeaseStampMs)) {
     throw new Error(
       "Mail provider lease stamp calculation must be a safe integer.",
     );
   }
   const providerLeaseStampMs = hasOwn(overrides, "providerLeaseStampMs")
-    ? (overrides as Record<string, unknown>).providerLeaseStampMs as number
+    ? ((overrides as Record<string, unknown>).providerLeaseStampMs as number)
     : expectedProviderLeaseStampMs;
   assertPositiveInteger(providerLeaseStampMs, "Mail provider lease stamp");
   if (providerLeaseStampMs !== expectedProviderLeaseStampMs) {
@@ -734,14 +742,12 @@ export function planMailDispatchRuntime(
   );
   assertMaximum(
     postProviderInitiationTransactionTimeoutMs,
-    MAIL_DISPATCH_RUNTIME_LIMITS
-      .maximumPostProviderInitiationTransactionTimeoutMs,
+    MAIL_DISPATCH_RUNTIME_LIMITS.maximumPostProviderInitiationTransactionTimeoutMs,
     "Mail post-provider transaction timeout",
   );
   assertMaximum(
     postProviderInitiationIdleInTransactionSessionTimeoutMs,
-    MAIL_DISPATCH_RUNTIME_LIMITS
-      .maximumPostProviderInitiationIdleInTransactionSessionTimeoutMs,
+    MAIL_DISPATCH_RUNTIME_LIMITS.maximumPostProviderInitiationIdleInTransactionSessionTimeoutMs,
     "Mail post-provider idle-in-transaction session timeout",
   );
   assertMaximum(
@@ -758,6 +764,11 @@ export function planMailDispatchRuntime(
     watchdogArmAckTimeoutMs,
     MAIL_DISPATCH_RUNTIME_LIMITS.maximumWatchdogArmAckMs,
     "Mail watchdog ARM acknowledgement timeout",
+  );
+  assertMaximum(
+    watchdogTeardownConfirmationTimeoutMs,
+    MAIL_DISPATCH_RUNTIME_LIMITS.maximumWatchdogTeardownConfirmationMs,
+    "Mail watchdog teardown confirmation timeout",
   );
   assertMaximum(
     watchdogDisarmDeliveryTimeoutMs,
@@ -791,93 +802,92 @@ export function planMailDispatchRuntime(
     "Mail platform stop",
   );
   if (lockTimeoutMs >= statementTimeoutMs) {
-    throw new Error(
-      "Mail lock timeout must finish before statement timeout.",
-    );
+    throw new Error("Mail lock timeout must finish before statement timeout.");
   }
   if (statementTimeoutMs >= queryTimeoutMs) {
-    throw new Error(
-      "Mail statement timeout must finish before query timeout.",
-    );
+    throw new Error("Mail statement timeout must finish before query timeout.");
   }
   if (
-    queryTimeoutMs >= tx1TimeoutMs
-    || queryTimeoutMs >= postProviderInitiationTransactionTimeoutMs
+    queryTimeoutMs >= tx1TimeoutMs ||
+    queryTimeoutMs >= postProviderInitiationTransactionTimeoutMs
   ) {
     throw new Error("Mail query timeout must finish inside TX1 and TX2.");
   }
 
-  const lockedProviderWindowMs = guardedSendDeadlineMs
-    + providerAbortSettlementTimeoutMs
-    + fatalExitMarginMs;
+  const lockedProviderWindowMs =
+    guardedSendDeadlineMs +
+    providerAbortSettlementTimeoutMs +
+    fatalExitMarginMs;
 
-  const tx2PathMs = preProviderTx2PhaseBudgetMs
-    + lockedProviderWindowMs
-    + postProviderTx2PhaseBudgetMs;
+  const tx2PathMs =
+    preProviderTx2PhaseBudgetMs +
+    lockedProviderWindowMs +
+    postProviderTx2PhaseBudgetMs;
   const watchedPathMs = poolAcquireTimeoutMs + tx2PathMs;
-  const watchdogControlPathMs = watchdogArmAckTimeoutMs
-    + watchedPathMs
-    + watchdogDisarmDeliveryTimeoutMs;
+  const watchdogControlPathMs =
+    watchdogArmAckTimeoutMs +
+    watchedPathMs +
+    watchdogTeardownConfirmationTimeoutMs +
+    watchdogDisarmDeliveryTimeoutMs;
+  const minimumHardWatchdogMs =
+    watchdogControlPathMs +
+    MAIL_DISPATCH_RUNTIME_LIMITS.minimumHardWatchdogLeadMs;
   if (
-    !Number.isSafeInteger(tx2PathMs)
-    || !Number.isSafeInteger(watchedPathMs)
-    || !Number.isSafeInteger(watchdogControlPathMs)
-    || watchdogControlPathMs >= hardWatchdogMs
+    !Number.isSafeInteger(tx2PathMs) ||
+    !Number.isSafeInteger(watchedPathMs) ||
+    !Number.isSafeInteger(watchdogControlPathMs) ||
+    !Number.isSafeInteger(minimumHardWatchdogMs) ||
+    minimumHardWatchdogMs > hardWatchdogMs
   ) {
     throw new Error(
-      "Mail watchdog control path must finish before the hard watchdog.",
+      "Mail watchdog control path must retain at least 5000ms before the hard watchdog.",
     );
   }
-  const minimumDatabaseFallbackMs = hardWatchdogMs
-    + MAIL_DISPATCH_RUNTIME_LIMITS
-      .minimumPostProviderDatabaseFallbackLeadMs;
+  const minimumDatabaseFallbackMs =
+    hardWatchdogMs +
+    MAIL_DISPATCH_RUNTIME_LIMITS.minimumPostProviderDatabaseFallbackLeadMs;
   if (
-    !Number.isSafeInteger(minimumDatabaseFallbackMs)
-    || postProviderInitiationIdleInTransactionSessionTimeoutMs
-      < minimumDatabaseFallbackMs
+    !Number.isSafeInteger(minimumDatabaseFallbackMs) ||
+    postProviderInitiationIdleInTransactionSessionTimeoutMs <
+      minimumDatabaseFallbackMs
   ) {
     throw new Error(
       "Mail post-provider idle-in-transaction session timeout must remain at least 5000ms after the hard watchdog.",
     );
   }
-  if (
-    postProviderInitiationTransactionTimeoutMs
-    < minimumDatabaseFallbackMs
-  ) {
+  if (postProviderInitiationTransactionTimeoutMs < minimumDatabaseFallbackMs) {
     throw new Error(
       "Mail post-provider transaction timeout must remain at least 5000ms after the hard watchdog.",
     );
   }
 
-  const leasedDispatchPathMs = oauthDeadlineMs
-    + watchdogArmAckTimeoutMs
-    + poolAcquireTimeoutMs
-    + postProviderInitiationTransactionTimeoutMs
-    + persistenceMarginMs;
+  const leasedDispatchPathMs =
+    oauthDeadlineMs +
+    watchdogArmAckTimeoutMs +
+    poolAcquireTimeoutMs +
+    postProviderInitiationTransactionTimeoutMs +
+    persistenceMarginMs;
   if (
-    !Number.isSafeInteger(leasedDispatchPathMs)
-    || leasedDispatchPathMs >= postCommitProviderLeaseMs
+    !Number.isSafeInteger(leasedDispatchPathMs) ||
+    leasedDispatchPathMs >= postCommitProviderLeaseMs
   ) {
     throw new Error(
       "Mail dispatch path must finish before the provider lease.",
     );
   }
   if (
-    postCommitProviderLeaseMs
-    >= MAIL_DISPATCH_RUNTIME_LIMITS.exclusiveMaximumPostCommitProviderLeaseMs
+    postCommitProviderLeaseMs >=
+    MAIL_DISPATCH_RUNTIME_LIMITS.exclusiveMaximumPostCommitProviderLeaseMs
   ) {
     throw new Error("Mail provider lease must be less than 300000ms.");
   }
   if (
-    providerLeaseStampMs
-    >= MAIL_DISPATCH_RUNTIME_LIMITS.exclusiveMaximumProviderLeaseStampMs
+    providerLeaseStampMs >=
+    MAIL_DISPATCH_RUNTIME_LIMITS.exclusiveMaximumProviderLeaseStampMs
   ) {
     throw new Error("Mail provider lease stamp must be less than 300000ms.");
   }
-  if (
-    drainTimeoutMs
-    >= MAIL_DISPATCH_RUNTIME_LIMITS.exclusiveMaximumDrainMs
-  ) {
+  if (drainTimeoutMs >= MAIL_DISPATCH_RUNTIME_LIMITS.exclusiveMaximumDrainMs) {
     throw new Error("Mail drain timeout must be less than 105000ms.");
   }
   if (stopTimeoutMs > MAIL_DISPATCH_RUNTIME_LIMITS.maximumStopMs) {
@@ -889,13 +899,8 @@ export function planMailDispatchRuntime(
     );
   }
 
-  const cleanupPathMs = drainTimeoutMs
-    + poolCloseTimeoutMs
-    + shutdownMarginMs;
-  if (
-    !Number.isSafeInteger(cleanupPathMs)
-    || cleanupPathMs >= stopTimeoutMs
-  ) {
+  const cleanupPathMs = drainTimeoutMs + poolCloseTimeoutMs + shutdownMarginMs;
+  if (!Number.isSafeInteger(cleanupPathMs) || cleanupPathMs >= stopTimeoutMs) {
     throw new Error(
       "Mail drain, pool close, and shutdown margin must finish before stop timeout.",
     );
@@ -906,9 +911,7 @@ export function planMailDispatchRuntime(
     );
   }
   if (stopTimeoutMs >= platformStopMs) {
-    throw new Error(
-      "Mail process stop must finish before the platform stop.",
-    );
+    throw new Error("Mail process stop must finish before the platform stop.");
   }
 
   const phases = Object.freeze({
@@ -925,6 +928,8 @@ export function planMailDispatchRuntime(
     perDispatchWatchdogArmAckRequiredBeforePoolAcquire: true as const,
     hardWatchdogTimerStartsBeforeArmedAck: true as const,
     watchdogArmAckTimeoutIsBounded: true as const,
+    postReleaseWatchdogTeardownConfirmationIsBounded: true as const,
+    watchdogDisarmRequiresConfirmedTx2Teardown: true as const,
     preProviderInitiationDatabaseTimeoutsDisabled: true as const,
     preProviderTx2PhaseBudgetIsAggregateDeadline: true as const,
     tx2LocksAndFinalLiveFenceBeforeProviderInitiation: true as const,
@@ -957,6 +962,7 @@ export function planMailDispatchRuntime(
     "startAggregatePostProviderPhaseDeadline",
     "persistTerminalOutcome",
     "commitAndReleaseTx2",
+    "confirmTx2TeardownWithinDeadline",
     "sendPostReleaseWatchdogDisarm",
     "childClearsHardTimerWithinDeadline",
   ] as const);
@@ -1021,6 +1027,7 @@ export function planMailDispatchRuntime(
     preProviderTx2PhaseBudgetMs,
     postProviderTx2PhaseBudgetMs,
     watchdogArmAckMs: watchdogArmAckTimeoutMs,
+    watchdogTeardownConfirmationMs: watchdogTeardownConfirmationTimeoutMs,
     watchdogDisarmDeliveryMs: watchdogDisarmDeliveryTimeoutMs,
     hardWatchdogMs,
     drainMs: drainTimeoutMs,

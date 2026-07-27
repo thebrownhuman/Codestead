@@ -14,6 +14,38 @@ import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
 const NOW = new Date("2026-07-12T12:00:00.000Z");
 const TEST_EPISODE_ID = "40000000-0000-4000-8000-000000000004";
 
+type OutboxReleaseRow = {
+  id: string;
+  operation_id: string;
+  idempotency_authority_sha256: string;
+  idempotency_original_payload_sha256: string;
+  delivery_hold_version: string;
+};
+
+const OUTBOX_RELEASE_ROWS: Record<string, OutboxReleaseRow> = {
+  "inactivity-reminder": {
+    id: "50000000-0000-4000-8000-000000000001",
+    operation_id: "51000000-0000-4000-8000-000000000001",
+    idempotency_authority_sha256: "a".repeat(64),
+    idempotency_original_payload_sha256: "b".repeat(64),
+    delivery_hold_version: "task7-v1",
+  },
+  "inactivity-admin-notice": {
+    id: "50000000-0000-4000-8000-000000000002",
+    operation_id: "51000000-0000-4000-8000-000000000002",
+    idempotency_authority_sha256: "c".repeat(64),
+    idempotency_original_payload_sha256: "d".repeat(64),
+    delivery_hold_version: "task7-v1",
+  },
+  "inactivity-reminder-followup": {
+    id: "50000000-0000-4000-8000-000000000003",
+    operation_id: "51000000-0000-4000-8000-000000000003",
+    idempotency_authority_sha256: "e".repeat(64),
+    idempotency_original_payload_sha256: "f".repeat(64),
+    delivery_hold_version: "task7-v1",
+  },
+};
+
 type SchedulerCandidate = {
   user_id: string;
   name: string;
@@ -66,6 +98,11 @@ function fakeScheduler(input: {
   episodeInsertConflicts?: string[];
   emailInsertConflicts?: string[];
   emailInsertErrors?: Partial<Record<string, Error>>;
+  emailReleaseErrors?: Partial<Record<string, Error>>;
+  emailReleaseRows?: Partial<Record<string, Array<{
+    outbox_id: string;
+    operation_id: string;
+  }>>>;
 }) {
   const calls: Array<{ statement: string; values: unknown[] }> = [];
   let released = false;
@@ -124,7 +161,22 @@ function fakeScheduler(input: {
       const error = input.emailInsertErrors?.[template];
       if (error) throw error;
       if (input.emailInsertConflicts?.includes(template)) return { rows: [], rowCount: 0 };
-      return { rows: [{ id: `outbox-${template}` }], rowCount: 1 };
+      const outbox = OUTBOX_RELEASE_ROWS[template];
+      if (!outbox) throw new Error(`Missing outbox release fixture for ${template}`);
+      return { rows: [outbox], rowCount: 1 };
+    }
+    if (statement.includes("from public.release_email_outbox_delivery(")) {
+      const releaseEntry = Object.entries(OUTBOX_RELEASE_ROWS)
+        .find(([, outbox]) => outbox.id === values[0]);
+      if (!releaseEntry) throw new Error(`Missing outbox release fixture for ${String(values[0])}`);
+      const error = input.emailReleaseErrors?.[releaseEntry[0]];
+      if (error) throw error;
+      const outbox = releaseEntry[1];
+      const rows = input.emailReleaseRows?.[releaseEntry[0]] ?? [{
+        outbox_id: outbox.id,
+        operation_id: outbox.operation_id,
+      }];
+      return { rows, rowCount: rows.length };
     }
     if (statement.startsWith("update inactivity_episode")) return { rows: [], rowCount: 1 };
     throw new Error(`Unexpected scheduler query: ${statement}`);
@@ -227,6 +279,10 @@ describe("inactivity scheduler transaction branches", () => {
     });
     const emailCalls = fake.calls.filter((call) => call.statement.startsWith("insert into email_outbox"));
     expect(emailCalls.map((call) => call.values[2])).toEqual(["inactivity-reminder", "inactivity-admin-notice"]);
+    expect(emailCalls.map((call) => call.statement.slice(call.statement.indexOf("returning")))).toEqual([
+      "returning id, operation_id, idempotency_authority_sha256, idempotency_original_payload_sha256, delivery_hold_version",
+      "returning id, operation_id, idempotency_authority_sha256, idempotency_original_payload_sha256, delivery_hold_version",
+    ]);
     expect(emailCalls.map((call) => JSON.parse(String(call.values[3])))).toEqual([
       {
         inactivityEpisodeId: TEST_EPISODE_ID,
@@ -241,6 +297,49 @@ describe("inactivity scheduler transaction branches", () => {
         url: "http://localhost:3000/admin",
       },
     ]);
+    const releaseCalls = fake.calls.filter(
+      (call) => call.statement.includes("from public.release_email_outbox_delivery("),
+    );
+    expect(releaseCalls).toEqual([
+      {
+        statement: "select released.outbox_id::text as outbox_id, released.operation_id::text as operation_id from public.release_email_outbox_delivery( $1::uuid, $2::uuid, $3::text, $4::text, $5::text ) as released",
+        values: [
+          OUTBOX_RELEASE_ROWS["inactivity-reminder"].id,
+          OUTBOX_RELEASE_ROWS["inactivity-reminder"].operation_id,
+          OUTBOX_RELEASE_ROWS["inactivity-reminder"].idempotency_authority_sha256,
+          OUTBOX_RELEASE_ROWS["inactivity-reminder"].idempotency_original_payload_sha256,
+          OUTBOX_RELEASE_ROWS["inactivity-reminder"].delivery_hold_version,
+        ],
+      },
+      {
+        statement: "select released.outbox_id::text as outbox_id, released.operation_id::text as operation_id from public.release_email_outbox_delivery( $1::uuid, $2::uuid, $3::text, $4::text, $5::text ) as released",
+        values: [
+          OUTBOX_RELEASE_ROWS["inactivity-admin-notice"].id,
+          OUTBOX_RELEASE_ROWS["inactivity-admin-notice"].operation_id,
+          OUTBOX_RELEASE_ROWS["inactivity-admin-notice"].idempotency_authority_sha256,
+          OUTBOX_RELEASE_ROWS["inactivity-admin-notice"].idempotency_original_payload_sha256,
+          OUTBOX_RELEASE_ROWS["inactivity-admin-notice"].delivery_hold_version,
+        ],
+      },
+    ]);
+    for (const [template, marker] of [
+      ["inactivity-reminder", "set learner_first_queued_at"],
+      ["inactivity-admin-notice", "set admin_notice_queued_at"],
+    ] as const) {
+      const outbox = OUTBOX_RELEASE_ROWS[template];
+      const insertIndex = fake.calls.findIndex(
+        (call) => call.statement.startsWith("insert into email_outbox") && call.values[2] === template,
+      );
+      const releaseIndex = fake.calls.findIndex(
+        (call) => call.statement.includes("from public.release_email_outbox_delivery(") &&
+          call.values[0] === outbox.id,
+      );
+      const markerIndex = fake.calls.findIndex((call) => call.statement.includes(marker));
+      const commitIndex = fake.calls.findIndex((call) => call.statement === "commit");
+      expect(insertIndex).toBeLessThan(releaseIndex);
+      expect(releaseIndex).toBeLessThan(markerIndex);
+      expect(markerIndex).toBeLessThan(commitIndex);
+    }
     expect(fake.calls.at(-1)?.statement).toContain("pg_advisory_unlock");
     expect(fake.calls.filter((call) => call.statement === "begin")).toHaveLength(1);
     expect(fake.calls.filter((call) => call.statement === "commit")).toHaveLength(1);
@@ -312,6 +411,9 @@ describe("inactivity scheduler transaction branches", () => {
       adminUnavailable: 1,
     });
     expect(fake.calls.some((call) => call.statement.startsWith("select id, eligible_at"))).toBe(true);
+    expect(fake.calls.some(
+      (call) => call.statement.includes("from public.release_email_outbox_delivery("),
+    )).toBe(false);
   });
 
   it("repairs the episode marker when durable authority suppresses replay after outbox retention", async () => {
@@ -339,6 +441,105 @@ describe("inactivity scheduler transaction branches", () => {
     expect(fake.calls.some(
       (call) => call.statement.includes("set learner_first_queued_at"),
     )).toBe(true);
+    expect(fake.calls.some(
+      (call) => call.statement.includes("from public.release_email_outbox_delivery("),
+    )).toBe(false);
+  });
+
+  it.each([
+    ["zero rows", []],
+    [
+      "multiple rows",
+      [
+        {
+          outbox_id: OUTBOX_RELEASE_ROWS["inactivity-reminder"].id,
+          operation_id: OUTBOX_RELEASE_ROWS["inactivity-reminder"].operation_id,
+        },
+        {
+          outbox_id: OUTBOX_RELEASE_ROWS["inactivity-reminder"].id,
+          operation_id: OUTBOX_RELEASE_ROWS["inactivity-reminder"].operation_id,
+        },
+      ],
+    ],
+    [
+      "a different outbox",
+      [{
+        outbox_id: "52000000-0000-4000-8000-000000000001",
+        operation_id: OUTBOX_RELEASE_ROWS["inactivity-reminder"].operation_id,
+      }],
+    ],
+    [
+      "a different operation",
+      [{
+        outbox_id: OUTBOX_RELEASE_ROWS["inactivity-reminder"].id,
+        operation_id: "53000000-0000-4000-8000-000000000001",
+      }],
+    ],
+  ] as const)(
+    "rolls back before marker update or commit when release returns %s",
+    async (_label, releaseRows) => {
+      const fake = fakeScheduler({
+        administrator: null,
+        candidates: [candidate("invalid-release-result")],
+        emailReleaseRows: {
+          "inactivity-reminder": [...releaseRows],
+        },
+      });
+
+      await expect(
+        scheduleInactivityReminders(NOW, fake.pool as never),
+      ).rejects.toMatchObject({
+        name: "EmailOutboxReleaseReceiptError",
+        code: "EMAIL_OUTBOX_RELEASE_RECEIPT_INVALID",
+      });
+
+      const releaseIndex = fake.calls.findIndex(
+        (call) => call.statement.includes(
+          "from public.release_email_outbox_delivery(",
+        ),
+      );
+      const rollbackIndex = fake.calls.findIndex(
+        (call) => call.statement === "rollback",
+      );
+      expect(releaseIndex).toBeGreaterThanOrEqual(0);
+      expect(rollbackIndex).toBeGreaterThan(releaseIndex);
+      expect(fake.calls.some(
+        (call) => call.statement.includes("set learner_first_queued_at"),
+      )).toBe(false);
+      expect(fake.calls.some((call) => call.statement === "commit")).toBe(false);
+      expect(fake.released()).toBe(true);
+    },
+  );
+
+  it("rolls back and propagates a delivery-release failure before marker update or commit", async () => {
+    const releaseFailure = Object.assign(
+      new Error("mail delivery release identity is invalid"),
+      { code: "23514" },
+    );
+    const fake = fakeScheduler({
+      administrator: null,
+      candidates: [candidate("release-failure")],
+      emailReleaseErrors: { "inactivity-reminder": releaseFailure },
+    });
+
+    await expect(
+      scheduleInactivityReminders(NOW, fake.pool as never),
+    ).rejects.toBe(releaseFailure);
+
+    const insertIndex = fake.calls.findIndex(
+      (call) => call.statement.startsWith("insert into email_outbox"),
+    );
+    const releaseIndex = fake.calls.findIndex(
+      (call) => call.statement.includes("from public.release_email_outbox_delivery("),
+    );
+    const rollbackIndex = fake.calls.findIndex((call) => call.statement === "rollback");
+    expect(insertIndex).toBeLessThan(releaseIndex);
+    expect(releaseIndex).toBeLessThan(rollbackIndex);
+    expect(fake.calls.some(
+      (call) => call.statement.includes("set learner_first_queued_at"),
+    )).toBe(false);
+    expect(fake.calls.some((call) => call.statement === "commit")).toBe(false);
+    expect(fake.released()).toBe(true);
   });
 
   it("rolls back when durable authority rejects a payload conflict", async () => {

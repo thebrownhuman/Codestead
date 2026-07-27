@@ -106,12 +106,13 @@ describe("0069 guarded delivery release authority", () => {
     for (const definitionHash of [
       "8504298d876a6fe1256f13441fe84681d0f8f47fe29cac2d42763c068e98ee7d",
       "150ec4c692f4f6c6247fce236d2ec7ea1b65f4b1f2864e201345867b814e9f60",
-      "592bd06a7f1aa82123fa346a477e44dc307a6ecf69d5dc65686bed56b3252a35",
+      "b766a3512540a3d511a8126d87e9cbcd40847a87ea82ce27bdb2838290d97ec3",
       "a29a285813afa8d466198900f29680f46be35ec4c511fbcf656c78fcb9b21844",
       "ca95ebd3100dca787652477a7d0a3b63282a616777b44069557f503a7952a0f2",
-      "e08ba6e4387055ee70796ddf2313365cfcfa5236ad12b4ebd26e295c64ff63fd",
+      "295db3f75181663dd4491b4a84d53617179965e2a0a156995b721e53ab9c5fb1",
       "6d944b1dd9ef5cfaa4371d204569f27134bf2431dd61a078b0722a3a782da6b6",
-      "f79daaa0b08b8d3a84a55fe553af8d60576f3ae8a18b3638b4a530c020a4c6ee",
+      "9516f96ef9133bdf61f6db352422d521cf4616c6bd5b365888f1c614670ed409",
+      "8e50e51aae34e3657a6a2d9d90fc546025512f2678b083e824a5cc0f8457ee5f",
     ]) {
       expect(migration).toContain(definitionHash);
     }
@@ -278,7 +279,7 @@ describe("0069 guarded delivery release authority", () => {
     expect(issuer).toContain("set search_path = pg_catalog, pg_temp");
     expect(issuer).toContain("session_user not in (");
     expect(issuer).toContain("'learncoding_app'");
-    expect(issuer).not.toContain("'learncoding_worker'");
+    expect(issuer).toContain("'learncoding_worker'");
     expect(issuer).toContain("'learncoding_owner'");
     expect(compactIssuer).toContain(
       "candidate.delivery_release_insert_xid is distinct from pg_catalog.pg_current_xact_id()",
@@ -460,10 +461,10 @@ describe("0069 guarded delivery release authority", () => {
     );
   });
 
-  it("centralizes a deterministic owner-only release receipt digest", () => {
+  it("centralizes a deterministic owner-owned digest executable by owner and worker", () => {
     const hash = functionBody("mail_delivery_release_receipt_sha256");
     expect(compactMigration).toMatch(
-      /alter function public\.mail_delivery_release_receipt_sha256\(\s*pg_catalog\.uuid,\s*pg_catalog\.uuid,\s*pg_catalog\.text,\s*pg_catalog\.text,\s*pg_catalog\.text,\s*pg_catalog\.text\s*\)/u,
+      /alter function public\.mail_delivery_release_receipt_sha256\(\s*pg_catalog\.uuid,\s*pg_catalog\.uuid,\s*pg_catalog\.text,\s*pg_catalog\.text,\s*pg_catalog\.text,\s*pg_catalog\.text\s*\)\s+owner to learncoding_owner\s*;/u,
     );
     expect(hash).toContain("immutable");
     expect(hash).toContain("strict");
@@ -473,8 +474,14 @@ describe("0069 guarded delivery release authority", () => {
     expect(hash).toContain("pg_catalog.sha256");
     expect(hash).toContain("pg_catalog.convert_to");
     expect(hash).toContain("pg_catalog.encode");
+    expect(migration).toMatch(
+      /grant execute on function\s+public\.mail_delivery_release_receipt_sha256\(\s*pg_catalog\.uuid,\s*pg_catalog\.uuid,\s*pg_catalog\.text,\s*pg_catalog\.text,\s*pg_catalog\.text,\s*pg_catalog\.text\s*\)\s+to\s+learncoding_owner\s*;/u,
+    );
+    expect(migration).toMatch(
+      /grant execute on function\s+public\.mail_delivery_release_receipt_sha256\(\s*pg_catalog\.uuid,\s*pg_catalog\.uuid,\s*pg_catalog\.text,\s*pg_catalog\.text,\s*pg_catalog\.text,\s*pg_catalog\.text\s*\)\s+to\s+learncoding_worker\s*;/u,
+    );
     expect(migration).not.toMatch(
-      /grant execute on function\s+public\.mail_delivery_release_receipt_sha256\([^;]*\)\s+to\s+(learncoding_app|learncoding_worker|public)\s*;/u,
+      /grant execute on function\s+public\.mail_delivery_release_receipt_sha256\([^;]*\)\s+to\s+(learncoding_app|public)\s*;/u,
     );
   });
 
@@ -748,11 +755,106 @@ describe("0069 guarded delivery release authority", () => {
     expect(migration).toMatch(
       /grant execute on function\s+public\.release_email_outbox_delivery\([^;]*\)\s+to learncoding_app\s*;/u,
     );
-    expect(migration).not.toMatch(
+    expect(migration).toMatch(
       /grant execute on function\s+public\.release_email_outbox_delivery\([^;]*\)\s+to learncoding_worker\s*;/u,
     );
     expect(migration).not.toMatch(
       /grant\s+(insert|update|delete|truncate)[\s\S]{0,100}mail_delivery_release_receipt\s+to\s+(learncoding_app|learncoding_worker|public)/u,
+    );
+  });
+
+  it("allows worker issuance only for a pristine row inserted in the same transaction and cluster", () => {
+    const issuer = functionBody("release_email_outbox_delivery");
+    const compactIssuer = issuer.replace(/\s+/gu, " ");
+    const terminal = migration.slice(
+      migration.indexOf("do $verify_terminal_catalog$"),
+    );
+
+    expect(compactIssuer).toMatch(
+      /session_user not in \( 'learncoding_app', 'learncoding_worker', 'learncoding_owner', 'learncoding_backup_reporter' \)/u,
+    );
+    expect(compactIssuer).toContain(
+      "candidate.delivery_release_insert_xid is distinct from pg_catalog.pg_current_xact_id()",
+    );
+    expect(compactIssuer).toContain(
+      "candidate.delivery_release_insert_system_identifier is distinct from current_system_identifier",
+    );
+    expect(compactIssuer).toContain(
+      "candidate.created_at is distinct from pg_catalog.transaction_timestamp()",
+    );
+    expect(compactIssuer).toContain(
+      "candidate.updated_at is distinct from pg_catalog.transaction_timestamp()",
+    );
+    expect(compactIssuer).toContain("for update");
+    expect(terminal).toContain(
+      "'issuer|learncoding_worker|learncoding_owner|execute|false'",
+    );
+    expect(terminal).toMatch(
+      /principal\.principal_name = 'learncoding_worker'\s+and routine\.routine_label = 'issuer'/u,
+    );
+  });
+
+  it("verifies an existing exact receipt for deletion replay without granting receipt reads", () => {
+    const verifier = functionBody("verify_email_outbox_delivery_release");
+    const compactVerifier = verifier.replace(/\s+/gu, " ");
+    const terminal = migration.slice(
+      migration.indexOf("do $verify_terminal_catalog$"),
+    );
+
+    expect(compactVerifier).toContain(
+      "returns table ( outbox_id pg_catalog.uuid, operation_id pg_catalog.uuid )",
+    );
+    expect(verifier).toContain("security definer");
+    expect(verifier).toContain("set search_path = pg_catalog, pg_temp");
+    expect(compactVerifier).toMatch(
+      /session_user not in \( 'learncoding_app', 'learncoding_owner' \)/u,
+    );
+    expect(verifier).not.toContain("'learncoding_worker'");
+    expect(verifier).not.toContain("'learncoding_backup_reporter'");
+    expect(compactVerifier).toContain("conflicting_receipts <> 1");
+    expect(compactVerifier).toContain(
+      "candidate.delivery_release_insert_xid is not null",
+    );
+    expect(compactVerifier).toContain(
+      "candidate.delivery_release_insert_system_identifier is not null",
+    );
+    expect(verifier).toContain("requested_authority_sha256");
+    expect(verifier).toContain("requested_original_payload_sha256");
+    expect(verifier).toContain("requested_release_version");
+    expect(verifier).toContain("mail_delivery_release_receipt_sha256");
+    expect(verifier).toContain("for share");
+    expect(compactVerifier).not.toMatch(
+      /\b(?:insert into|update only|delete from)\b/u,
+    );
+    expect(compactMigration).toMatch(
+      /alter function public\.verify_email_outbox_delivery_release\( pg_catalog\.uuid, pg_catalog\.uuid, pg_catalog\.text, pg_catalog\.text, pg_catalog\.text \) owner to learncoding_owner/u,
+    );
+    expect(migration).toMatch(
+      /grant execute on function\s+public\.verify_email_outbox_delivery_release\([^;]*\)\s+to learncoding_app\s*;/u,
+    );
+    expect(migration).toMatch(
+      /grant execute on function\s+public\.verify_email_outbox_delivery_release\([^;]*\)\s+to learncoding_owner\s*;/u,
+    );
+    expect(migration).not.toMatch(
+      /grant execute on function\s+public\.verify_email_outbox_delivery_release\([^;]*\)\s+to (?:learncoding_worker|learncoding_ops|learncoding_backup_reporter|public)\s*;/u,
+    );
+    expect(migration).not.toMatch(
+      /grant select(?:\s*\([^;]*\))?\s+on public\.mail_delivery_release_receipt\s+to\s+learncoding_app\s*;/u,
+    );
+    expect(terminal).toContain(
+      "'verifier|learncoding_app|learncoding_owner|execute|false'",
+    );
+    expect(terminal).toContain(
+      "'verifier|learncoding_owner|learncoding_owner|execute|false'",
+    );
+    expect(terminal).toMatch(
+      /principal\.principal_name = 'learncoding_app'\s+and routine\.routine_label = 'verifier'/u,
+    );
+    expect(migration).toContain(
+      "b3277feeb2ed099406e17a3fe548bae580f978f5cd94a7f55f28687c81d9042c",
+    );
+    expect(migration).toContain(
+      "8e50e51aae34e3657a6a2d9d90fc546025512f2678b083e824a5cc0f8457ee5f",
     );
   });
 
@@ -789,6 +891,41 @@ describe("0069 guarded delivery release authority", () => {
       expect(terminal).toContain(markerText);
     }
     expect(terminal).toContain("0069 terminal catalog contract is invalid");
+  });
+  it("pins the complete physical shape of all four guarded outbox columns", () => {
+    const terminal = migration.slice(
+      migration.indexOf("do $verify_terminal_catalog$"),
+    );
+    const start = terminal.indexOf("expected_guarded_outbox_columns");
+    const end = terminal.indexOf(
+      "guarded_outbox_column_delta",
+      start,
+    );
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const columnContract = terminal.slice(start, end);
+
+    for (const columnName of [
+      "delivery_release_insert_xid",
+      "delivery_release_insert_system_identifier",
+      "provider_request_body_sha256",
+      "provider_request_body_length",
+    ]) {
+      expect(columnContract).toContain(columnName);
+    }
+    for (const exactField of [
+      "attribute.attlen = type_row.typlen",
+      "attribute.attbyval = type_row.typbyval",
+      "attribute.attalign = type_row.typalign",
+      "attribute.attstorage = type_row.typstorage",
+      "attribute.attcompression = ''::\"char\"",
+      "attribute.attstattarget is null",
+      "attribute.attndims = 0",
+      "attribute.attoptions is null",
+      "attribute.attfdwoptions is null",
+    ]) {
+      expect(columnContract).toContain(exactField);
+    }
   });
   it("rejects receipt-less backup rows that can still reconcile", () => {
     const stranded = dollarBlock("reject_stranded_backup_status");

@@ -8,7 +8,11 @@ function reliabilityMigration() {
   const matches = readdirSync(directory)
     .filter((name) => /^\d{4}_.+\.sql$/.test(name))
     .map((name) => ({ name, source: readFileSync(resolve(directory, name), "utf8") }))
-    .filter(({ source }) => source.includes("LEGACY_SENDING_AMBIGUOUS"));
+    .filter(
+      ({ name, source }) =>
+        name === "0057_mail_outbox_reliability.sql" &&
+        source.includes("LEGACY_SENDING_AMBIGUOUS"),
+    );
   expect(matches).toHaveLength(1);
   return matches[0]!;
 }

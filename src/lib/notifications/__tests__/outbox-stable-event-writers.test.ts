@@ -28,7 +28,7 @@ function source(relativePath: string) {
 }
 
 describe("production email stable-event writer inventory", () => {
-  it("requires every direct outbox writer to supply event-v1-native while leaving both digests database-owned", () => {
+  it("keeps five physical writers event-v1-native and release-composed while centralizing admin mail", () => {
     const repositoryRoot = process.cwd();
     const writers = [
       ...productionFiles(resolve(repositoryRoot, "src"), PRODUCTION_SOURCE_FILE),
@@ -50,7 +50,7 @@ describe("production email stable-event writer inventory", () => {
       );
 
     expect(writers.map(({ relativePath }) => relativePath)).toEqual([
-      "src/lib/admin-credentials/service.ts",
+
       "src/lib/appeals/admin-service.ts",
       "src/lib/assessment-corrections/worker.ts",
       "src/lib/data-lifecycle/deletion.ts",
@@ -89,7 +89,32 @@ describe("production email stable-event writer inventory", () => {
         expect(writer.source, writer.relativePath)
           .not.toContain("idempotencyOriginalPayloadSha256:");
       }
+      expect(writer.source, writer.relativePath).toContain(
+        "release_email_outbox_delivery",
+      );
+      for (const field of [
+        "operation_id",
+        "idempotency_authority_sha256",
+        "idempotency_original_payload_sha256",
+        "delivery_hold_version",
+      ]) {
+        expect(writer.source, writer.relativePath).toContain(field);
+      }
     }
+
+    const adminService = source("src/lib/admin-credentials/service.ts");
+    expect(adminService).toContain(
+      'import { enqueueEmailInTransaction } from "@/lib/notifications/outbox";',
+    );
+    expect(adminService).toContain("await enqueueEmailInTransaction(tx, {");
+    expect(adminService).not.toMatch(DIRECT_OUTBOX_INSERT);
+    expect(adminService).not.toContain(".insert(emailOutbox)");
+
+    const centralOutbox = source("src/lib/notifications/outbox.ts");
+    expect(centralOutbox).toContain(
+      "await db.transaction((tx) => persistQueuedEmail(tx, row))",
+    );
+    expect(centralOutbox).not.toContain("db.execute(queuedEmailInsert");
   });
 
   it("keeps every latest-schema integration fixture on event-v1-native with a 64-hex event identity", () => {
@@ -261,7 +286,7 @@ describe("production email stable-event writer inventory", () => {
     const adminService = source("src/lib/admin-credentials/service.ts");
     expect(adminService).toContain("requestId: string;");
     expect(adminService).toContain(
-      "eventId: `${target.id}:${input.action}:${input.requestId}:${input.stage}`",
+      "idempotencySeed: `${target.id}:${input.action}:${input.requestId}:${input.stage}`",
     );
   });
 });

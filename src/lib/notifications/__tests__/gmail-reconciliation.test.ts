@@ -12,6 +12,8 @@ import {
 const OPERATION_ID = "22222222-2222-4222-8222-222222222222";
 const PAYLOAD_SHA256 = "b".repeat(64);
 const EVIDENCE_SHA256 = "c".repeat(64);
+const PROVIDER_REQUEST_BODY_SHA256 = "d".repeat(64);
+const RELEASE_RECEIPT_SHA256 = "e".repeat(64);
 
 const fence: GmailReconciliationFence = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -30,6 +32,9 @@ const fence: GmailReconciliationFence = {
   providerCorrelationVersion: LEGACY_RAW_PROVIDER_CORRELATION_VERSION,
   providerEvidenceVersion: null,
   providerEvidenceSha256: null,
+  providerRequestBodySha256: null,
+  providerRequestBodyLength: null,
+  releaseReceiptSha256: RELEASE_RECEIPT_SHA256,
   lastErrorCode: "PROVIDER_OUTCOME_AMBIGUOUS",
 };
 
@@ -137,6 +142,9 @@ describe("Gmail outbox reconciliation", () => {
         OPAQUE_SHA256_PROVIDER_CORRELATION_VERSION,
       providerEvidenceVersion: "gmail-header-evidence-v1" as const,
       providerEvidenceSha256: EVIDENCE_SHA256,
+      providerRequestBodySha256: PROVIDER_REQUEST_BODY_SHA256,
+      providerRequestBodyLength: 128,
+      releaseReceiptSha256: RELEASE_RECEIPT_SHA256,
     };
     input.findGmailReconciliationFence.mockResolvedValueOnce({
       kind: "ready",
@@ -207,11 +215,72 @@ describe("Gmail outbox reconciliation", () => {
       name: "an unknown persisted correlation version",
       patch: { providerCorrelationVersion: "future-unreviewed-v2" },
     },
+    {
+      name: "a missing legacy release receipt",
+      patch: { releaseReceiptSha256: null },
+    },
   ])("never queries Gmail for $name", async ({ patch }) => {
     const input = harness();
     input.findGmailReconciliationFence.mockResolvedValueOnce({
       kind: "ready",
       fence: { ...fence, ...patch },
+    } as never);
+
+    await expect(reconcileGmailDelivery({
+      operationId: OPERATION_ID,
+      apply: false,
+    }, input)).resolves.toEqual({ kind: "not-reconcilable" });
+
+    expect(input.findByMessageId).not.toHaveBeenCalled();
+    expect(input.finalizeGmailReconciliation).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      name: "a null request-body digest",
+      patch: { providerRequestBodySha256: null },
+    },
+    {
+      name: "a malformed request-body digest",
+      patch: { providerRequestBodySha256: "not-a-digest" },
+    },
+    {
+      name: "a null request-body length",
+      patch: { providerRequestBodyLength: null },
+    },
+    {
+      name: "a negative request-body length",
+      patch: { providerRequestBodyLength: -1 },
+    },
+    {
+      name: "an unsafe request-body length",
+      patch: { providerRequestBodyLength: Number.MAX_SAFE_INTEGER + 1 },
+    },
+    {
+      name: "a null release receipt",
+      patch: { releaseReceiptSha256: null },
+    },
+    {
+      name: "a malformed release receipt",
+      patch: { releaseReceiptSha256: "not-a-digest" },
+    },
+  ])("never queries Gmail for opaque mail with $name", async ({ patch }) => {
+    const input = harness();
+    input.findGmailReconciliationFence.mockResolvedValueOnce({
+      kind: "ready",
+      fence: {
+        ...fence,
+        dispatchBindingVersion: "gmail-raw-v1",
+        dispatchBindingSha256: PAYLOAD_SHA256,
+        providerCorrelationVersion:
+          OPAQUE_SHA256_PROVIDER_CORRELATION_VERSION,
+        providerEvidenceVersion: "gmail-header-evidence-v1",
+        providerEvidenceSha256: EVIDENCE_SHA256,
+        providerRequestBodySha256: PROVIDER_REQUEST_BODY_SHA256,
+        providerRequestBodyLength: 128,
+        releaseReceiptSha256: RELEASE_RECEIPT_SHA256,
+        ...patch,
+      },
     } as never);
 
     await expect(reconcileGmailDelivery({
@@ -289,6 +358,9 @@ describe("Gmail outbox reconciliation", () => {
           OPAQUE_SHA256_PROVIDER_CORRELATION_VERSION,
         providerEvidenceVersion: "gmail-header-evidence-v1",
         providerEvidenceSha256: EVIDENCE_SHA256,
+        providerRequestBodySha256: PROVIDER_REQUEST_BODY_SHA256,
+        providerRequestBodyLength: 128,
+        releaseReceiptSha256: RELEASE_RECEIPT_SHA256,
       },
       proof: {
         kind: "header-evidence-v1",

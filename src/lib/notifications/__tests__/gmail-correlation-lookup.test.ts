@@ -5,6 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   findGmailMessageByMessageId,
 } from "../gmail-correlation-lookup";
+import {
+  fatalProviderTransportCode,
+  isFatalProviderTransportError,
+} from "../provider-dispatch-contract";
 
 const MESSAGE_ID =
   "<codestead.outbox.22222222-2222-4222-8222-222222222222@mail.codestead.invalid>";
@@ -317,15 +321,27 @@ describe("bounded Gmail correlation lookup", () => {
   });
 
   it.each(["list", "metadata"] as const)(
-    "bounds $stage response body parsing with the reconciliation deadline",
+    "awaits $stage response body abort settlement before reporting the timeout",
     async (stage) => {
       vi.useFakeTimers();
       vi.stubEnv("GMAIL_REQUEST_TIMEOUT_MS", "1000");
+      let requestSignal: AbortSignal | null = null;
+      let abortObserved = false;
+      let settleAbortedBody!: () => void;
       const stalledResponse = {
         ok: true,
-        json: vi.fn(() => new Promise<never>(() => undefined)),
+        json: vi.fn(() => new Promise<never>((_resolve, reject) => {
+          const onAbort = () => {
+            abortObserved = true;
+            settleAbortedBody = () => reject(
+              new DOMException("The request was aborted.", "AbortError"),
+            );
+          };
+          requestSignal?.addEventListener("abort", onAbort, { once: true });
+          if (requestSignal?.aborted) onAbort();
+        })),
       } as unknown as Response;
-      const fetchMock = vi.fn()
+      const fetchMock = vi.fn<typeof fetch>()
         .mockResolvedValueOnce(new Response(
           JSON.stringify({ access_token: "access" }),
           { status: 200 },
@@ -336,22 +352,122 @@ describe("bounded Gmail correlation lookup", () => {
           json: vi.fn(async () => ({ messages: [{ id: "gmail-1" }] })),
         } as unknown as Response);
       }
-      fetchMock.mockResolvedValueOnce(stalledResponse);
+      fetchMock.mockImplementationOnce((_url, init) => {
+        requestSignal = init?.signal ?? null;
+        return Promise.resolve(stalledResponse);
+      });
       vi.stubGlobal("fetch", fetchMock);
 
-      let outcome: unknown;
+      let outcome: unknown = "pending";
       void lookup().then(
         (result) => { outcome = result; },
         (error) => { outcome = error; },
       );
       for (let index = 0; index < 20; index += 1) await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(0);
       expect(fetchMock).toHaveBeenCalledTimes(stage === "list" ? 2 : 3);
 
-      await vi.advanceTimersByTimeAsync(1_001);
-      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(999);
+      expect(abortObserved).toBe(false);
+      expect(outcome).toBe("pending");
+      await vi.advanceTimersByTimeAsync(1);
+      expect(abortObserved).toBe(true);
+      expect(outcome).toBe("pending");
 
+      settleAbortedBody();
+      await vi.advanceTimersByTimeAsync(0);
       expect(outcome).toBeInstanceOf(Error);
-      expect((outcome as Error).message).toContain("reconciliation request timed out");
+      expect((outcome as Error).message).toBe(
+        "Gmail reconciliation request timed out.",
+      );
+      expect(isFatalProviderTransportError(outcome)).toBe(false);
+    },
+  );
+
+  it.each(["fetch", "response body"] as const)(
+    "fails fatally after bounded abort settlement when $stall ignores abort",
+    async (stall) => {
+      vi.useFakeTimers();
+      vi.stubEnv("GMAIL_REQUEST_TIMEOUT_MS", "1000");
+      vi.stubEnv("GMAIL_CLIENT_SECRET", "client-secret-canary");
+      vi.stubEnv("GMAIL_REFRESH_TOKEN", "refresh-secret-canary");
+      const accessToken = "access-token-canary";
+      const observed: { signal: AbortSignal | null } = { signal: null };
+      let fulfillLate!: () => void;
+      const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+        new Response(JSON.stringify({ access_token: accessToken }), {
+          status: 200,
+        }),
+      );
+      if (stall === "fetch") {
+        fetchMock.mockImplementationOnce((_url, init) => {
+          observed.signal = init?.signal ?? null;
+          return new Promise<Response>((resolve) => {
+            fulfillLate = () => resolve(new Response(
+              JSON.stringify({ messages: [] }),
+              { status: 200 },
+            ));
+          });
+        });
+      } else {
+        fetchMock.mockImplementationOnce((_url, init) => {
+          observed.signal = init?.signal ?? null;
+          return Promise.resolve({
+            ok: true,
+            json: vi.fn(() => new Promise<unknown>((resolve) => {
+              fulfillLate = () => resolve({ messages: [] });
+            })),
+          } as unknown as Response);
+        });
+      }
+      vi.stubGlobal("fetch", fetchMock);
+
+      let outcome: unknown = "pending";
+      void lookup().then(
+        (result) => { outcome = result; },
+        (error) => { outcome = error; },
+      );
+      for (let index = 0; index < 20; index += 1) await Promise.resolve();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      await vi.advanceTimersByTimeAsync(999);
+      expect(observed.signal?.aborted).toBe(false);
+      expect(outcome).toBe("pending");
+      await vi.advanceTimersByTimeAsync(1);
+      expect(observed.signal?.aborted).toBe(true);
+      expect(outcome).toBe("pending");
+
+      await vi.advanceTimersByTimeAsync(4_999);
+      expect(outcome).toBe("pending");
+      await vi.advanceTimersByTimeAsync(1);
+      expect(isFatalProviderTransportError(outcome)).toBe(true);
+      if (!isFatalProviderTransportError(outcome)) {
+        throw new Error("Expected a fatal provider transport outcome.");
+      }
+      expect(fatalProviderTransportCode(outcome)).toBe(
+        "PROVIDER_TRANSPORT_FATAL",
+      );
+      const fatalOutcome = outcome;
+      const exposed = [
+        String(outcome),
+        outcome.name,
+        outcome.message,
+        JSON.stringify(outcome),
+      ].join("\n");
+      for (const sensitiveValue of [
+        "client-secret-canary",
+        "refresh-secret-canary",
+        accessToken,
+        MESSAGE_ID,
+      ]) {
+        expect(exposed).not.toContain(sensitiveValue);
+      }
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      fulfillLate();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(outcome).toBe(fatalOutcome);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     },
   );
 });

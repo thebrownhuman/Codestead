@@ -126,6 +126,16 @@ const FIXTURES = Object.freeze({
     operationId: "69100000-0000-4000-8000-000000000008",
     key: "8".repeat(64),
   }),
+  quarantineLateAck: Object.freeze({
+    id: "69000000-0000-4000-8000-000000000009",
+    operationId: "69100000-0000-4000-8000-000000000009",
+    key: "90".repeat(32),
+  }),
+  quarantineFailed: Object.freeze({
+    id: "69000000-0000-4000-8000-00000000000a",
+    operationId: "69100000-0000-4000-8000-00000000000a",
+    key: "a1".repeat(32),
+  }),
 });
 
 function executable(name) {
@@ -141,7 +151,7 @@ function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: repositoryRoot,
     encoding: "utf8",
-    env: childEnvironment,
+    env: options.env ?? childEnvironment,
     input: options.input,
     maxBuffer: 32 * 1024 * 1024,
     stdio: options.stdio,
@@ -208,6 +218,62 @@ function migrationFilesThrough(limit) {
     assert.equal(Number.parseInt(name.slice(0, 4), 10), expectedIndex);
   });
   return names.map((name) => path.join(migrationDirectory, name));
+}
+
+function captureUtf8File(filePath) {
+  const exactPath = path.resolve(filePath);
+  const bytes = readFileSync(exactPath);
+  const text = bytes.toString("utf8");
+  assert.deepEqual(Buffer.from(text, "utf8"), bytes);
+  return Object.freeze({
+    hash: createHash("sha256").update(bytes).digest("hex"),
+    path: exactPath,
+    text,
+  });
+}
+
+function captureMigrationManifest(limit) {
+  return Object.freeze(
+    migrationFilesThrough(limit).map((migrationPath, index) => {
+      const captured = captureUtf8File(migrationPath);
+      const tag = path.basename(captured.path, ".sql");
+      assert.equal(Number.parseInt(tag.slice(0, 4), 10), index);
+      assert.match(captured.hash, /^[0-9a-f]{64}$/u);
+      return Object.freeze({
+        hash: captured.hash,
+        id: index + 1,
+        path: captured.path,
+        sql: captured.text,
+        tag,
+      });
+    }),
+  );
+}
+
+function captureRuntimeProofInputs() {
+  const migrationsThrough0068 = captureMigrationManifest(68);
+  const candidate = captureUtf8File(
+    path.join(
+      migrationDirectory,
+      "0069_mail_outbox_guarded_delivery_authority.sql",
+    ),
+  );
+  const journal = JSON.parse(
+    captureUtf8File(
+      path.join(migrationDirectory, "meta", "_journal.json"),
+    ).text,
+  );
+  assert.ok(Array.isArray(journal?.entries));
+  return Object.freeze({
+    candidate: Object.freeze({
+      hash: candidate.hash,
+      sql: candidate.text,
+    }),
+    journalEntries: Object.freeze(
+      journal.entries.map((entry) => Object.freeze({ ...entry })),
+    ),
+    migrationsThrough0068,
+  });
 }
 
 function ownerTransactionSql(sql) {
@@ -361,6 +427,8 @@ function guardedAclDigest(port) {
         ('public.enforce_mail_delivery_release_receipt_delete_exact()'),
         ('public.enforce_mail_delivery_release_receipt_insert()'),
         ('public.release_email_outbox_delivery(uuid,uuid,text,text,text)'),
+        ('public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)'),
+        ('public.attest_email_outbox_delivery_release_lineage(text)'),
         ('public.enforce_email_outbox_provider_request_body_immutable()'),
         ('public.enforce_email_outbox_delivery_hold()'),
         ('public.enforce_email_outbox_payload_immutable()'),
@@ -801,6 +869,8 @@ function assertNo0069Footprint(port) {
           ('public.enforce_mail_delivery_release_receipt_delete_exact()'),
           ('public.enforce_mail_delivery_release_receipt_insert()'),
           ('public.release_email_outbox_delivery(uuid,uuid,text,text,text)'),
+          ('public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)'),
+          ('public.attest_email_outbox_delivery_release_lineage(text)'),
           ('public.enforce_email_outbox_provider_request_body_immutable()'),
           ('public.enqueue_backup_status_mail_authority_unreleased_0067(text,text)')
       ), successor_triggers(trigger_name) AS (
@@ -1189,6 +1259,8 @@ function repoison0069Acl(port) {
         'public.enforce_mail_delivery_release_receipt_delete_exact()',
         'public.enforce_mail_delivery_release_receipt_insert()',
         'public.release_email_outbox_delivery(uuid,uuid,text,text,text)',
+        'public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)',
+        'public.attest_email_outbox_delivery_release_lineage(text)',
         'public.enforce_email_outbox_provider_request_body_immutable()',
         'public.enforce_email_outbox_delivery_hold()',
         'public.enforce_email_outbox_payload_immutable()',
@@ -1238,6 +1310,8 @@ function repoison0069Acl(port) {
         'public.enforce_mail_delivery_release_receipt_delete_exact()',
         'public.enforce_mail_delivery_release_receipt_insert()',
         'public.release_email_outbox_delivery(uuid,uuid,text,text,text)',
+        'public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)',
+        'public.attest_email_outbox_delivery_release_lineage(text)',
         'public.enforce_email_outbox_provider_request_body_immutable()',
         'public.enforce_email_outbox_delivery_hold()',
         'public.enforce_email_outbox_payload_immutable()',
@@ -1639,6 +1713,74 @@ function proveLateCatalogRollback(port, migration0069, temporaryRoot) {
   assertNo0069Footprint(port);
 }
 
+function proveOutboxGuardedColumnCatalogTamperRollback(
+  port,
+  migration0069,
+  temporaryRoot,
+) {
+  const beforeData = mailAuthorityDigest(port);
+  applyAsOwner(
+    port,
+    `
+    ALTER TABLE ONLY public.email_outbox
+      ALTER COLUMN provider_request_body_sha256 SET COMPRESSION pglz;
+  `,
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+      SELECT attribute.attcompression::pg_catalog.text
+        FROM pg_catalog.pg_attribute AS attribute
+       WHERE attribute.attrelid =
+             'public.email_outbox'::pg_catalog.regclass
+         AND attribute.attname = 'provider_request_body_sha256'
+         AND attribute.attnum = 35
+         AND NOT attribute.attisdropped;`,
+    ),
+    "p",
+  );
+
+  const result = applyAsOwnerFromFile(
+    port,
+    migration0069,
+    temporaryRoot,
+    "migration-0069-outbox-column-compression-tamper.sql",
+    { allowFailure: true },
+  );
+  assertFailure(result, /0069 terminal catalog contract is invalid/u);
+  assert.equal(mailAuthorityDigest(port), beforeData);
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+      SELECT attribute.attcompression::pg_catalog.text
+        FROM pg_catalog.pg_attribute AS attribute
+       WHERE attribute.attrelid =
+             'public.email_outbox'::pg_catalog.regclass
+         AND attribute.attname = 'provider_request_body_sha256';`,
+    ),
+    "p",
+  );
+
+  applyAsOwner(
+    port,
+    `
+    ALTER TABLE ONLY public.email_outbox
+      ALTER COLUMN provider_request_body_sha256 SET COMPRESSION default;
+  `,
+  );
+  applyAsOwnerFromFile(
+    port,
+    migration0069,
+    temporaryRoot,
+    "migration-0069-outbox-column-compression-repaired.sql",
+  );
+  assert.equal(mailAuthorityDigest(port), beforeData);
+}
+
 function assertDigestHelperCatalog(port) {
   const originalDefinitionSha256 =
     expectedMajor === "18"
@@ -1761,7 +1903,374 @@ function assertDigestHelperCatalog(port) {
   );
 }
 
+function assertLineageAttestorCatalog(port) {
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+      SELECT (
+        pg_catalog.pg_get_userbyid(routine.proowner) =
+          'learncoding_owner'
+        AND language.lanname = 'plpgsql'
+        AND routine.prokind = 'f'
+        AND routine.prorettype =
+              'pg_catalog.record'::pg_catalog.regtype
+        AND routine.proretset
+        AND routine.provolatile = 's'
+        AND routine.prosecdef
+        AND NOT routine.proleakproof
+        AND NOT routine.proisstrict
+        AND routine.proparallel = 'u'
+        AND routine.proconfig =
+              ARRAY['search_path=pg_catalog, pg_temp']::pg_catalog.text[]
+        AND routine.pronargs = 1
+        AND routine.pronargdefaults = 0
+        AND routine.proargdefaults IS NULL
+        AND routine.proargnames = ARRAY[
+              'candidate_migration_sha256',
+              'phase_0066_count',
+              'phase_0067_count',
+              'phase_0068_count',
+              'phase_0069_count',
+              'candidate_hash_count',
+              'lineage_window_count'
+            ]::pg_catalog.text[]
+        AND ARRAY(
+              SELECT input_type::pg_catalog.oid
+                FROM pg_catalog.unnest(routine.proargtypes) AS input_type
+            )::pg_catalog.oid[] = ARRAY[
+              'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid
+            ]::pg_catalog.oid[]
+        AND routine.proallargtypes = ARRAY[
+              'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.int4'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.int4'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.int4'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.int4'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.int4'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.int4'::pg_catalog.regtype::pg_catalog.oid
+            ]::pg_catalog.oid[]
+        AND ARRAY(
+              SELECT argument_mode::pg_catalog.text
+                FROM pg_catalog.unnest(routine.proargmodes) AS argument_mode
+            )::pg_catalog.text[] =
+              ARRAY['i', 't', 't', 't', 't', 't', 't']
+                ::pg_catalog.text[]
+        AND routine.protrftypes IS NULL
+        AND routine.provariadic = 0
+        AND routine.prosupport = 0
+        AND routine.procost = 100
+        AND routine.prorows = 1000
+        AND routine.probin IS NULL
+        AND routine.prosqlbody IS NULL
+        AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+              routine.prosrc,
+              'UTF8'
+            )), 'hex') =
+              '5963663f65d5be7e4e44c1ab1b1daa17a04d4bd711a9af9abc5bf2d1bb62bd91'
+        AND pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+              pg_catalog.pg_get_functiondef(routine.oid),
+              'UTF8'
+            )), 'hex') =
+              '261d8137a8ad635af563b6e5478ad3ebc7579c68c5693ff87a7e2fe517e5dbbf'
+        AND (
+              SELECT pg_catalog.count(*)
+                FROM pg_catalog.pg_proc AS overload
+               WHERE overload.pronamespace =
+                       'public'::pg_catalog.regnamespace
+                 AND overload.proname =
+                       'attest_email_outbox_delivery_release_lineage'
+            ) = 1
+        AND (
+              SELECT COALESCE(
+                       pg_catalog.array_agg(
+                         pg_catalog.concat_ws(
+                           '|',
+                           CASE
+                             WHEN access.grantee = 0 THEN 'PUBLIC'
+                             ELSE pg_catalog.pg_get_userbyid(access.grantee)
+                           END,
+                           CASE
+                             WHEN access.grantor = 0 THEN 'PUBLIC'
+                             ELSE pg_catalog.pg_get_userbyid(access.grantor)
+                           END,
+                           pg_catalog.lower(access.privilege_type),
+                           access.is_grantable::pg_catalog.text
+                         )
+                         ORDER BY
+                           CASE
+                             WHEN access.grantee = 0 THEN 'PUBLIC'
+                             ELSE pg_catalog.pg_get_userbyid(access.grantee)
+                           END,
+                           CASE
+                             WHEN access.grantor = 0 THEN 'PUBLIC'
+                             ELSE pg_catalog.pg_get_userbyid(access.grantor)
+                           END,
+                           pg_catalog.lower(access.privilege_type),
+                           access.is_grantable
+                       ),
+                       ARRAY[]::pg_catalog.text[]
+                     )
+                FROM pg_catalog.aclexplode(COALESCE(
+                  routine.proacl,
+                  pg_catalog.acldefault('f', routine.proowner)
+                )) AS access
+            ) = ARRAY[
+              'learncoding_owner|learncoding_owner|execute|false',
+              'learncoding_worker|learncoding_owner|execute|false'
+            ]::pg_catalog.text[]
+        AND pg_catalog.has_function_privilege(
+              'learncoding_owner', routine.oid, 'EXECUTE'
+            )
+        AND pg_catalog.has_function_privilege(
+              'learncoding_worker', routine.oid, 'EXECUTE'
+            )
+        AND NOT pg_catalog.has_function_privilege(
+              'learncoding_app', routine.oid, 'EXECUTE'
+            )
+        AND NOT pg_catalog.has_function_privilege(
+              'learncoding_ops', routine.oid, 'EXECUTE'
+            )
+        AND NOT pg_catalog.has_function_privilege(
+              'learncoding_backup_reporter', routine.oid, 'EXECUTE'
+            )
+        AND NOT pg_catalog.has_schema_privilege(
+              'learncoding_worker', 'drizzle', 'USAGE'
+            )
+        AND NOT pg_catalog.has_table_privilege(
+              'learncoding_worker',
+              'drizzle.__drizzle_migrations',
+              'SELECT'
+            )
+      )::pg_catalog.text
+        FROM pg_catalog.pg_proc AS routine
+        JOIN pg_catalog.pg_language AS language
+          ON language.oid = routine.prolang
+       WHERE routine.oid = pg_catalog.to_regprocedure(
+         'public.attest_email_outbox_delivery_release_lineage(text)'
+       );`,
+    ),
+    "true",
+  );
+}
+
+function migrationJournalDigest(port) {
+  return scalar(
+    port,
+    database,
+    `
+    SELECT pg_catalog.concat_ws(
+      '|',
+      pg_catalog.count(*)::pg_catalog.text,
+      pg_catalog.encode(
+        pg_catalog.sha256(pg_catalog.convert_to(
+          COALESCE(
+            pg_catalog.jsonb_agg(
+              pg_catalog.to_jsonb(migration) ORDER BY migration.id
+            )::pg_catalog.text,
+            '[]'
+          ),
+          'UTF8'
+        )),
+        'hex'
+      )
+    )
+      FROM ONLY drizzle.__drizzle_migrations AS migration;`,
+  );
+}
+
+function proveLineageAttestor(port, candidateSha256) {
+  assert.match(candidateSha256, /^[0-9a-f]{64}$/u);
+  const beforeData = mailAuthorityDigest(port);
+  const beforeCatalog = guardedAclDigest(port);
+  const callAsWorker = (sha256) =>
+    scalar(
+      port,
+      database,
+      `
+      SELECT pg_catalog.concat_ws(
+        '|',
+        attested.phase_0066_count,
+        attested.phase_0067_count,
+        attested.phase_0068_count,
+        attested.phase_0069_count,
+        attested.candidate_hash_count,
+        attested.lineage_window_count
+      )
+        FROM public.attest_email_outbox_delivery_release_lineage(
+          '${sha256}'
+        ) AS attested;`,
+      "learncoding_worker",
+    );
+
+  applyAsOwner(
+    port,
+    `
+    INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+    SELECT pg_catalog.repeat('f', 64), 1785012972253
+     WHERE NOT EXISTS (
+       SELECT 1
+         FROM ONLY drizzle.__drizzle_migrations
+        WHERE hash = pg_catalog.repeat('f', 64)
+          AND created_at = 1785012972253
+     );
+  `,
+  );
+  const stableJournal = migrationJournalDigest(port);
+  const journalPrimaryKeyVector = scalar(
+    port,
+    database,
+    `
+    SELECT pg_catalog.concat_ws(
+      '|',
+      pg_catalog.array_lower(
+        index_row.indkey::pg_catalog.int2[],
+        1
+      ),
+      ARRAY(
+        SELECT key_column.attnum
+          FROM pg_catalog.unnest(
+                 index_row.indkey::pg_catalog.int2[]
+               ) WITH ORDINALITY AS key_column(attnum, ordinality)
+         ORDER BY key_column.ordinality
+      )::pg_catalog.int2[] = ARRAY[1]::pg_catalog.int2[]
+    )
+      FROM pg_catalog.pg_index AS index_row
+     WHERE index_row.indexrelid =
+             'drizzle.__drizzle_migrations_pkey'::pg_catalog.regclass;`,
+  );
+  assert.equal(journalPrimaryKeyVector, "0|t");
+  assert.equal(callAsWorker(candidateSha256), "1|1|1|1|1|4");
+  assert.equal(callAsWorker("0".repeat(64)), "1|1|1|0|0|4");
+
+  for (const invalidCandidate of ["NULL::pg_catalog.text", "'ABC'"]) {
+    const invalid = psql(
+      port,
+      database,
+      `
+      SELECT *
+        FROM public.attest_email_outbox_delivery_release_lineage(
+          ${invalidCandidate}
+        );`,
+      { allowFailure: true, username: "learncoding_worker" },
+    );
+    assertFailure(
+      invalid,
+      /22023[\s\S]*email outbox delivery lineage candidate is invalid/u,
+    );
+  }
+  for (const username of [
+    "learncoding_app",
+    "learncoding_ops",
+    "learncoding_backup_reporter",
+  ]) {
+    const denied = psql(
+      port,
+      database,
+      `
+      SELECT *
+        FROM public.attest_email_outbox_delivery_release_lineage(
+          '${candidateSha256}'
+        );`,
+      { allowFailure: true, username },
+    );
+    assertFailure(denied, /42501/u);
+  }
+  assertFailure(
+    psql(
+      port,
+      database,
+      "SELECT pg_catalog.count(*) FROM drizzle.__drizzle_migrations;",
+      { allowFailure: true, username: "learncoding_worker" },
+    ),
+    /42501/u,
+  );
+  assertFailure(
+    psql(
+      port,
+      database,
+      `
+      BEGIN;
+      SET ROLE learncoding_owner;
+      SELECT *
+        FROM public.attest_email_outbox_delivery_release_lineage(
+          '${candidateSha256}'
+        );`,
+      { allowFailure: true, username: "learncoding_migrator" },
+    ),
+    /42501[\s\S]*email outbox delivery lineage attestor caller is invalid/u,
+  );
+
+  applyAsOwner(
+    port,
+    `
+    INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+    VALUES ('${candidateSha256}', 1785016572253);
+  `,
+  );
+  assert.equal(callAsWorker(candidateSha256), "1|1|1|1|2|4");
+  applyAsOwner(
+    port,
+    `
+    DELETE FROM ONLY drizzle.__drizzle_migrations
+     WHERE hash = '${candidateSha256}'
+       AND created_at = 1785016572253;
+  `,
+  );
+
+  applyAsOwner(
+    port,
+    `
+    INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+    VALUES (
+      '68cf968578070a0cc6e61df91c941215f0208ec9c6a3180c5010b626868a0ee1',
+      1785005772253
+    );
+  `,
+  );
+  assert.equal(callAsWorker(candidateSha256), "1|1|2|1|1|5");
+  applyAsOwner(
+    port,
+    `
+    DELETE FROM ONLY drizzle.__drizzle_migrations
+     WHERE id = (
+       SELECT pg_catalog.max(id)
+         FROM ONLY drizzle.__drizzle_migrations
+        WHERE created_at = 1785005772253
+     );
+  `,
+  );
+
+  applyAsOwner(
+    port,
+    `
+    UPDATE ONLY drizzle.__drizzle_migrations
+       SET created_at = 1785020172253
+     WHERE hash =
+       '68cf968578070a0cc6e61df91c941215f0208ec9c6a3180c5010b626868a0ee1'
+       AND created_at = 1785005772253;
+  `,
+  );
+  assert.equal(callAsWorker(candidateSha256), "1|1|0|1|1|3");
+  applyAsOwner(
+    port,
+    `
+    UPDATE ONLY drizzle.__drizzle_migrations
+       SET created_at = 1785005772253
+     WHERE hash =
+       '68cf968578070a0cc6e61df91c941215f0208ec9c6a3180c5010b626868a0ee1'
+       AND created_at = 1785020172253;
+  `,
+  );
+  assert.equal(callAsWorker(candidateSha256), "1|1|1|1|1|4");
+  assert.equal(migrationJournalDigest(port), stableJournal);
+  assert.equal(mailAuthorityDigest(port), beforeData);
+  assert.equal(guardedAclDigest(port), beforeCatalog);
+}
+
 function assertCatalogAndAcl(port) {
+  assertLineageAttestorCatalog(port);
   assertDigestHelperCatalog(port);
   const lifecycleCatalogProbe = scalar(
     port,
@@ -1978,6 +2487,8 @@ function assertCatalogAndAcl(port) {
           ('public.enforce_mail_delivery_release_receipt_delete_exact()'),
           ('public.enforce_mail_delivery_release_receipt_insert()'),
           ('public.release_email_outbox_delivery(uuid,uuid,text,text,text)'),
+          ('public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)'),
+          ('public.attest_email_outbox_delivery_release_lineage(text)'),
           ('public.enforce_email_outbox_provider_request_body_immutable()'),
           ('public.enforce_email_outbox_delivery_hold()'),
           ('public.enforce_email_outbox_payload_immutable()'),
@@ -2000,6 +2511,103 @@ function assertCatalogAndAcl(port) {
           ('mail_delivery_release_receipt', 'mail_delivery_release_receipt_no_truncate'),
           ('mail_delivery_release_receipt', 'mail_delivery_release_receipt_delete_exact')
       ),
+      expected_guarded_outbox_columns(
+        column_name,
+        attribute_number,
+        type_oid,
+        type_modifier,
+        is_not_null,
+        exact_shape
+      ) AS (
+        VALUES
+          (
+            'delivery_release_insert_xid'::pg_catalog.text,
+            34::pg_catalog.int2,
+            'pg_catalog.xid8'::pg_catalog.regtype::pg_catalog.oid,
+            (-1)::pg_catalog.int4,
+            false,
+            true
+          ),
+          (
+            'provider_request_body_sha256',
+            35::pg_catalog.int2,
+            'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
+            (-1)::pg_catalog.int4,
+            false,
+            true
+          ),
+          (
+            'provider_request_body_length',
+            36::pg_catalog.int2,
+            'pg_catalog.int8'::pg_catalog.regtype::pg_catalog.oid,
+            (-1)::pg_catalog.int4,
+            false,
+            true
+          ),
+          (
+            'delivery_release_insert_system_identifier',
+            37::pg_catalog.int2,
+            'pg_catalog.int8'::pg_catalog.regtype::pg_catalog.oid,
+            (-1)::pg_catalog.int4,
+            false,
+            true
+          )
+      ),
+      actual_guarded_outbox_columns AS (
+        SELECT
+          attribute.attname::pg_catalog.text AS column_name,
+          attribute.attnum AS attribute_number,
+          attribute.atttypid AS type_oid,
+          attribute.atttypmod AS type_modifier,
+          attribute.attnotnull AS is_not_null,
+          (
+            attribute.attcollation = type_row.typcollation
+            AND attribute.attlen = type_row.typlen
+            AND attribute.attbyval = type_row.typbyval
+            AND attribute.attalign = type_row.typalign
+            AND attribute.attstorage = type_row.typstorage
+            AND attribute.attcompression = ''::"char"
+            AND attribute.attstattarget IS NULL
+            AND attribute.attndims = 0
+            AND NOT attribute.atthasdef
+            AND attribute.attidentity = ''
+            AND attribute.attgenerated = ''
+            AND NOT attribute.atthasmissing
+            AND attribute.attmissingval IS NULL
+            AND attribute.attislocal
+            AND attribute.attinhcount = 0
+            AND attribute.attoptions IS NULL
+            AND attribute.attfdwoptions IS NULL
+          ) AS exact_shape
+          FROM pg_catalog.pg_attribute AS attribute
+          JOIN pg_catalog.pg_type AS type_row
+            ON type_row.oid = attribute.atttypid
+         WHERE attribute.attrelid =
+               'public.email_outbox'::pg_catalog.regclass
+           AND attribute.attname IN (
+             'delivery_release_insert_xid',
+             'delivery_release_insert_system_identifier',
+             'provider_request_body_sha256',
+             'provider_request_body_length'
+           )
+           AND attribute.attnum > 0
+           AND NOT attribute.attisdropped
+      ),
+      guarded_outbox_column_delta AS (
+        SELECT *
+          FROM (
+            SELECT * FROM expected_guarded_outbox_columns
+            EXCEPT ALL
+            SELECT * FROM actual_guarded_outbox_columns
+          ) AS missing_guarded_outbox_columns
+        UNION ALL
+        SELECT *
+          FROM (
+            SELECT * FROM actual_guarded_outbox_columns
+            EXCEPT ALL
+            SELECT * FROM expected_guarded_outbox_columns
+          ) AS unexpected_guarded_outbox_columns
+      ),
       receipt_acl AS (
         SELECT expanded.*
           FROM pg_catalog.pg_class AS relation
@@ -2019,6 +2627,147 @@ function assertCatalogAndAcl(port) {
            FROM pg_catalog.pg_class AS relation
           WHERE relation.oid =
                 'public.mail_delivery_release_receipt'::pg_catalog.regclass)
+        AND NOT EXISTS (
+          SELECT 1 FROM guarded_outbox_column_delta
+        )
+        AND (
+          SELECT
+            pg_catalog.pg_get_userbyid(verifier_routine.proowner) =
+              'learncoding_owner'
+            AND verifier_language.lanname = 'plpgsql'
+            AND verifier_routine.prokind = 'f'
+            AND verifier_routine.prorettype =
+              'pg_catalog.record'::pg_catalog.regtype::pg_catalog.oid
+            AND verifier_routine.proretset
+            AND verifier_routine.provolatile = 'v'
+            AND verifier_routine.prosecdef
+            AND NOT verifier_routine.proleakproof
+            AND NOT verifier_routine.proisstrict
+            AND verifier_routine.proparallel = 'u'
+            AND verifier_routine.proconfig =
+              ARRAY['search_path=pg_catalog, pg_temp']::pg_catalog.text[]
+            AND verifier_routine.pronargs = 5
+            AND verifier_routine.pronargdefaults = 0
+            AND verifier_routine.proargdefaults IS NULL
+            AND verifier_routine.proargnames = ARRAY[
+              'requested_outbox_id',
+              'requested_operation_id',
+              'requested_authority_sha256',
+              'requested_original_payload_sha256',
+              'requested_release_version',
+              'outbox_id',
+              'operation_id'
+            ]::pg_catalog.text[]
+            AND ARRAY(
+              SELECT input_argument.type_oid
+                FROM pg_catalog.unnest(
+                       verifier_routine.proargtypes::pg_catalog.oid[]
+                     ) WITH ORDINALITY
+                     AS input_argument(type_oid, position)
+               ORDER BY input_argument.position
+            ) = ARRAY[
+              'pg_catalog.uuid'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.uuid'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid
+            ]::pg_catalog.oid[]
+            AND verifier_routine.proallargtypes = ARRAY[
+              'pg_catalog.uuid'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.uuid'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.text'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.uuid'::pg_catalog.regtype::pg_catalog.oid,
+              'pg_catalog.uuid'::pg_catalog.regtype::pg_catalog.oid
+            ]::pg_catalog.oid[]
+            AND verifier_routine.proargmodes = ARRAY[
+              'i', 'i', 'i', 'i', 'i', 't', 't'
+            ]::"char"[]
+            AND verifier_routine.protrftypes IS NULL
+            AND verifier_routine.provariadic = 0
+            AND verifier_routine.prosupport = 0
+            AND verifier_routine.procost = 100
+            AND verifier_routine.prorows = 1000
+            AND verifier_routine.probin IS NULL
+            AND verifier_routine.prosqlbody IS NULL
+            AND verifier_routine.proacl IS NOT NULL
+            AND (
+              SELECT COALESCE(
+                       pg_catalog.array_agg(
+                         pg_catalog.concat_ws(
+                           '|',
+                           CASE
+                             WHEN expanded.grantee = 0 THEN 'PUBLIC'
+                             ELSE pg_catalog.pg_get_userbyid(
+                               expanded.grantee
+                             )
+                           END,
+                           CASE
+                             WHEN expanded.grantor = 0 THEN 'PUBLIC'
+                             ELSE pg_catalog.pg_get_userbyid(
+                               expanded.grantor
+                             )
+                           END,
+                           pg_catalog.lower(expanded.privilege_type),
+                           expanded.is_grantable::pg_catalog.text
+                         )
+                         ORDER BY
+                           CASE
+                             WHEN expanded.grantee = 0 THEN 'PUBLIC'
+                             ELSE pg_catalog.pg_get_userbyid(
+                               expanded.grantee
+                             )
+                           END,
+                           CASE
+                             WHEN expanded.grantor = 0 THEN 'PUBLIC'
+                             ELSE pg_catalog.pg_get_userbyid(
+                               expanded.grantor
+                             )
+                           END,
+                           pg_catalog.lower(expanded.privilege_type),
+                           expanded.is_grantable
+                       ),
+                       ARRAY[]::pg_catalog.text[]
+                     )
+                FROM pg_catalog.aclexplode(
+                       verifier_routine.proacl
+                     ) AS expanded
+            ) = ARRAY[
+              'learncoding_app|learncoding_owner|execute|false',
+              'learncoding_owner|learncoding_owner|execute|false'
+            ]::pg_catalog.text[]
+            AND pg_catalog.encode(
+                  pg_catalog.sha256(pg_catalog.convert_to(
+                    verifier_routine.prosrc,
+                    'UTF8'
+                  )),
+                  'hex'
+                ) =
+                'b3277feeb2ed099406e17a3fe548bae580f978f5cd94a7f55f28687c81d9042c'
+            AND pg_catalog.encode(
+                  pg_catalog.sha256(pg_catalog.convert_to(
+                    pg_catalog.pg_get_functiondef(verifier_routine.oid),
+                    'UTF8'
+                  )),
+                  'hex'
+                ) =
+                '8e50e51aae34e3657a6a2d9d90fc546025512f2678b083e824a5cc0f8457ee5f'
+            AND (
+              SELECT pg_catalog.count(*)
+                FROM pg_catalog.pg_proc AS overload
+               WHERE overload.pronamespace =
+                     'public'::pg_catalog.regnamespace
+                 AND overload.proname =
+                     'verify_email_outbox_delivery_release'
+            ) = 1
+            FROM pg_catalog.pg_proc AS verifier_routine
+            JOIN pg_catalog.pg_language AS verifier_language
+              ON verifier_language.oid = verifier_routine.prolang
+           WHERE verifier_routine.oid = pg_catalog.to_regprocedure(
+             'public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)'
+           )
+        )
         AND (
           SELECT pg_catalog.count(*) = 1
                  AND pg_catalog.bool_and(
@@ -2674,10 +3423,58 @@ function assertCatalogAndAcl(port) {
           'public.release_email_outbox_delivery(uuid,uuid,text,text,text)',
           'EXECUTE'
         )
-        AND NOT pg_catalog.has_function_privilege(
+        AND pg_catalog.has_function_privilege(
+          'learncoding_owner',
+          'public.release_email_outbox_delivery(uuid,uuid,text,text,text)',
+          'EXECUTE'
+        )
+        AND pg_catalog.has_function_privilege(
           'learncoding_worker',
           'public.release_email_outbox_delivery(uuid,uuid,text,text,text)',
           'EXECUTE'
+        )
+        AND (
+          SELECT COALESCE(
+                   pg_catalog.array_agg(
+                     pg_catalog.concat_ws(
+                       '|',
+                       CASE
+                         WHEN expanded.grantee = 0 THEN 'PUBLIC'
+                         ELSE pg_catalog.pg_get_userbyid(expanded.grantee)
+                       END,
+                       CASE
+                         WHEN expanded.grantor = 0 THEN 'PUBLIC'
+                         ELSE pg_catalog.pg_get_userbyid(expanded.grantor)
+                       END,
+                       pg_catalog.lower(expanded.privilege_type),
+                       expanded.is_grantable::pg_catalog.text
+                     )
+                     ORDER BY
+                       CASE
+                         WHEN expanded.grantee = 0 THEN 'PUBLIC'
+                         ELSE pg_catalog.pg_get_userbyid(expanded.grantee)
+                       END,
+                       CASE
+                         WHEN expanded.grantor = 0 THEN 'PUBLIC'
+                         ELSE pg_catalog.pg_get_userbyid(expanded.grantor)
+                       END,
+                       pg_catalog.lower(expanded.privilege_type),
+                       expanded.is_grantable
+                   ),
+                   ARRAY[]::pg_catalog.text[]
+                 ) = ARRAY[
+                   'learncoding_app|learncoding_owner|execute|false',
+                   'learncoding_owner|learncoding_owner|execute|false',
+                   'learncoding_worker|learncoding_owner|execute|false'
+                 ]::pg_catalog.text[]
+            FROM pg_catalog.pg_proc AS issuer_routine
+            CROSS JOIN LATERAL pg_catalog.aclexplode(
+              issuer_routine.proacl
+            ) AS expanded
+           WHERE issuer_routine.oid = pg_catalog.to_regprocedure(
+             'public.release_email_outbox_delivery(uuid,uuid,text,text,text)'
+           )
+             AND issuer_routine.proacl IS NOT NULL
         )
         AND NOT pg_catalog.has_function_privilege(
           'learncoding_ops',
@@ -2687,6 +3484,45 @@ function assertCatalogAndAcl(port) {
         AND NOT pg_catalog.has_function_privilege(
           'learncoding_backup_reporter',
           'public.release_email_outbox_delivery(uuid,uuid,text,text,text)',
+          'EXECUTE'
+        )
+        AND NOT pg_catalog.has_function_privilege(
+          0,
+          pg_catalog.to_regprocedure(
+            'public.release_email_outbox_delivery(uuid,uuid,text,text,text)'
+          ),
+          'EXECUTE'
+        )
+        AND pg_catalog.has_function_privilege(
+          'learncoding_app',
+          'public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)',
+          'EXECUTE'
+        )
+        AND pg_catalog.has_function_privilege(
+          'learncoding_owner',
+          'public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)',
+          'EXECUTE'
+        )
+        AND NOT pg_catalog.has_function_privilege(
+          'learncoding_worker',
+          'public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)',
+          'EXECUTE'
+        )
+        AND NOT pg_catalog.has_function_privilege(
+          'learncoding_ops',
+          'public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)',
+          'EXECUTE'
+        )
+        AND NOT pg_catalog.has_function_privilege(
+          'learncoding_backup_reporter',
+          'public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)',
+          'EXECUTE'
+        )
+        AND NOT pg_catalog.has_function_privilege(
+          0,
+          pg_catalog.to_regprocedure(
+            'public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)'
+          ),
           'EXECUTE'
         )
         AND pg_catalog.has_function_privilege(
@@ -3174,7 +4010,11 @@ function appInsertAndRelease(port, fixture, ending = "COMMIT") {
   );
 }
 
-function claimAsWorker(port, fixture) {
+function claimAsWorker(port, fixture, leaseSeconds = 180) {
+  assert.ok(
+    Number.isInteger(leaseSeconds) && leaseSeconds >= 16 && leaseSeconds <= 300,
+    "claim lease must be an integer from 16 through 300 seconds",
+  );
   return psql(
     port,
     database,
@@ -3186,7 +4026,8 @@ function claimAsWorker(port, fixture) {
            claim_owner = 'mail-guarded-delivery-0069',
            claim_version = claim_version + 1,
            lease_expires_at =
-             pg_catalog.statement_timestamp() + interval '180 seconds',
+             pg_catalog.statement_timestamp()
+             + (${leaseSeconds}::pg_catalog.int4 * interval '1 second'),
            updated_at = pg_catalog.statement_timestamp()
      WHERE id = '${fixture.id}'::pg_catalog.uuid
      RETURNING pg_catalog.concat_ws(
@@ -3427,25 +4268,14 @@ function proveApplicationRelease(port) {
   );
 
   const beforeUnauthorizedRelease = mailAuthorityDigest(port);
-  const workerDenied = psql(
-    port,
-    database,
-    `
-    SELECT * FROM public.release_email_outbox_delivery(
-      '${receiptOutboxId}'::pg_catalog.uuid,
-      '${receiptOperationId}'::pg_catalog.uuid,
-      '${receiptAuthoritySha256}',
-      '${receiptOriginalPayloadSha256}',
-      '${receiptReleaseVersion}'
-    );`,
-    {
-      allowFailure: true,
-      username: "learncoding_worker",
-    },
-  );
-  assertFailure(
-    workerDenied,
-    /permission denied for function release_email_outbox_delivery/u,
+  assert.equal(
+    scalar(
+      port,
+      database,
+      appReleaseSql(FIXTURES.main),
+      "learncoding_worker",
+    ),
+    receiptDigest,
   );
   assert.equal(mailAuthorityDigest(port), beforeUnauthorizedRelease);
 
@@ -3957,7 +4787,7 @@ function installLeaseDelayTrigger(port) {
     SET search_path = pg_catalog, pg_temp
     AS $function$
     BEGIN
-      PERFORM pg_catalog.pg_sleep(0.35);
+      PERFORM pg_catalog.pg_sleep(1.35);
       RETURN NEW;
     END
     $function$;
@@ -3985,32 +4815,104 @@ function removeLeaseDelayTrigger(port) {
 }
 
 function proveStateArcBounds(port) {
-  assertExactFirstClaim(
-    claimAsWorker(port, FIXTURES.stateArc),
-    FIXTURES.stateArc,
-  );
-  const sendingDigest = outboxStateDigest(port, FIXTURES.stateArc.id);
+  const fixture = FIXTURES.stateArc;
+  const reclaimerToken = fixture.operationId;
+  const reclaimerOwner = "mail-guarded-delivery-0069-reclaimer";
+  const arcFailure = /email outbox delivery state arc is invalid/u;
+  const assertDeniedAndUnchanged = (
+    label,
+    sql,
+    expectedDigest,
+    outboxId = fixture.id,
+  ) => {
+    const denied = psql(port, database, sql, {
+      allowFailure: true,
+      username: "learncoding_worker",
+    });
+    assertFailure(denied, arcFailure);
+    assert.equal(
+      outboxStateDigest(port, outboxId),
+      expectedDigest,
+      `${label} changed the guarded outbox row`,
+    );
+  };
+  const reclaimSql = `
+    UPDATE public.email_outbox
+       SET status = 'sending',
+           claim_token = '${reclaimerToken}'::pg_catalog.uuid,
+           claim_owner = '${reclaimerOwner}',
+           claim_version = claim_version + 1,
+           lease_expires_at =
+             pg_catalog.statement_timestamp() + interval '180 seconds',
+           attempt_count = attempt_count + 1,
+           last_error_code = NULL,
+           updated_at = pg_catalog.statement_timestamp()
+     WHERE id = '${fixture.id}'::pg_catalog.uuid
+     RETURNING pg_catalog.concat_ws(
+       '|',
+       status::pg_catalog.text,
+       claim_version::pg_catalog.text,
+       attempt_count::pg_catalog.text,
+       claim_token::pg_catalog.text,
+       claim_owner,
+       (
+         lease_expires_at >=
+           pg_catalog.statement_timestamp() + interval '15 seconds'
+         AND lease_expires_at <=
+           pg_catalog.statement_timestamp() + interval '300 seconds'
+       )::pg_catalog.text
+     );`;
+
+  assertExactFirstClaim(claimAsWorker(port, fixture, 16), fixture);
+  const sendingDigest = outboxStateDigest(port, fixture.id);
+
+  assertDeniedAndUnchanged("live-old-lease", reclaimSql, sendingDigest);
+
   installLeaseDelayTrigger(port);
-  const delayedArm = psql(
-    port,
-    database,
-    armConsoleSql(FIXTURES.stateArc).replace(
-      "interval '180 seconds'",
-      "interval '15.2 seconds'",
+  try {
+    const delayedArmStartedAt = process.hrtime.bigint();
+    const delayedArm = psql(
+      port,
+      database,
+      armConsoleSql(fixture).replace(
+        "interval '180 seconds'",
+        "interval '16.2 seconds'",
+      ),
+      { allowFailure: true, username: "learncoding_worker" },
+    );
+    const delayedArmElapsedMs =
+      Number(process.hrtime.bigint() - delayedArmStartedAt) / 1_000_000;
+    assertFailure(delayedArm, arcFailure);
+    assert.ok(
+      delayedArmElapsedMs >= 1_000,
+      `delay trigger did not fire: elapsed=${delayedArmElapsedMs}ms`,
+    );
+  } finally {
+    removeLeaseDelayTrigger(port);
+  }
+  assert.equal(outboxStateDigest(port, fixture.id), sendingDigest);
+
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+      SELECT (
+        lease_expires_at > pg_catalog.clock_timestamp()
+      )::pg_catalog.text
+        FROM public.email_outbox
+       WHERE id = '${fixture.id}'::pg_catalog.uuid;`,
     ),
-    { allowFailure: true, username: "learncoding_worker" },
+    "true",
+    "state-arc lease expired before live-lease retry probes",
   );
-  assertFailure(delayedArm, /email outbox delivery state arc is invalid/u);
-  removeLeaseDelayTrigger(port);
-  assert.equal(outboxStateDigest(port, FIXTURES.stateArc.id), sendingDigest);
 
   for (const deadline of [
     "'infinity'::pg_catalog.timestamptz",
     "pg_catalog.statement_timestamp() + interval '7 hours'",
   ]) {
-    const invalidRetry = psql(
-      port,
-      database,
+    assertDeniedAndUnchanged(
+      `retry-deadline-${deadline}`,
       `
       UPDATE public.email_outbox
          SET status = 'pending',
@@ -4021,14 +4923,139 @@ function proveStateArcBounds(port) {
              next_attempt_at = ${deadline},
              last_error_code = 'TRANSIENT_DELIVERY_FAILURE',
              updated_at = pg_catalog.statement_timestamp()
-       WHERE id = '${FIXTURES.stateArc.id}'::pg_catalog.uuid;`,
-      {
-        allowFailure: true,
-        username: "learncoding_worker",
-      },
+       WHERE id = '${fixture.id}'::pg_catalog.uuid;`,
+      sendingDigest,
     );
-    assertFailure(invalidRetry, /email outbox delivery state arc is invalid/u);
-    assert.equal(outboxStateDigest(port, FIXTURES.stateArc.id), sendingDigest);
+  }
+
+  const boundedExpiry = psql(
+    port,
+    database,
+    `
+    BEGIN;
+    SET LOCAL statement_timeout = '22s';
+    SELECT pg_catalog.pg_sleep(16.25);
+    COMMIT;`,
+    { allowFailure: true, username: "learncoding_worker" },
+  );
+  assert.equal(
+    boundedExpiry.status,
+    0,
+    `${boundedExpiry.stdout ?? ""}${boundedExpiry.stderr ?? ""}`.trim(),
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+      SELECT (
+        lease_expires_at < pg_catalog.clock_timestamp()
+      )::pg_catalog.text
+        FROM public.email_outbox
+       WHERE id = '${fixture.id}'::pg_catalog.uuid;`,
+    ),
+    "true",
+    "minimum bounded claim lease did not expire",
+  );
+
+  const expiredDigest = outboxStateDigest(port, fixture.id);
+  const invalidReclaims = [
+    [
+      "same-generation",
+      reclaimSql.replace(
+        "claim_version = claim_version + 1",
+        "claim_version = claim_version",
+      ),
+    ],
+    [
+      "jump-generation",
+      reclaimSql.replace(
+        "claim_version = claim_version + 1",
+        "claim_version = claim_version + 2",
+      ),
+    ],
+    [
+      "attempt-not-incremented",
+      reclaimSql.replace(
+        "attempt_count = attempt_count + 1",
+        "attempt_count = attempt_count",
+      ),
+    ],
+    [
+      "attempt-jump",
+      reclaimSql.replace(
+        "attempt_count = attempt_count + 1",
+        "attempt_count = attempt_count + 2",
+      ),
+    ],
+    [
+      "past-lease",
+      reclaimSql.replace(
+        "pg_catalog.statement_timestamp() + interval '180 seconds'",
+        "pg_catalog.statement_timestamp() - interval '1 second'",
+      ),
+    ],
+    [
+      "short-lease",
+      reclaimSql.replace(
+        "pg_catalog.statement_timestamp() + interval '180 seconds'",
+        "pg_catalog.statement_timestamp() + interval '5 seconds'",
+      ),
+    ],
+    [
+      "long-lease",
+      reclaimSql.replace(
+        "pg_catalog.statement_timestamp() + interval '180 seconds'",
+        "pg_catalog.statement_timestamp() + interval '7 hours'",
+      ),
+    ],
+  ];
+  for (const [label, invalidReclaim] of invalidReclaims) {
+    assertDeniedAndUnchanged(label, invalidReclaim, expiredDigest);
+  }
+
+  const validReclaim = psql(port, database, reclaimSql, {
+    allowFailure: true,
+    scalar: true,
+    username: "learncoding_worker",
+  });
+  assert.equal(
+    validReclaim.status,
+    0,
+    `${validReclaim.stdout ?? ""}${validReclaim.stderr ?? ""}`.trim(),
+  );
+  assert.equal(
+    validReclaim.stdout.trim(),
+    [
+      "sending",
+      "2",
+      "2",
+      reclaimerToken,
+      reclaimerOwner,
+      "true",
+    ].join("|"),
+  );
+  const reclaimedDigest = outboxStateDigest(port, fixture.id);
+
+  for (const status of ["pending", "failed", "suppressed"]) {
+    const nextAttempt = status === "pending"
+      ? "pg_catalog.statement_timestamp() + interval '5 hours'"
+      : "next_attempt_at";
+    assertDeniedAndUnchanged(
+      `missing-generation-${status}`,
+      `
+      UPDATE public.email_outbox
+         SET status = '${status}',
+             claim_token = NULL,
+             claim_owner = NULL,
+             claim_version = claim_version,
+             lease_expires_at = NULL,
+             next_attempt_at = ${nextAttempt},
+             last_error_code = 'TRANSIENT_DELIVERY_FAILURE',
+             updated_at = pg_catalog.statement_timestamp()
+       WHERE id = '${fixture.id}'::pg_catalog.uuid;`,
+      reclaimedDigest,
+    );
   }
 
   const validRetry = psql(
@@ -4045,7 +5072,7 @@ function proveStateArcBounds(port) {
              pg_catalog.statement_timestamp() + interval '5 hours',
            last_error_code = 'TRANSIENT_DELIVERY_FAILURE',
            updated_at = pg_catalog.statement_timestamp()
-     WHERE id = '${FIXTURES.stateArc.id}'::pg_catalog.uuid
+     WHERE id = '${fixture.id}'::pg_catalog.uuid
      RETURNING pg_catalog.concat_ws(
        '|',
        status::pg_catalog.text,
@@ -4070,7 +5097,217 @@ function proveStateArcBounds(port) {
     },
   );
   assert.equal(validRetry.status, 0);
-  assert.equal(validRetry.stdout.trim(), "pending|2|1|true|true|true|true");
+  assert.equal(validRetry.stdout.trim(), "pending|3|2|true|true|true|true");
+
+  for (const terminalFixture of [
+    FIXTURES.quarantineLateAck,
+    FIXTURES.quarantineFailed,
+  ]) {
+    appInsertAndRelease(port, terminalFixture);
+    assertExactFirstClaim(
+      claimAsWorker(port, terminalFixture),
+      terminalFixture,
+    );
+    armAsWorker(port, terminalFixture);
+  }
+
+  const armedDigest = outboxStateDigest(
+    port,
+    FIXTURES.quarantineLateAck.id,
+  );
+  const wrongGenerationSent = `
+    UPDATE public.email_outbox
+       SET status = 'sent',
+           claim_token = NULL,
+           claim_owner = NULL,
+           claim_version = claim_version + 1,
+           lease_expires_at = NULL,
+           provider_message_id = 'mail-0069-wrong-generation-sent',
+           sent_at = pg_catalog.statement_timestamp(),
+           last_error_code = NULL,
+           updated_at = pg_catalog.statement_timestamp()
+     WHERE id =
+       '${FIXTURES.quarantineLateAck.id}'::pg_catalog.uuid;`;
+  assertDeniedAndUnchanged(
+    "wrong-generation-armed-sent",
+    wrongGenerationSent,
+    armedDigest,
+    FIXTURES.quarantineLateAck.id,
+  );
+
+  const wrongGenerationQuarantine = `
+    UPDATE public.email_outbox
+       SET status = 'quarantined',
+           claim_token = NULL,
+           claim_owner = NULL,
+           claim_version = claim_version,
+           lease_expires_at = NULL,
+           quarantined_at = pg_catalog.statement_timestamp(),
+           last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY',
+           updated_at = pg_catalog.statement_timestamp()
+     WHERE id =
+       '${FIXTURES.quarantineLateAck.id}'::pg_catalog.uuid;`;
+  assertDeniedAndUnchanged(
+    "wrong-generation-armed-quarantine",
+    wrongGenerationQuarantine,
+    armedDigest,
+    FIXTURES.quarantineLateAck.id,
+  );
+
+  const quarantineArmed = (terminalFixture) => {
+    const quarantined = psql(
+      port,
+      database,
+      `
+      UPDATE public.email_outbox
+         SET status = 'quarantined',
+             claim_token = NULL,
+             claim_owner = NULL,
+             claim_version = claim_version + 1,
+             lease_expires_at = NULL,
+             quarantined_at = pg_catalog.statement_timestamp(),
+             last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY',
+             updated_at = pg_catalog.statement_timestamp()
+       WHERE id = '${terminalFixture.id}'::pg_catalog.uuid
+       RETURNING pg_catalog.concat_ws(
+         '|',
+         status::pg_catalog.text,
+         claim_version::pg_catalog.text,
+         attempt_count::pg_catalog.text,
+         (
+           claim_token IS NULL
+           AND claim_owner IS NULL
+           AND lease_expires_at IS NULL
+         )::pg_catalog.text,
+         (provider_call_started IS NOT NULL)::pg_catalog.text,
+         (provider_message_id IS NULL)::pg_catalog.text,
+         (sent_at IS NULL)::pg_catalog.text,
+         (quarantined_at IS NOT NULL)::pg_catalog.text,
+         last_error_code
+       );`,
+      {
+        allowFailure: true,
+        scalar: true,
+        username: "learncoding_worker",
+      },
+    );
+    assert.equal(
+      quarantined.status,
+      0,
+      `${quarantined.stdout ?? ""}${quarantined.stderr ?? ""}`.trim(),
+    );
+    assert.equal(
+      quarantined.stdout.trim(),
+      [
+        "quarantined",
+        "2",
+        "1",
+        "true",
+        "true",
+        "true",
+        "true",
+        "true",
+        "ABANDONED_POST_PROVIDER_BOUNDARY",
+      ].join("|"),
+    );
+  };
+
+  quarantineArmed(FIXTURES.quarantineLateAck);
+  const lateAck = psql(
+    port,
+    database,
+    `
+    UPDATE public.email_outbox
+       SET provider_message_id = 'mail-0069-quarantine-late-ack',
+           sent_at = pg_catalog.statement_timestamp(),
+           updated_at = pg_catalog.statement_timestamp()
+     WHERE id = '${FIXTURES.quarantineLateAck.id}'::pg_catalog.uuid
+     RETURNING pg_catalog.concat_ws(
+       '|',
+       status::pg_catalog.text,
+       claim_version::pg_catalog.text,
+       attempt_count::pg_catalog.text,
+       provider_message_id,
+       (sent_at IS NOT NULL)::pg_catalog.text,
+       (quarantined_at IS NOT NULL)::pg_catalog.text,
+       last_error_code
+     );`,
+    {
+      allowFailure: true,
+      scalar: true,
+      username: "learncoding_worker",
+    },
+  );
+  assert.equal(
+    lateAck.status,
+    0,
+    `${lateAck.stdout ?? ""}${lateAck.stderr ?? ""}`.trim(),
+  );
+  assert.equal(
+    lateAck.stdout.trim(),
+    [
+      "quarantined",
+      "2",
+      "1",
+      "mail-0069-quarantine-late-ack",
+      "true",
+      "true",
+      "ABANDONED_POST_PROVIDER_BOUNDARY",
+    ].join("|"),
+  );
+
+  quarantineArmed(FIXTURES.quarantineFailed);
+  const quarantineFailed = psql(
+    port,
+    database,
+    `
+    UPDATE public.email_outbox
+       SET status = 'failed',
+           quarantined_at = NULL,
+           last_error_code = 'PROVIDER_DEFINITELY_REJECTED',
+           updated_at = pg_catalog.statement_timestamp()
+     WHERE id = '${FIXTURES.quarantineFailed.id}'::pg_catalog.uuid
+     RETURNING pg_catalog.concat_ws(
+       '|',
+       status::pg_catalog.text,
+       claim_version::pg_catalog.text,
+       attempt_count::pg_catalog.text,
+       (
+         claim_token IS NULL
+         AND claim_owner IS NULL
+         AND lease_expires_at IS NULL
+       )::pg_catalog.text,
+       (provider_call_started IS NOT NULL)::pg_catalog.text,
+       (provider_message_id IS NULL)::pg_catalog.text,
+       (sent_at IS NULL)::pg_catalog.text,
+       (quarantined_at IS NULL)::pg_catalog.text,
+       last_error_code
+     );`,
+    {
+      allowFailure: true,
+      scalar: true,
+      username: "learncoding_worker",
+    },
+  );
+  assert.equal(
+    quarantineFailed.status,
+    0,
+    `${quarantineFailed.stdout ?? ""}${quarantineFailed.stderr ?? ""}`.trim(),
+  );
+  assert.equal(
+    quarantineFailed.stdout.trim(),
+    [
+      "failed",
+      "2",
+      "1",
+      "true",
+      "true",
+      "true",
+      "true",
+      "true",
+      "PROVIDER_DEFINITELY_REJECTED",
+    ].join("|"),
+  );
 }
 
 function proveIssuanceAndRequestHold(port) {
@@ -4435,6 +5672,350 @@ function proveIssuanceAndRequestHold(port) {
   assert.equal(mailAuthorityDigest(port), afterParentDelete);
 }
 
+function runtimeDatabaseUrl(port, username) {
+  assert.ok(
+    Number.isSafeInteger(port) && port > 0 && port <= 65_535,
+    "runtime proof port is invalid",
+  );
+  assert.notEqual(port, 5432);
+  assert.ok(
+    [
+      "postgres",
+      "learncoding_app",
+      "learncoding_ops",
+      "learncoding_worker",
+    ].includes(username),
+    "runtime proof role is invalid",
+  );
+  const url = new URL("postgresql://127.0.0.1");
+  url.username = username;
+  url.port = String(port);
+  url.pathname = `/${database}`;
+  url.searchParams.set("sslmode", "disable");
+  return url.toString();
+}
+
+function prepareRuntimeProofJournal(
+  port,
+  migrationsThrough0068,
+  journalEntries,
+) {
+  assert.equal(migrationsThrough0068.length, 69);
+  assert.equal(journalEntries.length, 68);
+  const reviewedEntries = journalEntries.map((entry, index) => {
+    const manifest = migrationsThrough0068[index];
+    assert.ok(manifest !== undefined);
+    assert.equal(entry.idx, index);
+    assert.equal(entry.version, "7");
+    assert.equal(entry.breakpoints, true);
+    assert.match(entry.tag, new RegExp(`^${String(index).padStart(4, "0")}_[a-z0-9_]+$`, "u"));
+    assert.ok(Number.isSafeInteger(entry.when) && entry.when > 0);
+    assert.equal(entry.tag, manifest.tag);
+    assert.match(manifest.hash, /^[0-9a-f]{64}$/u);
+    return Object.freeze({
+      createdAt: entry.when,
+      hash: manifest.hash,
+      id: index + 1,
+    });
+  });
+  assert.equal(reviewedEntries[66]?.createdAt, 1784997273087);
+  assert.equal(
+    reviewedEntries[66]?.hash,
+    "3d4962ed82c0209245ca7e0a0e9ea667001eab7ae864f89120894cc1fa915ec9",
+  );
+  assert.equal(reviewedEntries[67]?.createdAt, 1785002172253);
+  assert.equal(
+    reviewedEntries[67]?.hash,
+    "ccb3e093847fb875ded41ec0c36d0ff8405c04d1546ba9dd21696e86a73a6817",
+  );
+  const migration0068 = migrationsThrough0068[68];
+  assert.ok(migration0068 !== undefined);
+  assert.match(migration0068.hash, /^[0-9a-f]{64}$/u);
+  const candidateEntries = [
+    ...reviewedEntries,
+    Object.freeze({
+      createdAt: 1785005772253,
+      hash: migration0068.hash,
+      id: 69,
+    }),
+  ];
+  const values = candidateEntries
+    .map(({ createdAt, hash, id }) => `(${id}, '${hash}', ${createdAt})`)
+    .join(",\n");
+
+  applyAsOwner(
+    port,
+    `
+    CREATE SCHEMA drizzle AUTHORIZATION learncoding_owner;
+    CREATE TABLE drizzle.__drizzle_migrations (
+      id SERIAL PRIMARY KEY,
+      hash pg_catalog.text NOT NULL,
+      created_at pg_catalog.int8
+    );
+    REVOKE ALL ON SCHEMA drizzle
+      FROM PUBLIC, learncoding_migrator, learncoding_app,
+           learncoding_worker, learncoding_ops,
+           learncoding_backup_reporter, learncoding_acl_default,
+           learncoding_acl_grantor, learncoding_acl_leaf;
+    REVOKE ALL ON TABLE drizzle.__drizzle_migrations
+      FROM PUBLIC, learncoding_migrator, learncoding_app,
+           learncoding_worker, learncoding_ops,
+           learncoding_backup_reporter, learncoding_acl_default,
+           learncoding_acl_grantor, learncoding_acl_leaf;
+    REVOKE ALL ON SEQUENCE drizzle.__drizzle_migrations_id_seq
+      FROM PUBLIC, learncoding_migrator, learncoding_app,
+           learncoding_worker, learncoding_ops,
+           learncoding_backup_reporter, learncoding_acl_default,
+           learncoding_acl_grantor, learncoding_acl_leaf;
+    INSERT INTO drizzle.__drizzle_migrations (id, hash, created_at)
+    VALUES ${values};
+    SELECT pg_catalog.setval(
+      'drizzle.__drizzle_migrations_id_seq'::pg_catalog.regclass,
+      69,
+      true
+    );
+  `,
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+      SELECT pg_catalog.concat_ws(
+        '|',
+        pg_catalog.pg_get_userbyid(namespace.nspowner),
+        pg_catalog.pg_get_userbyid(relation.relowner),
+        (SELECT pg_catalog.count(*)::pg_catalog.text
+           FROM drizzle.__drizzle_migrations),
+        (NOT pg_catalog.has_schema_privilege(
+          'learncoding_worker', 'drizzle', 'USAGE'
+        ))::pg_catalog.text,
+        (NOT pg_catalog.has_schema_privilege(
+          'learncoding_worker', 'drizzle', 'CREATE'
+        ))::pg_catalog.text,
+        (NOT pg_catalog.has_table_privilege(
+          'learncoding_worker', relation.oid, 'SELECT'
+        ))::pg_catalog.text
+      )
+        FROM pg_catalog.pg_namespace AS namespace
+        JOIN pg_catalog.pg_class AS relation
+          ON relation.relnamespace = namespace.oid
+       WHERE namespace.nspname = 'drizzle'
+         AND relation.relname = '__drizzle_migrations';`,
+    ),
+    "learncoding_owner|learncoding_owner|69|true|true|true",
+  );
+}
+
+function recordRuntimeProofMigration(port, candidateSha256) {
+  assert.match(candidateSha256, /^[0-9a-f]{64}$/u);
+  applyAsOwner(
+    port,
+    `
+    INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+    VALUES ('${candidateSha256}', 1785009372253);
+  `,
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+      SELECT pg_catalog.concat(
+        pg_catalog.count(*)::pg_catalog.text,
+        '|',
+        pg_catalog.min(hash)
+      )
+        FROM drizzle.__drizzle_migrations
+       WHERE created_at = 1785009372253;`,
+    ),
+    `1|${candidateSha256}`,
+  );
+}
+
+function prepareRuntimeProofState(port) {
+  applyAsOwner(
+    port,
+    `
+    -- Runtime-only parity for the worker's current raw source-authority
+    -- reads. This is not a least-privilege claim; P3-2 owns replacement of
+    -- these reads with narrowly scoped owner routines.
+    GRANT SELECT ON TABLE
+      public."user",
+      public.verification,
+      public.access_request,
+      public.invitation,
+      public.account_deletion_tombstone,
+      public.data_lifecycle_run
+      TO learncoding_worker;
+    GRANT UPDATE (id) ON TABLE public."user" TO learncoding_worker;
+    GRANT UPDATE (id) ON TABLE public.verification TO learncoding_worker;
+    GRANT UPDATE (id) ON TABLE public.access_request TO learncoding_worker;
+    GRANT UPDATE (id) ON TABLE public.invitation TO learncoding_worker;
+
+    DELETE FROM public.email_outbox;
+  `,
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+      WITH source_relation(
+        relation_name,
+        relation_oid,
+        lock_column,
+        forbidden_update_column,
+        requires_row_lock
+      ) AS (
+        VALUES
+          (
+            'user'::pg_catalog.text,
+            'public."user"'::pg_catalog.regclass,
+            'id'::pg_catalog.name,
+            'email'::pg_catalog.name,
+            true
+          ),
+          (
+            'verification',
+            'public.verification'::pg_catalog.regclass,
+            'id',
+            'identifier',
+            true
+          ),
+          (
+            'access_request',
+            'public.access_request'::pg_catalog.regclass,
+            'id',
+            'status',
+            true
+          ),
+          (
+            'invitation',
+            'public.invitation'::pg_catalog.regclass,
+            'id',
+            'email',
+            true
+          ),
+          (
+            'account_deletion_tombstone',
+            'public.account_deletion_tombstone'::pg_catalog.regclass,
+            'id',
+            'report',
+            false
+          ),
+          (
+            'data_lifecycle_run',
+            'public.data_lifecycle_run'::pg_catalog.regclass,
+            'id',
+            'report',
+            false
+          )
+      )
+      SELECT (
+        pg_catalog.count(*) = 6
+        AND pg_catalog.bool_and(
+          pg_catalog.pg_get_userbyid(relation.relowner) =
+            'learncoding_owner'
+          AND pg_catalog.has_table_privilege(
+            'learncoding_worker', source_relation.relation_oid, 'SELECT'
+          )
+          AND NOT pg_catalog.has_table_privilege(
+            'learncoding_worker', source_relation.relation_oid, 'UPDATE'
+          )
+          AND NOT EXISTS (
+            SELECT 1
+              FROM pg_catalog.unnest(ARRAY[
+                'INSERT', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER',
+                'MAINTAIN'
+              ]::pg_catalog.text[]) AS forbidden(privilege_name)
+             WHERE pg_catalog.has_table_privilege(
+               'learncoding_worker',
+               source_relation.relation_oid,
+               forbidden.privilege_name
+             )
+          )
+          AND pg_catalog.has_column_privilege(
+            'learncoding_worker',
+            source_relation.relation_oid,
+            source_relation.lock_column,
+            'UPDATE'
+          ) = source_relation.requires_row_lock
+          AND NOT pg_catalog.has_column_privilege(
+            'learncoding_worker',
+            source_relation.relation_oid,
+            source_relation.forbidden_update_column,
+            'UPDATE'
+          )
+        )
+      )::pg_catalog.text
+        FROM source_relation
+        JOIN pg_catalog.pg_class AS relation
+          ON relation.oid = source_relation.relation_oid;`,
+    ),
+    "true",
+  );
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `
+      SELECT pg_catalog.concat(
+               (SELECT pg_catalog.count(*)::pg_catalog.text
+                  FROM public.email_outbox),
+               '|',
+               (SELECT pg_catalog.count(*)::pg_catalog.text
+                  FROM public.mail_delivery_release_receipt)
+             );`,
+    ),
+    "0|0",
+  );
+}
+
+function runRuntimeProof(port) {
+  const runtimeEnvironment = Object.freeze({
+    ...childEnvironment,
+    MAIL_RUNTIME_EXPECTED_POSTGRES_MAJOR: expectedMajor,
+    MAIL_RUNTIME_ADMIN_DATABASE_URL: runtimeDatabaseUrl(port, "postgres"),
+    MAIL_RUNTIME_APPLICATION_DATABASE_URL: runtimeDatabaseUrl(
+      port,
+      "learncoding_app",
+    ),
+    MAIL_RUNTIME_OPS_DATABASE_URL: runtimeDatabaseUrl(
+      port,
+      "learncoding_ops",
+    ),
+    MAIL_RUNTIME_WORKER_DATABASE_URL: runtimeDatabaseUrl(
+      port,
+      "learncoding_worker",
+    ),
+  });
+  const result = run(
+    process.execPath,
+    [
+      "--import",
+      "tsx",
+      path.join(
+        testDirectory,
+        "mail-guarded-delivery-0069-runtime.impl.ts",
+      ),
+    ],
+    {
+      allowFailure: true,
+      env: runtimeEnvironment,
+      timeoutMs: 180_000,
+    },
+  );
+  if (
+    result.status !== 0
+    || result.signal !== null
+    || result.stdout !== "mail_guarded_delivery_0069_runtime=PASS\n"
+    || result.stderr !== ""
+  ) {
+    throw new Error("0069 production runtime proof failed");
+  }
+}
+
 function readExactPostmasterPid(dataDirectory) {
   const pidFile = path.join(dataDirectory, "postmaster.pid");
   if (!existsSync(pidFile)) return undefined;
@@ -4553,6 +6134,10 @@ export async function main() {
   const version = run(executable("postgres"), ["--version"]).stdout.trim();
   assert.match(version, new RegExp(`PostgreSQL\\) ${expectedMajor}\\.`, "u"));
 
+  const runtimeProofInputs = captureRuntimeProofInputs();
+  const { candidate, journalEntries, migrationsThrough0068 } =
+    runtimeProofInputs;
+  const migration0069 = candidate.sql;
   const temporaryRoot = mkdtempSync(
     path.join(os.tmpdir(), `learncoding-mail-guarded-0069-pg${expectedMajor}-`),
   );
@@ -4599,7 +6184,7 @@ export async function main() {
         "-l",
         logFile,
         "-o",
-        `-p ${port} -h 127.0.0.1 -c max_connections=20${socketOption}`,
+        `-p ${port} -h 127.0.0.1 -c max_connections=100${socketOption}`,
         "-w",
         "start",
       ],
@@ -4650,17 +6235,15 @@ export async function main() {
       database,
     ]);
 
-    for (const migrationFile of migrationFilesThrough(68)) {
-      applyAsOwner(port, readFileSync(migrationFile, "utf8"));
+    for (const migration of migrationsThrough0068) {
+      applyAsOwner(port, migration.sql);
     }
-    poison0069Acl(port);
-    const migration0069 = readFileSync(
-      path.join(
-        migrationDirectory,
-        "0069_mail_outbox_guarded_delivery_authority.sql",
-      ),
-      "utf8",
+    prepareRuntimeProofJournal(
+      port,
+      migrationsThrough0068,
+      journalEntries,
     );
+    poison0069Acl(port);
     proveInheritedAclTamperRollback(port, migration0069, temporaryRoot);
     proveDigestHelperTamperRollback(port, migration0069, temporaryRoot);
     seedAdministrator(port);
@@ -4668,12 +6251,21 @@ export async function main() {
     proveDrainedBacklogRollback(port, migration0069, temporaryRoot);
     proveLateCatalogRollback(port, migration0069, temporaryRoot);
     applyAsOwner(port, migration0069);
+    recordRuntimeProofMigration(port, candidate.hash);
     assertCatalogAndAcl(port);
+    proveLineageAttestor(port, candidate.hash);
     applyAsOwnerFromFile(
       port,
       migration0069,
       temporaryRoot,
       "migration-0069-idempotent-replay.sql",
+    );
+    assertCatalogAndAcl(port);
+    proveLineageAttestor(port, candidate.hash);
+    proveOutboxGuardedColumnCatalogTamperRollback(
+      port,
+      migration0069,
+      temporaryRoot,
     );
     assertCatalogAndAcl(port);
     proveTask5RelationAclTamperRollback(port, migration0069, temporaryRoot);
@@ -4690,8 +6282,12 @@ export async function main() {
       "migration-0069-repoison-repair.sql",
     );
     assertCatalogAndAcl(port);
+    proveLineageAttestor(port, candidate.hash);
     assert.equal(mailAuthorityDigest(port), populatedDataDigest);
     assert.equal(guardedAclDigest(port), populatedCatalogAndAclDigest);
+    prepareRuntimeProofState(port);
+    runRuntimeProof(port);
+    assertCatalogAndAcl(port);
   } catch (error) {
     operationError = error;
   } finally {

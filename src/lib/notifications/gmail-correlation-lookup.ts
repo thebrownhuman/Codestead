@@ -14,10 +14,12 @@ import {
   outboxCorrelationToken,
   outboxMessageId,
 } from "./provider-correlation";
+import { FatalProviderTransportError } from "./provider-dispatch-contract";
 
 const DEFAULT_GMAIL_REQUEST_TIMEOUT_MS = 10_000;
 const MIN_GMAIL_REQUEST_TIMEOUT_MS = 1_000;
 const MAX_GMAIL_REQUEST_TIMEOUT_MS = 25_000;
+const GMAIL_ABORT_SETTLEMENT_TIMEOUT_MS = 5_000;
 const GMAIL_RAW_BINDING_VERSION = "gmail-raw-v1" as const;
 const LEGACY_OUTBOX_MESSAGE_ID =
   /^<codestead\.outbox\.[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}@mail\.codestead\.invalid>$/;
@@ -51,18 +53,58 @@ async function withGmailReconciliationDeadline<T>(
   operation: (signal: AbortSignal) => Promise<T>,
 ) {
   const controller = new AbortController();
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
+  let requestTimer: ReturnType<typeof setTimeout> | undefined;
+  let settlementTimer: ReturnType<typeof setTimeout> | undefined;
+  let requestTimedOut = false;
+  let operationSettled = false;
+  const requestDeadline = new Promise<"deadline">((resolve) => {
+    requestTimer = setTimeout(() => {
+      requestTimedOut = true;
       controller.abort();
-      reject(new Error("Gmail reconciliation request timed out."));
+      resolve("deadline");
     }, timeoutMs);
   });
+  let operationPromise: Promise<T>;
+  try {
+    operationPromise = Promise.resolve(operation(controller.signal));
+  } catch (error) {
+    operationPromise = Promise.reject(error);
+  }
+  const observedOperation = operationPromise.then(
+    (value) => {
+      operationSettled = true;
+      return { kind: "fulfilled" as const, value };
+    },
+    (error: unknown) => {
+      operationSettled = true;
+      return { kind: "rejected" as const, error };
+    },
+  );
 
   try {
-    return await Promise.race([operation(controller.signal), timeout]);
+    const first = await Promise.race([observedOperation, requestDeadline]);
+    if (!requestTimedOut && first !== "deadline") {
+      if (first.kind === "fulfilled") return first.value;
+      throw first.error;
+    }
+    if (!operationSettled) {
+      const settled = await Promise.race([
+        observedOperation.then(() => true as const),
+        new Promise<false>((resolve) => {
+          settlementTimer = setTimeout(
+            () => resolve(false),
+            GMAIL_ABORT_SETTLEMENT_TIMEOUT_MS,
+          );
+        }),
+      ]);
+      if (!settled) {
+        throw new FatalProviderTransportError("PROVIDER_TRANSPORT_FATAL");
+      }
+    }
+    throw new Error("Gmail reconciliation request timed out.");
   } finally {
-    if (timer !== undefined) clearTimeout(timer);
+    if (requestTimer !== undefined) clearTimeout(requestTimer);
+    if (settlementTimer !== undefined) clearTimeout(settlementTimer);
   }
 }
 

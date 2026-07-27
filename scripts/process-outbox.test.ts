@@ -1,134 +1,285 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const updateReturning = vi.fn(async () => []);
-  const updateWhere = vi.fn(() => ({ returning: updateReturning }));
-  const updateSet = vi.fn(() => ({ where: updateWhere }));
-  const update = vi.fn(() => ({ set: updateSet }));
-
-  const selectLimit = vi.fn(async () => []);
-  const selectOrderBy = vi.fn(() => ({ limit: selectLimit }));
-  const selectWhere = vi.fn(() => ({ orderBy: selectOrderBy }));
-  const selectFrom = vi.fn(() => ({ where: selectWhere }));
-  const select = vi.fn(() => ({ from: selectFrom }));
-
-  const poolEnd = vi.fn(async () => undefined);
-  const poolQuery = vi.fn();
-  const pool = { connect: vi.fn(), end: poolEnd, query: poolQuery };
-  const store = { kind: "postgres-outbox-store" };
-  const PostgresOutboxStore = vi.fn(function PostgresOutboxStore() {
+  const calls: string[] = [];
+  const poolEnd = vi.fn(async () => {
+    calls.push("pool.end");
+  });
+  const pool = Object.freeze({
+    connect: vi.fn(),
+    end: poolEnd,
+    query: vi.fn(),
+  });
+  const database = Object.freeze({ kind: "mail-dispatch-database" });
+  const resources = Object.freeze({ pool, database });
+  const createMailDispatchBootstrapResources = vi.fn(() => {
+    calls.push("resources.create");
+    return resources;
+  });
+  const inspection = Object.freeze({
+    plan: Object.freeze({
+      timeouts: Object.freeze({
+        drainMs: 100_000,
+        poolCloseMs: 5_000,
+        shutdownMarginMs: 5_000,
+        stopMs: 120_000,
+        platformStopMs: 135_000,
+      }),
+    }),
+    postgresMajor: 17,
+  });
+  const inspectMailDispatchRuntime = vi.fn(async () => {
+    calls.push("runtime.inspect");
+    return inspection;
+  });
+  const applicationOrigin = Object.freeze({});
+  const captureMailDispatchApplicationOrigin = vi.fn(() => {
+    calls.push("origin.capture");
+    return applicationOrigin;
+  });
+  const mailDispatchApplicationUrl = vi.fn(() => {
+    calls.push("origin.read");
+    return "https://learn.test";
+  });
+  const store = Object.freeze({ kind: "postgres-outbox-store" });
+  const PostgresOutboxStore = vi.fn(function StoreConstructor() {
+    calls.push("store.create");
     return store;
   });
+  const preparedRuntimePlan = Object.freeze({
+    timeouts: Object.freeze({
+      oauthDeadlineMs: 20_000,
+      guardedSendDeadlineMs: 20_000,
+      providerAbortSettlementMs: 5_000,
+    }),
+  });
+  const mailDispatchPreparedRuntimePlan = vi.fn(() => {
+    calls.push("store.runtime-plan");
+    return preparedRuntimePlan;
+  });
+  const guarded = Object.freeze({ kind: "guarded-prepared-dispatch" });
+  const authorizeCommittedPreparedDispatch = vi.fn(async () => guarded);
+  const discardCommittedPreparedDispatchReceipt = vi.fn(() => true);
+  const discardGuardedPreparedDispatch = vi.fn(() => true);
+
+  const transportConfiguration = Object.freeze({});
+  const captureMailTransportConfiguration = vi.fn(() => {
+    calls.push("transport.capture");
+    return transportConfiguration;
+  });
+  const materializedDispatch = Object.freeze({ kind: "materialized-dispatch" });
+  const createMaterializedDispatch = vi.fn(() => materializedDispatch);
+  const materializeDeliveryWithAuthorityEvidence = vi.fn();
+  const materializeDeliveryVariables = vi.fn(async () => ({}));
+
+  const watchdog = Object.freeze({
+    arm: vi.fn(),
+    close: vi.fn(async () => {
+      calls.push("watchdog.close");
+    }),
+  });
+  const startMailDispatchHardWatchdog = vi.fn(async () => {
+    calls.push("watchdog.start");
+    return watchdog;
+  });
+
   const processOutboxBatch = vi.fn();
-  const materializeDeliveryVariables = vi.fn();
-  const providerDispatch = {
-    adapter: "console" as const,
-    dispatchBindingVersion: "console-json-v1" as const,
-    dispatchBindingSha256: "a".repeat(64),
-    providerCorrelationVersion: "opaque-sha256-v1" as const,
-    providerEvidenceVersion: null,
-    providerEvidenceSha256: null,
+  const scheduleInactivityReminders = vi.fn(async () => {
+    calls.push("scheduler.inactivity");
+    return { scheduled: 0 };
+  });
+  const scheduleSmartRemindersWithDatabase = vi.fn(async () => {
+    calls.push("scheduler.smart");
+    return { candidates: 0, dispatched: 0, failed: 0 };
+  });
+  const scheduleSmartReminders = vi.fn(async () => ({ scheduled: 0 }));
+  const resolvedPolicy: { template: string } | null = { template: "new-device" };
+  const policyState: { value: { template: string } | null } = {
+    value: resolvedPolicy,
   };
-  const prepareEmail = vi.fn((input: Record<string, unknown>, context: Record<string, unknown>) => ({
-    ...input,
-    ...context,
-    providerDispatch,
-  }));
-  const sendPreparedEmail = vi.fn();
-  const classifyMailDeliveryError = vi.fn((): {
-    kind: "definitely-rejected" | "ambiguous";
-    code: string;
-  } => ({
-    kind: "ambiguous" as const,
-    code: "PROVIDER_OUTCOME_AMBIGUOUS",
-  }));
-  const scheduleInactivityReminders = vi.fn();
-  const scheduleSmartReminders = vi.fn();
+  const resolveEmailTemplateAuthorityPolicy = vi.fn(() => policyState.value);
+  const outboxMessageId = vi.fn((operationId: string) =>
+    `<${operationId}@mail.codestead.invalid>`
+  );
+
   const health = {
     success: vi.fn(),
     retry: vi.fn(),
     terminalFailure: vi.fn(),
   };
-  const createWorkerHealthReporter = vi.fn(() => health);
+  const createWorkerHealthReporter = vi.fn(() => {
+    calls.push("health.create");
+    return health;
+  });
+
+  const requireMailDispatchPostgresRuntime = vi.fn(async () => ({
+    major: 17,
+    versionNum: 170_000,
+  }));
+  const requireMailDeliveryAuthorityRuntime = vi.fn(async () => ({
+    holdCatalogExact: true,
+    deliveryReleaseCapabilityExact: true,
+  }));
+  const legacyPrepareEmail = vi.fn(() => ({}));
+  const legacySendPreparedEmail = vi.fn(async () => ({ providerId: "legacy" }));
+  const legacyClassifyMailDeliveryError = vi.fn(() => ({
+    kind: "ambiguous",
+    code: "PROVIDER_OUTCOME_AMBIGUOUS",
+  }));
 
   return {
-    db: { update, select },
+    calls,
     pool,
     poolEnd,
-    poolQuery,
+    database,
+    resources,
+    createMailDispatchBootstrapResources,
+    inspection,
+    inspectMailDispatchRuntime,
+    applicationOrigin,
+    captureMailDispatchApplicationOrigin,
+    mailDispatchApplicationUrl,
     store,
     PostgresOutboxStore,
-    processOutboxBatch,
+    preparedRuntimePlan,
+    mailDispatchPreparedRuntimePlan,
+    authorizeCommittedPreparedDispatch,
+    discardCommittedPreparedDispatchReceipt,
+    discardGuardedPreparedDispatch,
+    guarded,
+    transportConfiguration,
+    captureMailTransportConfiguration,
+    materializedDispatch,
+    createMaterializedDispatch,
+    materializeDeliveryWithAuthorityEvidence,
     materializeDeliveryVariables,
-    prepareEmail,
-    sendPreparedEmail,
-    providerDispatch,
-    classifyMailDeliveryError,
+    watchdog,
+    startMailDispatchHardWatchdog,
+    processOutboxBatch,
     scheduleInactivityReminders,
+    scheduleSmartRemindersWithDatabase,
     scheduleSmartReminders,
+    policyState,
+    resolveEmailTemplateAuthorityPolicy,
+    outboxMessageId,
     health,
     createWorkerHealthReporter,
+    requireMailDispatchPostgresRuntime,
+    requireMailDeliveryAuthorityRuntime,
+    legacyPrepareEmail,
+    legacySendPreparedEmail,
+    legacyClassifyMailDeliveryError,
   };
 });
 
-vi.mock("drizzle-orm", () => ({
-  and: vi.fn(),
-  asc: vi.fn(),
-  eq: vi.fn(),
-  lt: vi.fn(),
-  lte: vi.fn(),
+vi.mock("../src/lib/notifications/mail-dispatch-pool", () => ({
+  createMailDispatchBootstrapResources:
+    mocks.createMailDispatchBootstrapResources,
 }));
-vi.mock("../src/lib/db/client", () => ({ db: mocks.db, pool: mocks.pool }));
-vi.mock("../src/lib/db/schema", () => ({
-  emailOutbox: {
-    id: "id",
-    status: "status",
-    updatedAt: "updated_at",
-    nextAttemptAt: "next_attempt_at",
-    createdAt: "created_at",
-  },
+vi.mock("../src/lib/notifications/mail-dispatch-runtime-startup", () => ({
+  inspectMailDispatchRuntime: mocks.inspectMailDispatchRuntime,
+  requireMailDispatchPostgresRuntime: mocks.requireMailDispatchPostgresRuntime,
+  requireMailDeliveryAuthorityRuntime: mocks.requireMailDeliveryAuthorityRuntime,
 }));
 vi.mock("../src/lib/notifications/postgres-outbox-store", () => ({
   PostgresOutboxStore: mocks.PostgresOutboxStore,
+  captureMailDispatchApplicationOrigin:
+    mocks.captureMailDispatchApplicationOrigin,
+  mailDispatchApplicationUrl: mocks.mailDispatchApplicationUrl,
+  mailDispatchPreparedRuntimePlan: mocks.mailDispatchPreparedRuntimePlan,
+  authorizeCommittedPreparedDispatch:
+    mocks.authorizeCommittedPreparedDispatch,
+  discardCommittedPreparedDispatchReceipt:
+    mocks.discardCommittedPreparedDispatchReceipt,
+  discardGuardedPreparedDispatch: mocks.discardGuardedPreparedDispatch,
+}));
+vi.mock("../src/lib/notifications/guarded-prepared-dispatch", () => ({
+  createMaterializedDispatch: mocks.createMaterializedDispatch,
+}));
+vi.mock("../src/lib/notifications/mailer-transport-internal", () => ({
+  captureMailTransportConfiguration:
+    mocks.captureMailTransportConfiguration,
+}));
+vi.mock("../src/lib/notifications/mail-dispatch-hard-watchdog", () => ({
+  startMailDispatchHardWatchdog: mocks.startMailDispatchHardWatchdog,
+}));
+vi.mock("../src/lib/notifications/delivery-variables", () => ({
+  materializeDeliveryWithAuthorityEvidence:
+    mocks.materializeDeliveryWithAuthorityEvidence,
+  materializeDeliveryVariables: mocks.materializeDeliveryVariables,
 }));
 vi.mock("../src/lib/notifications/outbox-worker", () => ({
   processOutboxBatch: mocks.processOutboxBatch,
-}));
-vi.mock("../src/lib/notifications/mailer", () => ({
-  prepareEmail: mocks.prepareEmail,
-  sendPreparedEmail: mocks.sendPreparedEmail,
-  classifyMailDeliveryError: mocks.classifyMailDeliveryError,
-}));
-vi.mock("../src/lib/notifications/delivery-variables", () => ({
-  materializeDeliveryVariables: mocks.materializeDeliveryVariables,
 }));
 vi.mock("../src/lib/notifications/inactivity", () => ({
   scheduleInactivityReminders: mocks.scheduleInactivityReminders,
 }));
 vi.mock("../src/lib/notifications/smart-reminders", () => ({
+  scheduleSmartRemindersWithDatabase:
+    mocks.scheduleSmartRemindersWithDatabase,
   scheduleSmartReminders: mocks.scheduleSmartReminders,
+}));
+vi.mock("../src/lib/notifications/template-authority-policy", () => ({
+  resolveEmailTemplateAuthorityPolicy:
+    mocks.resolveEmailTemplateAuthorityPolicy,
+}));
+vi.mock("../src/lib/notifications/provider-correlation", () => ({
+  outboxMessageId: mocks.outboxMessageId,
 }));
 vi.mock("./lib/worker-health", () => ({
   createWorkerHealthReporter: mocks.createWorkerHealthReporter,
 }));
 
-const originalArgv = [...process.argv];
-const UUID_LOG_CANARY = "550e8400-e29b-41d4-a716-446655440000";
-const BASE64URL_LOG_CANARY = "ZXlKamJHRnBiVWxrSWpvaVkyOWhhVzB0YzJWamNtVjBJaXdpYzJOdmNHVWlPaUp0WVdsc0luMA";
-const RECIPIENT_LOG_CANARY = "private.person@recipient.example";
-const RAW_MIME_LOG_CANARY =
-  "RnJvbTogcHJpdmF0ZUBleGFtcGxlLnRlc3QNCkF1dGhvcml6YXRpb246IEJlYXJlciBwcml2YXRl";
+// These compatibility mocks keep the pre-fix process importable so the new
+// behavioral assertions fail on composition rather than unrelated I/O.
+vi.mock("../src/lib/db/client", () => ({ pool: mocks.pool }));
+vi.mock("../src/lib/notifications/mailer", () => ({
+  prepareEmail: mocks.legacyPrepareEmail,
+  sendPreparedEmail: mocks.legacySendPreparedEmail,
+  classifyMailDeliveryError: mocks.legacyClassifyMailDeliveryError,
+}));
 
-type BatchResult = {
+const originalArgv = [...process.argv];
+const RECIPIENT_CANARY = "private.person@recipient.example";
+const TOKEN_CANARY =
+  "ZXlKamJHRnBiVWxrSWpvaVkyOWhhVzB0YzJWamNtVjBJaXdpYzJOdmNHVWlPaUp0WVdsc0luMA";
+
+type WorkerDependencies = Readonly<{
+  store: unknown;
+  adapter: string;
+  watchdog: unknown;
+  authorize(receipt: unknown): Promise<unknown>;
+  discardReceipt(permit: unknown, receipt: unknown): boolean;
+  discardGuard(permit: unknown, guard: unknown): boolean;
+  materialize(claim: unknown): Promise<unknown>;
+  shouldStop(): boolean;
+  policy: Readonly<Record<string, number>>;
+}>;
+
+type BatchResult = Readonly<{
   claimed: number;
   swept: number;
-  outcomes: Array<{
-    id: string;
-    operationId: string;
+  outcomes: readonly Readonly<{
     kind: string;
     code?: string;
-  }>;
-};
+    [key: string]: unknown;
+  }>[];
+}>;
+
+function batchResult(overrides: Partial<BatchResult> = {}): BatchResult {
+  return {
+    claimed: 0,
+    swept: 0,
+    outcomes: [],
+    ...overrides,
+  };
+}
+
+async function flushWorkerMicrotasks() {
+  for (let index = 0; index < 12; index += 1) await Promise.resolve();
+}
 
 async function loadWorkerOnce() {
   process.argv = [originalArgv[0]!, originalArgv[1]!, "--once"];
@@ -136,41 +287,47 @@ async function loadWorkerOnce() {
   await vi.waitFor(() => expect(mocks.poolEnd).toHaveBeenCalledTimes(1));
 }
 
-async function flushWorkerMicrotasks() {
-  for (let index = 0; index < 12; index += 1) {
-    await Promise.resolve();
-  }
+function capturedDependencies(): WorkerDependencies {
+  const dependencies = mocks.processOutboxBatch.mock.calls[0]?.[0];
+  expect(dependencies).toBeDefined();
+  return dependencies as WorkerDependencies;
+}
+
+function callPosition(event: string) {
+  const position = mocks.calls.indexOf(event);
+  expect(position, `missing call marker ${event}`).toBeGreaterThanOrEqual(0);
+  return position;
 }
 
 describe("mail worker production composition", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     vi.resetModules();
     vi.clearAllMocks();
+    mocks.calls.length = 0;
+    mocks.policyState.value = { template: "new-device" };
+    mocks.inspectMailDispatchRuntime.mockImplementation(async () => {
+      mocks.calls.push("runtime.inspect");
+      return mocks.inspection;
+    });
+    mocks.mailDispatchApplicationUrl.mockImplementation(() => {
+      mocks.calls.push("origin.read");
+      return "https://learn.test";
+    });
+    mocks.materializeDeliveryWithAuthorityEvidence.mockResolvedValue(
+      Object.freeze({
+        authorityEvidence: null,
+        variables: Object.freeze({ name: "Learner" }),
+      }),
+    );
+    mocks.processOutboxBatch.mockResolvedValue(batchResult());
+    vi.stubEnv("APP_URL", "https://learn.test");
     vi.stubEnv("MAIL_ADAPTER", "console");
+    vi.stubEnv("MAIL_FROM", "Codestead <mail@learn.test>");
     vi.stubEnv("OUTBOX_WORKER_MODE", "fenced-postgres-v1");
     vi.stubEnv("OUTBOX_POLL_SECONDS", "10");
     vi.stubEnv("INACTIVITY_SCHEDULE_SECONDS", "60");
     process.exitCode = undefined;
-    mocks.processOutboxBatch.mockResolvedValue({
-      claimed: 0,
-      swept: 0,
-      outcomes: [],
-    } satisfies BatchResult);
-    mocks.poolQuery.mockImplementation(async (queryText: string) => (
-      queryText.includes("server_version_num")
-        ? { rows: [{ server_version_num: "170000" }] }
-        : {
-            rows: [{
-              hold_catalog_present: false,
-              hold_catalog_exact: false,
-              delivery_release_capability_exact: false,
-            }],
-          }
-    ));
-    mocks.materializeDeliveryVariables.mockResolvedValue({});
-    mocks.sendPreparedEmail.mockResolvedValue({ providerId: "console-provider-1" });
-    mocks.scheduleInactivityReminders.mockResolvedValue({ scheduled: 0 });
-    mocks.scheduleSmartReminders.mockResolvedValue({ scheduled: 0 });
     vi.spyOn(console, "info").mockImplementation(() => undefined);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
@@ -183,299 +340,353 @@ describe("mail worker production composition", () => {
     vi.restoreAllMocks();
   });
 
-  it.each(["", "legacy-direct-v1", "fenced-postgres-v1 "])(
-    "fails closed before scheduling or claiming for worker mode %j",
-    async (mode) => {
-      vi.stubEnv("OUTBOX_WORKER_MODE", mode);
+  it("uses one opaque-inspected pool for store, schedulers, worker, and cleanup", async () => {
+    await loadWorkerOnce();
 
-      await loadWorkerOnce();
+    expect(mocks.createMailDispatchBootstrapResources).toHaveBeenCalledOnce();
+    expect(mocks.inspectMailDispatchRuntime).toHaveBeenCalledWith(mocks.pool);
+    expect(mocks.captureMailDispatchApplicationOrigin)
+      .toHaveBeenCalledWith(mocks.inspection);
+    expect(mocks.mailDispatchApplicationUrl)
+      .toHaveBeenCalledWith(mocks.applicationOrigin);
+    expect(mocks.PostgresOutboxStore).toHaveBeenCalledWith(
+      mocks.pool,
+      mocks.inspection,
+      mocks.applicationOrigin,
+    );
+    expect(mocks.mailDispatchPreparedRuntimePlan)
+      .toHaveBeenCalledWith(mocks.store);
+    expect(mocks.captureMailTransportConfiguration)
+      .toHaveBeenCalledWith("console");
+    expect(mocks.startMailDispatchHardWatchdog).toHaveBeenCalledOnce();
+    expect(mocks.scheduleInactivityReminders).toHaveBeenCalledWith(
+      expect.any(Date),
+      mocks.pool,
+    );
+    expect(mocks.scheduleSmartRemindersWithDatabase).toHaveBeenCalledWith(
+      mocks.database,
+      expect.any(Date),
+    );
+    expect(mocks.scheduleSmartReminders).not.toHaveBeenCalled();
 
-      expect(process.exitCode).toBe(1);
-      expect(mocks.PostgresOutboxStore).not.toHaveBeenCalled();
-      expect(mocks.processOutboxBatch).not.toHaveBeenCalled();
-      expect(mocks.scheduleInactivityReminders).not.toHaveBeenCalled();
-      expect(mocks.scheduleSmartReminders).not.toHaveBeenCalled();
-      expect(mocks.createWorkerHealthReporter).not.toHaveBeenCalled();
-      expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
-      expect(console.error).toHaveBeenCalledWith(
-        JSON.stringify({
-          event: "email.worker_failed",
-          code: "OUTBOX_WORKER_MODE_INVALID",
-        }),
-      );
-    },
-  );
+    const dependencies = capturedDependencies();
+    expect(dependencies.store).toBe(mocks.store);
+    expect(dependencies.watchdog).toBe(mocks.watchdog);
+    expect(dependencies.adapter).toBe("console");
+    expect(dependencies).not.toHaveProperty("provider");
+    expect(dependencies.policy).not.toHaveProperty("providerLeaseMs");
 
-  it("fails closed before constructing the store on PostgreSQL 16", async () => {
-    mocks.poolQuery.mockResolvedValueOnce({
-      rows: [{ server_version_num: "160011" }],
+    const receipt = Object.freeze({});
+    const permit = Object.freeze({});
+    await expect(dependencies.authorize(receipt)).resolves.toBe(mocks.guarded);
+    expect(mocks.authorizeCommittedPreparedDispatch)
+      .toHaveBeenCalledWith(mocks.store, receipt);
+    expect(dependencies.discardReceipt(permit, receipt)).toBe(true);
+    expect(mocks.discardCommittedPreparedDispatchReceipt)
+      .toHaveBeenCalledWith(mocks.store, permit, receipt);
+    expect(dependencies.discardGuard(permit, mocks.guarded)).toBe(true);
+    expect(mocks.discardGuardedPreparedDispatch)
+      .toHaveBeenCalledWith(mocks.store, permit, mocks.guarded);
+
+    expect(callPosition("resources.create")).toBeLessThan(
+      callPosition("runtime.inspect"),
+    );
+    expect(callPosition("runtime.inspect")).toBeLessThan(
+      callPosition("origin.capture"),
+    );
+    expect(callPosition("runtime.inspect")).toBeLessThan(
+      callPosition("transport.capture"),
+    );
+    expect(callPosition("store.create")).toBeLessThan(
+      callPosition("watchdog.start"),
+    );
+    expect(callPosition("watchdog.close")).toBeLessThan(
+      callPosition("pool.end"),
+    );
+  });
+
+  it("materializes exact bytes from captured configuration and stored authority", async () => {
+    await loadWorkerOnce();
+    const authorityEvidence = Object.freeze({
+      kind: "lost-device-proof",
+      sourceId: "10000000-0000-4000-8000-000000000001",
+      proofHash: "a".repeat(64),
     });
+    const deliveryVariables = Object.freeze({
+      name: "Learner",
+      url: "https://learn.test/lost-device#proof=ephemeral",
+    });
+    mocks.policyState.value = { template: "lost-device-proof" };
+    mocks.materializeDeliveryWithAuthorityEvidence.mockResolvedValueOnce(
+      Object.freeze({ authorityEvidence, variables: deliveryVariables }),
+    );
+    vi.stubEnv("APP_URL", "https://changed-after-startup.invalid");
+
+    const claim = Object.freeze({
+      phase: "pre-provider",
+      id: "10000000-0000-4000-8000-000000000010",
+      operationId: "10000000-0000-4000-8000-000000000011",
+      claimToken: "10000000-0000-4000-8000-000000000012",
+      claimOwner: "mail-worker:test",
+      claimVersion: 3,
+      deliveryScopeKey: "a:10000000-0000-4000-8000-000000000013",
+      userId: "10000000-0000-4000-8000-000000000013",
+      attempt: 1,
+      leaseExpiresAt: new Date("2026-07-27T12:00:00.000Z"),
+      payload: Object.freeze({
+        userId: "10000000-0000-4000-8000-000000000013",
+        to: "learner@example.test",
+        template: "lost-device-proof",
+        templateVersion: "1",
+        variables: Object.freeze({
+          name: "Learner",
+          recoveryRequestId: "10000000-0000-4000-8000-000000000001",
+        }),
+      }),
+    });
+
+    await expect(capturedDependencies().materialize(claim)).resolves.toEqual({
+      kind: "ready",
+      materialized: mocks.materializedDispatch,
+    });
+    expect(mocks.materializeDeliveryWithAuthorityEvidence).toHaveBeenCalledWith({
+      applicationUrl: "https://learn.test",
+      template: "lost-device-proof",
+      templateVersion: "1",
+      variables: { ...claim.payload.variables },
+      now: expect.any(Date),
+    });
+    expect(mocks.createMaterializedDispatch).toHaveBeenCalledWith({
+      source: {
+        applicationUrl: "https://learn.test",
+        outboxId: claim.id,
+        operationId: claim.operationId,
+        claimToken: claim.claimToken,
+        claimOwner: claim.claimOwner,
+        claimVersion: claim.claimVersion,
+        deliveryScopeKey: claim.deliveryScopeKey,
+        recipient: claim.payload.to,
+        template: "lost-device-proof",
+        templateVersion: "1",
+        variables: { ...claim.payload.variables },
+      },
+      adapter: "console",
+      from: "Codestead <mail@learn.test>",
+      messageId: `<${claim.operationId}@mail.codestead.invalid>`,
+      runtimePlan: mocks.preparedRuntimePlan,
+      transportConfiguration: mocks.transportConfiguration,
+      delivery: {
+        authorityEvidence,
+        variables: deliveryVariables,
+      },
+    });
+  });
+
+  it("fails closed at inspection before configuration capture or mail work", async () => {
+    mocks.inspectMailDispatchRuntime.mockRejectedValueOnce(
+      new Error(`database failed ${RECIPIENT_CANARY}/${TOKEN_CANARY}`),
+    );
 
     await loadWorkerOnce();
 
     expect(process.exitCode).toBe(1);
-    expect(mocks.poolQuery).toHaveBeenCalledTimes(1);
+    expect(mocks.captureMailDispatchApplicationOrigin).not.toHaveBeenCalled();
+    expect(mocks.captureMailTransportConfiguration).not.toHaveBeenCalled();
     expect(mocks.PostgresOutboxStore).not.toHaveBeenCalled();
-    expect(mocks.processOutboxBatch).not.toHaveBeenCalled();
+    expect(mocks.startMailDispatchHardWatchdog).not.toHaveBeenCalled();
     expect(mocks.scheduleInactivityReminders).not.toHaveBeenCalled();
-    expect(mocks.scheduleSmartReminders).not.toHaveBeenCalled();
-    expect(mocks.createWorkerHealthReporter).not.toHaveBeenCalled();
-    expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
-    expect(console.error).toHaveBeenCalledWith(
-      JSON.stringify({
-        event: "email.worker_failed",
-        code: "POSTGRES_RUNTIME_UNSUPPORTED",
-      }),
+    expect(mocks.scheduleSmartRemindersWithDatabase).not.toHaveBeenCalled();
+    expect(mocks.processOutboxBatch).not.toHaveBeenCalled();
+    expect(mocks.poolEnd).toHaveBeenCalledOnce();
+    const output = vi.mocked(console.error).mock.calls.flat().map(String).join("\n");
+    expect(output).toContain('"event":"email.worker_failed"');
+    expect(output).not.toContain(RECIPIENT_CANARY);
+    expect(output).not.toContain(TOKEN_CANARY);
+  });
+
+  it("rejects invalid worker mode before creating any resource", async () => {
+    vi.stubEnv("OUTBOX_WORKER_MODE", "legacy-direct-v1");
+    process.argv = [originalArgv[0]!, originalArgv[1]!, "--once"];
+
+    await import("./process-outbox");
+    await vi.waitFor(() => expect(console.error).toHaveBeenCalled());
+
+    expect(process.exitCode).toBe(1);
+    expect(mocks.createMailDispatchBootstrapResources).not.toHaveBeenCalled();
+    expect(mocks.inspectMailDispatchRuntime).not.toHaveBeenCalled();
+    expect(mocks.poolEnd).not.toHaveBeenCalled();
+  });
+
+  it("drains an in-flight batch before watchdog and pool shutdown", async () => {
+    process.argv = [originalArgv[0]!, originalArgv[1]!];
+    const listenersBefore = process.listeners("SIGTERM");
+    let finishBatch: ((result: BatchResult) => void) | undefined;
+    const inFlight = new Promise<BatchResult>((resolve) => {
+      finishBatch = resolve;
+    });
+    mocks.processOutboxBatch.mockImplementationOnce(async () => inFlight);
+
+    await import("./process-outbox");
+    await flushWorkerMicrotasks();
+    const signalHandler = process.listeners("SIGTERM")
+      .find((listener) => !listenersBefore.includes(listener));
+    expect(signalHandler).toBeTypeOf("function");
+    expect(capturedDependencies().shouldStop()).toBe(false);
+
+    signalHandler!("SIGTERM");
+    expect(capturedDependencies().shouldStop()).toBe(true);
+    expect(mocks.watchdog.close).not.toHaveBeenCalled();
+    expect(mocks.poolEnd).not.toHaveBeenCalled();
+
+    finishBatch?.(batchResult({ claimed: 1 }));
+    await vi.waitFor(() => expect(mocks.poolEnd).toHaveBeenCalledOnce());
+
+    expect(mocks.processOutboxBatch).toHaveBeenCalledOnce();
+    expect(mocks.watchdog.close).toHaveBeenCalledOnce();
+    expect(callPosition("watchdog.close")).toBeLessThan(
+      callPosition("pool.end"),
     );
   });
 
-  it("runs the fenced state machine with a PostgreSQL store and stable process authority", async () => {
-    await loadWorkerOnce();
-
-    expect(mocks.poolQuery).toHaveBeenCalledWith(
-      "select pg_catalog.current_setting('server_version_num') as server_version_num",
+  it("bounds a never-settling batch by drain and application-stop deadlines", async () => {
+    vi.useFakeTimers();
+    const exit = vi.spyOn(process, "exit").mockImplementation(
+      (() => undefined) as unknown as typeof process.exit,
     );
-    expect(mocks.poolQuery).toHaveBeenCalledWith(
-      expect.stringContaining("delivery_hold_version"),
+    process.argv = [originalArgv[0]!, originalArgv[1]!];
+    const rawListenersBefore = process.rawListeners("SIGTERM");
+    let finishBatch: ((result: BatchResult) => void) | undefined;
+    const inFlight = new Promise<BatchResult>((resolve) => {
+      finishBatch = resolve;
+    });
+    mocks.processOutboxBatch.mockImplementationOnce(async () => inFlight);
+
+    await import("./process-outbox");
+    await flushWorkerMicrotasks();
+    const signalHandler = process.rawListeners("SIGTERM")
+      .find((listener) => !rawListenersBefore.includes(listener));
+    expect(signalHandler).toBeTypeOf("function");
+
+    try {
+      signalHandler!.call(process, "SIGTERM");
+      expect(capturedDependencies().shouldStop()).toBe(true);
+      expect(process.rawListeners("SIGTERM")).toContain(signalHandler);
+
+      await vi.advanceTimersByTimeAsync(
+        mocks.inspection.plan.timeouts.drainMs - 1,
+      );
+      expect(mocks.watchdog.close).not.toHaveBeenCalled();
+      expect(mocks.poolEnd).not.toHaveBeenCalled();
+      expect(exit).not.toHaveBeenCalled();
+
+      signalHandler!.call(process, "SIGTERM");
+      await vi.advanceTimersByTimeAsync(1);
+      await flushWorkerMicrotasks();
+      expect(mocks.watchdog.close).toHaveBeenCalledOnce();
+      expect(mocks.poolEnd).toHaveBeenCalledOnce();
+      expect(exit).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(
+        mocks.inspection.plan.timeouts.stopMs
+          - mocks.inspection.plan.timeouts.drainMs
+          - 1,
+      );
+      expect(exit).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+      await flushWorkerMicrotasks();
+      expect(exit).toHaveBeenCalledOnce();
+      expect(exit).toHaveBeenCalledWith(1);
+      const output = vi.mocked(console.error).mock.calls
+        .flat()
+        .map(String)
+        .join("\n");
+      expect(output).toContain('"event":"email.worker_stop_timeout"');
+      expect(output).toContain('"code":"APPLICATION_STOP_TIMEOUT"');
+      expect(output).not.toContain(RECIPIENT_CANARY);
+      expect(output).not.toContain(TOKEN_CANARY);
+    } finally {
+      finishBatch?.(batchResult());
+      await flushWorkerMicrotasks();
+    }
+  });
+  it("keeps a drain timeout fatal when the batch settles before application stop", async () => {
+    vi.useFakeTimers();
+    const exit = vi.spyOn(process, "exit").mockImplementation(
+      (() => undefined) as unknown as typeof process.exit,
     );
-    expect(mocks.PostgresOutboxStore).toHaveBeenCalledWith(mocks.pool);
-    expect(mocks.poolQuery.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.PostgresOutboxStore.mock.invocationCallOrder[0]!,
+    process.argv = [originalArgv[0]!, originalArgv[1]!];
+    const listenersBefore = process.listeners("SIGTERM");
+    let finishBatch: ((result: BatchResult) => void) | undefined;
+    const inFlight = new Promise<BatchResult>((resolve) => {
+      finishBatch = resolve;
+    });
+    mocks.processOutboxBatch.mockImplementationOnce(async () => inFlight);
+
+    await import("./process-outbox");
+    await flushWorkerMicrotasks();
+    const signalHandler = process.listeners("SIGTERM")
+      .find((listener) => !listenersBefore.includes(listener));
+    expect(signalHandler).toBeTypeOf("function");
+
+    signalHandler!("SIGTERM");
+    await vi.advanceTimersByTimeAsync(
+      mocks.inspection.plan.timeouts.drainMs,
     );
-    expect(mocks.processOutboxBatch).toHaveBeenCalledTimes(1);
-    const dependencies = mocks.processOutboxBatch.mock.calls[0]![0] as {
-      store: unknown;
-      claimOwner: string;
-      newClaimToken(): string;
-      shouldStop(): boolean;
-      provider: { adapter: string };
-      policy: Record<string, number>;
-    };
-    expect(dependencies.store).toBe(mocks.store);
-    expect(dependencies.claimOwner).toMatch(/^mail-worker:/);
-    expect(dependencies.newClaimToken()).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    await flushWorkerMicrotasks();
+
+    expect(process.exitCode).toBe(1);
+    expect(exit).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith(JSON.stringify({
+      event: "email.worker_drain_timeout",
+      code: "APPLICATION_DRAIN_TIMEOUT",
+    }));
+    expect(mocks.watchdog.close).toHaveBeenCalledOnce();
+    expect(mocks.poolEnd).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(1);
+    finishBatch?.(batchResult());
+    await flushWorkerMicrotasks();
+    await vi.advanceTimersByTimeAsync(
+      mocks.inspection.plan.timeouts.stopMs
+        - mocks.inspection.plan.timeouts.drainMs
+        - 1,
     );
-    expect(dependencies.shouldStop()).toBe(false);
-    expect(dependencies.provider.adapter).toBe("console");
-    expect(dependencies.policy).toEqual({
-      batchSize: 10,
-      materializeLeaseMs: 60_000,
-      providerLeaseMs: 300_000,
-      maxMaterializeAttempts: 8,
-      maxRetryDelayMs: 6 * 60 * 60_000,
-      terminalPersistenceAttempts: 3,
-    });
-    expect(mocks.db.select).not.toHaveBeenCalled();
-    expect(mocks.db.update).not.toHaveBeenCalled();
+    await flushWorkerMicrotasks();
+
+    expect(process.exitCode).toBe(1);
+    expect(exit).not.toHaveBeenCalled();
+    const output = vi.mocked(console.error).mock.calls
+      .flat()
+      .map(String)
+      .join("\n");
+    expect(output.match(/APPLICATION_DRAIN_TIMEOUT/g)).toHaveLength(1);
+    expect(output).not.toContain(RECIPIENT_CANARY);
+    expect(output).not.toContain(TOKEN_CANARY);
   });
-
-  it("materializes delivery-only variables and converts a provider receipt for the state machine", async () => {
-    const materialized = {
-      name: "Learner",
-      url: "https://example.test/reset?token=delivery-only",
-    };
-    mocks.materializeDeliveryVariables.mockResolvedValue(materialized);
-    mocks.sendPreparedEmail.mockResolvedValue({ providerId: "gmail-message-1" });
-    let materializeResult: unknown;
-    let providerResult: unknown;
-    mocks.processOutboxBatch.mockImplementation(async (dependencies: {
-      materialize(claim: unknown): Promise<unknown>;
-      provider: {
-        send(message: unknown, context: unknown): Promise<unknown>;
-      };
-    }) => {
-      const claim = {
-        phase: "pre-provider",
-        id: "11111111-1111-4111-8111-111111111111",
-        operationId: "22222222-2222-4222-8222-222222222222",
-        claimToken: "33333333-3333-4333-8333-333333333333",
-        claimOwner: "worker",
-        claimVersion: 1,
-        attempt: 1,
-        leaseExpiresAt: new Date("2026-07-23T00:01:00.000Z"),
-        payload: {
-          userId: "learner-1",
-          to: "learner@example.test",
-          template: "reset-password",
-          templateVersion: "1",
-          variables: { recoveryRequestId: "not-persisted-in-the-message" },
-        },
-      };
-      materializeResult = await dependencies.materialize(claim);
-      const message = (materializeResult as { message: unknown }).message;
-      providerResult = await dependencies.provider.send(message, {
-        operationId: claim.operationId,
-        messageId: "<codestead.outbox.v1.okd-aMXCHPuS1pgnjdYfjG17CU5nfw-6stQE23enb8Q@mail.codestead.invalid>",
-        permit: { phase: "post-provider" },
-      });
-      return { claimed: 1, swept: 0, outcomes: [] };
-    });
-
-    await loadWorkerOnce();
-
-    expect(mocks.materializeDeliveryVariables).toHaveBeenCalledWith({
-      template: "reset-password",
-      variables: { recoveryRequestId: "not-persisted-in-the-message" },
-      now: expect.any(Date),
-    });
-    expect(mocks.prepareEmail).toHaveBeenCalledWith({
-      to: "learner@example.test",
-      template: "reset-password",
-      variables: materialized,
-    }, {
-      adapter: "console",
-      operationId: "22222222-2222-4222-8222-222222222222",
-      messageId: "<codestead.outbox.v1.okd-aMXCHPuS1pgnjdYfjG17CU5nfw-6stQE23enb8Q@mail.codestead.invalid>",
-    });
-    expect(materializeResult).toEqual({
-      kind: "ready",
-      message: {
-        adapter: "console",
-        operationId: "22222222-2222-4222-8222-222222222222",
-        messageId: "<codestead.outbox.v1.okd-aMXCHPuS1pgnjdYfjG17CU5nfw-6stQE23enb8Q@mail.codestead.invalid>",
-        to: "learner@example.test",
-        template: "reset-password",
-        variables: materialized,
-        providerDispatch: mocks.providerDispatch,
-      },
-    });
-    expect(mocks.sendPreparedEmail).toHaveBeenCalledWith(
-      (materializeResult as { message: unknown }).message,
-    );
-    expect(providerResult).toEqual({
-      kind: "accepted",
-      providerMessageId: "gmail-message-1",
-    });
-  });
-
-  it("maps a typed pre-request mail failure to definite rejection", async () => {
-    const failure = new Error("Gmail OAuth request timed out.");
-    mocks.sendPreparedEmail.mockRejectedValueOnce(failure);
-    mocks.classifyMailDeliveryError.mockReturnValueOnce({
-      kind: "definitely-rejected",
-      code: "GMAIL_OAUTH_FAILED",
-    });
-    let providerResult: unknown;
-    mocks.processOutboxBatch.mockImplementation(async (dependencies: {
-      provider: {
-        send(message: unknown, context: unknown): Promise<unknown>;
-      };
-    }) => {
-      providerResult = await dependencies.provider.send({
-        operationId: "22222222-2222-4222-8222-222222222222",
-        messageId: "<codestead.outbox.v1.okd-aMXCHPuS1pgnjdYfjG17CU5nfw-6stQE23enb8Q@mail.codestead.invalid>",
-        providerDispatch: mocks.providerDispatch,
-      }, {
-        operationId: "22222222-2222-4222-8222-222222222222",
-        messageId: "<codestead.outbox.v1.okd-aMXCHPuS1pgnjdYfjG17CU5nfw-6stQE23enb8Q@mail.codestead.invalid>",
-        permit: { phase: "post-provider" },
-      });
-      return { claimed: 1, swept: 0, outcomes: [] };
-    });
-
-    await loadWorkerOnce();
-
-    expect(providerResult).toEqual({
-      kind: "definitely-rejected",
-      code: "GMAIL_OAUTH_FAILED",
-    });
-  });
-  it("suppresses an unknown stored template before materialization or provider work", async () => {
-    let materializeResult: unknown;
-    mocks.processOutboxBatch.mockImplementation(async (dependencies: {
-      materialize(claim: unknown): Promise<unknown>;
-    }) => {
-      materializeResult = await dependencies.materialize({
-        phase: "pre-provider",
-        id: "11111111-1111-4111-8111-111111111111",
-        operationId: "22222222-2222-4222-8222-222222222222",
-        claimToken: "33333333-3333-4333-8333-333333333333",
-        claimOwner: "worker",
-        claimVersion: 1,
-        attempt: 1,
-        leaseExpiresAt: new Date("2026-07-23T00:01:00.000Z"),
-        payload: {
-          userId: "learner-1",
-          to: "learner@example.test",
-          template: "exam-result",
-          templateVersion: "1",
-          variables: {},
-        },
-      });
-      return { claimed: 1, swept: 0, outcomes: [] };
-    });
-
-    await loadWorkerOnce();
-
-    expect(materializeResult).toEqual({
-      kind: "suppressed",
-      code: "TEMPLATE_POLICY_INVALID",
-    });
-    expect(mocks.materializeDeliveryVariables).not.toHaveBeenCalled();
-    expect(mocks.sendPreparedEmail).not.toHaveBeenCalled();
-  });
-  it("suppresses a row before provider delivery when delivery proof cannot be materialized", async () => {
-    mocks.materializeDeliveryVariables.mockResolvedValue(null);
-    let materializeResult: unknown;
-    mocks.processOutboxBatch.mockImplementation(async (dependencies: {
-      materialize(claim: unknown): Promise<unknown>;
-    }) => {
-      materializeResult = await dependencies.materialize({
-        phase: "pre-provider",
-        id: "11111111-1111-4111-8111-111111111111",
-        operationId: "22222222-2222-4222-8222-222222222222",
-        claimToken: "33333333-3333-4333-8333-333333333333",
-        claimOwner: "worker",
-        claimVersion: 1,
-        attempt: 1,
-        leaseExpiresAt: new Date("2026-07-23T00:01:00.000Z"),
-        payload: {
-          userId: "learner-1",
-          to: "learner@example.test",
-          template: "lost-device-proof",
-          templateVersion: "1",
-          variables: { recoveryRequestId: "expired" },
-        },
-      });
-      return { claimed: 1, swept: 0, outcomes: [] };
-    });
-
-    await loadWorkerOnce();
-
-    expect(materializeResult).toEqual({
-      kind: "suppressed",
-      code: "DELIVERY_PROOF_UNAVAILABLE",
-    });
-    expect(mocks.sendPreparedEmail).not.toHaveBeenCalled();
-  });
-
-  it("logs outcome counts without row, operation, recipient, or bearer data", async () => {
-    mocks.processOutboxBatch.mockResolvedValue({
+  it("logs only aggregate outcomes and never row or payload identifiers", async () => {
+    mocks.processOutboxBatch.mockResolvedValueOnce(batchResult({
       claimed: 7,
       swept: 2,
       outcomes: [
-        { id: "row-sent", operationId: "operation-secret-1", kind: "sent" },
-        { id: "row-retry", operationId: "operation-secret-2", kind: "retry" },
-        { id: "row-failed", operationId: "operation-secret-3", kind: "failed" },
-        { id: "row-suppressed", operationId: "operation-secret-4", kind: "suppressed" },
-        { id: "row-quarantined", operationId: "operation-secret-5", kind: "quarantined" },
-        { id: "row-lost", operationId: "operation-secret-6", kind: "claim-lost" },
-        {
-          id: "row-unknown",
-          operationId: "operation-secret-7",
-          kind: "persistence-unknown",
-        },
+        { kind: "sent", recipient: RECIPIENT_CANARY },
+        { kind: "retry", token: TOKEN_CANARY },
+        { kind: "failed" },
+        { kind: "suppressed" },
+        { kind: "quarantined" },
+        { kind: "claim-lost" },
+        { kind: "persistence-unknown" },
       ],
-    } satisfies BatchResult);
+    }));
 
     await loadWorkerOnce();
 
     const entries = vi.mocked(console.info).mock.calls
-      .map(([entry]) => String(entry))
-      .filter((entry) => entry.includes('"event":"email.outbox_batch"'));
-    expect(entries).toHaveLength(1);
-    expect(JSON.parse(entries[0]!)).toEqual({
+      .map(([entry]) => String(entry));
+    const batchEntry = entries.find((entry) =>
+      entry.includes('"event":"email.outbox_batch"')
+    );
+    expect(JSON.parse(batchEntry!)).toEqual({
       event: "email.outbox_batch",
       claimed: 7,
       swept: 2,
@@ -487,186 +698,24 @@ describe("mail worker production composition", () => {
       claimLost: 1,
       persistenceUnknown: 1,
     });
-    expect(entries[0]).not.toMatch(/row-|operation-secret|recipient|token/i);
+    expect(entries.join("\n")).not.toContain(RECIPIENT_CANARY);
+    expect(entries.join("\n")).not.toContain(TOKEN_CANARY);
   });
 
-  it("rejects UUID and base64url-shaped identifiers from fatal worker logs", async () => {
-    const failure = Object.assign(new Error(
-      `claim=${UUID_LOG_CANARY}; recipient=${RECIPIENT_LOG_CANARY}; raw=${RAW_MIME_LOG_CANARY}`,
-      {
-        cause: new Error(`scope=${BASE64URL_LOG_CANARY}`),
-      },
-    ), {
-      name: UUID_LOG_CANARY,
-      code: BASE64URL_LOG_CANARY,
-      stack: `provider=${BASE64URL_LOG_CANARY}; outbox=${UUID_LOG_CANARY}`,
-    });
-    mocks.scheduleInactivityReminders.mockRejectedValueOnce(failure);
-
-    await loadWorkerOnce();
-
-    const entries = vi.mocked(console.error).mock.calls
-      .map(([entry]) => String(entry))
-      .filter((entry) => entry.includes('"event":"email.worker_failed"'));
-    expect(entries).toHaveLength(1);
-    expect(JSON.parse(entries[0]!)).toEqual({
-      event: "email.worker_failed",
-      code: "MAIL_WORKER_FAILED",
-    });
-    for (const canary of [
-      UUID_LOG_CANARY,
-      BASE64URL_LOG_CANARY,
-      RECIPIENT_LOG_CANARY,
-      RAW_MIME_LOG_CANARY,
-    ]) {
-      expect(entries[0]).not.toContain(canary);
-    }
-    expect(mocks.health.retry).toHaveBeenCalledWith(failure);
-    expect(mocks.health.terminalFailure).toHaveBeenCalledWith(failure);
-  });
-
-  it("preserves one-shot scheduling, health reporting, and pool cleanup", async () => {
-    await loadWorkerOnce();
-
-    expect(mocks.scheduleInactivityReminders).toHaveBeenCalledTimes(1);
-    expect(mocks.scheduleSmartReminders).toHaveBeenCalledTimes(1);
-    expect(mocks.health.success).toHaveBeenCalledTimes(1);
-    expect(mocks.health.retry).not.toHaveBeenCalled();
-    expect(mocks.health.terminalFailure).not.toHaveBeenCalled();
-    expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
-  });
-
-  it.each(["SIGTERM", "SIGINT"] as const)(
-    "interrupts the poll wait on %s and exits without claiming another batch",
-    async (signal) => {
-      vi.useFakeTimers();
-      vi.stubEnv("OUTBOX_POLL_SECONDS", "1");
-      process.argv = [originalArgv[0]!, originalArgv[1]!];
-      const before = {
-        SIGTERM: process.listeners("SIGTERM"),
-        SIGINT: process.listeners("SIGINT"),
-      };
-      mocks.processOutboxBatch.mockImplementation(async () => {
-        if (mocks.processOutboxBatch.mock.calls.length === 1) {
-          return { claimed: 0, swept: 0, outcomes: [] } satisfies BatchResult;
-        }
-        throw new Error("LEGACY_CONTINUOUS_LOOP_TEST_CLEANUP");
-      });
-
-      await import("./process-outbox");
-      await flushWorkerMicrotasks();
-      expect(mocks.processOutboxBatch).toHaveBeenCalledTimes(1);
-
-      const signalHandler = process.listeners(signal)
-        .find((listener) => !before[signal].includes(listener));
-      if (!signalHandler) {
-        await vi.advanceTimersByTimeAsync(1_000);
-        await flushWorkerMicrotasks();
-        expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
-        expect(signalHandler).toBeTypeOf("function");
-        return;
-      }
-
-      signalHandler(signal);
-      await flushWorkerMicrotasks();
-
-      expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
-      expect(mocks.processOutboxBatch).toHaveBeenCalledTimes(1);
-      expect(mocks.health.success).toHaveBeenCalledTimes(1);
-      expect(mocks.health.retry).not.toHaveBeenCalled();
-      expect(mocks.health.terminalFailure).not.toHaveBeenCalled();
-      expect(
-        process.listeners("SIGTERM")
-          .filter((listener) => !before.SIGTERM.includes(listener)),
-      ).toEqual([]);
-      expect(
-        process.listeners("SIGINT")
-          .filter((listener) => !before.SIGINT.includes(listener)),
-      ).toEqual([]);
-    },
-  );
-
-  it("exposes SIGTERM to an in-flight batch without aborting that batch", async () => {
-    process.argv = [originalArgv[0]!, originalArgv[1]!];
-    const before = process.listeners("SIGTERM");
-    let shouldStop: (() => boolean) | undefined;
-    let finishBatch: ((result: BatchResult) => void) | undefined;
-    const inFlight = new Promise<BatchResult>((resolve) => {
-      finishBatch = resolve;
-    });
-    mocks.processOutboxBatch.mockImplementation(async (dependencies: {
-      shouldStop?: () => boolean;
-    }) => {
-      shouldStop = dependencies.shouldStop;
-      return inFlight;
-    });
-
-    await import("./process-outbox");
-    await flushWorkerMicrotasks();
-
-    const signalHandler = process.listeners("SIGTERM")
-      .find((listener) => !before.includes(listener));
-    const wiredShouldStop = shouldStop;
-    expect(signalHandler).toBeTypeOf("function");
-    signalHandler!("SIGTERM");
-    const stopObservedDuringBatch = wiredShouldStop?.();
-    expect(mocks.poolEnd).not.toHaveBeenCalled();
-
-    finishBatch?.({ claimed: 1, swept: 0, outcomes: [] });
-    await flushWorkerMicrotasks();
-
-    expect(wiredShouldStop).toBeTypeOf("function");
-    expect(stopObservedDuringBatch).toBe(true);
-    expect(mocks.processOutboxBatch).toHaveBeenCalledTimes(1);
-    expect(mocks.health.success).toHaveBeenCalledTimes(1);
-    expect(mocks.health.retry).not.toHaveBeenCalled();
-    expect(mocks.health.terminalFailure).not.toHaveBeenCalled();
-    expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not report a timeout when pool shutdown wins the deadline race", async () => {
+  it("bounds pool shutdown with the inspected runtime plan", async () => {
     vi.useFakeTimers();
-    const exit = vi.spyOn(process, "exit").mockImplementation(
-      (() => undefined) as unknown as typeof process.exit,
-    );
-    let monotonicMilliseconds = 0;
-    vi.spyOn(globalThis.performance, "now").mockImplementation(
-      () => monotonicMilliseconds,
-    );
-    mocks.poolEnd.mockImplementationOnce(async () => {
-      monotonicMilliseconds = 5_000;
-    });
-    process.argv = [originalArgv[0]!, originalArgv[1]!, "--once"];
-
-    await import("./process-outbox");
-    await flushWorkerMicrotasks();
-
-    expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
-    expect(process.exitCode).toBeUndefined();
-    expect(exit).not.toHaveBeenCalled();
-    const entries = vi.mocked(console.error).mock.calls
-      .map(([entry]) => String(entry))
-      .filter((entry) => entry.includes('"event":"email.worker_cleanup_failed"'));
-    expect(entries).toEqual([]);
-  });
-
-  it("bounds pool cleanup to five seconds and reports timeout without PII", async () => {
-    vi.useFakeTimers();
-    const exit = vi.spyOn(process, "exit").mockImplementation(
+    vi.spyOn(process, "exit").mockImplementation(
       (() => undefined) as unknown as typeof process.exit,
     );
     mocks.poolEnd.mockImplementationOnce(
-      () => new Promise<undefined>(() => undefined),
+      () => new Promise<void>(() => undefined),
     );
     process.argv = [originalArgv[0]!, originalArgv[1]!, "--once"];
 
     await import("./process-outbox");
     await flushWorkerMicrotasks();
-
-    expect(mocks.processOutboxBatch).toHaveBeenCalledTimes(1);
-    expect(mocks.health.success).toHaveBeenCalledTimes(1);
-    expect(mocks.poolEnd).toHaveBeenCalledTimes(1);
-    expect(process.exitCode).toBeUndefined();
+    expect(mocks.watchdog.close).toHaveBeenCalledOnce();
+    expect(mocks.poolEnd).toHaveBeenCalledOnce();
 
     await vi.advanceTimersByTimeAsync(4_999);
     await flushWorkerMicrotasks();
@@ -674,17 +723,24 @@ describe("mail worker production composition", () => {
 
     await vi.advanceTimersByTimeAsync(1);
     await flushWorkerMicrotasks();
-
     expect(process.exitCode).toBe(1);
-    expect(exit).toHaveBeenCalledWith(1);
-    const entries = vi.mocked(console.error).mock.calls
-      .map(([entry]) => String(entry))
-      .filter((entry) => entry.includes('"event":"email.worker_cleanup_failed"'));
-    expect(entries).toHaveLength(1);
-    expect(JSON.parse(entries[0]!)).toEqual({
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(console.error).toHaveBeenCalledWith(JSON.stringify({
       event: "email.worker_cleanup_failed",
       code: "POOL_SHUTDOWN_TIMEOUT",
-    });
-    expect(entries[0]).not.toMatch(/row|operation|recipient|provider|token/i);
+    }));
+  });
+
+  it("contains no legacy direct-send or application-global pool import", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "scripts", "process-outbox.ts"),
+      "utf8",
+    );
+    expect(source).not.toContain("../src/lib/db/client");
+    expect(source).not.toContain('from "../src/lib/notifications/mailer";');
+    expect(source).not.toContain("prepareEmail");
+    expect(source).not.toContain("sendPreparedEmail");
+    expect(source).not.toContain("createStoreBoundPreparedDispatchChannel");
+    expect(source).not.toContain("createMailDispatchDatabaseResources");
   });
 });

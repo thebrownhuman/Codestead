@@ -1,8 +1,38 @@
+import type { DispatchBinding } from "./prepared-dispatch";
 import {
-  validateProviderDispatchTuple,
-  type ProviderDispatchTuple,
-} from "./dispatch-evidence";
-import { outboxMessageId } from "./provider-correlation";
+  materializedDispatchEnvelope,
+  type GuardedPreparedDispatch,
+  type MaterializedDispatch,
+  type PreparedDispatchEnvelope,
+} from "./guarded-prepared-dispatch";
+import {
+  disarmMailDispatchHardWatchdog,
+  type ArmedMailDispatchHardWatchdog,
+  type MailDispatchHardWatchdog,
+} from "./mail-dispatch-hard-watchdog";
+import { terminateMailDispatchImmediately } from "./mail-dispatch-fatal-termination";
+import {
+  guardedDispatchResultSafeToDisarm,
+  releaseGuardedDispatchWatchdogClaim,
+} from "./postgres-outbox-store";
+import {
+  PostProviderPersistenceUnknownError,
+  ProviderBoundaryCommitUnknownError,
+} from "./outbox-store-errors";
+import {
+  classifyMailDeliveryError,
+  FatalProviderTransportError,
+  isFatalProviderTransportError,
+  type CommittedPreparedDispatchReceipt,
+  type PostProviderExit,
+} from "./provider-dispatch-contract";
+
+export {
+  FatalProviderTransportError,
+  PostProviderPersistenceUnknownError,
+  ProviderBoundaryCommitUnknownError,
+  type PostProviderExit,
+};
 
 export type ClaimFence = Readonly<{
   id: string;
@@ -10,27 +40,31 @@ export type ClaimFence = Readonly<{
   claimToken: string;
   claimOwner: string;
   claimVersion: number;
+  userId: string | null;
+  deliveryScopeKey: string;
 }>;
 
-export type OutboxClaim<P = unknown> = ClaimFence & Readonly<{
-  phase: "pre-provider";
-  payload: P;
-  attempt: number;
-  leaseExpiresAt: Date;
-}>;
+export type OutboxClaim<P = unknown> = ClaimFence &
+  Readonly<{
+    phase: "pre-provider";
+    payload: P;
+    attempt: number;
+    leaseExpiresAt: Date;
+  }>;
 
-export type ProviderStartedClaim = ClaimFence & Readonly<{
-  phase: "post-provider";
-  adapter: string;
-  providerCallStartedAt: string;
-  leaseExpiresAt: Date;
-  providerDispatch: ProviderDispatchTuple;
-}>;
+export type ProviderStartedClaim = ClaimFence &
+  DispatchBinding &
+  Readonly<{
+    phase: "post-provider";
+    adapter: string;
+    providerCallStartedAt: string;
+    leaseExpiresAt: Date;
+  }>;
 
 declare const providerCallPermitBrand: unique symbol;
 
-export type ProviderCallPermit = ProviderStartedClaim & Readonly<{
-  [providerCallPermitBrand]: true;
+export type ProviderCallPermit = Readonly<{
+  [providerCallPermitBrand]: "ProviderCallPermit";
 }>;
 
 export type PreFinishResult =
@@ -43,7 +77,11 @@ export type PostFinishResult =
   | { readonly kind: "lost" };
 
 export type BoundaryResult =
-  | { readonly kind: "applied"; readonly permit: ProviderCallPermit }
+  | {
+      readonly kind: "applied";
+      readonly permit: ProviderCallPermit;
+      readonly receipt: CommittedPreparedDispatchReceipt;
+    }
   | { readonly kind: "suppressed"; readonly code: string }
   | { readonly kind: "lost" };
 
@@ -52,32 +90,43 @@ export type PreProviderExit =
   | { readonly kind: "failed"; readonly code: string }
   | { readonly kind: "suppressed"; readonly code: string };
 
-export type PostProviderExit =
-  | { readonly kind: "sent"; readonly providerMessageId: string }
-  | { readonly kind: "failed"; readonly code: string }
-  | { readonly kind: "quarantined"; readonly code: string };
+declare const guardedDispatchUncertaintyBrand: unique symbol;
 
-export type MaterializeResult<M> =
-  | { readonly kind: "ready"; readonly message: M }
+export type GuardedDispatchUncertainty = Readonly<{
+  [guardedDispatchUncertaintyBrand]: "GuardedDispatchUncertainty";
+}>;
+
+export type GuardedDispatchResult =
+  | { readonly kind: "applied"; readonly exit: PostProviderExit }
+  | { readonly kind: "lost" }
+  | {
+      readonly kind: "persistence-unknown";
+      readonly uncertainty: GuardedDispatchUncertainty;
+    };
+
+export type GuardedUnknownFinishResult = Readonly<{
+  result: PostFinishResult;
+  exit: PostProviderExit;
+}>;
+
+export type MaterializeResult =
+  | { readonly kind: "ready"; readonly materialized: MaterializedDispatch }
   | PreProviderExit;
 
-export type ProviderSendResult =
-  | { readonly kind: "accepted"; readonly providerMessageId: string }
-  | { readonly kind: "definitely-rejected"; readonly code: string }
-  | { readonly kind: "ambiguous"; readonly code: string };
-
 export interface OutboxStore<P = unknown> {
-  claimNext(input: Readonly<{
-    owner: string;
-    token: string;
-    leaseMs: number;
-  }>): Promise<OutboxClaim<P> | null>;
+  claimNext(
+    input: Readonly<{
+      owner: string;
+      token: string;
+      leaseMs: number;
+    }>,
+  ): Promise<OutboxClaim<P> | null>;
 
   beginProviderCall(
     claim: OutboxClaim<P>,
     input: Readonly<{
-      leaseMs: number;
-      providerDispatch: ProviderDispatchTuple;
+      adapter: string;
+      envelope: PreparedDispatchEnvelope;
     }>,
   ): Promise<BoundaryResult>;
 
@@ -91,26 +140,20 @@ export interface OutboxStore<P = unknown> {
     exit: PostProviderExit,
   ): Promise<PostFinishResult>;
 
+  dispatchAfterProviderBoundary(
+    permit: ProviderCallPermit,
+    guarded: GuardedPreparedDispatch,
+    armedWatchdog: ArmedMailDispatchHardWatchdog,
+  ): Promise<GuardedDispatchResult>;
+
+  finishGuardedDispatchUnknown(
+    uncertainty: GuardedDispatchUncertainty,
+  ): Promise<GuardedUnknownFinishResult | null>;
+
   quarantineAbandoned(input: Readonly<{ limit: number }>): Promise<number>;
 }
 
-export interface MailProvider<M extends Readonly<{
-  providerDispatch: ProviderDispatchTuple;
-}>> {
-  readonly adapter: string;
-  send(
-    message: M,
-    context: Readonly<{
-      operationId: string;
-      permit: ProviderCallPermit;
-      messageId: string;
-    }>,
-  ): Promise<ProviderSendResult>;
-}
-
 export type ItemOutcome = Readonly<{
-  id: string;
-  operationId: string;
   kind:
     | "sent"
     | "retry"
@@ -122,27 +165,40 @@ export type ItemOutcome = Readonly<{
   code?: string;
 }>;
 
-export interface ProcessOutboxBatchDeps<P, M extends Readonly<{
-  providerDispatch: ProviderDispatchTuple;
-}>> {
+export interface ProcessOutboxBatchDeps<P> {
   readonly store: OutboxStore<P>;
-  readonly materialize: (claim: OutboxClaim<P>) => Promise<MaterializeResult<M>>;
-  readonly provider: MailProvider<M>;
+  readonly materialize: (
+    claim: OutboxClaim<P>,
+  ) => Promise<MaterializeResult>;
+  readonly adapter: string;
+  readonly authorize: (
+    receipt: CommittedPreparedDispatchReceipt,
+  ) => Promise<GuardedPreparedDispatch>;
+  readonly discardReceipt: (
+    permit: ProviderCallPermit,
+    receipt: CommittedPreparedDispatchReceipt,
+  ) => boolean;
+  readonly discardGuard: (
+    permit: ProviderCallPermit,
+    guarded: GuardedPreparedDispatch,
+  ) => boolean;
+  readonly watchdog: MailDispatchHardWatchdog;
   readonly claimOwner: string;
   readonly newClaimToken: () => string;
   readonly shouldStop: () => boolean;
   readonly clock: { now(): Date };
   readonly retryPolicy: {
-    unexpectedMaterializeError(input: Readonly<{
-      attempt: number;
-      now: Date;
-      error: unknown;
-    }>): Extract<PreProviderExit, { kind: "retry" | "failed" }>;
+    unexpectedMaterializeError(
+      input: Readonly<{
+        attempt: number;
+        now: Date;
+        error: unknown;
+      }>,
+    ): Extract<PreProviderExit, { kind: "retry" | "failed" }>;
   };
   readonly policy: Readonly<{
     batchSize: number;
     materializeLeaseMs: number;
-    providerLeaseMs: number;
     maxMaterializeAttempts: number;
     maxRetryDelayMs: number;
     terminalPersistenceAttempts: number;
@@ -156,15 +212,16 @@ export type ProcessOutboxBatchResult = Readonly<{
   outcomes: readonly ItemOutcome[];
 }>;
 
-function validateDependencies<P, M extends Readonly<{
-  providerDispatch: ProviderDispatchTuple;
-}>>(deps: ProcessOutboxBatchDeps<P, M>) {
-  if (!deps.claimOwner.trim()) throw new Error("Mail claim owner must be nonblank.");
-  if (!deps.provider.adapter.trim()) throw new Error("Mail provider adapter must be nonblank.");
+function validateDependencies<P>(deps: ProcessOutboxBatchDeps<P>) {
+  if (!deps.claimOwner.trim()) {
+    throw new Error("Mail claim owner must be nonblank.");
+  }
+  if (!deps.adapter.trim()) {
+    throw new Error("Mail provider adapter must be nonblank.");
+  }
   for (const [name, value] of [
     ["batchSize", deps.policy.batchSize],
     ["materializeLeaseMs", deps.policy.materializeLeaseMs],
-    ["providerLeaseMs", deps.policy.providerLeaseMs],
     ["maxMaterializeAttempts", deps.policy.maxMaterializeAttempts],
     ["maxRetryDelayMs", deps.policy.maxRetryDelayMs],
     ["terminalPersistenceAttempts", deps.policy.terminalPersistenceAttempts],
@@ -209,16 +266,14 @@ function validatePreProviderDecision(
 }
 
 function outcome(
-  claim: ClaimFence,
+  _claim: ClaimFence,
   kind: ItemOutcome["kind"],
   code?: string,
 ): ItemOutcome {
-  return {
-    id: claim.id,
-    operationId: claim.operationId,
+  return Object.freeze({
     kind,
     ...(code ? { code } : {}),
-  };
+  });
 }
 
 function emit(
@@ -232,10 +287,8 @@ function emit(
   }
 }
 
-async function finishBefore<P, M extends Readonly<{
-  providerDispatch: ProviderDispatchTuple;
-}>>(
-  deps: ProcessOutboxBatchDeps<P, M>,
+async function finishBefore<P>(
+  deps: ProcessOutboxBatchDeps<P>,
   claim: OutboxClaim<P>,
   exit: PreProviderExit,
 ): Promise<ItemOutcome> {
@@ -244,37 +297,62 @@ async function finishBefore<P, M extends Readonly<{
     if (result.kind === "lost") return outcome(claim, "claim-lost");
     return outcome(claim, exit.kind, exit.code);
   } catch {
-    return outcome(claim, "persistence-unknown", "PRE_PROVIDER_PERSISTENCE_FAILED");
+    return outcome(
+      claim,
+      "persistence-unknown",
+      "PRE_PROVIDER_PERSISTENCE_FAILED",
+    );
   }
 }
 
-async function finishAfter<P, M extends Readonly<{
-  providerDispatch: ProviderDispatchTuple;
-}>>(
-  deps: ProcessOutboxBatchDeps<P, M>,
+async function finishAfter<P>(
+  deps: ProcessOutboxBatchDeps<P>,
+  claim: OutboxClaim<P>,
   permit: ProviderCallPermit,
   exit: PostProviderExit,
 ): Promise<ItemOutcome> {
-  for (let attempt = 1; attempt <= deps.policy.terminalPersistenceAttempts; attempt += 1) {
+  for (
+    let attempt = 1;
+    attempt <= deps.policy.terminalPersistenceAttempts;
+    attempt += 1
+  ) {
     try {
       const result = await deps.store.finishAfterProvider(permit, exit);
       if (result.kind === "lost") {
-        return outcome(permit, "persistence-unknown", "POST_PROVIDER_FENCE_LOST");
+        return outcome(
+          claim,
+          "persistence-unknown",
+          "POST_PROVIDER_FENCE_LOST",
+        );
       }
-      return outcome(permit, exit.kind, "code" in exit ? exit.code : undefined);
+      return outcome(
+        claim,
+        exit.kind,
+        "code" in exit ? exit.code : undefined,
+      );
     } catch {
       if (attempt === deps.policy.terminalPersistenceAttempts) {
-        return outcome(permit, "persistence-unknown", "POST_PROVIDER_PERSISTENCE_FAILED");
+        return outcome(
+          claim,
+          "persistence-unknown",
+          "POST_PROVIDER_PERSISTENCE_FAILED",
+        );
       }
     }
   }
-  return outcome(permit, "persistence-unknown", "POST_PROVIDER_PERSISTENCE_FAILED");
+  return outcome(
+    claim,
+    "persistence-unknown",
+    "POST_PROVIDER_PERSISTENCE_FAILED",
+  );
 }
 
-export async function processOutboxBatch<P, M extends Readonly<{
-  providerDispatch: ProviderDispatchTuple;
-}>>(
-  deps: ProcessOutboxBatchDeps<P, M>,
+function failStopped(): never {
+  return terminateMailDispatchImmediately();
+}
+
+export async function processOutboxBatch<P>(
+  deps: ProcessOutboxBatchDeps<P>,
 ): Promise<ProcessOutboxBatchResult> {
   validateDependencies(deps);
   const swept = await deps.store.quarantineAbandoned({
@@ -293,10 +371,11 @@ export async function processOutboxBatch<P, M extends Readonly<{
     if (!next) break;
     claimed += 1;
 
-    let materialized: MaterializeResult<M>;
+    let materialized: MaterializeResult;
     try {
       materialized = await deps.materialize(next);
     } catch (error) {
+      if (isFatalProviderTransportError(error)) return failStopped();
       const now = deps.clock.now();
       try {
         materialized = validatePreProviderDecision(
@@ -324,15 +403,8 @@ export async function processOutboxBatch<P, M extends Readonly<{
       continue;
     }
 
-    let providerDispatch: ProviderDispatchTuple;
-    try {
-      providerDispatch = validateProviderDispatchTuple(
-        materialized.message.providerDispatch,
-      );
-      if (providerDispatch.adapter !== deps.provider.adapter) {
-        throw new Error("Prepared adapter does not match provider adapter.");
-      }
-    } catch {
+    const envelope = materializedDispatchEnvelope(materialized.materialized);
+    if (!envelope) {
       const item = await finishBefore(deps, next, {
         kind: "failed",
         code: "MATERIALIZED_DISPATCH_INVALID",
@@ -345,8 +417,8 @@ export async function processOutboxBatch<P, M extends Readonly<{
     let boundary: BoundaryResult;
     try {
       boundary = await deps.store.beginProviderCall(next, {
-        leaseMs: deps.policy.providerLeaseMs,
-        providerDispatch,
+        adapter: deps.adapter,
+        envelope,
       });
     } catch {
       const item = outcome(
@@ -371,33 +443,161 @@ export async function processOutboxBatch<P, M extends Readonly<{
       continue;
     }
 
-    let providerResult: ProviderSendResult;
+    if (deps.shouldStop()) {
+      let discarded = false;
+      try {
+        discarded = deps.discardReceipt(
+          boundary.permit,
+          boundary.receipt,
+        );
+      } catch {
+        // The exact one-shot receipt remains live.
+      }
+      if (!discarded) return failStopped();
+      const item = outcome(
+        next,
+        "persistence-unknown",
+        "WORKER_STOPPED_AFTER_PROVIDER_BOUNDARY",
+      );
+      outcomes.push(item);
+      emit(deps.onEvent, item);
+      break;
+    }
+
+    let guarded: GuardedPreparedDispatch;
     try {
-      providerResult = await deps.provider.send(materialized.message, {
-        operationId: next.operationId,
-        permit: boundary.permit,
-        messageId: outboxMessageId(next.operationId),
-      });
+      guarded = await deps.authorize(boundary.receipt);
+    } catch (error) {
+      if (isFatalProviderTransportError(error)) return failStopped();
+      const failure = classifyMailDeliveryError(error);
+      if (failure.kind === "fatal") return failStopped();
+      const exit: PostProviderExit = failure.kind === "definitely-rejected"
+        ? Object.freeze({ kind: "failed" as const, code: failure.code })
+        : Object.freeze({
+            kind: "quarantined" as const,
+            code: failure.code,
+          });
+      const item = await finishAfter(
+        deps,
+        next,
+        boundary.permit,
+        exit,
+      );
+      outcomes.push(item);
+      emit(deps.onEvent, item);
+      continue;
+    }
+
+    if (deps.shouldStop()) {
+      let discarded = false;
+      try {
+        discarded = deps.discardGuard(boundary.permit, guarded);
+      } catch {
+        // The exact one-shot guard remains live.
+      }
+      if (!discarded) return failStopped();
+      const item = outcome(
+        next,
+        "persistence-unknown",
+        "WORKER_STOPPED_AFTER_PROVIDER_AUTHORIZATION",
+      );
+      outcomes.push(item);
+      emit(deps.onEvent, item);
+      break;
+    }
+
+    let armedWatchdog: ArmedMailDispatchHardWatchdog;
+    try {
+      armedWatchdog = await deps.watchdog.arm();
     } catch {
-      providerResult = {
-        kind: "ambiguous",
-        code: "PROVIDER_OUTCOME_AMBIGUOUS",
-      };
+      return failStopped();
     }
 
-    let exit: PostProviderExit;
-    if (providerResult.kind === "accepted") {
-      const providerMessageId = providerResult.providerMessageId.trim();
-      exit = providerMessageId
-        ? { kind: "sent", providerMessageId }
-        : { kind: "quarantined", code: "PROVIDER_MESSAGE_ID_MISSING" };
-    } else if (providerResult.kind === "definitely-rejected") {
-      exit = { kind: "failed", code: providerResult.code };
-    } else {
-      exit = { kind: "quarantined", code: providerResult.code };
+    let dispatchResult: GuardedDispatchResult;
+    try {
+      dispatchResult = await deps.store.dispatchAfterProviderBoundary(
+        boundary.permit,
+        guarded,
+        armedWatchdog,
+      );
+    } catch {
+      return failStopped();
     }
 
-    const item = await finishAfter(deps, boundary.permit, exit);
+    let safeToDisarm = false;
+    try {
+      safeToDisarm = guardedDispatchResultSafeToDisarm(
+        deps.store as object,
+        armedWatchdog,
+        dispatchResult,
+      );
+    } catch {
+      // Only a store-issued result can prove the provider is no longer active.
+    }
+    if (!safeToDisarm) return failStopped();
+
+    try {
+      await disarmMailDispatchHardWatchdog(armedWatchdog);
+    } catch {
+      return failStopped();
+    }
+    try {
+      if (
+        releaseGuardedDispatchWatchdogClaim(
+          deps.store as object,
+          armedWatchdog,
+        ) !== true
+      ) {
+        return failStopped();
+      }
+    } catch {
+      return failStopped();
+    }
+
+    if (dispatchResult.kind === "persistence-unknown") {
+      let recovered: GuardedUnknownFinishResult | null = null;
+      try {
+        recovered = await deps.store.finishGuardedDispatchUnknown(
+          dispatchResult.uncertainty,
+        );
+      } catch {
+        // Safe DISARM completed; this is a DB-only settlement failure.
+      }
+      const item = recovered === null
+        ? outcome(
+            next,
+            "persistence-unknown",
+            "POST_PROVIDER_PERSISTENCE_FAILED",
+          )
+        : recovered.result.kind === "lost"
+          ? outcome(
+              next,
+              "persistence-unknown",
+              "POST_PROVIDER_FENCE_LOST",
+            )
+          : outcome(
+              next,
+              recovered.exit.kind,
+              "code" in recovered.exit ? recovered.exit.code : undefined,
+            );
+      outcomes.push(item);
+      emit(deps.onEvent, item);
+      continue;
+    }
+
+    if (dispatchResult.kind === "lost") {
+      const item = outcome(next, "claim-lost");
+      outcomes.push(item);
+      emit(deps.onEvent, item);
+      continue;
+    }
+    const item = outcome(
+      next,
+      dispatchResult.exit.kind,
+      "code" in dispatchResult.exit
+        ? dispatchResult.exit.code
+        : undefined,
+    );
     outcomes.push(item);
     emit(deps.onEvent, item);
   }

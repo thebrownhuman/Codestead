@@ -20,8 +20,6 @@ const mocks = vi.hoisted(() => {
   const txDeleteWhere = vi.fn(() => ({ returning: txDeleteReturning }));
   const txDelete = vi.fn(() => ({ where: txDeleteWhere }));
   const notificationValues = vi.fn(async () => undefined);
-  const outboxConflict = vi.fn(async () => undefined);
-  const outboxValues = vi.fn(() => ({ onConflictDoNothing: outboxConflict }));
   const txInsert = vi.fn();
   const txExecute = vi.fn(async () => undefined);
   const tx = {
@@ -43,11 +41,10 @@ const mocks = vi.hoisted(() => {
     txSet,
     txInsert,
     notificationValues,
-    outboxValues,
-    outboxConflict,
     validateProviderCredential: vi.fn(),
     consentPurposeForProvider: vi.fn(),
     hasCurrentConsent: vi.fn(),
+    enqueueEmailInTransaction: vi.fn(),
     writeAuditEventInTransaction: vi.fn(),
     parseMasterKey: vi.fn(),
     openCredential: vi.fn(),
@@ -65,6 +62,9 @@ vi.mock("@/lib/privacy/consent", () => ({
   consentPurposeForProvider: mocks.consentPurposeForProvider,
   hasCurrentConsent: mocks.hasCurrentConsent,
 }));
+vi.mock("@/lib/notifications/outbox", () => ({
+  enqueueEmailInTransaction: mocks.enqueueEmailInTransaction,
+}));
 vi.mock("@/lib/security/audit-writer", () => ({
   writeAuditEventInTransaction: mocks.writeAuditEventInTransaction,
 }));
@@ -74,8 +74,6 @@ vi.mock("@/lib/security/credential-vault", () => ({
   sealCredential: mocks.sealCredential,
 }));
 
-import { emailOutbox } from "@/lib/db/schema";
-import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 import {
   AdminCredentialError,
   adminCredentialErrorCode,
@@ -122,11 +120,7 @@ describe("atomic administrator credential service", () => {
     mocks.txReturning.mockReset().mockResolvedValue([{ id: target.id }]);
     mocks.txDeleteReturning.mockReset().mockResolvedValue([{ id: target.id }]);
     mocks.txInsert.mockReset();
-    mocks.txInsert.mockImplementation((table: unknown) => (
-      table === emailOutbox
-        ? { values: mocks.outboxValues }
-        : { values: mocks.notificationValues }
-    ));
+    mocks.txInsert.mockImplementation(() => ({ values: mocks.notificationValues }));
     mocks.consentPurposeForProvider.mockReturnValue("provider_nvidia_nim");
     mocks.hasCurrentConsent.mockResolvedValue(true);
     mocks.parseMasterKey.mockReturnValue(Buffer.alloc(32, 9));
@@ -145,6 +139,7 @@ describe("atomic administrator credential service", () => {
       keyVersion: 2,
       lastFour: "5678",
     });
+    mocks.enqueueEmailInTransaction.mockResolvedValue(undefined);
     mocks.writeAuditEventInTransaction.mockResolvedValue({
       correlationId: "audit-correlation-1",
       eventHash: "audit-hash",
@@ -211,16 +206,29 @@ describe("atomic administrator credential service", () => {
       userId: target.userId,
       type: "credential-changed",
     }));
-    expect(mocks.outboxValues).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mocks.enqueueEmailInTransaction).toHaveBeenCalledWith(mocks.tx, expect.objectContaining({
       userId: target.userId,
-      toEmail: target.ownerEmail,
+      to: target.ownerEmail,
       template: "credential-changed",
-      idempotencyKey: accountMailEventIdempotencyKey({
-        eventId: `${target.id}:disable:${base.requestId}:completed`,
-        template: "credential-changed",
-        userId: target.userId,
-      }),
+      idempotencySeed: `${target.id}:disable:${base.requestId}:completed`,
     }));
+  });
+
+  it("delegates credential mail to the central helper inside the caller transaction", async () => {
+    await performAdminCredentialOperation({ ...base, action: "disable" });
+
+    expect(mocks.enqueueEmailInTransaction).toHaveBeenCalledWith(mocks.tx, {
+      to: target.ownerEmail,
+      userId: target.userId,
+      template: "credential-changed",
+      variables: {
+        name: target.ownerName,
+        provider: "nvidia nim",
+        action: "disabled by an administrator",
+        url: "http://localhost:3000/settings?section=ai",
+      },
+      idempotencySeed: `${target.id}:disable:${base.requestId}:completed`,
+    });
   });
 
   it("separates mail authority when one request UUID is reused across credential actions", async () => {
@@ -231,24 +239,20 @@ describe("atomic administrator credential service", () => {
       replacementSecret: "replacement-provider-material-5678",
     });
 
-    const outboxCalls = mocks.outboxValues.mock.calls as unknown as Array<
-      [{ idempotencyKey: string }]
+    const outboxCalls = mocks.enqueueEmailInTransaction.mock.calls as unknown as Array<
+      [typeof mocks.tx, { idempotencySeed: string }]
     >;
-    const keys = outboxCalls.map(([values]) => values.idempotencyKey);
+    const seeds = outboxCalls.map(([, input]) => input.idempotencySeed);
     const events = [
       ["test", "requested"],
       ["test", "completed"],
       ["replace", "requested"],
       ["replace", "completed"],
     ] as const;
-    expect(keys).toEqual(events.map(([action, stage]) =>
-      accountMailEventIdempotencyKey({
-        eventId: `${target.id}:${action}:${base.requestId}:${stage}`,
-        template: "credential-changed",
-        userId: target.userId,
-      }),
+    expect(seeds).toEqual(events.map(([action, stage]) =>
+      `${target.id}:${action}:${base.requestId}:${stage}`,
     ));
-    expect(new Set(keys)).toHaveLength(4);
+    expect(new Set(seeds)).toHaveLength(4);
   });
 
   it("validates and seals replacement material but excludes it from audit and notifications", async () => {
@@ -267,7 +271,7 @@ describe("atomic administrator credential service", () => {
     }));
     expect(JSON.stringify(mocks.writeAuditEventInTransaction.mock.calls)).not.toContain(secret);
     expect(JSON.stringify(mocks.notificationValues.mock.calls)).not.toContain(secret);
-    expect(JSON.stringify(mocks.outboxValues.mock.calls)).not.toContain(secret);
+    expect(JSON.stringify(mocks.enqueueEmailInTransaction.mock.calls)).not.toContain(secret);
   });
 
   it("withholds decryption and provider transmission when preflight audit or notification fails", async () => {
@@ -281,7 +285,7 @@ describe("atomic administrator credential service", () => {
   it.each([
     ["audit", () => mocks.writeAuditEventInTransaction.mockRejectedValueOnce(new Error("audit unavailable"))],
     ["in-app notification", () => mocks.notificationValues.mockRejectedValueOnce(new Error("notification unavailable"))],
-    ["email outbox", () => mocks.outboxConflict.mockRejectedValueOnce(new Error("outbox unavailable"))],
+    ["email outbox", () => mocks.enqueueEmailInTransaction.mockRejectedValueOnce(new Error("outbox unavailable"))],
   ] as const)("fails closed when the %s write fails", async (_label, fail) => {
     fail();
     await expect(performAdminCredentialOperation({ ...base, action: "disable" })).rejects.toThrow();
@@ -471,8 +475,8 @@ describe("atomic administrator credential service", () => {
       disabledAt: null,
       failureCode: null,
     }));
-    expect(mocks.outboxValues).toHaveBeenCalledWith(expect.objectContaining({
-      toEmail: "learner@example.test",
+    expect(mocks.enqueueEmailInTransaction).toHaveBeenCalledWith(mocks.tx, expect.objectContaining({
+      to: mixedCaseTarget.ownerEmail,
       variables: expect.objectContaining({ url: "https://learning.example.test/settings?section=ai" }),
     }));
   });

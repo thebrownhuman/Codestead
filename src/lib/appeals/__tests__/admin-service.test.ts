@@ -28,6 +28,13 @@ const appealId = "10000000-0000-4000-8000-000000000001";
 const actorUserId = "admin-user";
 const requestId = "50000000-0000-4000-8000-000000000001";
 const now = new Date("2026-07-12T12:00:00.000Z");
+const defaultOutboxReleaseIdentity = {
+  id: "71000000-0000-4000-8000-000000000001",
+  operation_id: "72000000-0000-4000-8000-000000000001",
+  idempotency_authority_sha256: "b".repeat(64),
+  idempotency_original_payload_sha256: "c".repeat(64),
+  delivery_hold_version: "task7-v1",
+};
 
 const baseCandidate: {
   id: string;
@@ -82,6 +89,12 @@ function decisionClient(config: {
   } | null;
   updatedRowCount?: number;
   current?: Record<string, unknown> | null;
+  outboxRows?: Array<typeof defaultOutboxReleaseIdentity>;
+  releaseError?: Error;
+  releaseRows?: Array<{
+    outbox_id: string;
+    operation_id: string;
+  }>;
 } = {}) {
   const actor = config.actor === undefined ? { role: "admin", status: "active" } : config.actor;
   const candidate = config.candidate === undefined ? baseCandidate : config.candidate;
@@ -110,7 +123,20 @@ function decisionClient(config: {
     if (statement.includes("update appeal")) return { rows: [], rowCount: config.updatedRowCount ?? 1 };
     if (statement.includes("update exam_session")) return { rows: [], rowCount: 1 };
     if (statement.includes("insert into notification")) return { rows: [], rowCount: 1 };
-    if (statement.includes("insert into email_outbox")) return { rows: [], rowCount: 1 };
+    if (statement.includes("insert into email_outbox")) {
+      const rows = config.outboxRows ?? [defaultOutboxReleaseIdentity];
+      return { rows, rowCount: rows.length };
+    }
+    if (statement.includes("public.release_email_outbox_delivery")) {
+      if (config.releaseError) throw config.releaseError;
+      const releaseIdentity = config.outboxRows?.[0]
+        ?? defaultOutboxReleaseIdentity;
+      const rows = config.releaseRows ?? [{
+        outbox_id: releaseIdentity.id,
+        operation_id: releaseIdentity.operation_id,
+      }];
+      return { rows, rowCount: rows.length };
+    }
     if (statement.includes("select a.id, a.user_id, a.decision")) return { rows: current ? [current] : [] };
     throw new Error(`Unexpected query: ${statement}`);
   });
@@ -443,6 +469,150 @@ describe("administrator appeal service", () => {
     expect(query).toHaveBeenCalledWith("commit");
     expect(release).toHaveBeenCalledOnce();
   });
+
+  it("releases a newly inserted outbox row from its exact database identity before report and commit", async () => {
+    const outboxReleaseIdentity = {
+      id: "71000000-0000-4000-8000-000000000002",
+      operation_id: "72000000-0000-4000-8000-000000000002",
+      idempotency_authority_sha256: "d".repeat(64),
+      idempotency_original_payload_sha256: "e".repeat(64),
+      delivery_hold_version: "task7-v1",
+    };
+    const { query } = decisionClient({ outboxRows: [outboxReleaseIdentity] });
+
+    await decideAppeal(decisionInput());
+
+    const outboxIndex = query.mock.calls.findIndex(([statement]) =>
+      String(statement).includes("insert into email_outbox")
+    );
+    const releaseIndex = query.mock.calls.findIndex(([statement]) =>
+      String(statement).includes("public.release_email_outbox_delivery")
+    );
+    const reportIndex = query.mock.calls.findIndex(([statement]) =>
+      String(statement).includes("select a.id, a.user_id, a.decision")
+    );
+    const commitIndex = query.mock.calls.findIndex(([statement]) => statement === "commit");
+    const outboxStatement = String(query.mock.calls[outboxIndex]?.[0]).replace(/\s+/gu, " ");
+    const releaseCall = query.mock.calls[releaseIndex];
+
+    expect(outboxStatement).toContain(
+      "returning id, operation_id, idempotency_authority_sha256, "
+        + "idempotency_original_payload_sha256, delivery_hold_version",
+    );
+    expect(releaseCall?.[0]).toMatch(
+      /public\.release_email_outbox_delivery\(\$1,\s*\$2,\s*\$3,\s*\$4,\s*\$5\)/u,
+    );
+    expect(releaseCall?.[1]).toEqual([
+      outboxReleaseIdentity.id,
+      outboxReleaseIdentity.operation_id,
+      outboxReleaseIdentity.idempotency_authority_sha256,
+      outboxReleaseIdentity.idempotency_original_payload_sha256,
+      outboxReleaseIdentity.delivery_hold_version,
+    ]);
+    expect(outboxIndex).toBeGreaterThanOrEqual(0);
+    expect(releaseIndex).toBeGreaterThan(outboxIndex);
+    expect(reportIndex).toBeGreaterThan(releaseIndex);
+    expect(commitIndex).toBeGreaterThan(reportIndex);
+  });
+
+  it("does not issue a new receipt when the exact outbox conflict returns no row", async () => {
+    const { query } = decisionClient({ outboxRows: [] });
+
+    const report = await decideAppeal(decisionInput());
+
+    const outboxCall = query.mock.calls.find(([statement]) =>
+      String(statement).includes("insert into email_outbox")
+    );
+    const outboxStatement = String(outboxCall?.[0]).replace(/\s+/gu, " ");
+    expect(report.replayed).toBe(false);
+    expect(outboxStatement).toContain("on conflict (idempotency_key) do nothing returning id");
+    expect(query.mock.calls.some(([statement]) =>
+      String(statement).includes("public.release_email_outbox_delivery")
+    )).toBe(false);
+    expect(query).toHaveBeenCalledWith("commit");
+  });
+
+  it("rolls back the decision mutation when outbox receipt release fails", async () => {
+    const releaseError = new Error("outbox receipt release failed");
+    const { query, release } = decisionClient({ releaseError });
+
+    await expect(decideAppeal(decisionInput())).rejects.toBe(releaseError);
+
+    const updateIndex = query.mock.calls.findIndex(([statement]) =>
+      String(statement).includes("update appeal")
+    );
+    const receiptReleaseIndex = query.mock.calls.findIndex(([statement]) =>
+      String(statement).includes("public.release_email_outbox_delivery")
+    );
+    const rollbackIndex = query.mock.calls.findIndex(([statement]) => statement === "rollback");
+    expect(updateIndex).toBeGreaterThanOrEqual(0);
+    expect(receiptReleaseIndex).toBeGreaterThan(updateIndex);
+    expect(rollbackIndex).toBeGreaterThan(receiptReleaseIndex);
+    expect(query.mock.calls.some(([statement]) => statement === "commit")).toBe(false);
+    expect(query.mock.calls.some(([statement]) =>
+      String(statement).includes("select a.id, a.user_id, a.decision")
+    )).toBe(false);
+    expect(release).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["zero rows", []],
+    [
+      "multiple rows",
+      [
+        {
+          outbox_id: defaultOutboxReleaseIdentity.id,
+          operation_id: defaultOutboxReleaseIdentity.operation_id,
+        },
+        {
+          outbox_id: defaultOutboxReleaseIdentity.id,
+          operation_id: defaultOutboxReleaseIdentity.operation_id,
+        },
+      ],
+    ],
+    [
+      "a different outbox",
+      [{
+        outbox_id: "73000000-0000-4000-8000-000000000001",
+        operation_id: defaultOutboxReleaseIdentity.operation_id,
+      }],
+    ],
+    [
+      "a different operation",
+      [{
+        outbox_id: defaultOutboxReleaseIdentity.id,
+        operation_id: "74000000-0000-4000-8000-000000000001",
+      }],
+    ],
+  ] as const)(
+    "rolls back before report or commit when release returns %s",
+    async (_label, releaseRows) => {
+      const { query, release } = decisionClient({
+        releaseRows: [...releaseRows],
+      });
+
+      await expect(decideAppeal(decisionInput())).rejects.toMatchObject({
+        name: "EmailOutboxReleaseReceiptError",
+        code: "EMAIL_OUTBOX_RELEASE_RECEIPT_INVALID",
+      });
+
+      const releaseIndex = query.mock.calls.findIndex(([statement]) =>
+        String(statement).includes("public.release_email_outbox_delivery")
+      );
+      const rollbackIndex = query.mock.calls.findIndex(
+        ([statement]) => statement === "rollback",
+      );
+      expect(releaseIndex).toBeGreaterThanOrEqual(0);
+      expect(rollbackIndex).toBeGreaterThan(releaseIndex);
+      expect(query.mock.calls.some(
+        ([statement]) => statement === "commit",
+      )).toBe(false);
+      expect(query.mock.calls.some(([statement]) =>
+        String(statement).includes("select a.id, a.user_id, a.decision")
+      )).toBe(false);
+      expect(release).toHaveBeenCalledOnce();
+    },
+  );
 
   it("canonicalizes mixed-case UUIDs before deriving durable mail identity", async () => {
     const canonicalAppealId = "a0000000-0000-4000-8000-00000000000a";

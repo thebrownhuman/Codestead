@@ -11,6 +11,7 @@ import {
   type AccountDeletionNoticeVariables,
 } from "@/lib/notifications/deletion-notice-capability";
 import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
+import { assertEmailOutboxDeliveryRelease } from "@/lib/notifications/outbox";
 import { lockUserAuthorityOnPgClient } from "@/lib/security/user-authority-lock";
 
 import {
@@ -190,6 +191,9 @@ type DeletionNoticeOutboxRow = Readonly<{
   template_version: string;
   variables: unknown;
   idempotency_key: string;
+  idempotency_authority_sha256: string;
+  idempotency_original_payload_sha256: string;
+  delivery_hold_version: string;
 }>;
 
 function isExactDeletionNoticeRow(
@@ -980,7 +984,9 @@ export async function deleteLearnerAccount(input: {
                  '1', $5::jsonb, $6, 'event-v1-native', 'pending')
          on conflict (idempotency_key) do nothing
          returning id::text, operation_id::text, user_id, delivery_scope_key,
-                   to_email, template, template_version, variables, idempotency_key`,
+                   to_email, template, template_version, variables, idempotency_key,
+                   idempotency_authority_sha256,
+                   idempotency_original_payload_sha256, delivery_hold_version`,
         [
           mailOutboxId,
           mailOperationId,
@@ -990,19 +996,8 @@ export async function deleteLearnerAccount(input: {
           mailKey,
         ],
       );
-      let persistedNotice = insertedNotice.rows[0];
-      if (!persistedNotice) {
-        const conflict = await client.query<DeletionNoticeOutboxRow>(
-          `select id::text, operation_id::text, user_id, delivery_scope_key,
-                  to_email, template, template_version, variables, idempotency_key
-             from email_outbox
-            where idempotency_key = $1
-            for update`,
-          [mailKey],
-        );
-        persistedNotice = conflict.rows[0];
-      }
-      if (!isExactDeletionNoticeRow(persistedNotice, {
+      const insertedRelease = insertedNotice.rows[0];
+      const expectedNotice = {
         id: mailOutboxId,
         operationId: mailOperationId,
         userId: id,
@@ -1012,8 +1007,64 @@ export async function deleteLearnerAccount(input: {
         recipientHmacSha256: noticeBinding.recipientHmacSha256,
         payloadSha256: noticeBinding.payloadSha256,
         secret,
-      })) {
-        throw new Error("Deletion notice idempotency state mismatch.");
+      };
+      if (insertedRelease) {
+        if (!isExactDeletionNoticeRow(insertedRelease, expectedNotice)) {
+          throw new Error("Deletion notice idempotency state mismatch.");
+        }
+        const releasedNotice = await client.query<{
+          outbox_id: string;
+          operation_id: string;
+        }>(
+          `select released.outbox_id::text as outbox_id,
+                  released.operation_id::text as operation_id
+             from public.release_email_outbox_delivery($1::uuid, $2::uuid, $3::text, $4::text, $5::text) as released`,
+          [
+            insertedRelease.id,
+            insertedRelease.operation_id,
+            insertedRelease.idempotency_authority_sha256,
+            insertedRelease.idempotency_original_payload_sha256,
+            insertedRelease.delivery_hold_version,
+          ],
+        );
+        assertEmailOutboxDeliveryRelease(releasedNotice, {
+          outboxId: insertedRelease.id,
+          operationId: insertedRelease.operation_id,
+        });
+      } else {
+        const conflict = await client.query<DeletionNoticeOutboxRow>(
+          `select id::text, operation_id::text, user_id, delivery_scope_key,
+                  to_email, template, template_version, variables, idempotency_key,
+                  idempotency_authority_sha256,
+                  idempotency_original_payload_sha256, delivery_hold_version
+             from email_outbox
+            where idempotency_key = $1
+            for update`,
+          [mailKey],
+        );
+        const persistedNotice = conflict.rows[0];
+        if (!isExactDeletionNoticeRow(persistedNotice, expectedNotice)) {
+          throw new Error("Deletion notice idempotency state mismatch.");
+        }
+        const verifiedNotice = await client.query<{
+          outbox_id: string;
+          operation_id: string;
+        }>(
+          `select verified.outbox_id::text as outbox_id,
+                  verified.operation_id::text as operation_id
+             from public.verify_email_outbox_delivery_release($1::uuid, $2::uuid, $3::text, $4::text, $5::text) as verified`,
+          [
+            persistedNotice.id,
+            persistedNotice.operation_id,
+            persistedNotice.idempotency_authority_sha256,
+            persistedNotice.idempotency_original_payload_sha256,
+            persistedNotice.delivery_hold_version,
+          ],
+        );
+        assertEmailOutboxDeliveryRelease(verifiedNotice, {
+          outboxId: persistedNotice.id,
+          operationId: persistedNotice.operation_id,
+        });
       }
       await client.query(
         `update data_lifecycle_run set status = 'succeeded', report = $2::jsonb,

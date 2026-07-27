@@ -26,12 +26,6 @@ export const LIMITS = Object.freeze({
 
 export const EXPECTED_WRITERS = Object.freeze([
   Object.freeze({
-    functionName: "appendCredentialNotice",
-    kind: "drizzle-insert",
-    path: "src/lib/admin-credentials/service.ts",
-    receiver: "drizzle-transaction",
-  }),
-  Object.freeze({
     functionName: "decideAppeal",
     kind: "sql-executor",
     path: "src/lib/appeals/admin-service.ts",
@@ -59,7 +53,7 @@ export const EXPECTED_WRITERS = Object.freeze([
     functionName: "queuedEmailInsert",
     kind: "drizzle-sql-executor",
     path: "src/lib/notifications/outbox.ts",
-    receiver: "drizzle-db|drizzle-transaction",
+    receiver: "drizzle-transaction",
   }),
   Object.freeze({
     functionName: "enqueueBackupStatus",
@@ -181,11 +175,33 @@ const REVIEWED_SQL_WRITER_FILES = new Map([
   ["drizzle/0065_backup_status_mail_authority.sql", 1],
   ["drizzle/0067_mail_outbox_durable_replay_authority.sql", 1],
 ]);
+const REVIEWED_SQL_ROUTINE_WRAPPER_FILES = new Set([
+  "drizzle/0069_mail_outbox_guarded_delivery_authority.sql",
+]);
+const BACKUP_SUCCESSOR_DEFINITION =
+  /\bcreate\s+or\s+replace\s+function\s+public\s*\.\s*enqueue_backup_status_mail_authority\s*\(/giu;
+const BACKUP_PREDECESSOR_CALL =
+  /\bfrom\s+public\s*\.\s*enqueue_backup_status_mail_authority_unreleased_0067\s*\(/giu;
+const BACKUP_RELEASE_CALL = /\bfrom\s+public\s*\.\s*release_email_outbox_delivery\s*\(/giu;
+
+function patternCount(source, pattern) {
+  return [...source.matchAll(pattern)].length;
+}
+
 const OUTBOX_WRITE =
   /\b(?:insert\s+into|copy(?:\s+\w+)*\s+|merge\s+into)\s+(?:"?public"?\s*\.\s*)?"?email_outbox"?(?![a-z0-9_])/iu;
 const OUTBOX_TOKEN = /(?:^|[^a-z0-9_])email_outbox(?![a-z0-9_])/iu;
 const ROUTINE_CALL =
   /\b(?:call|from|select(?:\s+\*)?\s+from)\s+(?:"?public"?\s*\.\s*)?"?enqueue_backup_status_mail_authority"?\s*\(/iu;
+const DELIVERY_RELEASE_CALL =
+  /\b(?:from|select(?:\s+\*)?\s+from|select)\s+(?:"?public"?\s*\.\s*)?"?release_email_outbox_delivery"?\s*\(/iu;
+const RELEASE_IDENTITY_FIELDS = Object.freeze([
+  "id",
+  "operation_id",
+  "idempotency_authority_sha256",
+  "idempotency_original_payload_sha256",
+  "delivery_hold_version",
+]);
 const TEST_PATH =
   /(?:^|\/)(?:__fixtures__|__tests__|fixtures|test|tests)(?:\/|$)|\.(?:spec|test)\.[^/]+$/iu;
 const EXCLUDED_PATH =
@@ -1588,6 +1604,366 @@ function expressionCallsTaggedStatement(expression, bindings) {
   ).some((returned) => ts.isTaggedTemplateExpression(unwrap(returned)));
 }
 
+function executorSqlExpressions(call, bindings) {
+  if (call.arguments.length === 0) return [];
+  const argument = unwrap(call.arguments[0]);
+  if (ts.isTaggedTemplateExpression(argument)) return [argument];
+  if (ts.isCallExpression(argument) && ts.isIdentifier(unwrap(argument.expression))) {
+    return functionReturnExpressions(bindings, unwrap(argument.expression).text)
+      .map(unwrap)
+      .filter(ts.isTaggedTemplateExpression);
+  }
+  return [argument];
+}
+
+function executorSqlValues(call, bindings) {
+  return executorSqlExpressions(call, bindings).flatMap((expression) => {
+    const target = ts.isTaggedTemplateExpression(expression) ? expression.template : expression;
+    return staticStrings(target, bindings, call).values;
+  });
+}
+
+function hasDeliveryReleaseCall(value) {
+  return (
+    DELIVERY_RELEASE_CALL.test(value)
+    || compactLexical(value).includes("releaseemailoutboxdelivery")
+  );
+}
+
+function enclosingFunctionNode(node) {
+  let current = node.parent;
+  while (current !== undefined && !ts.isSourceFile(current)) {
+    if (
+      ts.isFunctionDeclaration(current)
+      || ts.isFunctionExpression(current)
+      || ts.isArrowFunction(current)
+      || ts.isMethodDeclaration(current)
+    )
+      return current;
+    current = current.parent;
+  }
+  return null;
+}
+
+function visitFunctionBody(fn, visitor) {
+  const visit = (node) => {
+    if (
+      node !== fn
+      && (ts.isFunctionDeclaration(node)
+        || ts.isFunctionExpression(node)
+        || ts.isArrowFunction(node)
+        || ts.isMethodDeclaration(node))
+    )
+      return;
+    visitor(node);
+    ts.forEachChild(node, visit);
+  };
+  visit(fn);
+}
+
+function executionResultName(call) {
+  const fn = enclosingFunctionNode(call);
+  let current = call.parent;
+  while (current !== undefined && current !== fn) {
+    if (
+      ts.isVariableDeclaration(current)
+      && ts.isIdentifier(current.name)
+      && current.initializer !== undefined
+      && current.initializer.pos <= call.pos
+      && call.end <= current.initializer.end
+    )
+      return current.name.text;
+    current = current.parent;
+  }
+  return null;
+}
+
+function rowsZeroResultName(expression) {
+  const current = unwrap(expression);
+  if (
+    !ts.isElementAccessExpression(current)
+    || current.argumentExpression === undefined
+    || !(ts.isNumericLiteral(current.argumentExpression) && current.argumentExpression.text === "0")
+    || !(
+      ts.isPropertyAccessExpression(unwrap(current.expression))
+      || ts.isElementAccessExpression(unwrap(current.expression))
+    )
+    || propertyName(unwrap(current.expression)) !== "rows"
+  )
+    return null;
+  const receiver = unwrap(unwrap(current.expression).expression);
+  return ts.isIdentifier(receiver) ? receiver.text : null;
+}
+
+function releaseRowAliases(fn, resultName, beforePosition) {
+  const aliases = new Set();
+  visitFunctionBody(fn, (node) => {
+    if (
+      ts.isVariableDeclaration(node)
+      && ts.isIdentifier(node.name)
+      && node.initializer !== undefined
+      && node.getStart() < beforePosition
+      && rowsZeroResultName(node.initializer) === resultName
+    )
+      aliases.add(node.name.text);
+  });
+  return aliases;
+}
+
+function exactRowField(expression, resultName, aliases) {
+  const current = unwrap(expression);
+  if (!(ts.isPropertyAccessExpression(current) || ts.isElementAccessExpression(current)))
+    return null;
+  const field = propertyName(current);
+  const receiver = unwrap(current.expression);
+  if (ts.isIdentifier(receiver) && aliases.has(receiver.text)) return field;
+  return rowsZeroResultName(receiver) === resultName ? field : null;
+}
+
+function releaseArgumentExpressions(call) {
+  const method = propertyName(unwrap(call.expression));
+  if (method === "query") {
+    const values = call.arguments[1] === undefined ? null : unwrap(call.arguments[1]);
+    return values !== null && ts.isArrayLiteralExpression(values) ? [...values.elements] : [];
+  }
+  if (method === "execute") {
+    const statement = unwrap(call.arguments[0]);
+    return ts.isTaggedTemplateExpression(statement) && ts.isTemplateExpression(statement.template)
+      ? statement.template.templateSpans.map(({ expression }) => expression)
+      : [];
+  }
+  return [];
+}
+
+function returnedFieldItem(item, field) {
+  const quoted = `"?${field}"?`;
+  const qualified = `(?:"?[a-z_][a-z0-9_]*"?\\s*\\.\\s*)?${quoted}`;
+  const cast = "(?:\\s*::\\s*(?:pg_catalog\\s*\\.\\s*)?text)?";
+  const alias = `(?:\\s+as\\s+${quoted})?`;
+  return new RegExp(`^\\s*${qualified}${cast}${alias}\\s*$`, "iu").test(item);
+}
+
+function hasExactReleaseReturning(values) {
+  const inserts = values.filter(hasOutboxWrite);
+  return (
+    inserts.length > 0
+    && inserts.every((value) => {
+      const match = value.match(/\breturning\b([\s\S]*)$/iu);
+      if (!match) return false;
+      const items = match[1].replace(/;\s*$/u, "").split(",");
+      let cursor = 0;
+      for (const field of RELEASE_IDENTITY_FIELDS) {
+        const offset = items.slice(cursor).findIndex((item) => returnedFieldItem(item, field));
+        if (offset < 0) return false;
+        cursor += offset + 1;
+      }
+      return true;
+    })
+  );
+}
+
+function sameExecutorReceiver(left, right, sourceFile) {
+  return (
+    unwrap(executorReceiver(left)).getText(sourceFile)
+    === unwrap(executorReceiver(right)).getText(sourceFile)
+  );
+}
+
+function transactionControl(call, bindings) {
+  const values = executorSqlValues(call, bindings);
+  if (values.length !== 1) return null;
+  return values[0].trim().replace(/;$/u, "").trim().toLowerCase();
+}
+
+function transactionControlBounds(call, target, order) {
+  let controlStatement = call;
+  while (controlStatement.parent !== undefined && !ts.isBlock(controlStatement.parent)) {
+    controlStatement = controlStatement.parent;
+  }
+  const block = controlStatement.parent;
+  if (!ts.isBlock(block) || !ts.isExpressionStatement(controlStatement)) {
+    return false;
+  }
+  let targetStatement = target;
+  while (targetStatement.parent !== undefined && targetStatement.parent !== block) {
+    targetStatement = targetStatement.parent;
+  }
+  if (targetStatement.parent !== block) return false;
+  return order === "before"
+    ? controlStatement.getStart() < targetStatement.getStart()
+    : controlStatement.getStart() > targetStatement.getStart();
+}
+
+function hasReturnOrThrow(statement) {
+  let observed = false;
+  const visit = (node) => {
+    if (ts.isReturnStatement(node) || ts.isThrowStatement(node)) {
+      observed = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(statement);
+  return observed;
+}
+
+function guardDominatesRelease(guard, release) {
+  const block = guard.parent;
+  if (!ts.isBlock(block)) return false;
+  let releaseStatement = release;
+  while (releaseStatement.parent !== undefined && releaseStatement.parent !== block) {
+    releaseStatement = releaseStatement.parent;
+  }
+  return releaseStatement.parent === block && guard.getStart() < releaseStatement.getStart();
+}
+
+function releaseHasRowGuard(fn, release, alias) {
+  let current = release.parent;
+  while (current !== undefined && current !== fn) {
+    if (
+      ts.isIfStatement(current)
+      && ts.isIdentifier(unwrap(current.expression))
+      && unwrap(current.expression).text === alias
+      && current.thenStatement.pos <= release.pos
+      && release.end <= current.thenStatement.end
+    )
+      return true;
+    current = current.parent;
+  }
+  let guarded = false;
+  visitFunctionBody(fn, (node) => {
+    if (
+      ts.isIfStatement(node)
+      && node.getStart() < release.getStart()
+      && ts.isPrefixUnaryExpression(unwrap(node.expression))
+      && unwrap(node.expression).operator === ts.SyntaxKind.ExclamationToken
+      && ts.isIdentifier(unwrap(unwrap(node.expression).operand))
+      && unwrap(unwrap(node.expression).operand).text === alias
+      && hasReturnOrThrow(node.thenStatement)
+      && guardDominatesRelease(node, release)
+    )
+      guarded = true;
+  });
+  return guarded;
+}
+
+function functionCallSites(sourceFile, functionName) {
+  const sites = [];
+  const visit = (node) => {
+    if (
+      ts.isCallExpression(node)
+      && ts.isIdentifier(unwrap(node.expression))
+      && unwrap(node.expression).text === functionName
+    )
+      sites.push(node);
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return sites;
+}
+
+function transactionSurrounds(execution, release, executorCalls, bindings, sourceFile) {
+  const receiver = unwrap(executorReceiver(execution)).getText(sourceFile);
+  const fn = enclosingFunctionNode(execution);
+  if (fn === null) return false;
+  const inFunction = executorCalls.filter(
+    (call) =>
+      enclosingFunctionNode(call) === fn
+      && unwrap(executorReceiver(call)).getText(sourceFile) === receiver,
+  );
+  if (
+    inFunction.some(
+      (call) =>
+        transactionControl(call, bindings) === "begin"
+        && transactionControlBounds(call, execution, "before"),
+    )
+    && inFunction.some(
+      (call) =>
+        transactionControl(call, bindings) === "commit"
+        && transactionControlBounds(call, release, "after"),
+    )
+  )
+    return true;
+  if (receiverKind(executorReceiver(execution), bindings, execution) === "drizzle-transaction")
+    return true;
+
+  const functionName = declaredFunctionName(fn);
+  if (functionName === null) return false;
+  const callSites = functionCallSites(sourceFile, functionName);
+  return (
+    callSites.length > 0
+    && callSites.every((callSite) => {
+      const caller = enclosingFunctionNode(callSite);
+      const receiverArgument =
+        callSite.arguments[0] === undefined ? null : unwrap(callSite.arguments[0]);
+      if (caller === null || receiverArgument === null) return false;
+      const receiverText = receiverArgument.getText(sourceFile);
+      const controls = executorCalls.filter(
+        (call) =>
+          enclosingFunctionNode(call) === caller
+          && unwrap(executorReceiver(call)).getText(sourceFile) === receiverText,
+      );
+      return (
+        controls.some(
+          (call) =>
+            transactionControl(call, bindings) === "begin"
+            && transactionControlBounds(call, callSite, "before"),
+        )
+        && controls.some(
+          (call) =>
+            transactionControl(call, bindings) === "commit"
+            && transactionControlBounds(call, callSite, "after"),
+        )
+      );
+    })
+  );
+}
+
+function hasExactReleaseComposition(execution, executorCalls, bindings, sourceFile) {
+  const fn = enclosingFunctionNode(execution);
+  const resultName = executionResultName(execution);
+  if (fn === null || resultName === null) return false;
+  const insertSql = executorSqlValues(execution, bindings);
+  if (!hasExactReleaseReturning(insertSql)) return false;
+
+  const releases = executorCalls.filter(
+    (call) =>
+      call.getStart() > execution.getStart()
+      && enclosingFunctionNode(call) === fn
+      && sameExecutorReceiver(execution, call, sourceFile)
+      && executorSqlValues(call, bindings).some(hasDeliveryReleaseCall),
+  );
+  if (releases.length !== 1) return false;
+  const [release] = releases;
+  if (
+    executorCalls.some(
+      (call) =>
+        enclosingFunctionNode(call) === fn
+        && sameExecutorReceiver(execution, call, sourceFile)
+        && call.getStart() > execution.getStart()
+        && call.getStart() < release.getStart()
+        && transactionControl(call, bindings) === "commit",
+    )
+  )
+    return false;
+
+  const aliases = releaseRowAliases(fn, resultName, release.getStart());
+  const argumentsList = releaseArgumentExpressions(release);
+  if (aliases.size === 0 || argumentsList.length !== RELEASE_IDENTITY_FIELDS.length) {
+    return false;
+  }
+  const fields = argumentsList.map((argument) => exactRowField(argument, resultName, aliases));
+  if (fields.some((field, index) => field !== RELEASE_IDENTITY_FIELDS[index])) {
+    return false;
+  }
+  const alias = aliases.values().next().value;
+  return (
+    typeof alias === "string"
+    && releaseHasRowGuard(fn, release, alias)
+    && transactionSurrounds(execution, release, executorCalls, bindings, sourceFile)
+  );
+}
+
 export function analyzeAstSource(relativePath, source) {
   const sourceFile = ts.createSourceFile(
     relativePath,
@@ -1712,6 +2088,7 @@ export function analyzeAstSource(relativePath, source) {
         }
       } else if (
         evaluated.unknown
+        && !evaluated.values.some(hasDeliveryReleaseCall)
         && hasOutboxTaint(resolvedSource(node.template, bindings, node))
         && hasWriteVerb(resolvedSource(node.template, bindings, node))
       ) {
@@ -1777,6 +2154,24 @@ export function analyzeAstSource(relativePath, source) {
         node: tag,
         receiver: [...receivers].sort().join("|"),
       });
+    }
+  }
+
+  const physicalExecutions = executorCalls.filter((call) =>
+    executorSqlValues(call, bindings).some(hasOutboxWrite),
+  );
+  for (const execution of physicalExecutions) {
+    const functionName = enclosingFunctionName(execution);
+    if (
+      !isStaticallyUnreachable(execution)
+      && (functionName === null || reachable.has(functionName))
+      && !hasExactReleaseComposition(execution, executorCalls, bindings, sourceFile)
+    )
+      addViolation("release-composition", execution);
+  }
+  for (const candidate of candidates) {
+    if (candidate.kind === "drizzle-insert") {
+      addViolation("release-composition", candidate.node);
     }
   }
 
@@ -1860,6 +2255,21 @@ function countDirectWrites(source) {
 function inspectTextFile(relativePath, source) {
   const directCount = countDirectWrites(source);
   const compactWriter = hasCompactWrite(source);
+  if (REVIEWED_SQL_ROUTINE_WRAPPER_FILES.has(relativePath)) {
+    if (directCount > 0 || compactWriter) {
+      fail(`reviewed-sql-wrapper-direct-writer:${relativePath}`);
+    }
+    const successorDefinitions = patternCount(source, BACKUP_SUCCESSOR_DEFINITION);
+    const predecessorCalls = patternCount(source, BACKUP_PREDECESSOR_CALL);
+    const releaseCalls = patternCount(source, BACKUP_RELEASE_CALL);
+    if (successorDefinitions !== 1 || predecessorCalls !== 1 || releaseCalls !== 1) {
+      fail(
+        `reviewed-sql-wrapper-shape:${relativePath}:successor=${successorDefinitions}:predecessor=${predecessorCalls}:release=${releaseCalls}`,
+      );
+    }
+    return;
+  }
+
   if (REVIEWED_SQL_WRITER_FILES.has(relativePath)) {
     const expected = REVIEWED_SQL_WRITER_FILES.get(relativePath);
     if (directCount !== expected || !compactWriter) {
