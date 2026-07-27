@@ -6,18 +6,32 @@ scans the same digests, and only then emits the Compose image record.
 
 ## Preferred GitHub release
 
-1. Protect the `application-image-registry` environment and require an
-   administrator approval.
-2. Run **Application image registry release** from the Actions tab on the
+1. In repository settings, create or inspect the
+   `application-image-registry` environment and require an administrator
+   approval.
+2. Under **Deployment branches and tags**, choose **Selected branches and
+   tags** and allow only `main`; do not add a wildcard branch or any tag.
+3. Treat that protected-environment policy as the authoritative external
+   authorization boundary. The approving administrator must capture the
+   environment settings or API response as evidence before approving a run;
+   the evidence must show the required reviewer and the single `main` rule.
+4. Run **Application image registry release** from the Actions tab on the
    reviewed `main` commit.
-3. Enter a unique release such as `20260719T120000Z-90a441c`.
-4. Download the `application-image-registry-<release>` artifact.
-5. Verify that it contains `application-signing.json`, the seven-target
+5. Enter a unique release such as `20260719T120000Z-90a441c`.
+6. Download the `application-image-registry-<release>` artifact.
+7. Verify that it contains `application-signing.json`, the seven-target
    security manifest, and the matching canonical JSON/env record.
 
 The workflow grants only `contents: read`, `packages: write`, and
 `id-token: write`. The last permission supplies the short-lived Sigstore
-identity; no Cosign private key is stored.
+identity; no Cosign private key is stored. Its first step rejects every ref
+except `refs/heads/main` before checkout or any third-party action runs. That
+in-file guard is defense in depth; it does not replace the protected
+`application-image-registry` environment.
+
+Repository code and a green workflow contract test do not prove that the
+environment policy is configured. Until an administrator captures the settings
+or API evidence described above, record this external gate as unverified.
 
 ## Equivalent operator commands
 

@@ -299,9 +299,9 @@ test("topology database fixture passwords are distinct and at least 32 bytes", (
   const urlPasswords = [...harness.matchAll(/postgresql:\/\/[^:']+:([^@']+)@postgres:5432\/learncoding/gmu)]
     .map((match) => match[1]);
   assert.ok(rawPassword);
-  assert.equal(urlPasswords.length, 5);
+  assert.equal(urlPasswords.length, 6);
   assert.equal(urlPasswords[0], rawPassword);
-  assert.equal(new Set(urlPasswords).size, 5);
+  assert.equal(new Set(urlPasswords).size, 6);
   for (const password of urlPasswords) assert.ok(Buffer.byteLength(password, "utf8") >= 32);
 });
 test("topology psql clients pin the custom control socket", () => {

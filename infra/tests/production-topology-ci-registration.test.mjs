@@ -28,7 +28,11 @@ const job = workflow.match(
 assert.match(job, /^  production-topology:\n    runs-on: ubuntu-24\.04\n/mu);
 assert.doesNotMatch(job, /^    (?:needs|if):/mu, "topology gate must be independent");
 assert.match(job, /timeout-minutes: 45/u);
-assert.match(job, /RUNNER_ENVIRONMENT: \$\{\{ runner\.environment \}\}/u);
+assert.doesNotMatch(
+  job,
+  /^      RUNNER_ENVIRONMENT:/mu,
+  "GitHub must provide RUNNER_ENVIRONMENT at step runtime",
+);
 assert.match(job, /CODESTEAD_DISPOSABLE_HOST=1 bash infra\/tests\/production-topology\.test\.sh/u);
 assert.match(job, /bash -n infra\/tests\/production-topology\.test\.sh/u);
 assert.match(

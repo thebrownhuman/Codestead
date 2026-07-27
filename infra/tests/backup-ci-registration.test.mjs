@@ -572,6 +572,7 @@ const requiredBackupRuns = [
 const expectedApplicationRuns = [
   "npm ci",
   registrationRun,
+  "npm run test:github-runner-context:registration",
   releaseRollbackRun,
   "npm run test:migration-ledger",
   "npm run test:email-outbox-writer-inventory",
@@ -773,6 +774,35 @@ const trivySetupProjection = [
   '      - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-db-only',
   '      - run: trivy image --cache-dir "$RUNTIME_TRIVY_CACHE_DIR" --download-java-db-only',
 ];
+function runnerCacheInitializationProjection(variable, suffix) {
+  return [
+    "      - run: |",
+    "          set -Eeuo pipefail",
+    `          printf '${variable}=%s/${suffix}\\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"`,
+  ];
+}
+const applicationImageTrivyProjection = [
+  "      - uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.6",
+  "        with:",
+  "          version: 0.69.3",
+  '      - run: trivy image --cache-dir "$APP_IMAGE_TRIVY_CACHE_DIR" --download-db-only',
+  '      - run: trivy image --cache-dir "$APP_IMAGE_TRIVY_CACHE_DIR" --download-java-db-only',
+];
+const applicationImageEvidenceUploadProjection = [
+  "      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2",
+  "        if: always()",
+  "        with:",
+  "          name: application-image-release-evidence",
+  "          path: |",
+  "            dist/application-images/application-inspection.json",
+  "            dist/application-images/application-images.env",
+  "            dist/application-images/application-images.json",
+  "            dist/application-images/application-security/**",
+  "            dist/application-images/.application-security.failed-*/**",
+  "          if-no-files-found: warn",
+  "          include-hidden-files: true",
+  "          retention-days: 14",
+];
 function runtimeEvidenceUploadProjection(artifactName) {
   return [
     "      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2",
@@ -807,12 +837,37 @@ const reviewedJobContracts = new Map([
     ],
   ],
   [
+    "application-images",
+    [
+      "    runs-on: ubuntu-24.04",
+      "    timeout-minutes: 90",
+      "    env:",
+      "      APP_IMAGE_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}",
+      "      APP_IMAGE_SOURCE_REVISION: ${{ github.sha }}",
+      "    steps:",
+      ...checkoutProjection,
+      ...runnerCacheInitializationProjection(
+        "APP_IMAGE_TRIVY_CACHE_DIR",
+        "application-image-trivy-cache",
+      ),
+      ...setupNodeProjection,
+      "      - run: npm ci",
+      ...dockerSetupProjection,
+      "      - run: npm run app-images:test",
+      "      - run: npm run app-images:build",
+      "      - run: npm run app-images:inspect",
+      ...applicationImageTrivyProjection,
+      "      - run: npm run app-images:scan",
+      "      - run: npm run app-images:record",
+      ...applicationImageEvidenceUploadProjection,
+    ],
+  ],
+  [
     "production-topology",
     [
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 45",
       "    env:",
-      "      RUNNER_ENVIRONMENT: ${{ runner.environment }}",
       '      CODESTEAD_DISPOSABLE_DOCKER_DAEMON: "1"',
       '      CODESTEAD_TOPOLOGY_RESTART_DOCKER: "1"',
       "    steps:",
@@ -856,7 +911,6 @@ const reviewedJobContracts = new Map([
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 35",
       "    env:",
-      "      RUNTIME_TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy-cache",
       "      RUNTIME_LOCAL_RISK_ACCEPTANCE: accept-unsigned-local-buildkit-provenance-v1",
       "      RUNTIME_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}",
       "      RUNTIME_SOURCE_REVISION: ${{ github.sha }}",
@@ -865,6 +919,10 @@ const reviewedJobContracts = new Map([
       "        working-directory: services/runner",
       "    steps:",
       ...checkoutProjection,
+      ...runnerCacheInitializationProjection(
+        "RUNTIME_TRIVY_CACHE_DIR",
+        "trivy-cache",
+      ),
       "      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0",
       "        with:",
       "          node-version: 22.23.1",
@@ -938,12 +996,15 @@ const reviewedJobContracts = new Map([
       "    runs-on: ubuntu-24.04",
       "    timeout-minutes: 45",
       "    env:",
-      "      RUNTIME_TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy-cache",
       "      RUNTIME_LOCAL_RISK_ACCEPTANCE: accept-unsigned-local-buildkit-provenance-v1",
       "      RUNTIME_SOURCE_REPOSITORY: ${{ github.server_url }}/${{ github.repository }}",
       "      RUNTIME_SOURCE_REVISION: ${{ github.sha }}",
       "    steps:",
       ...checkoutProjection,
+      ...runnerCacheInitializationProjection(
+        "RUNTIME_TRIVY_CACHE_DIR",
+        "trivy-cache",
+      ),
       ...setupNodeProjection,
       "      - run: npm ci",
       "      - run: npm ci",
@@ -1585,6 +1646,25 @@ function runAdversarialSelfTests(document) {
     replaceExactly(document, "  contents: read\n", "  contents: write\n"),
   );
 
+  const applicationImageCacheInitialization = [
+    "      - name: Initialize the runner-local cache path",
+    "        run: |",
+    "          set -Eeuo pipefail",
+    "          printf 'APP_IMAGE_TRIVY_CACHE_DIR=%s/application-image-trivy-cache\\n' \"$RUNNER_TEMP\" >> \"$GITHUB_ENV\"",
+    "",
+  ].join("\n");
+  expectRejected(
+    "missing application-images runner cache initialization",
+    replaceExactly(document, applicationImageCacheInitialization, ""),
+  );
+  expectRejected(
+    "unreviewed application-images executable",
+    replaceExactly(
+      document,
+      "      - run: npm run app-images:record\n",
+      "      - run: npm run app-images:record\n      - run: echo unreviewed\n",
+    ),
+  );
   for (const jobName of [
     "postgres-integration",
     "curriculum-runtime",
@@ -1936,6 +2016,7 @@ function runAdversarialSelfTests(document) {
   const applicationGateSequence = [
     "      - run: npm ci",
     `      - run: ${registrationRun}`,
+    "      - run: npm run test:github-runner-context:registration",
     `      - run: ${releaseRollbackRun}`,
     "      - run: npm run test:migration-ledger",
   ].join("\n");
@@ -1946,6 +2027,7 @@ function runAdversarialSelfTests(document) {
       applicationGateSequence,
       [
         "      - run: npm ci",
+        "      - run: npm run test:github-runner-context:registration",
         `      - run: ${releaseRollbackRun}`,
         "      - run: npm run test:migration-ledger",
       ].join("\n"),
@@ -1979,6 +2061,7 @@ function runAdversarialSelfTests(document) {
         "      - run: npm ci",
         `      - run: ${releaseRollbackRun}`,
         `      - run: ${registrationRun}`,
+        "      - run: npm run test:github-runner-context:registration",
         "      - run: npm run test:migration-ledger",
       ].join("\n"),
     ),

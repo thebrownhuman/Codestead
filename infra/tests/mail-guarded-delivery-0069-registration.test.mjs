@@ -100,6 +100,8 @@ const pg18Line =
   "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-guarded-delivery-0069:pg18";
 const applicationGuardLine =
   "      - run: node infra/tests/backup-ci-registration.test.mjs";
+const runnerContextGuardLine =
+  "      - run: npm run test:github-runner-context:registration";
 const releaseRollbackLine =
   `      - run: npm run ${releaseRollbackScript}`;
 
@@ -248,8 +250,8 @@ for (const [mutated, expected] of [
   [
     replaceExactly(
       applicationJob,
-      `${applicationGuardLine}\n${releaseRollbackLine}`,
-      `${releaseRollbackLine}\n${applicationGuardLine}`,
+      `${applicationGuardLine}\n${runnerContextGuardLine}\n${releaseRollbackLine}`,
+      `${releaseRollbackLine}\n${applicationGuardLine}\n${runnerContextGuardLine}`,
     ),
     /must precede the 0069 release\/rollback gate/u,
   ],
