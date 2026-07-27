@@ -4,6 +4,11 @@ import { pathToFileURL } from "node:url";
 
 import { Pool } from "pg";
 import {
+  MAIL_APP_OUTBOX_INSERT_COLUMNS,
+  MAIL_APP_OUTBOX_PRE_REPLAY_INSERT_COLUMNS,
+  MAIL_DELIVERY_RELEASE_INSERT_MARKER_COLUMNS,
+  MAIL_DELIVERY_RELEASE_RECEIPT_WORKER_SELECT_COLUMNS,
+  MAIL_WORKER_OUTBOX_PRE_REQUEST_UPDATE_COLUMNS,
   MAIL_WORKER_OUTBOX_INSERT_COLUMNS,
   MAIL_WORKER_OUTBOX_PRE_BINDING_UPDATE_COLUMNS,
   MAIL_WORKER_OUTBOX_PRE_EVIDENCE_UPDATE_COLUMNS,
@@ -16,9 +21,7 @@ import {
   REVIEWED_REPLAY_AUTHORITY_RELATIONAL_CONTRACT,
   canonicalReviewedMailAuthorityCatalogPhase,
 } from "./bootstrap-database-roles.mjs";
-import {
-  verifyBackupStatusMailAuthorityObjects,
-} from "./verify-backup-status-mail-authority.mjs";
+import { verifyBackupStatusMailAuthorityObjects } from "./verify-backup-status-mail-authority.mjs";
 
 export const DATABASE_ADMIN_LOCK_NAME = "codestead:database-administration:v1";
 const MIN_PASSWORD_BYTES = 32;
@@ -31,7 +34,11 @@ const ROLE_SPECS = Object.freeze([
   ["migrator", "databaseMigratorUrl", "learncoding_migrator"],
   ["worker", "databaseWorkerUrl", "learncoding_worker"],
   ["ops", "databaseOpsUrl", "learncoding_ops"],
-  ["backupReporter", "databaseBackupReporterUrl", "learncoding_backup_reporter"],
+  [
+    "backupReporter",
+    "databaseBackupReporterUrl",
+    "learncoding_backup_reporter",
+  ],
 ]);
 const RESTRICTED_ROLE_NAMES = Object.freeze(
   ROLE_SPECS.map(([, , role]) => role),
@@ -58,8 +65,8 @@ async function establishTrustedCatalogSearchPath(client) {
     "select pg_catalog.set_config('search_path', 'pg_catalog,pg_temp', false) trusted_search_path",
   );
   if (
-    result.rows.length !== 1
-    || result.rows[0]?.trusted_search_path !== "pg_catalog,pg_temp"
+    result.rows.length !== 1 ||
+    result.rows[0]?.trusted_search_path !== "pg_catalog,pg_temp"
   ) {
     fail("trusted-search-path");
   }
@@ -659,38 +666,40 @@ export async function verifyMailReplayAuthorityTableContract(client) {
     ({ name }) => name === foreignKey.persistTriggerName,
   );
   if (
-    authority.relation !== unique.relation
-    || authority.owner !== "learncoding_owner"
-    || authority.columns.length !== 2
-    || authority.primaryKey.columns.length !== 1
-    || authority.checks.length !== 2
-    || deliveryScope.relation !== foreignKey.relation
-    || deliveryScope.columns.length !== 8
-    || triggerRelations.length !== 2
-    || triggers.length !== 8
-    || routines.length !== 7
-    || new Set(triggers.map(({ name }) => name)).size !== triggers.length
-    || new Set(routines.map(({ signature }) => signature)).size !== routines.length
-    || persistTrigger === undefined
-    || persistTrigger.relation !== foreignKey.relation
-    || persistTrigger.functionSignature !==
-      "public.persist_email_outbox_idempotency_authority()"
-    || persistTrigger.enabled !== "A"
-    || persistTrigger.type !== 5
-    || unique.relation !== foreignKey.referencedRelation
-    || unique.columns.length !== 2
-    || foreignKey.columns.length !== 2
-    || foreignKey.referencedColumns.length !== 2
-    || typeof unique.noInherit !== "boolean"
-    || typeof foreignKey.noInherit !== "boolean"
-    || lookupIndex.relation !== foreignKey.relation
-    || lookupIndex.columns.length !== 2
-    || lookupIndex.columns[0] !== "idempotency_authority_sha256"
-    || lookupIndex.columns[1] !== "id"
-    || unique.columns.some(
+    authority.relation !== unique.relation ||
+    authority.owner !== "learncoding_owner" ||
+    authority.columns.length !== 2 ||
+    authority.primaryKey.columns.length !== 1 ||
+    authority.checks.length !== 2 ||
+    deliveryScope.relation !== foreignKey.relation ||
+    deliveryScope.columns.length !== 8 ||
+    triggerRelations.length !== 2 ||
+    triggers.length !== 8 ||
+    routines.length !== 7 ||
+    new Set(triggers.map(({ name }) => name)).size !== triggers.length ||
+    new Set(routines.map(({ signature }) => signature)).size !==
+      routines.length ||
+    persistTrigger === undefined ||
+    persistTrigger.relation !== foreignKey.relation ||
+    persistTrigger.functionSignature !==
+      "public.persist_email_outbox_idempotency_authority()" ||
+    persistTrigger.enabled !== "A" ||
+    persistTrigger.type !== 5 ||
+    unique.relation !== foreignKey.referencedRelation ||
+    unique.columns.length !== 2 ||
+    foreignKey.columns.length !== 2 ||
+    foreignKey.referencedColumns.length !== 2 ||
+    typeof unique.noInherit !== "boolean" ||
+    typeof foreignKey.noInherit !== "boolean" ||
+    lookupIndex.relation !== foreignKey.relation ||
+    lookupIndex.columns.length !== 2 ||
+    lookupIndex.columns[0] !== "idempotency_authority_sha256" ||
+    lookupIndex.columns[1] !== "id" ||
+    unique.columns.some(
       (column, index) => column !== foreignKey.referencedColumns[index],
     )
-  ) fail("mail-replay-authority-relational-contract");
+  )
+    fail("mail-replay-authority-relational-contract");
   const result = await client.query(
     `
     with target as (
@@ -2179,15 +2188,19 @@ export async function verifyMailWorkerOutboxContract(
     requiresDispatchBinding = true,
     requiresProviderEvidence = false,
     requiresReplayAuthority = false,
+    requiresProviderRequest = false,
   } = {},
 ) {
   if (
-    typeof requiresDispatchBinding !== "boolean"
-    || typeof requiresProviderEvidence !== "boolean"
-    || typeof requiresReplayAuthority !== "boolean"
-    || (requiresProviderEvidence && !requiresDispatchBinding)
-    || (requiresReplayAuthority && !requiresProviderEvidence)
-  ) fail();
+    typeof requiresDispatchBinding !== "boolean" ||
+    typeof requiresProviderEvidence !== "boolean" ||
+    typeof requiresReplayAuthority !== "boolean" ||
+    typeof requiresProviderRequest !== "boolean" ||
+    (requiresProviderEvidence && !requiresDispatchBinding) ||
+    (requiresReplayAuthority && !requiresProviderEvidence) ||
+    (requiresProviderRequest && !requiresReplayAuthority)
+  )
+    fail();
   await establishTrustedCatalogSearchPath(client);
   if (REVIEWED_APPLICATION_CONSTRAINTS.length !== 5) fail();
   const variablesObjectConstraint = REVIEWED_APPLICATION_CONSTRAINTS.find(
@@ -2200,64 +2213,68 @@ export async function verifyMailWorkerOutboxContract(
     ({ name }) => name === "email_outbox_dispatch_binding_valid",
   );
   const providerEvidenceConstraint = REVIEWED_APPLICATION_CONSTRAINTS.find(
-    ({ name }) =>
-      name === "email_outbox_provider_correlation_evidence_valid",
+    ({ name }) => name === "email_outbox_provider_correlation_evidence_valid",
   );
   const replayAuthorityConstraint = REVIEWED_APPLICATION_CONSTRAINTS.find(
     ({ name }) => name === "email_outbox_idempotency_authority_valid",
   );
   if (
-    !variablesObjectConstraint
-    || !recipientCanonicalConstraint
-    || !dispatchConstraint
-    || !providerEvidenceConstraint
-    || !replayAuthorityConstraint
-    || variablesObjectConstraint.noInherit !== false
-    || recipientCanonicalConstraint.noInherit !== false
-    || !/^[0-9a-f]{64}$/u.test(
+    !variablesObjectConstraint ||
+    !recipientCanonicalConstraint ||
+    !dispatchConstraint ||
+    !providerEvidenceConstraint ||
+    !replayAuthorityConstraint ||
+    variablesObjectConstraint.noInherit !== false ||
+    recipientCanonicalConstraint.noInherit !== false ||
+    !/^[0-9a-f]{64}$/u.test(
       variablesObjectConstraint.reviewedSqlExpressionSha256,
-    )
-    || !/^[0-9a-f]{64}$/u.test(
+    ) ||
+    !/^[0-9a-f]{64}$/u.test(
       variablesObjectConstraint.normalizedExpressionSha256,
-    )
-    || !/^[0-9a-f]{64}$/u.test(
+    ) ||
+    !/^[0-9a-f]{64}$/u.test(
       recipientCanonicalConstraint.reviewedSqlExpressionSha256,
-    )
-    || !/^[0-9a-f]{64}$/u.test(
+    ) ||
+    !/^[0-9a-f]{64}$/u.test(
       recipientCanonicalConstraint.normalizedExpressionSha256,
-    )
-    || !/^[0-9a-f]{64}$/u.test(
+    ) ||
+    !/^[0-9a-f]{64}$/u.test(
       providerEvidenceConstraint.normalizedExpressionSha256,
-    )
-    || !/^[0-9a-f]{64}$/u.test(
+    ) ||
+    !/^[0-9a-f]{64}$/u.test(
       replayAuthorityConstraint.normalizedExpressionSha256,
     )
-  ) fail();
+  )
+    fail();
   const expectedInsertColumns = requiresReplayAuthority
     ? MAIL_WORKER_OUTBOX_INSERT_COLUMNS
     : MAIL_WORKER_OUTBOX_PRE_REPLAY_INSERT_COLUMNS;
+  const expectedAppInsertColumns = requiresReplayAuthority
+    ? MAIL_APP_OUTBOX_INSERT_COLUMNS
+    : MAIL_APP_OUTBOX_PRE_REPLAY_INSERT_COLUMNS;
   const expectedUpdateColumns = requiresProviderEvidence
-    ? MAIL_WORKER_OUTBOX_UPDATE_COLUMNS
+    ? requiresProviderRequest
+      ? MAIL_WORKER_OUTBOX_UPDATE_COLUMNS
+      : MAIL_WORKER_OUTBOX_PRE_REQUEST_UPDATE_COLUMNS
     : requiresDispatchBinding
       ? MAIL_WORKER_OUTBOX_PRE_EVIDENCE_UPDATE_COLUMNS
       : MAIL_WORKER_OUTBOX_PRE_BINDING_UPDATE_COLUMNS;
   const expectedBindingColumnCount = requiresDispatchBinding ? 2 : 0;
-  const expectedProviderEvidenceColumnCount =
-    requiresProviderEvidence ? 3 : 0;
+  const expectedProviderEvidenceColumnCount = requiresProviderEvidence ? 3 : 0;
   const expectedReplayAuthorityColumnCount = requiresReplayAuthority ? 3 : 0;
   const reviewed0067CheckConstraints = requiresReplayAuthority
     ? [variablesObjectConstraint, recipientCanonicalConstraint].map(
-      (constraint) => ({
-        relation_name: constraint.relation,
-        relation_owner: constraint.relationOwner,
-        constraint_name: constraint.name,
-        constraint_type: constraint.type,
-        validated: constraint.validated,
-        no_inherit: constraint.noInherit,
-        normalized_expression_sha256: constraint.normalizedExpressionSha256,
-        columns: constraint.columns,
-      }),
-    )
+        (constraint) => ({
+          relation_name: constraint.relation,
+          relation_owner: constraint.relationOwner,
+          constraint_name: constraint.name,
+          constraint_type: constraint.type,
+          validated: constraint.validated,
+          no_inherit: constraint.noInherit,
+          normalized_expression_sha256: constraint.normalizedExpressionSha256,
+          columns: constraint.columns,
+        }),
+      )
     : [];
   const result = await client.query(
     `
@@ -2758,13 +2775,413 @@ export async function verifyMailWorkerOutboxContract(
   };
   const row = result.rows[0];
   if (result.rows.length !== 1 || !exactRow(row, expected)) {
-    const mismatches = result.rows.length === 1
-      ? exactRowMismatchKeys(row, expected).join(",")
-      : "missing-or-duplicate";
+    const mismatches =
+      result.rows.length === 1
+        ? exactRowMismatchKeys(row, expected).join(",")
+        : "missing-or-duplicate";
     fail(`mail-worker-outbox-contract:${mismatches}`);
   }
   if (requiresReplayAuthority) {
     await verifyMailReplayAuthorityTableContract(client);
+    await verifyMailGuardedDeliveryAclContract(client, {
+      expectedAppInsertColumns,
+      expectedWorkerInsertColumns: expectedInsertColumns,
+      expectedWorkerUpdateColumns: expectedUpdateColumns,
+    });
+  }
+  return 1;
+}
+export async function verifyMailGuardedDeliveryAclContract(
+  client,
+  {
+    expectedAppInsertColumns,
+    expectedWorkerInsertColumns,
+    expectedWorkerUpdateColumns,
+  },
+) {
+  const vectors = [
+    expectedAppInsertColumns,
+    expectedWorkerInsertColumns,
+    expectedWorkerUpdateColumns,
+    MAIL_DELIVERY_RELEASE_INSERT_MARKER_COLUMNS,
+    MAIL_DELIVERY_RELEASE_RECEIPT_WORKER_SELECT_COLUMNS,
+  ];
+  if (
+    vectors.some(
+      (columns) =>
+        !Array.isArray(columns) ||
+        columns.length === 0 ||
+        columns.some((column) => typeof column !== "string" || column === "") ||
+        new Set(columns).size !== columns.length,
+    ) ||
+    expectedAppInsertColumns[0] !== "id" ||
+    expectedAppInsertColumns.length !==
+      expectedWorkerInsertColumns.length + 1 ||
+    expectedAppInsertColumns
+      .slice(1)
+      .some((column, index) => column !== expectedWorkerInsertColumns[index]) ||
+    MAIL_DELIVERY_RELEASE_INSERT_MARKER_COLUMNS.some(
+      (column) =>
+        expectedAppInsertColumns.includes(column) ||
+        expectedWorkerInsertColumns.includes(column) ||
+        expectedWorkerUpdateColumns.includes(column),
+    ) ||
+    MAIL_DELIVERY_RELEASE_RECEIPT_WORKER_SELECT_COLUMNS.length !== 7
+  )
+    fail("mail-guarded-delivery-acl-manifest");
+
+  const result = await client.query(
+    `with recursive
+       managed_roles(role_name, role_oid) as (
+         select role.rolname::text, role.oid
+           from pg_catalog.pg_roles role
+          where role.rolname = any(
+            array[
+              'learncoding_migrator',
+              'learncoding_app',
+              'learncoding_worker',
+              'learncoding_ops',
+              'learncoding_backup_reporter'
+            ]::text[]
+          )
+       ), runtime_roles(role_name, role_oid) as (
+         select role_name, role_oid
+           from managed_roles
+          where role_name = any(
+            array[
+              'learncoding_app',
+              'learncoding_worker',
+              'learncoding_ops'
+            ]::text[]
+          )
+       ), outbox as (
+         select relation.oid, relation.relowner
+           from pg_catalog.pg_class relation
+          where relation.oid = pg_catalog.to_regclass('public.email_outbox')
+            and relation.relkind in ('r', 'p')
+       ), receipt as (
+         select relation.oid, relation.relowner
+           from pg_catalog.pg_class relation
+          where relation.oid = pg_catalog.to_regclass(
+                  'public.mail_delivery_release_receipt'
+                )
+            and relation.relkind in ('r', 'p')
+       ), release_marker_columns as (
+         select pg_catalog.count(*)::integer present_count
+           from outbox
+           join pg_catalog.pg_attribute attribute
+             on attribute.attrelid = outbox.oid
+            and attribute.attnum > 0
+            and not attribute.attisdropped
+            and attribute.attname = any($4::text[])
+       ), receipt_worker_columns as (
+         select pg_catalog.count(*)::integer present_count
+           from receipt
+           join pg_catalog.pg_attribute attribute
+             on attribute.attrelid = receipt.oid
+            and attribute.attnum > 0
+            and not attribute.attisdropped
+            and attribute.attname = any($5::text[])
+       ), expected_outbox_table_acl(role_name, privilege_type) as (
+         values
+           ('learncoding_app'::text, 'SELECT'::text),
+           ('learncoding_app'::text, 'DELETE'::text),
+           ('learncoding_worker'::text, 'SELECT'::text),
+           ('learncoding_ops'::text, 'SELECT'::text),
+           ('learncoding_ops'::text, 'DELETE'::text)
+       ), observed_outbox_table_acl(
+         grantor, grantee, privilege_type, is_grantable
+       ) as (
+         select access.grantor, access.grantee,
+                access.privilege_type, access.is_grantable
+           from outbox
+           cross join lateral pg_catalog.aclexplode(
+             coalesce(
+               (select relation.relacl
+                  from pg_catalog.pg_class relation
+                 where relation.oid = outbox.oid),
+               pg_catalog.acldefault('r', outbox.relowner)
+             )
+           ) access
+          where access.grantee <> outbox.relowner
+       ), expected_outbox_table_acl_catalog(
+         grantor, grantee, privilege_type, is_grantable
+       ) as (
+         select outbox.relowner, role.role_oid,
+                expected.privilege_type, false
+           from expected_outbox_table_acl expected
+           cross join outbox
+           join runtime_roles role
+             on role.role_name = expected.role_name
+       ), expected_outbox_column_acl(
+         role_name, attname, privilege_type
+       ) as (
+         select 'learncoding_app'::text, column_name, 'INSERT'::text
+           from pg_catalog.unnest($1::text[]) column_name
+         union all
+         select 'learncoding_worker'::text, column_name, 'INSERT'::text
+           from pg_catalog.unnest($2::text[]) column_name
+         union all
+         select 'learncoding_worker'::text, column_name, 'UPDATE'::text
+           from pg_catalog.unnest($3::text[]) column_name
+       ), observed_outbox_column_acl(
+         attname, grantor, grantee, privilege_type, is_grantable
+       ) as (
+         select attribute.attname, access.grantor, access.grantee,
+                access.privilege_type, access.is_grantable
+           from outbox
+           join pg_catalog.pg_attribute attribute
+             on attribute.attrelid = outbox.oid
+            and attribute.attnum > 0
+            and not attribute.attisdropped
+           cross join lateral pg_catalog.aclexplode(attribute.attacl) access
+          where access.grantee <> outbox.relowner
+       ), expected_outbox_column_acl_catalog(
+         attname, grantor, grantee, privilege_type, is_grantable
+       ) as (
+         select expected.attname, outbox.relowner, role.role_oid,
+                expected.privilege_type, false
+           from expected_outbox_column_acl expected
+           cross join outbox
+           join runtime_roles role
+             on role.role_name = expected.role_name
+       ), observed_receipt_table_acl(
+         grantor, grantee, privilege_type, is_grantable
+       ) as (
+         select access.grantor, access.grantee,
+                access.privilege_type, access.is_grantable
+           from receipt
+           cross join lateral pg_catalog.aclexplode(
+             coalesce(
+               (select relation.relacl
+                  from pg_catalog.pg_class relation
+                 where relation.oid = receipt.oid),
+               pg_catalog.acldefault('r', receipt.relowner)
+             )
+           ) access
+          where access.grantee <> receipt.relowner
+       ), observed_receipt_column_acl(
+         attname, grantor, grantee, privilege_type, is_grantable
+       ) as (
+         select attribute.attname, access.grantor, access.grantee,
+                access.privilege_type, access.is_grantable
+           from receipt
+           join pg_catalog.pg_attribute attribute
+             on attribute.attrelid = receipt.oid
+            and attribute.attnum > 0
+            and not attribute.attisdropped
+           cross join lateral pg_catalog.aclexplode(attribute.attacl) access
+          where access.grantee <> receipt.relowner
+       ), expected_receipt_column_acl(
+         attname, grantor, grantee, privilege_type, is_grantable
+       ) as (
+         select column_name, receipt.relowner, worker.role_oid,
+                'SELECT'::text, false
+           from pg_catalog.unnest($5::text[]) column_name
+           cross join receipt
+           join runtime_roles worker
+             on worker.role_name = 'learncoding_worker'
+       ), runtime_membership_closure(root_oid, role_oid) as (
+         select role_oid, role_oid
+           from runtime_roles
+         union
+         select closure.root_oid, membership.roleid
+           from runtime_membership_closure closure
+           join pg_catalog.pg_auth_members membership
+             on membership.member = closure.role_oid
+       )
+       select
+         (
+           (select pg_catalog.count(*) = 1 from outbox)
+           and (
+             (
+               (select present_count = 0 from release_marker_columns)
+               and (select pg_catalog.count(*) = 0 from receipt)
+             )
+             or (
+               (select present_count = 2 from release_marker_columns)
+               and (select pg_catalog.count(*) = 1 from receipt)
+               and (
+                 select pg_catalog.bool_and(
+                   pg_catalog.pg_get_userbyid(receipt.relowner)
+                     = 'learncoding_owner'
+                 )
+                   from receipt
+               )
+               and (select present_count = 7 from receipt_worker_columns)
+             )
+           )
+         ) guarded_delivery_presence_exact,
+         not exists (
+           (select * from observed_outbox_table_acl
+            except all select * from expected_outbox_table_acl_catalog)
+           union all
+           (select * from expected_outbox_table_acl_catalog
+            except all select * from observed_outbox_table_acl)
+         ) outbox_runtime_table_direct_acl_exact,
+         not exists (
+           (select * from observed_outbox_column_acl
+            except all select * from expected_outbox_column_acl_catalog)
+           union all
+           (select * from expected_outbox_column_acl_catalog
+            except all select * from observed_outbox_column_acl)
+         ) outbox_runtime_column_direct_acl_exact,
+         not exists (
+           select 1
+             from managed_roles role
+             cross join outbox
+             cross join (
+               values
+                 ('SELECT'::text), ('INSERT'::text), ('UPDATE'::text),
+                 ('DELETE'::text), ('TRUNCATE'::text),
+                 ('REFERENCES'::text), ('TRIGGER'::text), ('MAINTAIN'::text)
+             ) privilege(privilege_type)
+            where pg_catalog.has_table_privilege(
+                    role.role_oid, outbox.oid, privilege.privilege_type
+                  ) is distinct from (
+                    (role.role_name = 'learncoding_app'
+                     and privilege.privilege_type in ('SELECT', 'DELETE'))
+                    or (role.role_name = 'learncoding_worker'
+                        and privilege.privilege_type = 'SELECT')
+                    or (role.role_name = 'learncoding_ops'
+                        and privilege.privilege_type in ('SELECT', 'DELETE'))
+                  )
+         )
+         and not exists (
+           select 1
+             from managed_roles role
+             cross join outbox
+             join pg_catalog.pg_attribute attribute
+               on attribute.attrelid = outbox.oid
+              and attribute.attnum > 0
+              and not attribute.attisdropped
+             cross join (
+               values
+                 ('SELECT'::text), ('INSERT'::text),
+                 ('UPDATE'::text), ('REFERENCES'::text)
+             ) privilege(privilege_type)
+            where pg_catalog.has_column_privilege(
+                    role.role_oid,
+                    outbox.oid,
+                    attribute.attnum,
+                    privilege.privilege_type
+                  ) is distinct from (
+                    (role.role_name in (
+                       'learncoding_app', 'learncoding_worker', 'learncoding_ops'
+                     ) and privilege.privilege_type = 'SELECT')
+                    or (role.role_name = 'learncoding_app'
+                        and privilege.privilege_type = 'INSERT'
+                        and attribute.attname = any($1::text[]))
+                    or (role.role_name = 'learncoding_worker'
+                        and privilege.privilege_type = 'INSERT'
+                        and attribute.attname = any($2::text[]))
+                    or (role.role_name = 'learncoding_worker'
+                        and privilege.privilege_type = 'UPDATE'
+                        and attribute.attname = any($3::text[]))
+                  )
+         ) outbox_runtime_effective_acl_exact,
+         not exists (
+           select 1
+             from managed_roles role
+             cross join outbox
+             join pg_catalog.pg_attribute attribute
+               on attribute.attrelid = outbox.oid
+              and attribute.attnum > 0
+              and not attribute.attisdropped
+              and attribute.attname = any($4::text[])
+             cross join (
+               values
+                 ('INSERT'::text), ('UPDATE'::text), ('REFERENCES'::text)
+             ) privilege(privilege_type)
+            where pg_catalog.has_column_privilege(
+                    role.role_oid,
+                    outbox.oid,
+                    attribute.attnum,
+                    privilege.privilege_type
+                  )
+         ) outbox_release_marker_writes_owner_only_exact,
+         not exists (
+           select 1 from observed_receipt_table_acl
+         ) receipt_table_direct_acl_exact,
+         not exists (
+           (select * from observed_receipt_column_acl
+            except all select * from expected_receipt_column_acl)
+           union all
+           (select * from expected_receipt_column_acl
+            except all select * from observed_receipt_column_acl)
+         ) receipt_column_direct_acl_exact,
+         case when (select pg_catalog.count(*) from receipt) = 0 then true
+         else
+           not exists (
+             select 1
+               from managed_roles role
+               cross join receipt
+               cross join (
+                 values
+                   ('SELECT'::text), ('INSERT'::text), ('UPDATE'::text),
+                   ('DELETE'::text), ('TRUNCATE'::text),
+                   ('REFERENCES'::text), ('TRIGGER'::text), ('MAINTAIN'::text)
+               ) privilege(privilege_type)
+              where pg_catalog.has_table_privilege(
+                      role.role_oid, receipt.oid, privilege.privilege_type
+                    )
+           )
+           and not exists (
+             select 1
+               from managed_roles role
+               cross join receipt
+               join pg_catalog.pg_attribute attribute
+                 on attribute.attrelid = receipt.oid
+                and attribute.attnum > 0
+                and not attribute.attisdropped
+               cross join (
+                 values
+                   ('SELECT'::text), ('INSERT'::text),
+                   ('UPDATE'::text), ('REFERENCES'::text)
+               ) privilege(privilege_type)
+              where pg_catalog.has_column_privilege(
+                      role.role_oid,
+                      receipt.oid,
+                      attribute.attnum,
+                      privilege.privilege_type
+                    ) is distinct from (
+                      role.role_name = 'learncoding_worker'
+                      and privilege.privilege_type = 'SELECT'
+                      and attribute.attname = any($5::text[])
+                    )
+           )
+         end receipt_effective_acl_exact,
+         not exists (
+           select 1
+             from runtime_membership_closure
+            where role_oid <> root_oid
+         ) runtime_membership_closure_exact`,
+    [
+      expectedAppInsertColumns,
+      expectedWorkerInsertColumns,
+      expectedWorkerUpdateColumns,
+      MAIL_DELIVERY_RELEASE_INSERT_MARKER_COLUMNS,
+      MAIL_DELIVERY_RELEASE_RECEIPT_WORKER_SELECT_COLUMNS,
+    ],
+  );
+  const expected = {
+    guarded_delivery_presence_exact: true,
+    outbox_runtime_table_direct_acl_exact: true,
+    outbox_runtime_column_direct_acl_exact: true,
+    outbox_runtime_effective_acl_exact: true,
+    outbox_release_marker_writes_owner_only_exact: true,
+    receipt_table_direct_acl_exact: true,
+    receipt_column_direct_acl_exact: true,
+    receipt_effective_acl_exact: true,
+    runtime_membership_closure_exact: true,
+  };
+  const row = result.rows[0];
+  if (result.rows.length !== 1 || !exactRow(row, expected)) {
+    const mismatches =
+      result.rows.length === 1
+        ? exactRowMismatchKeys(row, expected).join(",")
+        : "missing-or-duplicate";
+    fail(`mail-guarded-delivery-acl-contract:${mismatches}`);
   }
   return 1;
 }
@@ -2885,7 +3302,6 @@ export async function verifyReviewedMailAuthorityObjectFootprint(
       requiresDispatchBinding,
       requiresProviderEvidence,
       requiresReplayAuthority,
-
     ],
   );
   if (
@@ -3104,11 +3520,10 @@ export async function verifyDatabaseRoleBoundaries(options) {
       if (reviewedPhase?.backupStatusAuthority == null) {
         fail("backup-status-authority-phase");
       }
-      const catalog =
-        await verifyReviewedMailAuthorityCatalogContracts(
-          lockClient,
-          reviewedPhase,
-        );
+      const catalog = await verifyReviewedMailAuthorityCatalogContracts(
+        lockClient,
+        reviewedPhase,
+      );
       positiveChecks += catalog.totalVerified;
       positiveChecks += await verifyBackupStatusMailAuthorityObjects(
         lockClient,

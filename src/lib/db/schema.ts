@@ -5,6 +5,7 @@ import {
   boolean,
   char,
   check,
+  customType,
   foreignKey,
   index,
   integer,
@@ -19,6 +20,15 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+
+const xid8 = customType<{ data: string; driverData: string }>({
+  dataType() {
+    return "xid8";
+  },
+  fromDriver(value) {
+    return String(value);
+  },
+});
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -3233,6 +3243,7 @@ export const emailOutbox = pgTable(
     deliveryHoldVersion: text("delivery_hold_version")
       .$defaultFn(() => sql`NULL`)
       .notNull(),
+    deliveryReleaseInsertXid: xid8("delivery_release_insert_xid"),
     operationId: uuid("operation_id").defaultRandom().notNull().unique(),
     deliveryScopeKey: text("delivery_scope_key").notNull(),
     status: notificationStatusEnum("status").default("pending").notNull(),
@@ -3242,6 +3253,14 @@ export const emailOutbox = pgTable(
     claimVersion: integer("claim_version").default(0).notNull(),
     leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
     providerCallStarted: timestamp("provider_call_started", { withTimezone: true }),
+    providerRequestBodySha256: text("provider_request_body_sha256"),
+    providerRequestBodyLength: bigint("provider_request_body_length", {
+      mode: "number",
+    }),
+    deliveryReleaseInsertSystemIdentifier: bigint(
+      "delivery_release_insert_system_identifier",
+      { mode: "bigint" },
+    ),
     adapter: text("adapter"),
     dispatchBindingVersion: text("dispatch_binding_version"),
     dispatchBindingSha256: text("dispatch_binding_sha256"),
@@ -3256,6 +3275,10 @@ export const emailOutbox = pgTable(
     ...timestamps,
   },
   (table) => [
+    unique("email_outbox_delivery_release_parent_unique").on(
+      table.id,
+      table.operationId,
+    ),
     index("email_outbox_queue_idx").on(table.status, table.nextAttemptAt),
     index("email_outbox_delivery_scope_idx").on(table.deliveryScopeKey),
     index("email_outbox_user_idx").on(table.userId),
@@ -3318,6 +3341,33 @@ export const emailOutbox = pgTable(
     check(
       "email_outbox_delivery_hold_valid",
       sql`(${table.deliveryHoldVersion} = 'task7-v1') IS TRUE`,
+    ),
+    check(
+      "email_outbox_attempt_count_nonnegative",
+      sql`(${table.attemptCount} >= 0) IS TRUE`,
+    ),
+    check(
+      "email_outbox_provider_request_body_valid",
+      sql`((
+        ${table.providerRequestBodySha256} IS NULL
+        AND ${table.providerRequestBodyLength} IS NULL
+      ) OR (
+        ${table.providerRequestBodySha256} IS NOT NULL
+        AND ${table.providerRequestBodyLength} IS NOT NULL
+        AND ${table.providerRequestBodySha256} ~ '^[0-9a-f]{64}$'
+        AND ${table.providerRequestBodyLength} >= 0
+        AND ${table.providerRequestBodyLength} <= 9007199254740991
+      )) IS TRUE`,
+    ),
+    check(
+      "email_outbox_delivery_release_insert_identity_valid",
+      sql`(((
+        ${table.deliveryReleaseInsertXid} IS NULL
+        AND ${table.deliveryReleaseInsertSystemIdentifier} IS NULL
+      ) OR (
+        ${table.deliveryReleaseInsertXid} IS NOT NULL
+        AND ${table.deliveryReleaseInsertSystemIdentifier} IS NOT NULL
+      )) IS TRUE)`,
     ),
     check(
       "email_outbox_provider_identity_valid",
@@ -3428,6 +3478,90 @@ export const emailOutbox = pgTable(
         OR (${table.userId} IS NULL AND ${table.deliveryScopeKey} = 'o:' || ${table.operationId}::text
           AND ${table.status} IN ('sent', 'failed', 'suppressed', 'quarantined'))
       )`,
+    ),
+  ],
+);
+
+export const mailDeliveryReleaseReceipt = pgTable(
+  "mail_delivery_release_receipt",
+  {
+    outboxId: uuid("outbox_id").primaryKey(),
+    operationId: uuid("operation_id").notNull(),
+    idempotencyAuthorityVersion: text(
+      "idempotency_authority_version",
+    ).notNull(),
+    idempotencyAuthoritySha256: text("idempotency_authority_sha256").notNull(),
+    idempotencyOriginalPayloadSha256: text(
+      "idempotency_original_payload_sha256",
+    ).notNull(),
+    releaseVersion: text("release_version").notNull(),
+    releaseReceiptSha256: text("release_receipt_sha256").notNull(),
+    releasedAt: timestamp("released_at", { withTimezone: true })
+      .default(sql`pg_catalog.statement_timestamp()`)
+      .notNull(),
+  },
+  (table) => [
+    unique("mail_delivery_release_receipt_operation_unique").on(
+      table.operationId,
+    ),
+    unique("mail_delivery_release_receipt_digest_unique").on(
+      table.releaseReceiptSha256,
+    ),
+    index("mail_delivery_release_receipt_authority_fk_idx").on(
+      table.idempotencyAuthoritySha256,
+      table.idempotencyOriginalPayloadSha256,
+    ),
+    foreignKey({
+      name: "mail_delivery_release_receipt_outbox_fk",
+      columns: [table.outboxId, table.operationId],
+      foreignColumns: [emailOutbox.id, emailOutbox.operationId],
+    })
+      .onUpdate("restrict")
+      .onDelete("cascade"),
+    // Drizzle 0.45 cannot represent DEFERRABLE INITIALLY DEFERRED;
+    // migration 0069 owns and verifies that part of this FK contract.
+    foreignKey({
+      name: "mail_delivery_release_receipt_idempotency_authority_fk",
+      columns: [
+        table.idempotencyAuthoritySha256,
+        table.idempotencyOriginalPayloadSha256,
+      ],
+      foreignColumns: [
+        emailOutboxIdempotencyAuthority.idempotencySha256,
+        emailOutboxIdempotencyAuthority.originalPayloadSha256,
+      ],
+    })
+      .onUpdate("restrict")
+      .onDelete("restrict"),
+    check(
+      "mail_delivery_release_receipt_authority_version_valid",
+      sql`((
+        ${table.idempotencyAuthorityVersion} IN ('event-v1-native', 'event-v1-source-map')
+        AND ${table.idempotencyAuthoritySha256} ~ '^[0-9a-f]{64}$'
+        AND ${table.idempotencyOriginalPayloadSha256} ~ '^[0-9a-f]{64}$'
+      )) IS TRUE`,
+    ),
+    check(
+      "mail_delivery_release_receipt_release_version_valid",
+      sql`(${table.releaseVersion} = 'task7-v1') IS TRUE`,
+    ),
+    check(
+      "mail_delivery_release_receipt_digest_valid",
+      sql`(${table.releaseReceiptSha256} ~ '^[0-9a-f]{64}$') IS TRUE`,
+    ),
+    check(
+      "mail_delivery_release_receipt_digest_exact",
+      sql`(
+        ${table.releaseReceiptSha256}
+          = public.mail_delivery_release_receipt_sha256(
+              ${table.outboxId},
+              ${table.operationId},
+              ${table.idempotencyAuthorityVersion},
+              ${table.idempotencyAuthoritySha256},
+              ${table.idempotencyOriginalPayloadSha256},
+              ${table.releaseVersion}
+            )
+      ) IS TRUE`,
     ),
   ],
 );

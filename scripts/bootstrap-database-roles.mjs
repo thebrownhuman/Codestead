@@ -240,8 +240,7 @@ export const REVIEWED_0065_APPLICATION_FUNCTIONS = Object.freeze([
 export const REVIEWED_0066_APPLICATION_FUNCTIONS = Object.freeze([
   ...REVIEWED_0065_APPLICATION_FUNCTIONS,
   reviewedRoutine({
-    signature:
-      "public.enforce_email_outbox_provider_correlation_evidence()",
+    signature: "public.enforce_email_outbox_provider_correlation_evidence()",
     migrationFile: "0066_mail_outbox_provider_correlation_evidence.sql",
     owner: OWNER_ROLE,
     securityDefiner: false,
@@ -278,15 +277,15 @@ const REVIEWED_0067_BACKUP_STATUS_ROUTINE_BY_SIGNATURE = new Map(
 const REVIEWED_0067_PRE_REPLAY_APPLICATION_FUNCTIONS = Object.freeze(
   REVIEWED_0066_APPLICATION_FUNCTIONS.map(
     (routine) =>
-      REVIEWED_0067_BACKUP_STATUS_ROUTINE_BY_SIGNATURE.get(
-        routine.signature,
-      ) ?? routine,
+      REVIEWED_0067_BACKUP_STATUS_ROUTINE_BY_SIGNATURE.get(routine.signature) ??
+      routine,
   ),
 );
 export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
   ...REVIEWED_0067_PRE_REPLAY_APPLICATION_FUNCTIONS,
   reviewedRoutine({
-    signature: "public.email_outbox_original_payload_sha256(text,text,text,text,jsonb)",
+    signature:
+      "public.email_outbox_original_payload_sha256(text,text,text,text,jsonb)",
     migrationFile: "0067_mail_outbox_durable_replay_authority.sql",
     owner: OWNER_ROLE,
     securityDefiner: true,
@@ -567,8 +566,7 @@ export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
   Object.freeze({
     relation: "public.email_outbox_idempotency_authority",
     name: "email_outbox_idempotency_append_only",
-    functionSignature:
-      "public.enforce_email_outbox_idempotency_append_only()",
+    functionSignature: "public.enforce_email_outbox_idempotency_append_only()",
     enabled: "A",
     type: 27,
     predicate: null,
@@ -578,8 +576,7 @@ export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
   Object.freeze({
     relation: "public.email_outbox_idempotency_authority",
     name: "email_outbox_idempotency_no_truncate",
-    functionSignature:
-      "public.enforce_email_outbox_idempotency_append_only()",
+    functionSignature: "public.enforce_email_outbox_idempotency_append_only()",
     enabled: "A",
     type: 34,
     predicate: null,
@@ -790,18 +787,14 @@ export const REVIEWED_REPLAY_AUTHORITY_RELATIONAL_CONTRACT = Object.freeze({
   routines: Object.freeze(
     REVIEWED_APPLICATION_FUNCTIONS.filter(
       ({ migrationFile }) =>
-        migrationFile ===
-        "0067_mail_outbox_durable_replay_authority.sql",
+        migrationFile === "0067_mail_outbox_durable_replay_authority.sql",
     ),
   ),
   lookupIndex: Object.freeze({
     relation: "public.email_outbox",
     name: "email_outbox_idempotency_authority_lookup_idx",
     accessMethod: "btree",
-    columns: Object.freeze([
-      "idempotency_authority_sha256",
-      "id",
-    ]),
+    columns: Object.freeze(["idempotency_authority_sha256", "id"]),
     unique: false,
     valid: true,
     ready: true,
@@ -819,10 +812,7 @@ export const REVIEWED_REPLAY_AUTHORITY_RELATIONAL_CONTRACT = Object.freeze({
     deferrable: false,
     initiallyDeferred: false,
     noInherit: true,
-    columns: Object.freeze([
-      "idempotency_sha256",
-      "original_payload_sha256",
-    ]),
+    columns: Object.freeze(["idempotency_sha256", "original_payload_sha256"]),
     index: Object.freeze({
       unique: true,
       valid: true,
@@ -992,28 +982,33 @@ function sqlLiteral(value) {
 }
 
 export function reviewedApplicationFunctionPrivilegesSql(phase) {
-  return reviewedPhaseRoutines(phase).map((routine, routineIndex) => {
-    const blockTag = `codestead_reviewed_function_${routineIndex}`;
-    const restrictedRoles = [
-      MIGRATOR_ROLE,
-      APP_ROLE,
-      WORKER_ROLE,
-      OPS_ROLE,
-      BACKUP_REPORTER_ROLE,
-    ];
-    const requiredRoles = [
-      ...new Set([routine.owner, ...restrictedRoles, ...routine.allowedRoles]),
-    ];
-    const revokeSql = `revoke all on function ${routine.signature} from public, ${requiredRoles.join(", ")}`;
-    const grants = [...new Set([routine.owner, ...routine.allowedRoles])]
-      .map(
-        (role) =>
-          `execute ${sqlLiteral(
-            `grant execute on function ${routine.signature} to ${role}`,
-          )};`,
-      )
-      .join("\n        ");
-    return `
+  return reviewedPhaseRoutines(phase)
+    .map((routine, routineIndex) => {
+      const blockTag = `codestead_reviewed_function_${routineIndex}`;
+      const restrictedRoles = [
+        MIGRATOR_ROLE,
+        APP_ROLE,
+        WORKER_ROLE,
+        OPS_ROLE,
+        BACKUP_REPORTER_ROLE,
+      ];
+      const requiredRoles = [
+        ...new Set([
+          routine.owner,
+          ...restrictedRoles,
+          ...routine.allowedRoles,
+        ]),
+      ];
+      const revokeSql = `revoke all on function ${routine.signature} from public, ${requiredRoles.join(", ")}`;
+      const grants = [...new Set([routine.owner, ...routine.allowedRoles])]
+        .map(
+          (role) =>
+            `execute ${sqlLiteral(
+              `grant execute on function ${routine.signature} to ${role}`,
+            )};`,
+        )
+        .join("\n        ");
+      return `
       do $${blockTag}$
       begin
         if pg_catalog.to_regprocedure(${sqlLiteral(routine.signature)})
@@ -1030,7 +1025,8 @@ export function reviewedApplicationFunctionPrivilegesSql(phase) {
         end if;
       end
       $${blockTag}$`;
-  }).join(";\n");
+    })
+    .join(";\n");
 }
 
 export const MAIL_WORKER_OUTBOX_COLUMNS = Object.freeze([
@@ -1050,6 +1046,8 @@ export const MAIL_WORKER_OUTBOX_COLUMNS = Object.freeze([
   "claim_version",
   "lease_expires_at",
   "provider_call_started",
+  "provider_request_body_sha256",
+  "provider_request_body_length",
   "adapter",
   "provider_message_id",
   "next_attempt_at",
@@ -1080,6 +1078,10 @@ export const MAIL_WORKER_OUTBOX_INSERT_COLUMNS = Object.freeze([
   "status",
   "next_attempt_at",
 ]);
+export const MAIL_APP_OUTBOX_INSERT_COLUMNS = Object.freeze([
+  "id",
+  ...MAIL_WORKER_OUTBOX_INSERT_COLUMNS,
+]);
 export const MAIL_WORKER_OUTBOX_UPDATE_COLUMNS = Object.freeze([
   "status",
   "attempt_count",
@@ -1088,6 +1090,8 @@ export const MAIL_WORKER_OUTBOX_UPDATE_COLUMNS = Object.freeze([
   "claim_version",
   "lease_expires_at",
   "provider_call_started",
+  "provider_request_body_sha256",
+  "provider_request_body_length",
   "adapter",
   "provider_message_id",
   "next_attempt_at",
@@ -1101,6 +1105,24 @@ export const MAIL_WORKER_OUTBOX_UPDATE_COLUMNS = Object.freeze([
   "provider_evidence_version",
   "provider_evidence_sha256",
 ]);
+export const MAIL_WORKER_PROVIDER_REQUEST_COLUMNS = Object.freeze([
+  "provider_request_body_sha256",
+  "provider_request_body_length",
+]);
+export const MAIL_DELIVERY_RELEASE_INSERT_MARKER_COLUMNS = Object.freeze([
+  "delivery_release_insert_xid",
+  "delivery_release_insert_system_identifier",
+]);
+export const MAIL_DELIVERY_RELEASE_RECEIPT_WORKER_SELECT_COLUMNS =
+  Object.freeze([
+    "outbox_id",
+    "operation_id",
+    "idempotency_authority_version",
+    "idempotency_authority_sha256",
+    "idempotency_original_payload_sha256",
+    "release_version",
+    "release_receipt_sha256",
+  ]);
 const MAIL_WORKER_DISPATCH_BINDING_COLUMNS = Object.freeze([
   "dispatch_binding_version",
   "dispatch_binding_sha256",
@@ -1120,16 +1142,28 @@ export const MAIL_WORKER_OUTBOX_PRE_REPLAY_INSERT_COLUMNS = Object.freeze(
     (column) => !MAIL_WORKER_IDEMPOTENCY_AUTHORITY_COLUMNS.includes(column),
   ),
 );
+export const MAIL_APP_OUTBOX_PRE_REPLAY_INSERT_COLUMNS = Object.freeze([
+  "id",
+  ...MAIL_WORKER_OUTBOX_PRE_REPLAY_INSERT_COLUMNS,
+]);
+export const MAIL_WORKER_OUTBOX_PRE_REQUEST_UPDATE_COLUMNS = Object.freeze(
+  MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.filter(
+    (column) => !MAIL_WORKER_PROVIDER_REQUEST_COLUMNS.includes(column),
+  ),
+);
 export const MAIL_WORKER_OUTBOX_PRE_EVIDENCE_UPDATE_COLUMNS = Object.freeze(
   MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.filter(
-    (column) => !MAIL_WORKER_PROVIDER_EVIDENCE_COLUMNS.includes(column),
+    (column) =>
+      !MAIL_WORKER_PROVIDER_EVIDENCE_COLUMNS.includes(column) &&
+      !MAIL_WORKER_PROVIDER_REQUEST_COLUMNS.includes(column),
   ),
 );
 export const MAIL_WORKER_OUTBOX_PRE_BINDING_UPDATE_COLUMNS = Object.freeze(
   MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.filter(
     (column) =>
-      !MAIL_WORKER_DISPATCH_BINDING_COLUMNS.includes(column)
-      && !MAIL_WORKER_PROVIDER_EVIDENCE_COLUMNS.includes(column),
+      !MAIL_WORKER_DISPATCH_BINDING_COLUMNS.includes(column) &&
+      !MAIL_WORKER_PROVIDER_EVIDENCE_COLUMNS.includes(column) &&
+      !MAIL_WORKER_PROVIDER_REQUEST_COLUMNS.includes(column),
   ),
 );
 
@@ -1193,7 +1227,13 @@ export function mailWorkerOutboxPrivilegesSql() {
   const insertColumns = MAIL_WORKER_OUTBOX_INSERT_COLUMNS.join(", ");
   const preReplayInsertColumns =
     MAIL_WORKER_OUTBOX_PRE_REPLAY_INSERT_COLUMNS.join(", ");
+  const appInsertColumns = MAIL_APP_OUTBOX_INSERT_COLUMNS.join(", ");
+  const appPreReplayInsertColumns =
+    MAIL_APP_OUTBOX_PRE_REPLAY_INSERT_COLUMNS.join(", ");
+
   const updateColumns = MAIL_WORKER_OUTBOX_UPDATE_COLUMNS.join(", ");
+  const preRequestUpdateColumns =
+    MAIL_WORKER_OUTBOX_PRE_REQUEST_UPDATE_COLUMNS.join(", ");
   const preEvidenceUpdateColumns =
     MAIL_WORKER_OUTBOX_PRE_EVIDENCE_UPDATE_COLUMNS.join(", ");
   const preBindingUpdateColumns =
@@ -1205,6 +1245,10 @@ export function mailWorkerOutboxPrivilegesSql() {
       binding_column_exact_count integer;
       provider_evidence_column_count integer;
       provider_evidence_column_exact_count integer;
+      provider_request_column_count integer;
+      provider_request_column_exact_count integer;
+      release_marker_column_count integer;
+      release_marker_column_exact_count integer;
       idempotency_authority_column_count integer;
       idempotency_authority_column_exact_count integer;
       existing_columns text;
@@ -1323,6 +1367,51 @@ export function mailWorkerOutboxPrivilegesSql() {
             using errcode = '23514';
         end if;
 
+        select pg_catalog.count(*)::integer,
+               pg_catalog.count(*) filter (
+                 where not attribute.attisdropped
+               )::integer
+          into provider_request_column_count,
+               provider_request_column_exact_count
+          from pg_catalog.pg_attribute attribute
+         where attribute.attrelid =
+                 pg_catalog.to_regclass('public.email_outbox')
+           and attribute.attname in (
+             'provider_request_body_sha256',
+             'provider_request_body_length'
+           )
+           and attribute.attnum > 0;
+
+        select pg_catalog.count(*)::integer,
+               pg_catalog.count(*) filter (
+                 where not attribute.attisdropped
+               )::integer
+          into release_marker_column_count,
+               release_marker_column_exact_count
+          from pg_catalog.pg_attribute attribute
+         where attribute.attrelid =
+                 pg_catalog.to_regclass('public.email_outbox')
+           and attribute.attname in (
+             'delivery_release_insert_xid',
+             'delivery_release_insert_system_identifier'
+           )
+           and attribute.attnum > 0;
+
+        if provider_request_column_count not in (0, 2)
+           or provider_request_column_exact_count
+                <> provider_request_column_count
+           or release_marker_column_count not in (0, 2)
+           or release_marker_column_exact_count
+                <> release_marker_column_count
+           or provider_request_column_count <> release_marker_column_count
+           or (
+             provider_request_column_count = 2
+             and idempotency_authority_column_count <> 3
+           ) then
+          raise exception 'email outbox guarded delivery column contract is invalid'
+            using errcode = '23514';
+        end if;
+
         select pg_catalog.string_agg(
                  pg_catalog.format('%I', attribute.attname),
                  ', ' order by attribute.attnum
@@ -1335,31 +1424,45 @@ export function mailWorkerOutboxPrivilegesSql() {
            and not attribute.attisdropped;
 
         execute ${sqlLiteral(
-          "revoke all on table public.email_outbox from learncoding_worker",
+          "revoke all on table public.email_outbox from learncoding_app, learncoding_worker, learncoding_ops",
         )};
         execute pg_catalog.format(
-          'revoke all (%s) on table public.email_outbox from learncoding_worker',
+          'revoke all (%s) on table public.email_outbox from learncoding_app, learncoding_worker, learncoding_ops',
           existing_columns
         );
         execute ${sqlLiteral(
-          "grant select on table public.email_outbox to learncoding_worker",
+          "grant select on table public.email_outbox to learncoding_app, learncoding_worker, learncoding_ops",
+        )};
+        -- P3-2 residual: scoped lifecycle purge routines will replace these
+        -- table DELETE grants in a later task.
+        execute ${sqlLiteral(
+          "grant delete on table public.email_outbox to learncoding_app, learncoding_ops",
         )};
         if idempotency_authority_column_count = 3 then
           execute ${sqlLiteral(
             `grant insert (${insertColumns}) on table public.email_outbox to learncoding_worker`,
           )};
           execute ${sqlLiteral(
-            "grant insert (idempotency_authority_version) on table public.email_outbox to learncoding_app",
+            `grant insert (${appInsertColumns}) on table public.email_outbox to learncoding_app`,
           )};
         else
           execute ${sqlLiteral(
             `grant insert (${preReplayInsertColumns}) on table public.email_outbox to learncoding_worker`,
           )};
+          execute ${sqlLiteral(
+            `grant insert (${appPreReplayInsertColumns}) on table public.email_outbox to learncoding_app`,
+          )};
         end if;
         if provider_evidence_column_count = 3 then
-          execute ${sqlLiteral(
-            `grant update (${updateColumns}) on table public.email_outbox to learncoding_worker`,
-          )};
+          if provider_request_column_count = 2 then
+            execute ${sqlLiteral(
+              `grant update (${updateColumns}) on table public.email_outbox to learncoding_worker`,
+            )};
+          else
+            execute ${sqlLiteral(
+              `grant update (${preRequestUpdateColumns}) on table public.email_outbox to learncoding_worker`,
+            )};
+          end if;
         elsif binding_column_count = 2 then
           execute ${sqlLiteral(
             `grant update (${preEvidenceUpdateColumns}) on table public.email_outbox to learncoding_worker`,
@@ -1375,6 +1478,95 @@ export function mailWorkerOutboxPrivilegesSql() {
   `;
 }
 
+export function mailDeliveryReleasePrivilegesSql() {
+  const workerSelectColumns =
+    MAIL_DELIVERY_RELEASE_RECEIPT_WORKER_SELECT_COLUMNS.join(", ");
+  return `
+    do $codestead_mail_delivery_release_acl$
+    declare
+      relation_oid pg_catalog.oid;
+      relation_owner pg_catalog.oid;
+      relation_grantee record;
+      existing_columns text;
+      grantee_sql text;
+    begin
+      relation_oid := pg_catalog.to_regclass(
+        'public.mail_delivery_release_receipt'
+      );
+      if relation_oid is not null
+         and pg_catalog.to_regrole('learncoding_worker') is not null
+      then
+        select relation.relowner
+          into relation_owner
+          from pg_catalog.pg_class relation
+         where relation.oid = relation_oid
+           and relation.relkind in ('r', 'p');
+
+        if relation_owner is null then
+          raise exception 'mail delivery release receipt relation contract is invalid'
+            using errcode = '23514';
+        end if;
+
+        select pg_catalog.string_agg(
+                 pg_catalog.format('%I', attribute.attname),
+                 ', ' order by attribute.attnum
+               )
+          into existing_columns
+          from pg_catalog.pg_attribute attribute
+         where attribute.attrelid = relation_oid
+           and attribute.attnum > 0
+           and not attribute.attisdropped;
+
+        if existing_columns is null then
+          raise exception 'mail delivery release receipt column contract is invalid'
+            using errcode = '23514';
+        end if;
+
+        execute 'revoke all on table public.mail_delivery_release_receipt from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade';
+        execute pg_catalog.format(
+          'revoke all (%s) on table public.mail_delivery_release_receipt from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade',
+          existing_columns
+        );
+
+        for relation_grantee in
+          select distinct access.grantee
+            from pg_catalog.pg_class relation
+            cross join lateral pg_catalog.aclexplode(
+              coalesce(
+                relation.relacl,
+                pg_catalog.acldefault('r', relation.relowner)
+              )
+            ) access
+           where relation.oid = relation_oid
+             and access.grantee <> relation_owner
+           order by access.grantee
+        loop
+          if relation_grantee.grantee = 0 then
+            grantee_sql := 'PUBLIC';
+          else
+            select pg_catalog.format('%I', role.rolname)
+              into grantee_sql
+              from pg_catalog.pg_roles role
+             where role.oid = relation_grantee.grantee;
+            if grantee_sql is null then
+              raise exception 'mail delivery release ACL grantee is unresolved'
+                using errcode = '42704';
+            end if;
+          end if;
+          execute pg_catalog.format(
+            'revoke all on table public.mail_delivery_release_receipt from %s cascade',
+            grantee_sql
+          );
+        end loop;
+
+        execute ${sqlLiteral(
+          `grant select (${workerSelectColumns}) on table public.mail_delivery_release_receipt to learncoding_worker`,
+        )};
+      end if;
+    end
+    $codestead_mail_delivery_release_acl$;
+  `;
+}
 export function mailReplayAuthorityPrivilegesSql() {
   return `
     do $codestead_mail_replay_authority_acl$
@@ -1431,8 +1623,8 @@ export function backupStatusAuthorityPrivilegesSql() {
 
 export async function reconcileBackupStatusAuthorityPrivileges(client, phase) {
   const expectedContract =
-    canonicalReviewedMailAuthorityCatalogPhase(phase)?.backupStatusAuthority
-    ?? null;
+    canonicalReviewedMailAuthorityCatalogPhase(phase)?.backupStatusAuthority ??
+    null;
   const presence = await client.query(
     `select
        to_regclass(
@@ -1445,12 +1637,10 @@ export async function reconcileBackupStatusAuthorityPrivileges(client, phase) {
   const sourcePresent = presence.rows[0]?.source_present === true;
   const guardPresent = presence.rows[0]?.guard_present === true;
   if (
-    sourcePresent !== guardPresent
-    || sourcePresent !== (expectedContract !== null)
+    sourcePresent !== guardPresent ||
+    sourcePresent !== (expectedContract !== null)
   ) {
-    throw databaseRoleBootstrapInvariantError(
-      "backup-status-authority-phase",
-    );
+    throw databaseRoleBootstrapInvariantError("backup-status-authority-phase");
   }
   if (!sourcePresent) return false;
 
@@ -1505,10 +1695,7 @@ function defaultAclGranteeIdentityExact(entry) {
   if (entry.grantee_oid === 0) {
     return entry.is_public === true && entry.grantee === "PUBLIC";
   }
-  return (
-    entry.is_public === false &&
-    entry.grantee !== "PUBLIC"
-  );
+  return entry.is_public === false && entry.grantee !== "PUBLIC";
 }
 
 export function validateDatabaseRoleUrls(input) {
@@ -1628,26 +1815,23 @@ export function validateOwnershipInventory(input) {
     BACKUP_REPORTER_ROLE,
     "pg_database_owner",
   ]);
-  const unsafeDefaultAcl = (input.defaultAcls ?? []).some(
-    (entry) => {
-      const granteeIdentityExact =
-        defaultAclGranteeIdentityExact(entry);
-      const isRepairableGlobalDefaultAcl =
-        entry.schema === "<global>" &&
-        allowedOwners.has(entry.owner) &&
-        repairableGlobalDefaultAclKinds.has(entry.kind);
-      return (
-        !granteeIdentityExact ||
-        (!isRepairableGlobalDefaultAcl &&
+  const unsafeDefaultAcl = (input.defaultAcls ?? []).some((entry) => {
+    const granteeIdentityExact = defaultAclGranteeIdentityExact(entry);
+    const isRepairableGlobalDefaultAcl =
+      entry.schema === "<global>" &&
+      allowedOwners.has(entry.owner) &&
+      repairableGlobalDefaultAclKinds.has(entry.kind);
+    return (
+      !granteeIdentityExact ||
+      (!isRepairableGlobalDefaultAcl &&
         (!applicationSchemas.has(entry.schema) ||
           !allowedOwners.has(entry.owner) ||
           !(
             (entry.is_public === true && entry.grantee === "PUBLIC") ||
             allowedDefaultGrantees.has(entry.grantee)
           )))
-      );
-    },
-  );
+    );
+  });
 
   const unsafeOwnerDependency =
     (input.unexpectedOwnerDependencies ?? []).length !== 0;
@@ -2079,9 +2263,9 @@ async function rotatePasswords(client, roles) {
 }
 
 async function transferApplicationOwnership(client, phase) {
-  const reviewedSignatures = reviewedPhaseRoutines(phase).map((routine) =>
-    sqlLiteral(routine.signature),
-  ).join(", ");
+  const reviewedSignatures = reviewedPhaseRoutines(phase)
+    .map((routine) => sqlLiteral(routine.signature))
+    .join(", ");
   await client.query(`
     do $codestead$
     declare object record;
@@ -2287,13 +2471,11 @@ async function verifyBackupStatusAuthorityMigrationPhase(client, phase) {
   }
   if (!required) return 0;
   try {
-    await verifyBackupStatusMailAuthorityObjects(client, [
-      MIGRATOR_ROLE,
-      APP_ROLE,
-      WORKER_ROLE,
-      OPS_ROLE,
-      BACKUP_REPORTER_ROLE,
-    ], phase.backupStatusAuthority);
+    await verifyBackupStatusMailAuthorityObjects(
+      client,
+      [MIGRATOR_ROLE, APP_ROLE, WORKER_ROLE, OPS_ROLE, BACKUP_REPORTER_ROLE],
+      phase.backupStatusAuthority,
+    );
   } catch (error) {
     const invariant = databaseRoleBootstrapInvariantError(
       "backup-status-authority-migration-contract",
@@ -2448,9 +2630,9 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
     await verifyBackupStatusAuthorityMigrationPhase(client, null);
     await verifier.verifyReviewedMailAuthorityObjectFootprint(client, null);
     if (
-      row.post_migration_binding_column_count !== 0
-      || row.post_migration_provider_column_count !== 0
-      || row.post_migration_replay_column_count !== 0
+      row.post_migration_binding_column_count !== 0 ||
+      row.post_migration_provider_column_count !== 0 ||
+      row.post_migration_replay_column_count !== 0
     ) {
       throw databaseRoleBootstrapInvariantError(
         "reviewed-pre-reconciliation-lineage",
@@ -2673,6 +2855,8 @@ export async function reconcileDatabaseRolePrivileges(client, phase) {
     await client.query(mailWorkerOutboxPrivilegesSql());
   }
 
+  await client.query(mailDeliveryReleasePrivilegesSql());
+
   await client.query(mailReplayAuthorityPrivilegesSql());
   await reconcileBackupStatusAuthorityPrivileges(client, canonicalPhase);
 
@@ -2726,14 +2910,10 @@ function databaseRoleBootstrapInvariantError(section, details = []) {
   );
 }
 
-async function verifyBackupStatusAuthorityAtBoundary(
-  client,
-  section,
-  phase,
-) {
+async function verifyBackupStatusAuthorityAtBoundary(client, section, phase) {
   const contract =
-    canonicalReviewedMailAuthorityCatalogPhase(phase)?.backupStatusAuthority
-    ?? null;
+    canonicalReviewedMailAuthorityCatalogPhase(phase)?.backupStatusAuthority ??
+    null;
   const presence = await client.query(`
     select (
       pg_catalog.to_regclass(
@@ -2766,15 +2946,9 @@ async function verifyBackupStatusAuthorityAtBoundary(
   if (!required) return false;
 
   try {
-    await verifyBackupStatusMailAuthorityObjects(
-      client,
-      LOGIN_ROLES,
-      contract,
-    );
+    await verifyBackupStatusMailAuthorityObjects(client, LOGIN_ROLES, contract);
   } catch (error) {
-    const invariant = databaseRoleBootstrapInvariantError(
-      section,
-    );
+    const invariant = databaseRoleBootstrapInvariantError(section);
     invariant.cause = error;
     throw invariant;
   }
@@ -2899,9 +3073,7 @@ export function verifyDatabaseDefaultAclState({
   let exactPrivilegeCount = 0;
   for (const entry of entries) {
     if (!defaultAclGranteeIdentityExact(entry)) {
-      throw databaseRoleBootstrapInvariantError(
-        "default-acl-grantee-identity",
-      );
+      throw databaseRoleBootstrapInvariantError("default-acl-grantee-identity");
     }
     const rowKey = defaultAclRowKey(entry.owner, entry.schema, entry.kind);
     if (!expectedDefaultAclRows.has(rowKey)) {
@@ -2929,7 +3101,6 @@ export function verifyDatabaseDefaultAclState({
   }
 }
 
-
 export async function verifyDatabaseRoleBootstrapState(
   client,
   postgresDatabase,
@@ -2938,9 +3109,8 @@ export async function verifyDatabaseRoleBootstrapState(
 ) {
   const canonicalPhase = canonicalReviewedMailAuthorityCatalogPhase(phase);
   const phaseRoutines = reviewedPhaseRoutines(canonicalPhase);
-  const phaseSecurityDefiners = reviewedSecurityDefinerFunctions(
-    canonicalPhase,
-  );
+  const phaseSecurityDefiners =
+    reviewedSecurityDefinerFunctions(canonicalPhase);
   const roles = await client.query(`
     select rolname, rolcanlogin, rolsuper, rolcreatedb, rolcreaterole,
            rolinherit, rolreplication, rolbypassrls, rolconnlimit,
@@ -3853,7 +4023,8 @@ export async function runDatabaseRoleBootstrap(options) {
       options.postgresDatabase,
       options.postgresUser,
       committedPhase,
-    );  } catch (error) {
+    );
+  } catch (error) {
     destroyClient = true;
     throw error;
   } finally {
@@ -3882,8 +4053,7 @@ async function main() {
     databaseMigratorUrl: process.env.DATABASE_MIGRATOR_URL ?? "",
     databaseWorkerUrl: process.env.DATABASE_WORKER_URL ?? "",
     databaseOpsUrl: process.env.DATABASE_OPS_URL ?? "",
-    databaseBackupReporterUrl:
-      process.env.DATABASE_BACKUP_REPORTER_URL ?? "",
+    databaseBackupReporterUrl: process.env.DATABASE_BACKUP_REPORTER_URL ?? "",
     requireCompleteMigrationLedger: requireCompleteSetting === "true",
   });
   console.info(
