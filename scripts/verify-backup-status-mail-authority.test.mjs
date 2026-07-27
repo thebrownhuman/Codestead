@@ -459,9 +459,9 @@ test("selects the widened 0067 contract without changing frozen 0065 bytes", asy
   );
   assert.equal(
     replayConstraint?.definition,
-    "CHECK (((run_key ~ '^[0-9]{8}T[0-9]{6}Z$'::text) OR " +
-      "(run_key ~ '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-" +
-      "[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text)))",
+    "CHECK (run_key ~ '^[0-9]{8}T[0-9]{6}Z$'::text OR " +
+      "run_key ~ '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-" +
+      "[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text)",
   );
 
   const legacyEnqueue = BACKUP_STATUS_AUTHORITY_0065_CONTRACT.routines.find(

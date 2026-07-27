@@ -371,8 +371,8 @@ export const BACKUP_STATUS_AUTHORITY_0067_RELATIONS = Object.freeze(
                 constraint.name,
                 constraint.type,
                 constraint.keyColumns,
-                "CHECK (((run_key ~ '^[0-9]{8}T[0-9]{6}Z$'::text) OR " +
-                  `(run_key ~ '${BACKUP_STATUS_UUID_V4_PATTERN}'::text)))`,
+                "CHECK (run_key ~ '^[0-9]{8}T[0-9]{6}Z$'::text OR " +
+                  `run_key ~ '${BACKUP_STATUS_UUID_V4_PATTERN}'::text)`,
               )
             : constraint,
         ),
