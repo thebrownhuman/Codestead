@@ -10,6 +10,8 @@ const roleUrls = {
   worker:
     "postgresql://learncoding_worker:worker-password-0003@127.0.0.1:49152/learncoding_integration",
   ops: "postgresql://learncoding_ops:ops-password-0004@127.0.0.1:49152/learncoding_integration",
+  backupReporter:
+    "postgresql://learncoding_backup_reporter:backup-password-0005@127.0.0.1:49152/learncoding_integration",
 } as const;
 
 const roleProperties = [
@@ -17,6 +19,11 @@ const roleProperties = [
   ["learncoding_migrator", "databaseMigratorUrl", "migrator"],
   ["learncoding_worker", "databaseWorkerUrl", "worker"],
   ["learncoding_ops", "databaseOpsUrl", "ops"],
+  [
+    "learncoding_backup_reporter",
+    "databaseBackupReporterUrl",
+    "backupReporter",
+  ],
 ] as const;
 
 describe("disposable role-boundary adapter", () => {
@@ -56,6 +63,7 @@ describe("disposable role-boundary adapter", () => {
     expect(verifyDatabaseRoleBoundaries).toHaveBeenCalledOnce();
     expect(Object.keys(capturedVerifierInput ?? {}).sort()).toEqual([
       "databaseAppUrl",
+      "databaseBackupReporterUrl",
       "databaseMigratorUrl",
       "databaseOpsUrl",
       "databaseWorkerUrl",
@@ -77,12 +85,14 @@ describe("disposable role-boundary adapter", () => {
         "postgresql://learncoding_worker:worker-password-0003@postgres:5432/learncoding_integration",
       databaseOpsUrl:
         "postgresql://learncoding_ops:ops-password-0004@postgres:5432/learncoding_integration",
+      databaseBackupReporterUrl:
+        "postgresql://learncoding_backup_reporter:backup-password-0005@postgres:5432/learncoding_integration",
     });
     const canonicalPasswords = roleProperties.map(([, property]) =>
       new URL(capturedVerifierInput![property] as string).password);
-    expect(new Set(canonicalPasswords).size).toBe(4);
+    expect(new Set(canonicalPasswords).size).toBe(5);
 
-    expect(createdPools).toHaveLength(4);
+    expect(createdPools).toHaveLength(5);
     for (const [index, [role, , roleName]] of roleProperties.entries()) {
       const options = createdPools[index]!;
       const connectionUrl = new URL(options.connectionString as string);

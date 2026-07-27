@@ -24,6 +24,7 @@ describe("disposable integration release topology", () => {
 
   it("runs real-boundary hooks around migration in each of two release cycles", async () => {
     const trace: string[] = [];
+    const phases: string[] = [];
     const verifyTopology = vi.fn(async (): Promise<TopologyFingerprint> => ({
       fingerprint: "stable-topology",
       journal_count: 71,
@@ -39,9 +40,24 @@ describe("disposable integration release topology", () => {
         trace.push("topology");
         return verifyTopology();
       },
+      onPhase: (phase) => phases.push(phase),
     });
 
     expect(trace).toEqual(fullTrace);
+    expect(phases).toEqual([
+      "initial-bootstrap",
+      "initial-negative-probes",
+      "initial-migration",
+      "initial-reconciliation",
+      "initial-boundary-verifier",
+      "initial-verification",
+      "replay-bootstrap",
+      "replay-negative-probes",
+      "replay-migration",
+      "replay-reconciliation",
+      "replay-boundary-verifier",
+      "replay-verification",
+    ]);
     expect(verifyTopology).toHaveBeenCalledTimes(2);
     expect(result).toEqual({
       firstCycle: { fingerprint: "stable-topology", journal_count: 71 },

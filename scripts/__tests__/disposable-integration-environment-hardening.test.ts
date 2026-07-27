@@ -24,6 +24,12 @@ type EnvironmentHardeningModule = Readonly<{
     end: () => void;
     write: (value: string | Uint8Array) => void;
   }>;
+  createIntegrationFailureReporter?: (input: Readonly<{
+    write: (value: string) => void;
+  }>) => Readonly<{
+    enter: (phase: string) => void;
+    report: () => void;
+  }>;
   minimalNodeTestEnvironment: (
     source: EnvironmentSource,
   ) => NodeJS.ProcessEnv;
@@ -184,5 +190,34 @@ describe("disposable integration environment hardening", () => {
     expect(rendered).not.toContain(password);
     expect(rendered).not.toContain(databaseUrl);
     expect(rendered).not.toContain("integration-auth-secret-canary");
+  });
+
+  it("reports only closed-vocabulary failure phases and reasons", async () => {
+    const environment = await loadEnvironmentModule();
+    expect(typeof environment.createIntegrationFailureReporter)
+      .toBe("function");
+    if (!environment.createIntegrationFailureReporter) return;
+
+    const output: string[] = [];
+    const reporter = environment.createIntegrationFailureReporter({
+      write: (value) => output.push(value),
+    });
+
+    reporter.enter("initial-migration");
+    reporter.report();
+    reporter.enter(
+      "invalid:postgresql://learncoding_it:"
+        + "generated-password-canary@127.0.0.1/db",
+    );
+    reporter.report();
+
+    expect(output).toEqual([
+      '{"event":"integration.failed","phase":"initial-migration",'
+        + '"reason":"migration_failed"}\n',
+      '{"event":"integration.failed","phase":"unknown",'
+        + '"reason":"unexpected_failure"}\n',
+    ]);
+    expect(output.join("")).not.toContain("generated-password-canary");
+    expect(output.join("")).not.toContain("postgresql://");
   });
 });

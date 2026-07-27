@@ -18,6 +18,7 @@ describe("integration runner hardening wiring", () => {
     expect(source).toContain("buildDisposableIntegrationRuntimeEnvironment");
     expect(source).toContain("buildDisposableIntegrationChildLaunch");
     expect(source).toContain("createIntegrationOutputSanitizer");
+    expect(source).toContain("createIntegrationFailureReporter");
     expect(source).toContain("taskHomeDirectory");
     expect(source).toContain("postgresMajor");
     expect(source).not.toContain("sanitizedIntegrationEnvironment");
@@ -38,6 +39,15 @@ describe("integration runner hardening wiring", () => {
       "await completeAndWait(childSignal)",
     );
     expect(source).not.toContain("Signal cleanup reports");
+    expect(source).toContain('failureReporter.enter("migration-journal")');
+    expect(source).toContain('failureReporter.enter("loopback-port")');
+    expect(source).toContain(
+      'failureReporter.enter("role-boundary-self-test")',
+    );
+    expect(source).toContain('failureReporter.enter("postgres-readiness")');
+    expect(source).toContain("failureReporter.enter(phase)");
+    expect(source).toContain('failureReporter.enter("application-tests")');
+    expect(source).toContain('failureReporter.enter("harness-cleanup")');
 
     const harnessIndex = source.indexOf(
       "await runWithDisposableIntegrationHarness",
@@ -62,8 +72,24 @@ describe("integration runner hardening wiring", () => {
     expect(source).not.toMatch(/spawnSync\(docker/u);
     expect(source).not.toMatch(/docker,\s*\[\s*"rm"/u);
     expect(source).not.toContain("dockerCheck.stderr");
-    expect(source).toContain(
+    expect(source).toMatch(
+      /main\(\)\.catch\(\(\) => \{\s*failureReporter\.report\(\);/u,
+    );
+    expect(source).not.toContain(
       'console.error("Disposable integration failed.");',
+    );
+    const terminal = source.slice(source.lastIndexOf("main().catch"));
+    expect(terminal).not.toMatch(
+      /error\.(?:message|stack|cause|code)|String\(error\)|JSON\.stringify\(error\)/u,
+    );
+    const secretInventory = source.slice(
+      source.indexOf("const secrets = ["),
+      source.indexOf("];", source.indexOf("const secrets = [")) + 2,
+    );
+    expect(secretInventory).toContain("roleCredentials.backupReporter");
+    expect(secretInventory).toContain("roleUrls.backupReporter");
+    expect(source).toMatch(
+      /backupReporter:\s*loopback\(\s*"learncoding_backup_reporter",\s*credentials\.backupReporter,\s*\)/u,
     );
   });
 });

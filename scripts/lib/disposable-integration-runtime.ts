@@ -34,6 +34,64 @@ export function buildDisposableIntegrationRuntimeEnvironment(
   };
 }
 
+const INTEGRATION_FAILURE_REASONS = Object.freeze({
+  "migration-journal": "migration_journal_failed",
+  "loopback-port": "loopback_port_failed",
+  "harness-start": "harness_start_failed",
+  "role-boundary-self-test": "role_boundary_self_test_failed",
+  "postgres-readiness": "postgres_readiness_failed",
+  "initial-bootstrap": "role_reconciliation_failed",
+  "initial-negative-probes": "role_boundary_verification_failed",
+  "initial-migration": "migration_failed",
+  "initial-reconciliation": "role_reconciliation_failed",
+  "initial-boundary-verifier": "role_boundary_verification_failed",
+  "initial-verification": "topology_verification_failed",
+  "replay-bootstrap": "role_reconciliation_failed",
+  "replay-negative-probes": "role_boundary_verification_failed",
+  "replay-migration": "migration_failed",
+  "replay-reconciliation": "role_reconciliation_failed",
+  "replay-boundary-verifier": "role_boundary_verification_failed",
+  "replay-verification": "topology_verification_failed",
+  "application-tests": "application_tests_failed",
+  "harness-cleanup": "harness_cleanup_failed",
+} as const);
+
+type IntegrationFailurePhase = keyof typeof INTEGRATION_FAILURE_REASONS;
+type ReportedIntegrationFailurePhase = IntegrationFailurePhase | "unknown";
+
+function isIntegrationFailurePhase(
+  value: string,
+): value is IntegrationFailurePhase {
+  return Object.prototype.hasOwnProperty.call(
+    INTEGRATION_FAILURE_REASONS,
+    value,
+  );
+}
+
+export function createIntegrationFailureReporter(input: Readonly<{
+  write: (value: string) => void;
+}>): Readonly<{
+  enter: (phase: string) => void;
+  report: () => void;
+}> {
+  let phase: ReportedIntegrationFailurePhase = "unknown";
+  return {
+    enter(value) {
+      phase = isIntegrationFailurePhase(value) ? value : "unknown";
+    },
+    report() {
+      const reason = phase === "unknown"
+        ? "unexpected_failure"
+        : INTEGRATION_FAILURE_REASONS[phase];
+      input.write(`${JSON.stringify({
+        event: "integration.failed",
+        phase,
+        reason,
+      })}\n`);
+    },
+  };
+}
+
 function uniqueSecrets(values: readonly string[]): readonly string[] {
   return [...new Set(values.filter((value) => value.length > 0))]
     .sort((left, right) => right.length - left.length);

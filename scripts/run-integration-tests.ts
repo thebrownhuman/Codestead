@@ -15,6 +15,7 @@ import { runWithDisposableIntegrationHarness } from
   "./lib/disposable-integration-harness";
 import {
   buildDisposableIntegrationRuntimeEnvironment,
+  createIntegrationFailureReporter,
   createIntegrationOutputSanitizer,
 } from "./lib/disposable-integration-runtime";
 import { allocateDisposableLoopbackPort } from
@@ -31,6 +32,9 @@ import {
 } from "./lib/disposable-role-boundary-adapter";
 
 const { Client, Pool } = pg;
+const failureReporter = createIntegrationFailureReporter({
+  write: (value) => process.stderr.write(value),
+});
 
 type RoleBootstrapRunner = (options: {
   readonly postgresUser: string;
@@ -219,6 +223,10 @@ function disposableRoleUrls(
     migrator: loopback("learncoding_migrator", credentials.migrator),
     worker: loopback("learncoding_worker", credentials.worker),
     ops: loopback("learncoding_ops", credentials.ops),
+    backupReporter: loopback(
+      "learncoding_backup_reporter",
+      credentials.backupReporter,
+    ),
   };
 }
 
@@ -456,6 +464,7 @@ async function main() {
     }
   }
 
+  failureReporter.enter("migration-journal");
   const expectedJournalCount = await expectedMigrationJournalCount();
   const suffix = randomBytes(6).toString("hex");
   const containerName = `learncoding-postgres-it-${suffix}`;
@@ -471,6 +480,7 @@ async function main() {
     ops: generatedPassword(),
     backupReporter: generatedPassword(),
   });
+  failureReporter.enter("loopback-port");
   const port = await allocateDisposableLoopbackPort();
   const databaseUrl = databaseRoleUrl({
     username: integrationUser,
@@ -491,14 +501,17 @@ async function main() {
     roleCredentials.migrator,
     roleCredentials.worker,
     roleCredentials.ops,
+    roleCredentials.backupReporter,
     roleUrls.app,
     roleUrls.migrator,
     roleUrls.worker,
     roleUrls.ops,
+    roleUrls.backupReporter,
   ];
   const childController = createDisposableIntegrationChildController();
   const requestedImage = process.env.INTEGRATION_POSTGRES_IMAGE;
 
+  failureReporter.enter("harness-start");
   await runWithDisposableIntegrationHarness({
     dockerCommand: executable("docker"),
     containerName,
@@ -519,6 +532,7 @@ async function main() {
       process.env,
       taskHomeDirectory,
     );
+    failureReporter.enter("role-boundary-self-test");
     await run(process.execPath, [
       "--test",
       path.resolve(
@@ -530,6 +544,7 @@ async function main() {
       env: toolEnvironment,
       secrets,
     });
+    failureReporter.enter("postgres-readiness");
     await waitForPostgres(databaseUrl, postgresMajor);
 
     const testEnvironment =
@@ -563,6 +578,7 @@ async function main() {
       migrate: () => runDisposableIntegrationMigration(roleUrls.migrator),
       verifyTopology: () => verifyDisposableIntegrationTopology(topology),
       onPhase: (phase) => {
+        failureReporter.enter(phase);
         console.info(JSON.stringify({
           event: "integration.topology",
           phase,
@@ -570,15 +586,17 @@ async function main() {
       },
     });
 
+    failureReporter.enter("application-tests");
     await runNpm([
       "run",
       "test:integration:vitest",
       ...(requestedTests.length > 0 ? ["--", ...requestedTests] : []),
     ], testEnvironment, secrets, childController);
+    failureReporter.enter("harness-cleanup");
   });
 }
 
 main().catch(() => {
-  console.error("Disposable integration failed.");
+  failureReporter.report();
   process.exitCode = 1;
 });
