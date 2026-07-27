@@ -19,7 +19,7 @@ const FAILURE_MESSAGE = "Mail dispatch requires PostgreSQL 17 or newer.";
 const DELIVERY_AUTHORITY_FAILURE_MESSAGE =
   "Mail delivery authority is unavailable.";
 const GUARDED_DELIVERY_MIGRATION_SHA256 =
-  "b311d7af248535550f025dac4a62d1997a330d7636a7940f79877cd634b75918";
+  "cae4ad59e4058b60fa6e0a24704414b8a8b15575a302a65f1155ec04fa8fdcd7";
 
 type RuntimeVersionRow = {
   readonly server_version_num: unknown;

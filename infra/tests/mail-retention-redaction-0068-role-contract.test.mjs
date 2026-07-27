@@ -32,7 +32,7 @@ test("reviewed mail authority catalog registers the exact 0068 phase", () => {
       createdAt: "1785005772253",
       migrationFile: "0068_mail_outbox_quarantine_redaction_authority_v2.sql",
       migrationSha256:
-        "68cf968578070a0cc6e61df91c941215f0208ec9c6a3180c5010b626868a0ee1",
+        "1b9e669025e2dccb54099fd99adbf26c8c6eccf5a10a39f3319772b2fdef4b0f",
       requiresWorkerContract: true,
       requiresProviderEvidence: true,
       requiresReplayAuthority: true,

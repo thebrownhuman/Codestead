@@ -1637,7 +1637,7 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     createdAt: "1785005772253",
     migrationFile: "0068_mail_outbox_quarantine_redaction_authority_v2.sql",
     migrationSha256:
-      "68cf968578070a0cc6e61df91c941215f0208ec9c6a3180c5010b626868a0ee1",
+      "1b9e669025e2dccb54099fd99adbf26c8c6eccf5a10a39f3319772b2fdef4b0f",
     routines: REVIEWED_0068_APPLICATION_FUNCTIONS,
     triggers: REVIEWED_0068_APPLICATION_TRIGGERS,
     requiresWorkerContract: true,
@@ -1651,7 +1651,7 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     createdAt: "1785009372253",
     migrationFile: "0069_mail_outbox_guarded_delivery_authority.sql",
     migrationSha256:
-      "b311d7af248535550f025dac4a62d1997a330d7636a7940f79877cd634b75918",
+      "cae4ad59e4058b60fa6e0a24704414b8a8b15575a302a65f1155ec04fa8fdcd7",
     routines: REVIEWED_0069_APPLICATION_FUNCTIONS,
     triggers: REVIEWED_0069_APPLICATION_TRIGGERS,
     requiresWorkerContract: true,
