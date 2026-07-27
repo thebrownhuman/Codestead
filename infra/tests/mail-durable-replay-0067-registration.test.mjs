@@ -86,10 +86,22 @@ const replaceProjectionExactly = (projection, before, after) => {
   );
   return projection.replace(before, after);
 };
+const projectionThrough0067 = postgresJob
+  .split(/\r?\n/u)
+  .filter((line) => {
+    const versionText = line.match(
+      /\bnpm run test:[a-z0-9][a-z0-9:-]*-(\d{4})(?::|$)/u,
+    )?.[1];
+    return (
+      versionText === undefined
+      || Number.parseInt(versionText, 10) <= 67
+    );
+  })
+  .join("\n");
 const projectionWith0068Suffix = replaceProjectionExactly(
   replaceProjectionExactly(
     replaceProjectionExactly(
-      postgresJob,
+      projectionThrough0067,
       "      - run: npm run test:mail-durable-replay-0067:registration",
       [
         "      - run: npm run test:mail-durable-replay-0067:registration",
@@ -108,10 +120,9 @@ const projectionWith0068Suffix = replaceProjectionExactly(
     "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:self-test-mail-authority-0068:pg18",
   ].join("\n"),
 );
-assert.throws(
+assert.doesNotThrow(
   () => assertMailDurableReplay0067PostgresProjection(projectionWith0068Suffix),
-  /exact composed contract/u,
-  "the newest 0067 contract must remain the sole exact-final projection guard",
+  "the historical 0067 contract must accept a strictly later reviewed suffix",
 );
 
 assert.match(harness, /POSTGRES_17_BIN/u);

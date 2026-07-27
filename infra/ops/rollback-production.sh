@@ -127,12 +127,18 @@ readonly mail_outbox_dispatch_binding_boundary_commit=b73788a4b4d213e6423d737050
 readonly mail_outbox_dispatch_binding_capability_path=infra/ops/mail-outbox-dispatch-binding-capability.env
 readonly mail_outbox_dispatch_binding_capability_mode=100644
 readonly mail_outbox_dispatch_binding_capability_blob=ea707715f84608b1e1a33ac1832d533b878b6c07
-readonly mail_outbox_durable_replay_migration_path=drizzle/0067_mail_outbox_durable_replay_authority.sql
-readonly mail_outbox_task7_receipt_denial='0067_mail_outbox_durable_replay_authority requires an approved Task 7 delivery receipt capability'
+readonly mail_outbox_guarded_delivery_boundary_commit=7eeafd73c5d41ea49526d908165e0a7cefa92097
+readonly mail_outbox_guarded_delivery_capability_path=infra/ops/mail-outbox-guarded-delivery-capability.env
+readonly mail_outbox_guarded_delivery_capability_mode=100644
+readonly mail_outbox_guarded_delivery_capability_blob=2b0cd7af4b6d7a39756e94485aa370abfb6e2acf
 readonly dispatch_binding_runtime_contract=exact-adapter-payload-sha256-before-provider-call-v1
 readonly dispatch_binding_privilege_contract=owner-execute-worker-columns-update-only-no-grant-option-trigger-v1
+readonly guarded_delivery_runtime_contract=guarded-prepared-dispatch-tx1-tx2-exact-byte-v1
+readonly delivery_release_authority_contract=append-only-task7-release-receipt-v1
+readonly guarded_delivery_privilege_contract=owner-app-worker-release-receipt-least-privilege-v1
 readonly -a mail_outbox_forward_only_capability_registry=(
   '0064_mail_outbox_dispatch_binding|b73788a4b4d213e6423d737050b9e14c6a5d91b5|infra/ops/mail-outbox-dispatch-binding-capability.env|100644|ea707715f84608b1e1a33ac1832d533b878b6c07|SCHEMA_VERSION=1|OUTBOX_WORKER_MODE=fenced-postgres-v1|DISPATCH_BINDING_RUNTIME=exact-adapter-payload-sha256-before-provider-call-v1|DISPATCH_BINDING_PRIVILEGE=owner-execute-worker-columns-update-only-no-grant-option-trigger-v1'
+  '0069_mail_outbox_guarded_delivery_authority|7eeafd73c5d41ea49526d908165e0a7cefa92097|infra/ops/mail-outbox-guarded-delivery-capability.env|100644|2b0cd7af4b6d7a39756e94485aa370abfb6e2acf|SCHEMA_VERSION=1|OUTBOX_WORKER_MODE=fenced-postgres-v1|GUARDED_DELIVERY_RUNTIME=guarded-prepared-dispatch-tx1-tx2-exact-byte-v1|DELIVERY_RELEASE_AUTHORITY=append-only-task7-release-receipt-v1|GUARDED_DELIVERY_PRIVILEGE=owner-app-worker-release-receipt-least-privilege-v1'
 )
 
 # A later forward-only mail authority gets a distinct registry row, boundary
@@ -140,24 +146,30 @@ readonly -a mail_outbox_forward_only_capability_registry=(
 # its release-record schema and compatibility checks are implemented.
 validate_mail_outbox_capability_registry() {
   local record migration boundary_commit capability_path capability_mode
-  local capability_blob schema_line worker_line runtime_line privilege_line extra
-  local dispatch_binding_entries=0
+  local capability_blob schema_line worker_line
+  local dispatch_binding_entries=0 guarded_delivery_entries=0
+  local -a fields=()
   local -A seen_migrations=() seen_boundaries=() seen_paths=() seen_blobs=()
 
   for record in "${mail_outbox_forward_only_capability_registry[@]}"; do
-    IFS='|' read -r migration boundary_commit capability_path capability_mode \
-      capability_blob schema_line worker_line runtime_line privilege_line extra \
-      <<<"$record"
-    [[ -z "$extra" \
-      && "$migration" =~ ^[0-9]{4}_[a-z0-9_]+$ \
+    IFS='|' read -r -a fields <<<"$record"
+    [[ "${#fields[@]}" == 9 || "${#fields[@]}" == 10 ]] || {
+      fatal "mail outbox capability registry is malformed"
+    }
+    migration="${fields[0]}"
+    boundary_commit="${fields[1]}"
+    capability_path="${fields[2]}"
+    capability_mode="${fields[3]}"
+    capability_blob="${fields[4]}"
+    schema_line="${fields[5]}"
+    worker_line="${fields[6]}"
+    [[ "$migration" =~ ^[0-9]{4}_[a-z0-9_]+$ \
       && "$boundary_commit" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ \
       && "$capability_path" =~ ^infra/ops/[a-z0-9-]+-capability\.env$ \
       && "$capability_mode" == 100644 \
       && "$capability_blob" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ \
       && "$schema_line" =~ ^SCHEMA_VERSION=[1-9][0-9]*$ \
-      && "$worker_line" =~ ^OUTBOX_WORKER_MODE=[a-z0-9-]+$ \
-      && "$runtime_line" =~ ^DISPATCH_BINDING_RUNTIME=[a-z0-9-]+$ \
-      && "$privilege_line" =~ ^DISPATCH_BINDING_PRIVILEGE=[a-z0-9-]+$ ]] || {
+      && "$worker_line" =~ ^OUTBOX_WORKER_MODE=[a-z0-9-]+$ ]] || {
       fatal "mail outbox capability registry is malformed"
     }
     [[ -z "${seen_migrations[$migration]+present}" \
@@ -173,17 +185,33 @@ validate_mail_outbox_capability_registry() {
 
     case "$migration" in
       0064_mail_outbox_dispatch_binding)
-        [[ "$boundary_commit" == "$mail_outbox_dispatch_binding_boundary_commit" \
+        [[ "${#fields[@]}" == 9 \
+          && "$boundary_commit" == "$mail_outbox_dispatch_binding_boundary_commit" \
           && "$capability_path" == "$mail_outbox_dispatch_binding_capability_path" \
           && "$capability_mode" == "$mail_outbox_dispatch_binding_capability_mode" \
           && "$capability_blob" == "$mail_outbox_dispatch_binding_capability_blob" \
           && "$schema_line" == SCHEMA_VERSION=1 \
           && "$worker_line" == OUTBOX_WORKER_MODE=fenced-postgres-v1 \
-          && "$runtime_line" == "DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_contract" \
-          && "$privilege_line" == "DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract" ]] || {
+          && "${fields[7]}" == "DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_contract" \
+          && "${fields[8]}" == "DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract" ]] || {
           fatal "0064 dispatch binding capability registry entry is inconsistent"
         }
         dispatch_binding_entries="$((dispatch_binding_entries + 1))"
+        ;;
+      0069_mail_outbox_guarded_delivery_authority)
+        [[ "${#fields[@]}" == 10 \
+          && "$boundary_commit" == "$mail_outbox_guarded_delivery_boundary_commit" \
+          && "$capability_path" == "$mail_outbox_guarded_delivery_capability_path" \
+          && "$capability_mode" == "$mail_outbox_guarded_delivery_capability_mode" \
+          && "$capability_blob" == "$mail_outbox_guarded_delivery_capability_blob" \
+          && "$schema_line" == SCHEMA_VERSION=1 \
+          && "$worker_line" == OUTBOX_WORKER_MODE=fenced-postgres-v1 \
+          && "${fields[7]}" == "GUARDED_DELIVERY_RUNTIME=$guarded_delivery_runtime_contract" \
+          && "${fields[8]}" == "DELIVERY_RELEASE_AUTHORITY=$delivery_release_authority_contract" \
+          && "${fields[9]}" == "GUARDED_DELIVERY_PRIVILEGE=$guarded_delivery_privilege_contract" ]] || {
+          fatal "0069 guarded delivery capability registry entry is inconsistent"
+        }
+        guarded_delivery_entries="$((guarded_delivery_entries + 1))"
         ;;
       *) fatal "mail outbox capability registry contains an unsupported forward-only authority" ;;
     esac
@@ -191,8 +219,10 @@ validate_mail_outbox_capability_registry() {
   [[ "$dispatch_binding_entries" == 1 ]] || {
     fatal "mail outbox capability registry omits the 0064 authority"
   }
+  [[ "$guarded_delivery_entries" == 1 ]] || {
+    fatal "mail outbox capability registry omits the 0069 authority"
+  }
 }
-
 validate_mail_outbox_capability_registry
 
 if [[ -n "$test_harness_root" ]]; then
@@ -534,6 +564,12 @@ if [[ -e "$mail_outbox_contract_file" || -L "$mail_outbox_contract_file" ]]; the
   rollback_dispatch_binding_privilege=none
   rollback_previous_dispatch_binding_runtime=none
   rollback_previous_dispatch_binding_privilege=none
+  rollback_guarded_delivery_runtime=none
+  rollback_delivery_release_authority=none
+  rollback_guarded_delivery_privilege=none
+  rollback_previous_guarded_delivery_runtime=none
+  rollback_previous_delivery_release_authority=none
+  rollback_previous_guarded_delivery_privilege=none
   rollback_previous_runtime_compatible=false
   rollback_forward_only_migration=none
   case "$mail_outbox_contract_schema" in
@@ -672,6 +708,108 @@ if [[ -e "$mail_outbox_contract_file" || -L "$mail_outbox_contract_file" ]]; the
         fatal "mail outbox contract evidence contains inconsistent compatibility evidence"
       }
       ;;
+    SCHEMA_VERSION=4)
+      [[ "${#mail_outbox_contract_lines[@]}" == 20 \
+        && "${mail_outbox_contract_lines[1]:-}" == MAIL_OUTBOX_PHASE=* \
+        && "${mail_outbox_contract_lines[2]:-}" == OUTBOX_WORKER_MODE=* \
+        && "${mail_outbox_contract_lines[3]:-}" == OUTBOX_RETENTION_AUTHORITY=* \
+        && "${mail_outbox_contract_lines[4]:-}" == DISPATCH_BINDING_RUNTIME=* \
+        && "${mail_outbox_contract_lines[5]:-}" == DISPATCH_BINDING_PRIVILEGE=* \
+        && "${mail_outbox_contract_lines[6]:-}" == GUARDED_DELIVERY_RUNTIME=* \
+        && "${mail_outbox_contract_lines[7]:-}" == DELIVERY_RELEASE_AUTHORITY=* \
+        && "${mail_outbox_contract_lines[8]:-}" == GUARDED_DELIVERY_PRIVILEGE=* \
+        && "${mail_outbox_contract_lines[9]:-}" == STORE_CUTOVER=* \
+        && "${mail_outbox_contract_lines[10]:-}" == PREVIOUS_MAIL_OUTBOX_PHASE=* \
+        && "${mail_outbox_contract_lines[11]:-}" == PREVIOUS_OUTBOX_WORKER_MODE=* \
+        && "${mail_outbox_contract_lines[12]:-}" == PREVIOUS_OUTBOX_RETENTION_AUTHORITY=* \
+        && "${mail_outbox_contract_lines[13]:-}" == PREVIOUS_DISPATCH_BINDING_RUNTIME=* \
+        && "${mail_outbox_contract_lines[14]:-}" == PREVIOUS_DISPATCH_BINDING_PRIVILEGE=* \
+        && "${mail_outbox_contract_lines[15]:-}" == PREVIOUS_GUARDED_DELIVERY_RUNTIME=* \
+        && "${mail_outbox_contract_lines[16]:-}" == PREVIOUS_DELIVERY_RELEASE_AUTHORITY=* \
+        && "${mail_outbox_contract_lines[17]:-}" == PREVIOUS_GUARDED_DELIVERY_PRIVILEGE=* \
+        && "${mail_outbox_contract_lines[18]:-}" == PREVIOUS_RUNTIME_COMPATIBLE=* \
+        && "${mail_outbox_contract_lines[19]:-}" == FORWARD_ONLY_MIGRATION=* ]] || {
+        fatal "mail outbox contract evidence is malformed"
+      }
+      rollback_mail_phase="${mail_outbox_contract_lines[1]#MAIL_OUTBOX_PHASE=}"
+      rollback_worker_mode="${mail_outbox_contract_lines[2]#OUTBOX_WORKER_MODE=}"
+      rollback_retention_authority="${mail_outbox_contract_lines[3]#OUTBOX_RETENTION_AUTHORITY=}"
+      rollback_dispatch_binding_runtime="${mail_outbox_contract_lines[4]#DISPATCH_BINDING_RUNTIME=}"
+      rollback_dispatch_binding_privilege="${mail_outbox_contract_lines[5]#DISPATCH_BINDING_PRIVILEGE=}"
+      rollback_guarded_delivery_runtime="${mail_outbox_contract_lines[6]#GUARDED_DELIVERY_RUNTIME=}"
+      rollback_delivery_release_authority="${mail_outbox_contract_lines[7]#DELIVERY_RELEASE_AUTHORITY=}"
+      rollback_guarded_delivery_privilege="${mail_outbox_contract_lines[8]#GUARDED_DELIVERY_PRIVILEGE=}"
+      rollback_store_cutover="${mail_outbox_contract_lines[9]#STORE_CUTOVER=}"
+      rollback_previous_mail_phase="${mail_outbox_contract_lines[10]#PREVIOUS_MAIL_OUTBOX_PHASE=}"
+      rollback_previous_worker_mode="${mail_outbox_contract_lines[11]#PREVIOUS_OUTBOX_WORKER_MODE=}"
+      rollback_previous_retention_authority="${mail_outbox_contract_lines[12]#PREVIOUS_OUTBOX_RETENTION_AUTHORITY=}"
+      rollback_previous_dispatch_binding_runtime="${mail_outbox_contract_lines[13]#PREVIOUS_DISPATCH_BINDING_RUNTIME=}"
+      rollback_previous_dispatch_binding_privilege="${mail_outbox_contract_lines[14]#PREVIOUS_DISPATCH_BINDING_PRIVILEGE=}"
+      rollback_previous_guarded_delivery_runtime="${mail_outbox_contract_lines[15]#PREVIOUS_GUARDED_DELIVERY_RUNTIME=}"
+      rollback_previous_delivery_release_authority="${mail_outbox_contract_lines[16]#PREVIOUS_DELIVERY_RELEASE_AUTHORITY=}"
+      rollback_previous_guarded_delivery_privilege="${mail_outbox_contract_lines[17]#PREVIOUS_GUARDED_DELIVERY_PRIVILEGE=}"
+      rollback_previous_runtime_compatible="${mail_outbox_contract_lines[18]#PREVIOUS_RUNTIME_COMPATIBLE=}"
+      rollback_forward_only_migration="${mail_outbox_contract_lines[19]#FORWARD_ONLY_MIGRATION=}"
+      [[ "$rollback_retention_authority" == ops-owner-security-definer-v1 ]] || {
+        fatal "mail outbox contract evidence contains an invalid retention authority"
+      }
+      [[ "$rollback_dispatch_binding_runtime" == "$dispatch_binding_runtime_contract" \
+        && "$rollback_dispatch_binding_privilege" == "$dispatch_binding_privilege_contract" ]] || {
+        fatal "mail outbox contract evidence contains an unknown dispatch binding capability version"
+      }
+      [[ "$rollback_guarded_delivery_runtime" == "$guarded_delivery_runtime_contract" \
+        && "$rollback_delivery_release_authority" == "$delivery_release_authority_contract" \
+        && "$rollback_guarded_delivery_privilege" == "$guarded_delivery_privilege_contract" ]] || {
+        fatal "mail outbox contract evidence contains an unknown guarded delivery capability version"
+      }
+      case "$rollback_previous_retention_authority" in
+        legacy-direct-v1|ops-owner-security-definer-v1) ;;
+        *) fatal "mail outbox contract evidence contains an invalid previous retention authority" ;;
+      esac
+      case "$rollback_previous_dispatch_binding_runtime|$rollback_previous_dispatch_binding_privilege" in
+        "none|none" \
+          |"$dispatch_binding_runtime_contract|$dispatch_binding_privilege_contract") ;;
+        *) fatal "mail outbox contract evidence contains an invalid previous dispatch binding capability" ;;
+      esac
+      case "$rollback_previous_guarded_delivery_runtime|$rollback_previous_delivery_release_authority|$rollback_previous_guarded_delivery_privilege" in
+        "none|none|none" \
+          |"$guarded_delivery_runtime_contract|$delivery_release_authority_contract|$guarded_delivery_privilege_contract") ;;
+        *) fatal "mail outbox contract evidence contains an invalid previous guarded delivery capability" ;;
+      esac
+      if [[ "$rollback_previous_worker_mode" == legacy-direct-v1 \
+        && ( "$rollback_previous_dispatch_binding_runtime" != none \
+          || "$rollback_previous_guarded_delivery_runtime" != none ) ]]; then
+        fatal "mail outbox contract evidence binds a legacy worker to an impossible delivery capability"
+      fi
+      expected_runtime_compatible=true
+      expected_forward_only_migration=none
+      if [[ "$rollback_previous_retention_authority" == legacy-direct-v1 ]]; then
+        expected_runtime_compatible=false
+        expected_forward_only_migration=0062_mail_outbox_retention_redaction
+      fi
+      if [[ "$rollback_previous_dispatch_binding_runtime" != "$dispatch_binding_runtime_contract" \
+        || "$rollback_previous_dispatch_binding_privilege" != "$dispatch_binding_privilege_contract" ]]; then
+        expected_runtime_compatible=false
+        expected_forward_only_migration=0064_mail_outbox_dispatch_binding
+      fi
+      if [[ "$rollback_previous_guarded_delivery_runtime" != "$guarded_delivery_runtime_contract" \
+        || "$rollback_previous_delivery_release_authority" != "$delivery_release_authority_contract" \
+        || "$rollback_previous_guarded_delivery_privilege" != "$guarded_delivery_privilege_contract" ]]; then
+        expected_runtime_compatible=false
+        expected_forward_only_migration=0069_mail_outbox_guarded_delivery_authority
+      fi
+      if [[ "$rollback_worker_mode" == fenced-postgres-v1 \
+        && "$rollback_previous_worker_mode" == legacy-direct-v1 ]]; then
+        expected_runtime_compatible=false
+      fi
+      if [[ "$rollback_store_cutover" == true ]]; then
+        expected_runtime_compatible=false
+      fi
+      [[ "$rollback_previous_runtime_compatible" == "$expected_runtime_compatible" \
+        && "$rollback_forward_only_migration" == "$expected_forward_only_migration" ]] || {
+        fatal "mail outbox contract evidence contains inconsistent compatibility evidence"
+      }
+      ;;
     *) fatal "mail outbox contract evidence is malformed" ;;
   esac
   case "$rollback_mail_phase|$rollback_worker_mode|$rollback_store_cutover|$rollback_previous_mail_phase|$rollback_previous_worker_mode" in
@@ -681,6 +819,9 @@ if [[ -e "$mail_outbox_contract_file" || -L "$mail_outbox_contract_file" ]]; the
       |"store-v1|fenced-postgres-v1|false|store-v1|fenced-postgres-v1") ;;
     *) fatal "mail outbox contract evidence contains an invalid transition" ;;
   esac
+  if [[ "$rollback_forward_only_migration" == 0069_mail_outbox_guarded_delivery_authority ]]; then
+    fatal "0069_mail_outbox_guarded_delivery_authority is forward-only; an image without the exact guarded delivery capability cannot be restored"
+  fi
   if [[ "$rollback_forward_only_migration" == 0064_mail_outbox_dispatch_binding ]]; then
     fatal "0064_mail_outbox_dispatch_binding is forward-only; an image without the exact dispatch binding capability cannot be restored"
   fi
@@ -695,7 +836,8 @@ if [[ -e "$mail_outbox_contract_file" || -L "$mail_outbox_contract_file" ]]; the
     fatal "mail store cutover is forward-only; the pre-cutover artifact cannot be restored"
   fi
   if [[ ( "$mail_outbox_contract_schema" == SCHEMA_VERSION=2 \
-      || "$mail_outbox_contract_schema" == SCHEMA_VERSION=3 ) \
+      || "$mail_outbox_contract_schema" == SCHEMA_VERSION=3 \
+      || "$mail_outbox_contract_schema" == SCHEMA_VERSION=4 ) \
     && "$rollback_previous_runtime_compatible" != true ]]; then
     fatal "mail outbox contract evidence does not permit automatic rollback"
   fi
@@ -1001,7 +1143,7 @@ verify_legacy_mail_outbox_contract_lineage() {
   local boundary_commit commit record_tree_from_git previous_tree_from_git
   local record_predates_boundary=false previous_predates_boundary=false
   case "$mail_outbox_contract_schema" in
-    SCHEMA_VERSION=2|SCHEMA_VERSION=3) return 0 ;;
+    SCHEMA_VERSION=2|SCHEMA_VERSION=3|SCHEMA_VERSION=4) return 0 ;;
   esac
 
   case "$mail_outbox_contract_schema" in
@@ -1054,31 +1196,6 @@ run_local_evidence_git() {
     "$git_bin" -C "$repo_root" "$@"
 }
 
-deny_unapproved_mail_outbox_durable_replay_tree() {
-  local commit="$1" expected_tree="$2"
-  local actual_tree durable_replay_entry
-
-  actual_tree="$(run_local_evidence_git rev-parse --verify \
-    "${commit}^{tree}" 2>/dev/null)" || {
-    fatal "unable to verify the trusted 0067 durable replay rollback tree"
-  }
-  [[ "$actual_tree" == "$expected_tree" ]] || {
-    fatal "trusted 0067 durable replay rollback tree evidence does not match repository objects"
-  }
-  durable_replay_entry="$(run_local_evidence_git ls-tree "$actual_tree" -- \
-    "$mail_outbox_durable_replay_migration_path" 2>/dev/null)" || {
-    fatal "unable to verify the trusted 0067 durable replay rollback tree"
-  }
-  [[ -z "$durable_replay_entry" ]] || {
-    fatal "$mail_outbox_task7_receipt_denial"
-  }
-}
-
-deny_unapproved_mail_outbox_durable_replay_tree \
-  "$record_git_commit" "$record_git_tree"
-deny_unapproved_mail_outbox_durable_replay_tree \
-  "$previous_git_commit" "$previous_git_tree"
-
 load_dispatch_binding_capability() {
   local commit="$1" expected_tree="$2" label="$3" entry metadata entry_path entry_extra
   local tree_from_commit
@@ -1129,6 +1246,61 @@ load_dispatch_binding_capability() {
   }
   LOADED_DISPATCH_BINDING_RUNTIME="$dispatch_binding_runtime_contract"
   LOADED_DISPATCH_BINDING_PRIVILEGE="$dispatch_binding_privilege_contract"
+}
+
+load_guarded_delivery_capability() {
+  local commit="$1" expected_tree="$2" label="$3" entry metadata entry_path entry_extra
+  local tree_from_commit
+  local mode object_type object_id metadata_extra content
+  local -a capability_lines=()
+  LOADED_GUARDED_DELIVERY_RUNTIME=none
+  LOADED_DELIVERY_RELEASE_AUTHORITY=none
+  LOADED_GUARDED_DELIVERY_PRIVILEGE=none
+  [[ "$expected_tree" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || {
+    fatal "$label guarded delivery capability tree evidence is invalid"
+  }
+  tree_from_commit="$(run_local_evidence_git rev-parse --verify \
+    "${commit}^{tree}" 2>/dev/null)" || {
+    fatal "unable to verify $label guarded delivery capability tree"
+  }
+  [[ "$tree_from_commit" == "$expected_tree" ]] || {
+    fatal "$label guarded delivery capability tree does not match repository objects"
+  }
+  entry="$(run_local_evidence_git ls-tree "$expected_tree" -- \
+    "$mail_outbox_guarded_delivery_capability_path" 2>/dev/null)" || {
+    fatal "unable to verify $label guarded delivery capability"
+  }
+  [[ -n "$entry" ]] || return 1
+  IFS=$'\t' read -r metadata entry_path entry_extra <<<"$entry"
+  IFS=' ' read -r mode object_type object_id metadata_extra <<<"$metadata"
+  [[ "$mode" == "$mail_outbox_guarded_delivery_capability_mode" \
+    && "$object_type" == blob \
+    && "$object_id" == "$mail_outbox_guarded_delivery_capability_blob" \
+    && "$entry_path" == "$mail_outbox_guarded_delivery_capability_path" \
+    && -z "$entry_extra" && -z "$metadata_extra" ]] || {
+    if [[ "$mode" != "$mail_outbox_guarded_delivery_capability_mode" \
+      || "$object_type" != blob ]]; then
+      fatal "$label guarded delivery capability is not a canonical regular Git blob"
+    fi
+    fatal "$label guarded delivery capability has an absent, unknown, or mismatched version"
+  }
+  content="$(run_local_evidence_git cat-file blob \
+    "$object_id" 2>/dev/null)" || {
+    fatal "unable to read $label guarded delivery capability"
+  }
+  [[ "$content" != *$'\r'* ]] || fatal "$label guarded delivery capability is malformed"
+  mapfile -t capability_lines <<<"$content"
+  [[ "${#capability_lines[@]}" == 5 \
+    && "${capability_lines[0]:-}" == SCHEMA_VERSION=1 \
+    && "${capability_lines[1]:-}" == OUTBOX_WORKER_MODE=fenced-postgres-v1 \
+    && "${capability_lines[2]:-}" == "GUARDED_DELIVERY_RUNTIME=$guarded_delivery_runtime_contract" \
+    && "${capability_lines[3]:-}" == "DELIVERY_RELEASE_AUTHORITY=$delivery_release_authority_contract" \
+    && "${capability_lines[4]:-}" == "GUARDED_DELIVERY_PRIVILEGE=$guarded_delivery_privilege_contract" ]] || {
+    fatal "$label guarded delivery capability has an absent, unknown, or mismatched version"
+  }
+  LOADED_GUARDED_DELIVERY_RUNTIME="$guarded_delivery_runtime_contract"
+  LOADED_DELIVERY_RELEASE_AUTHORITY="$delivery_release_authority_contract"
+  LOADED_GUARDED_DELIVERY_PRIVILEGE="$guarded_delivery_privilege_contract"
 }
 
 verify_dispatch_binding_rollback_contract() {
@@ -1192,7 +1364,8 @@ verify_dispatch_binding_rollback_contract() {
       && "$target_contains_migration" != true ]] || {
       fatal "0064_mail_outbox_dispatch_binding exists before its approved Git lineage"
     }
-    [[ "$mail_outbox_contract_schema" != SCHEMA_VERSION=3 ]] || {
+    [[ "$mail_outbox_contract_schema" != SCHEMA_VERSION=3 \
+      && "$mail_outbox_contract_schema" != SCHEMA_VERSION=4 ]] || {
       fatal "SCHEMA_VERSION=3 dispatch binding evidence is not bound to the 0064 authority lineage"
     }
     return 0
@@ -1206,14 +1379,16 @@ verify_dispatch_binding_rollback_contract() {
     [[ "$source_contains_migration" != true ]] || {
       fatal "0064_mail_outbox_dispatch_binding exists outside its approved Git lineage"
     }
-    [[ "$mail_outbox_contract_schema" != SCHEMA_VERSION=3 ]] || {
+    [[ "$mail_outbox_contract_schema" != SCHEMA_VERSION=3 \
+      && "$mail_outbox_contract_schema" != SCHEMA_VERSION=4 ]] || {
       fatal "SCHEMA_VERSION=3 dispatch binding evidence is not bound to the 0064 authority lineage"
     }
     fatal "legacy mail outbox contract evidence requires exact source and previous images strictly before 0064_mail_outbox_dispatch_binding"
   fi
 
-  [[ "$mail_outbox_contract_schema" == SCHEMA_VERSION=3 ]] || {
-    fatal "0064_mail_outbox_dispatch_binding is forward-only; SCHEMA_VERSION=3 exact dispatch binding capability evidence is required"
+  [[ "$mail_outbox_contract_schema" == SCHEMA_VERSION=3 \
+    || "$mail_outbox_contract_schema" == SCHEMA_VERSION=4 ]] || {
+    fatal "0064_mail_outbox_dispatch_binding is forward-only; versioned exact dispatch binding capability evidence is required"
   }
   load_dispatch_binding_capability "$record_git_commit" "$record_git_tree" "source image" || {
     fatal "0064_mail_outbox_dispatch_binding requires a checked-in dispatch binding capability in the source image"
@@ -1246,6 +1421,120 @@ verify_dispatch_binding_rollback_contract() {
   }
 }
 
+verify_guarded_delivery_rollback_contract() {
+  local commit record_tree_from_git previous_tree_from_git
+  local source_contains_boundary=false target_contains_boundary=false
+  local source_predates_boundary=false target_predates_boundary=false
+  local source_contains_migration=false target_contains_migration=false
+  local source_migration_entry target_migration_entry
+  local source_runtime source_authority source_privilege
+  local target_runtime target_authority target_privilege
+
+  for commit in "$mail_outbox_guarded_delivery_boundary_commit" \
+    "$record_git_commit" "$previous_git_commit"; do
+    run_local_evidence_git cat-file -e "${commit}^{commit}" \
+      >/dev/null 2>&1 || {
+      fatal "unable to verify the trusted 0069_mail_outbox_guarded_delivery_authority lineage"
+    }
+  done
+  record_tree_from_git="$(run_local_evidence_git rev-parse --verify \
+    "${record_git_commit}^{tree}" 2>/dev/null)" || {
+    fatal "unable to verify trusted 0069 release Git trees"
+  }
+  previous_tree_from_git="$(run_local_evidence_git rev-parse --verify \
+    "${previous_git_commit}^{tree}" 2>/dev/null)" || {
+    fatal "unable to verify trusted 0069 release Git trees"
+  }
+  [[ "$record_tree_from_git" == "$record_git_tree" \
+    && "$previous_tree_from_git" == "$previous_git_tree" ]] || {
+    fatal "trusted 0069 release Git tree evidence does not match repository objects"
+  }
+  git_commit_is_ancestor "$previous_git_commit" "$record_git_commit" || {
+    fatal "the previous image is not an ancestor of the recorded source image"
+  }
+
+  if git_commit_is_strictly_before_boundary \
+      "$record_git_commit" "$mail_outbox_guarded_delivery_boundary_commit"; then
+    source_predates_boundary=true
+  fi
+  if git_commit_is_strictly_before_boundary \
+      "$previous_git_commit" "$mail_outbox_guarded_delivery_boundary_commit"; then
+    target_predates_boundary=true
+  fi
+  source_migration_entry="$(run_local_evidence_git ls-tree "$record_git_commit" -- \
+    drizzle/0069_mail_outbox_guarded_delivery_authority.sql 2>/dev/null)" || {
+    fatal "unable to verify the source 0069 migration tree"
+  }
+  target_migration_entry="$(run_local_evidence_git ls-tree "$previous_git_commit" -- \
+    drizzle/0069_mail_outbox_guarded_delivery_authority.sql 2>/dev/null)" || {
+    fatal "unable to verify the previous 0069 migration tree"
+  }
+  [[ -z "$source_migration_entry" ]] || source_contains_migration=true
+  [[ -z "$target_migration_entry" ]] || target_contains_migration=true
+
+  if [[ "$source_predates_boundary" == true \
+    && "$target_predates_boundary" == true ]]; then
+    [[ "$source_contains_migration" != true \
+      && "$target_contains_migration" != true ]] || {
+      fatal "0069_mail_outbox_guarded_delivery_authority exists before its approved Git lineage"
+    }
+    [[ "$mail_outbox_contract_schema" != SCHEMA_VERSION=4 ]] || {
+      fatal "SCHEMA_VERSION=4 guarded delivery evidence is not bound to the 0069 authority lineage"
+    }
+    return 0
+  fi
+
+  if git_commit_is_ancestor \
+      "$mail_outbox_guarded_delivery_boundary_commit" "$record_git_commit"; then
+    source_contains_boundary=true
+  fi
+  if [[ "$source_contains_boundary" != true ]]; then
+    [[ "$source_contains_migration" != true ]] || {
+      fatal "0069_mail_outbox_guarded_delivery_authority exists outside its approved Git lineage"
+    }
+    [[ "$mail_outbox_contract_schema" != SCHEMA_VERSION=4 ]] || {
+      fatal "SCHEMA_VERSION=4 guarded delivery evidence is not bound to the 0069 authority lineage"
+    }
+    fatal "legacy mail outbox contract evidence requires exact source and previous images strictly before 0069_mail_outbox_guarded_delivery_authority"
+  fi
+
+  [[ "$mail_outbox_contract_schema" == SCHEMA_VERSION=4 ]] || {
+    fatal "0069_mail_outbox_guarded_delivery_authority is forward-only; SCHEMA_VERSION=4 exact guarded delivery capability evidence is required"
+  }
+  load_guarded_delivery_capability "$record_git_commit" "$record_git_tree" "source image" || {
+    fatal "0069_mail_outbox_guarded_delivery_authority requires a checked-in guarded delivery capability in the source image"
+  }
+  source_runtime="$LOADED_GUARDED_DELIVERY_RUNTIME"
+  source_authority="$LOADED_DELIVERY_RELEASE_AUTHORITY"
+  source_privilege="$LOADED_GUARDED_DELIVERY_PRIVILEGE"
+  [[ "$source_runtime" == "$rollback_guarded_delivery_runtime" \
+    && "$source_authority" == "$rollback_delivery_release_authority" \
+    && "$source_privilege" == "$rollback_guarded_delivery_privilege" ]] || {
+    fatal "source image guarded delivery capability does not match its V4 release evidence"
+  }
+  if git_commit_is_ancestor \
+      "$mail_outbox_guarded_delivery_boundary_commit" "$previous_git_commit"; then
+    target_contains_boundary=true
+  fi
+  [[ "$target_contains_boundary" == true ]] || {
+    fatal "0069_mail_outbox_guarded_delivery_authority is forward-only; the previous image predates exact guarded delivery"
+  }
+  load_guarded_delivery_capability "$previous_git_commit" "$previous_git_tree" "previous image" || {
+    fatal "0069_mail_outbox_guarded_delivery_authority is forward-only; the previous image lacks the checked-in guarded delivery capability"
+  }
+  target_runtime="$LOADED_GUARDED_DELIVERY_RUNTIME"
+  target_authority="$LOADED_DELIVERY_RELEASE_AUTHORITY"
+  target_privilege="$LOADED_GUARDED_DELIVERY_PRIVILEGE"
+  [[ "$target_runtime" == "$rollback_previous_guarded_delivery_runtime" \
+    && "$target_authority" == "$rollback_previous_delivery_release_authority" \
+    && "$target_privilege" == "$rollback_previous_guarded_delivery_privilege" \
+    && "$rollback_worker_mode" == fenced-postgres-v1 \
+    && "$rollback_previous_worker_mode" == fenced-postgres-v1 \
+    && "$rollback_previous_runtime_compatible" == true \
+    && "$rollback_forward_only_migration" == none ]] || {
+    fatal "0069_mail_outbox_guarded_delivery_authority is forward-only; source and previous image capabilities are incompatible"
+  }
+}
 record_rollback_runtime_state() {
   local inventory="$record_real/rollback-managed-containers.tsv"
   local active="$record_real/rollback-active-release.env"
@@ -1440,6 +1729,7 @@ run_bounded "$python_bin" "$release_tree_packager" \
 
 verify_legacy_mail_outbox_contract_lineage
 verify_dispatch_binding_rollback_contract
+verify_guarded_delivery_rollback_contract
 
 readonly -a compose=(
   "${docker_cli[@]}" compose --project-name learncoding

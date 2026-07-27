@@ -30,80 +30,92 @@ function exactClient(tamper = "") {
       calls.push({ normalized, parameters });
       if (normalized.includes("trusted_search_path")) {
         return {
-          rows: [{
-            trusted_search_path: tamper === "trusted-search-path"
-              ? "public,pg_catalog"
-              : "pg_catalog,pg_temp",
-          }],
+          rows: [
+            {
+              trusted_search_path:
+                tamper === "trusted-search-path"
+                  ? "public,pg_catalog"
+                  : "pg_catalog,pg_temp",
+            },
+          ],
         };
       }
       if (normalized.includes("effective_table_acl_exact")) {
         const relation = parameters[0];
         const prefix = relation?.includes("admin_guard") ? "guard" : "ledger";
-        const row = Object.fromEntries([
-          "owner_exact",
-          "relation_kind_exact",
-          "persistence_exact",
-          "access_method_exact",
-          "replica_identity_exact",
-          "reloptions_exact",
-          "tablespace_exact",
-          "row_security_exact",
-          "forced_row_security_exact",
-          "columns_exact",
-          "column_definitions_exact",
-          "constraints_exact",
-          "indexes_exact",
-          "effective_table_acl_exact",
-          "effective_column_acl_exact",
-          "direct_acl_exact",
-        ].map((key) => [key, tamper !== `${prefix}:${key}`]));
-        return { rows: [{
-          ...row,
-        }] };
+        const row = Object.fromEntries(
+          [
+            "owner_exact",
+            "relation_kind_exact",
+            "persistence_exact",
+            "access_method_exact",
+            "replica_identity_exact",
+            "reloptions_exact",
+            "tablespace_exact",
+            "row_security_exact",
+            "forced_row_security_exact",
+            "columns_exact",
+            "column_definitions_exact",
+            "constraints_exact",
+            "indexes_exact",
+            "effective_table_acl_exact",
+            "effective_column_acl_exact",
+            "direct_acl_exact",
+          ].map((key) => [key, tamper !== `${prefix}:${key}`]),
+        );
+        return {
+          rows: [
+            {
+              ...row,
+            },
+          ],
+        };
       }
       if (normalized.includes("routine_kind_exact")) {
         if (tamper === `missing:${parameters[0]}`) return { rows: [] };
-        const row = Object.fromEntries([
-          "body_sha256_exact",
-          "definition_sha256_exact",
-          "owner_exact",
-          "language_exact",
-          "routine_kind_exact",
-          "security_definer_exact",
-          "configuration_exact",
-          "volatility_exact",
-          "strict_exact",
-          "parallel_exact",
-          "leakproof_exact",
-          "argument_names_exact",
-          "argument_modes_exact",
-          "argument_types_exact",
-          "input_argument_count_exact",
-          "argument_defaults_exact",
-          "return_type_exact",
-          "returns_set_exact",
-          "variadic_exact",
-          "cost_exact",
-          "rows_exact",
-          "support_exact",
-          "transform_types_exact",
-          "binary_exact",
-          "sql_body_exact",
-          "effective_execute_exact",
-          "direct_acl_exact",
-        ].map((key) => [
-          key,
-          tamper !== `routine:${parameters[0]}:${key}`,
-        ]));
+        const row = Object.fromEntries(
+          [
+            "body_sha256_exact",
+            "definition_sha256_exact",
+            "owner_exact",
+            "language_exact",
+            "routine_kind_exact",
+            "security_definer_exact",
+            "configuration_exact",
+            "volatility_exact",
+            "strict_exact",
+            "parallel_exact",
+            "leakproof_exact",
+            "argument_names_exact",
+            "argument_modes_exact",
+            "argument_types_exact",
+            "input_argument_count_exact",
+            "argument_defaults_exact",
+            "return_type_exact",
+            "returns_set_exact",
+            "variadic_exact",
+            "cost_exact",
+            "rows_exact",
+            "support_exact",
+            "transform_types_exact",
+            "binary_exact",
+            "sql_body_exact",
+            "effective_execute_exact",
+            "direct_acl_exact",
+          ].map((key) => [key, tamper !== `routine:${parameters[0]}:${key}`]),
+        );
         return { rows: [row] };
       }
       if (normalized.includes("triggers_exact")) {
-        return { rows: [{
-          relations_present: true,
-          guard_state_exact: tamper !== "guard-state",
-          triggers_exact: tamper !== "triggers",
-        }] };
+        return {
+          rows: [
+            {
+              relations_present: true,
+              guard_state_exact: tamper !== "guard-state",
+              triggers_exact: tamper !== "triggers",
+            },
+          ],
+        };
       }
       throw new Error("unexpected verifier query");
     },
@@ -172,43 +184,43 @@ test("verifies the exact owner-inclusive 0065 security manifest", async () => {
       indexes: relation.indexes.map(({ name }) => name),
     })),
     [
-    {
-      name: "public.backup_status_mail_authority",
-      columns: [
-        "id",
-        "run_key",
-        "outcome",
-        "outbox_id",
-        "operation_id",
-        "authority_epoch",
-        "created_at",
-      ],
-      constraints: [
-        "backup_status_mail_authority_epoch_valid",
-        "backup_status_mail_authority_operation_id_key",
-        "backup_status_mail_authority_outbox_id_key",
-        "backup_status_mail_authority_outcome_valid",
-        "backup_status_mail_authority_pkey",
-        "backup_status_mail_authority_run_key_key",
-        "backup_status_mail_authority_run_key_valid",
-      ],
-      indexes: [
-        "backup_status_mail_authority_operation_id_key",
-        "backup_status_mail_authority_outbox_id_key",
-        "backup_status_mail_authority_pkey",
-        "backup_status_mail_authority_run_key_key",
-      ],
-    },
-    {
-      name: "public.backup_status_mail_admin_guard",
-      columns: ["singleton", "authority_epoch"],
-      constraints: [
-        "backup_status_mail_admin_guard_epoch_valid",
-        "backup_status_mail_admin_guard_pkey",
-        "backup_status_mail_admin_guard_singleton",
-      ],
-      indexes: ["backup_status_mail_admin_guard_pkey"],
-    },
+      {
+        name: "public.backup_status_mail_authority",
+        columns: [
+          "id",
+          "run_key",
+          "outcome",
+          "outbox_id",
+          "operation_id",
+          "authority_epoch",
+          "created_at",
+        ],
+        constraints: [
+          "backup_status_mail_authority_epoch_valid",
+          "backup_status_mail_authority_operation_id_key",
+          "backup_status_mail_authority_outbox_id_key",
+          "backup_status_mail_authority_outcome_valid",
+          "backup_status_mail_authority_pkey",
+          "backup_status_mail_authority_run_key_key",
+          "backup_status_mail_authority_run_key_valid",
+        ],
+        indexes: [
+          "backup_status_mail_authority_operation_id_key",
+          "backup_status_mail_authority_outbox_id_key",
+          "backup_status_mail_authority_pkey",
+          "backup_status_mail_authority_run_key_key",
+        ],
+      },
+      {
+        name: "public.backup_status_mail_admin_guard",
+        columns: ["singleton", "authority_epoch"],
+        constraints: [
+          "backup_status_mail_admin_guard_epoch_valid",
+          "backup_status_mail_admin_guard_pkey",
+          "backup_status_mail_admin_guard_singleton",
+        ],
+        indexes: ["backup_status_mail_admin_guard_pkey"],
+      },
     ],
   );
   for (const relation of BACKUP_STATUS_AUTHORITY_RELATIONS) {
@@ -218,8 +230,7 @@ test("verifies the exact owner-inclusive 0065 security manifest", async () => {
     assert.equal(relation.tablespace, 0);
   }
   assert.equal(client.calls.length, 8);
-  for (const [index, relation] of
-    BACKUP_STATUS_AUTHORITY_RELATIONS.entries()) {
+  for (const [index, relation] of BACKUP_STATUS_AUTHORITY_RELATIONS.entries()) {
     assert.deepEqual(client.calls[index + 1].parameters, [
       relation.name,
       restrictedRoles,
@@ -323,14 +334,10 @@ test("rejects missing, partial, and cloned phase contracts before querying", asy
   ];
   for (const contract of invalidContracts) {
     await assert.rejects(
-      verifyBackupStatusMailAuthorityObjects(
-        client,
-        restrictedRoles,
-        contract,
-      ),
+      verifyBackupStatusMailAuthorityObjects(client, restrictedRoles, contract),
       (error) =>
-        error instanceof BackupStatusMailAuthorityContractError
-        && error.message.endsWith(": contract"),
+        error instanceof BackupStatusMailAuthorityContractError &&
+        error.message.endsWith(": contract"),
     );
   }
   assert.equal(client.calls, 0);
@@ -344,7 +351,8 @@ test("passes the selected canonical trigger and guard topology to SQL", async ()
     BACKUP_STATUS_AUTHORITY_0065_CONTRACT,
   );
   const triggerCall = client.calls.at(-1);
-  assert.deepEqual(JSON.parse(triggerCall.parameters[0]),
+  assert.deepEqual(
+    JSON.parse(triggerCall.parameters[0]),
     BACKUP_STATUS_AUTHORITY_TRIGGERS.map((trigger) => ({
       relation_name: trigger.relation,
       trigger_name: trigger.name,
@@ -410,16 +418,14 @@ test("fails closed for every missing or altered manifest component", async () =>
       BACKUP_STATUS_AUTHORITY_0065_CONTRACT,
     ),
     (error) =>
-      error instanceof BackupStatusMailAuthorityContractError
-      && error.message.includes(
-        "relation:public.backup_status_mail_authority",
-      )
-      && error.message.includes("owner_exact"),
+      error instanceof BackupStatusMailAuthorityContractError &&
+      error.message.includes("relation:public.backup_status_mail_authority") &&
+      error.message.includes("owner_exact"),
   );
   const tampers = [
     "trusted-search-path",
     ...["ledger", "guard"].flatMap((prefix) =>
-      relationChecks.map((check) => `${prefix}:${check}`)
+      relationChecks.map((check) => `${prefix}:${check}`),
     ),
     "guard-state",
     `missing:${routine}`,
@@ -453,9 +459,9 @@ test("selects the widened 0067 contract without changing frozen 0065 bytes", asy
   );
   assert.equal(
     replayConstraint?.definition,
-    "CHECK (((run_key ~ '^[0-9]{8}T[0-9]{6}Z$'::text) OR "
-      + "(run_key ~ '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-"
-      + "[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text)))",
+    "CHECK (((run_key ~ '^[0-9]{8}T[0-9]{6}Z$'::text) OR " +
+      "(run_key ~ '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-" +
+      "[89ab][0-9a-f]{3}-[0-9a-f]{12}$'::text)))",
   );
 
   const legacyEnqueue = BACKUP_STATUS_AUTHORITY_0065_CONTRACT.routines.find(
@@ -471,18 +477,14 @@ test("selects the widened 0067 contract without changing frozen 0065 bytes", asy
     legacyEnqueue?.bodySha256,
     "e2d042d4948b883aa3ee307b360fc386367a496f672c37a3ba278e93cc6e2aae",
   );
-  assert.deepEqual(
-    replayEnqueue?.configuration,
-    ["search_path=pg_catalog, pg_temp"],
-  );
+  assert.deepEqual(replayEnqueue?.configuration, [
+    "search_path=pg_catalog, pg_temp",
+  ]);
   assert.equal(
     replayEnqueue?.bodySha256,
-    "03de5c191a17996fabf881a7916343aa73ffeaf5b522c48aaf4c5f2a57b7a43a",
+    "ac406b4dff127c10f791267c1464faddbe93e8ce88faa0a52c215881ac1b7480",
   );
-  assert.equal(
-    replayEnqueue?.definitionSha256,
-    "c8e48d582c9caefd8665b78482fecf64437d7055ff8d6c5ee24a9b9319c304d9",
-  );
+  assert.equal(replayEnqueue?.definitionSha256, null);
 
   const client = exactClient();
   assert.equal(
@@ -494,8 +496,7 @@ test("selects the widened 0067 contract without changing frozen 0065 bytes", asy
     7,
   );
   const authorityRelationCall = client.calls.find(
-    ({ parameters }) =>
-      parameters[0] === "public.backup_status_mail_authority",
+    ({ parameters }) => parameters[0] === "public.backup_status_mail_authority",
   );
   assert.equal(
     JSON.parse(authorityRelationCall.parameters[8]).find(
@@ -505,19 +506,12 @@ test("selects the widened 0067 contract without changing frozen 0065 bytes", asy
   );
   const enqueueCall = client.calls.find(
     ({ parameters }) =>
-      parameters[0]
-        === "public.enqueue_backup_status_mail_authority(text,text)",
+      parameters[0] ===
+      "public.enqueue_backup_status_mail_authority(text,text)",
   );
-  assert.deepEqual(
-    enqueueCall.parameters[3],
-    ["search_path=pg_catalog, pg_temp"],
-  );
-  assert.equal(
-    enqueueCall.parameters[6],
-    replayEnqueue.bodySha256,
-  );
-  assert.equal(
-    enqueueCall.parameters[27],
-    replayEnqueue.definitionSha256,
-  );
+  assert.deepEqual(enqueueCall.parameters[3], [
+    "search_path=pg_catalog, pg_temp",
+  ]);
+  assert.equal(enqueueCall.parameters[6], replayEnqueue.bodySha256);
+  assert.equal(enqueueCall.parameters[27], replayEnqueue.definitionSha256);
 });

@@ -80,13 +80,13 @@ function appliedLedgerClient({ present = true, rows = appliedRows() } = {}) {
   };
 }
 
-test("binds the complete ordered repository ledger through 0067", () => {
-  assert.equal(REVIEWED_MIGRATION_LEDGER.length, 68);
+test("binds the complete ordered repository ledger through 0069", () => {
+  assert.equal(REVIEWED_MIGRATION_LEDGER.length, 70);
   assert.equal(REVIEWED_MIGRATION_LEDGER[0]?.idx, 0);
-  assert.equal(REVIEWED_MIGRATION_LEDGER.at(-1)?.idx, 67);
+  assert.equal(REVIEWED_MIGRATION_LEDGER.at(-1)?.idx, 69);
   assert.equal(
     REVIEWED_MIGRATION_LEDGER.at(-1)?.tag,
-    "0067_mail_outbox_durable_replay_authority",
+    "0069_mail_outbox_guarded_delivery_authority",
   );
   assert.match(REVIEWED_MIGRATION_LEDGER_SHA256, /^[0-9a-f]{64}$/u);
   assert.equal(
@@ -98,10 +98,10 @@ test("binds the complete ordered repository ledger through 0067", () => {
     drizzleDirectory: repositoryDrizzleDirectory,
   });
   assert.deepEqual(result, {
-    entryCount: 68,
+    entryCount: 70,
     ledgerSha256: REVIEWED_MIGRATION_LEDGER_SHA256,
-    tailIndex: 67,
-    tailTag: "0067_mail_outbox_durable_replay_authority",
+    tailIndex: 69,
+    tailTag: "0069_mail_outbox_guarded_delivery_authority",
   });
 });
 
@@ -245,7 +245,7 @@ test("extends the reviewed ledger by exactly one deterministic append", () => {
     reviewedNext,
   );
 
-  assert.equal(REVIEWED_MIGRATION_LEDGER.length, 68);
+  assert.equal(REVIEWED_MIGRATION_LEDGER.length, 70);
   assert.equal(throughNext.length, REVIEWED_MIGRATION_LEDGER.length + 1);
   assert.deepEqual(throughNext.at(-1), reviewedNext);
   assert.match(reviewedMigrationLedgerSha256(throughNext), /^[0-9a-f]{64}$/u);
@@ -308,7 +308,7 @@ test("accepts the exact applied full ledger", async () => {
     requireComplete: true,
   });
   assert.deepEqual(result, {
-    appliedCount: 68,
+    appliedCount: 70,
     complete: true,
     ledgerSha256: REVIEWED_MIGRATION_LEDGER_SHA256,
   });

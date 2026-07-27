@@ -16,6 +16,13 @@ dispatch_binding_capability_blob=ea707715f84608b1e1a33ac1832d533b878b6c07
 dispatch_binding_runtime_capability=exact-adapter-payload-sha256-before-provider-call-v1
 dispatch_binding_privilege_contract=owner-execute-worker-columns-update-only-no-grant-option-trigger-v1
 dispatch_binding_registry_row="0064_mail_outbox_dispatch_binding|$dispatch_binding_boundary_commit|$dispatch_binding_capability_path|100644|$dispatch_binding_capability_blob|SCHEMA_VERSION=1|OUTBOX_WORKER_MODE=fenced-postgres-v1|DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability|DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract"
+guarded_delivery_boundary_commit=7eeafd73c5d41ea49526d908165e0a7cefa92097
+guarded_delivery_capability_path=infra/ops/mail-outbox-guarded-delivery-capability.env
+guarded_delivery_capability_blob=2b0cd7af4b6d7a39756e94485aa370abfb6e2acf
+guarded_delivery_runtime_capability=guarded-prepared-dispatch-tx1-tx2-exact-byte-v1
+delivery_release_authority_contract=append-only-task7-release-receipt-v1
+guarded_delivery_privilege_contract=owner-app-worker-release-receipt-least-privilege-v1
+guarded_delivery_registry_row="0069_mail_outbox_guarded_delivery_authority|$guarded_delivery_boundary_commit|$guarded_delivery_capability_path|100644|$guarded_delivery_capability_blob|SCHEMA_VERSION=1|OUTBOX_WORKER_MODE=fenced-postgres-v1|GUARDED_DELIVERY_RUNTIME=$guarded_delivery_runtime_capability|DELIVERY_RELEASE_AUTHORITY=$delivery_release_authority_contract|GUARDED_DELIVERY_PRIVILEGE=$guarded_delivery_privilege_contract"
 compose_unit="$repo_root/infra/systemd/learncoding-compose.service"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
@@ -23,6 +30,38 @@ trap 'rm -rf "$work"' EXIT
 fail() {
   echo "FAIL: $*" >&2
   exit 1
+}
+[[ "$EUID" == 0 ]] || fail "release and rollback behavioral tests require root"
+chmod 0700 "$work"
+[[ ! -L "$work" && -d "$work" ]] || fail "test temporary root is not a real directory"
+[[ "$(stat -c '%u:%a' -- "$work")" == "0:700" ]] || {
+  fail "test temporary root is not private and root-owned"
+}
+[[ -z "${GIT_CONFIG_COUNT+x}" && -z "${GIT_CONFIG_PARAMETERS+x}" ]] || {
+  fail "ambient Git configuration injection is forbidden"
+}
+source_git_config="$work/source-git.config"
+(
+  umask 077
+  : >"$source_git_config"
+)
+[[ ! -L "$source_git_config" && -f "$source_git_config" ]] || {
+  fail "source Git configuration is not a regular file"
+}
+[[ "$(stat -c '%u:%a' -- "$source_git_config")" == "0:600" ]] || {
+  fail "source Git configuration is not private and root-owned"
+}
+export GIT_CONFIG_GLOBAL="$source_git_config"
+export GIT_CONFIG_NOSYSTEM=1
+git config --file "$source_git_config" --add safe.directory "$repo_root" || {
+  fail "unable to trust the exact source repository"
+}
+mapfile -t source_safe_directories < <(
+  git config --file "$source_git_config" --get-all safe.directory
+)
+[[ "${#source_safe_directories[@]}" == 1 \
+  && "${source_safe_directories[0]}" == "$repo_root" ]] || {
+  fail "source Git configuration does not contain only the exact repository"
 }
 
 [[ -x "$release_script" ]] || fail "release-production.sh is missing or not executable"
@@ -33,6 +72,11 @@ for capability_consumer in "$release_script" "$rollback_script"; do
   }
   grep -Fq "readonly mail_outbox_dispatch_binding_capability_blob=$dispatch_binding_capability_blob" \
     "$capability_consumer" || fail "capability consumer does not pin the reviewed Git blob"
+  grep -Fq "$guarded_delivery_registry_row" "$capability_consumer" || {
+    fail "release and rollback must share the exact pinned 0069 capability registry row"
+  }
+  grep -Fq "readonly mail_outbox_guarded_delivery_capability_blob=$guarded_delivery_capability_blob" \
+    "$capability_consumer" || fail "capability consumer does not pin the reviewed 0069 Git blob"
 done
 grep -Fq "load_dispatch_binding_capability \"\$release_commit\" \"\$release_tree\" \"source image\"" \
   "$release_script" || fail "release capability is not bound to the verified source tree"
@@ -56,12 +100,18 @@ grep -Fq "\`0062_mail_outbox_retention_redaction\` is a forward-only authority b
 }
 grep -Fq "\`0064_mail_outbox_dispatch_binding\` is a second forward-only authority boundary" \
   "$update_runbook" || fail "update runbook omits the 0064 dispatch-binding boundary"
-grep -Fq 'No 0065 introduction SHA is approved yet' "$update_runbook" || {
+grep -Fq "\`0069_mail_outbox_guarded_delivery_authority\` is a third forward-only authority boundary" \
+  "$update_runbook" || fail "update runbook omits the 0069 guarded-delivery boundary"
+grep -Fq 'No authority boundary after 0069 has an approved introduction SHA' "$update_runbook" || {
   fail "update runbook invents or omits the future additive authority rule"
 }
 grep -Fq 'requires the exact checked-in dispatch-binding capability contract' \
   "$deployment_guide" || {
   fail "deployment guide omits the checked-in 0064 runtime capability gate"
+}
+grep -Fq '0069_mail_outbox_guarded_delivery_authority' "$deployment_guide" \
+  && grep -Fq 'V4 evidence binds the guarded TX1/TX2 exact-byte runtime' "$deployment_guide" || {
+  fail "deployment guide omits the candidate-bound 0069 runtime capability gate"
 }
 grep -Fq 'PREVIOUS_RUNTIME_COMPATIBLE=true' "$update_runbook" || {
   fail "update runbook omits the versioned compatibility evidence gate"
@@ -73,7 +123,6 @@ grep -Fq "never authorizes rollback across \`0062_mail_outbox_retention_redactio
   fail "deployment guide overstates the schema compatibility flag across 0062"
 }
 
-chmod 0700 "$work"
 mkdir -p "$work/bin" "$work/data" "$work/repo/infra/ops" "$work/repo/infra/runner-vm" \
   "$work/run" "$work/secrets"
 touch "$work/run/learncoding-backup.lock"
@@ -124,9 +173,24 @@ else
   )"
   source_git_dir="$(wslpath -u "$source_git_dir_windows")"
 fi
+source_git_dir="$(realpath -e -- "$source_git_dir")" || {
+  fail "source Git directory is unavailable"
+}
 [[ -d "$source_git_dir" ]] || fail "source Git directory is unavailable"
+git config --file "$source_git_config" --add safe.directory "$source_git_dir" || {
+  fail "unable to trust the exact source Git directory"
+}
+mapfile -t source_safe_directories < <(
+  git config --file "$source_git_config" --get-all safe.directory
+)
+[[ "${#source_safe_directories[@]}" == 2 \
+  && "${source_safe_directories[0]}" == "$repo_root" \
+  && "${source_safe_directories[1]}" == "$source_git_dir" ]] || {
+  fail "source Git configuration is not the exact closed trust set"
+}
 dispatch_binding_source_commit="$(
-  "${source_git[@]}" rev-parse --verify HEAD | tr -d '\r'
+  "${source_git[@]}" rev-parse --verify \
+    '76d2854b537aa9165083074e1c841f4f18ed84ce^{commit}' | tr -d '\r'
 )"
 dispatch_binding_source_tree="$(
   "${source_git[@]}" rev-parse --verify "${dispatch_binding_source_commit}^{tree}" \
@@ -411,6 +475,7 @@ if [[ "$#" == 2 && "$1" == "ps" && "$2" == "-q" ]]; then
       printf 'old-%s-container\n' "$service"
     done
   elif [[ "${FAKE_SCENARIO:-}" == "pointer-second" \
+    || "${FAKE_SCENARIO:-}" == "guarded-delivery-exact-compatible-second" \
     || "${FAKE_SCENARIO:-}" == "mail-cutover-success" \
     || "${FAKE_SCENARIO:-}" == "mail-drain-failure" \
     || "${FAKE_SCENARIO:-}" == "mail-contract-failure" \
@@ -836,7 +901,7 @@ assert_no_secret() {
 }
 
 assert_only_early_quarantine() {
-  local log="$1" label="$2"
+  local log="$1" label="$2" expected_compose_file="${3:-$work/repo/compose.yaml}"
   local marker="$work/control/release-quarantine"
   local line command env_flag env_path file_flag file_path action timeout_flag seconds service extra
   local stop_count=0
@@ -852,7 +917,7 @@ assert_only_early_quarantine() {
       timeout_flag seconds service extra <<<"$line"
     [[ "$command" == compose && "$env_flag" == --env-file \
       && "$env_path" == "$work/compose.env" && "$file_flag" == -f \
-      && "$file_path" == "$work/repo/compose.yaml" && "$action" == stop \
+      && "$file_path" == "$expected_compose_file" && "$action" == stop \
       && "$timeout_flag" == --timeout && "$seconds" == 30 \
       && "$service" == cloudflared && -z "$extra" ]] || {
       fail "$label performed Docker work beyond tunnel quarantine"
@@ -959,151 +1024,261 @@ git -C "$work/repo" reset --quiet --hard "$dispatch_binding_preflight_head"
 regenerate_release_fixture
 echo "ok - release fails closed after 0064 while the runtime capability identifier is absent"
 
-task7_release_diagnostic='0067_mail_outbox_durable_replay_authority requires an approved Task 7 delivery receipt capability'
-task7_unrecognized_capability_path=infra/ops/mail-outbox-durable-replay-receipt-capability.env
-task7_unrecognized_secret=fixture-task7-receipt-do-not-log
-task7_release_repo="$work/task7-release-deny-repo"
-git -c advice.detachedHead=false clone --quiet --no-local "$dispatch_binding_real_repo" "$task7_release_repo"
-git -C "$task7_release_repo" remote set-url origin \
+guarded_delivery_missing_repo="$work/guarded-delivery-missing-repo"
+git -c advice.detachedHead=false clone --quiet --no-local \
+  "$repo_root" "$guarded_delivery_missing_repo"
+git -C "$guarded_delivery_missing_repo" remote set-url origin \
   https://github.com/example/codestead
-git -C "$task7_release_repo" config user.name 'Codestead Task 7 release denial test'
-git -C "$task7_release_repo" config user.email \
-  'task7-release-denial@codestead.invalid'
-mkdir -p "$task7_release_repo/drizzle"
-cp "$repo_root/drizzle/0067_mail_outbox_durable_replay_authority.sql" \
-  "$task7_release_repo/drizzle/0067_mail_outbox_durable_replay_authority.sql"
-git -C "$task7_release_repo" add \
-  drizzle/0067_mail_outbox_durable_replay_authority.sql
-git -C "$task7_release_repo" commit -qm \
-  'fixture 0067 durable replay authority without Task 7 receipt capability'
-task7_release_tree="$(
-  git -C "$task7_release_repo" rev-parse --verify 'HEAD^{tree}'
-)"
-[[ "$(
-  git -C "$task7_release_repo" ls-tree -r --name-only \
-    "$task7_release_tree" -- drizzle/0067_mail_outbox_durable_replay_authority.sql
-)" == drizzle/0067_mail_outbox_durable_replay_authority.sql ]] || {
-  fail "Task 7 denial fixture does not bind 0067 to its exact candidate tree"
+git -C "$guarded_delivery_missing_repo" config user.name \
+  'Codestead guarded delivery release test'
+git -C "$guarded_delivery_missing_repo" config user.email \
+  'guarded-delivery-release@codestead.invalid'
+git -C "$guarded_delivery_missing_repo" checkout --quiet \
+  "$guarded_delivery_boundary_commit"
+[[ -z "$(git -C "$guarded_delivery_missing_repo" status --porcelain=v1 --untracked-files=all)" ]] || {
+  fail "0069 missing-capability fixture is not an exact clean Git tree"
 }
-if git -C "$task7_release_repo" ls-tree -r --name-only \
-    "$task7_release_tree" \
-    | grep -Eq '(^|/).*task7.*receipt.*capability|(^|/).*receipt.*task7.*capability'; then
-  fail "plain Task 7 denial fixture unexpectedly contains a receipt capability"
+[[ "$(git -C "$guarded_delivery_missing_repo" ls-tree -r --name-only HEAD -- \
+  drizzle/0069_mail_outbox_guarded_delivery_authority.sql)" == \
+  drizzle/0069_mail_outbox_guarded_delivery_authority.sql ]] || {
+  fail "0069 missing-capability fixture does not contain the reviewed migration"
+}
+[[ -z "$(git -C "$guarded_delivery_missing_repo" ls-tree -r --name-only HEAD -- \
+  "$guarded_delivery_capability_path")" ]] || {
+  fail "0069 missing-capability fixture unexpectedly contains the capability"
+}
+/usr/bin/python3 "$fixture_generator" \
+  --source "$guarded_delivery_missing_repo" \
+  --packager "$guarded_delivery_missing_repo/infra/ops/package-release-tree.py" \
+  --destination "$work/guarded-delivery-missing-package" \
+  >/dev/null || fail "unable to package the 0069 missing-capability fixture"
+
+guarded_delivery_missing_records="$work/guarded-delivery-missing-records"
+RUN_REPO_ROOT="$guarded_delivery_missing_repo" \
+  RUN_RECORD_ROOT="$guarded_delivery_missing_records" RUN_STAGE_TIMEOUT=30 \
+  run_release guarded-delivery-capability-missing
+unset RUN_REPO_ROOT RUN_RECORD_ROOT RUN_STAGE_TIMEOUT
+[[ "$RELEASE_STATUS" != 0 ]] || {
+  fail "release started a 0069 image without its exact guarded delivery capability"
+}
+assert_only_early_quarantine \
+  "$RELEASE_CASE_DIR/docker.log" "0069 missing guarded delivery capability refusal" \
+  "$guarded_delivery_missing_repo/compose.yaml"
+[[ ! -s "$RELEASE_CASE_DIR/smoke.log" ]] || {
+  fail "0069 missing guarded delivery capability refusal reached smoke"
+}
+if find "$guarded_delivery_missing_records" -mindepth 2 -maxdepth 2 \
+    -name mail-outbox-contract.env -print -quit | grep -q .; then
+  fail "0069 missing capability refusal wrote mail outbox contract evidence"
 fi
-/usr/bin/python3 "$fixture_generator" \
-  --source "$task7_release_repo" \
-  --packager "$task7_release_repo/infra/ops/package-release-tree.py" \
-  --destination "$work/task7-release-deny-package" \
-  >/dev/null || fail "unable to package the 0067 deny-now release fixture"
-[[ -z "$(git -C "$task7_release_repo" status --porcelain=v1 --untracked-files=all)" ]] || {
-  fail "0067 deny-now release fixture is not an exact clean Git tree"
+[[ ! -e "$guarded_delivery_missing_records/current-release.env" \
+  && ! -e "$guarded_delivery_missing_records/latest-candidate.env" ]] || {
+  fail "0069 missing capability refusal advanced a release pointer"
 }
-
-task7_release_denial_failures=0
-check_task7_release_denial() {
-  local scenario="$1" candidate_repo="$2"
-  shift 2
-  local record_root="$work/task7-release-records-$scenario"
-  local marker="$work/control/release-quarantine"
-  local case_failed=false line
-  local command env_flag env_path file_flag file_path action
-  local timeout_flag seconds service extra
-  local stop_count=0
-
-  RUN_REPO_ROOT="$candidate_repo" RUN_RECORD_ROOT="$record_root" \
-    RUN_STAGE_TIMEOUT=30 run_release "$scenario" "$@"
-  unset RUN_REPO_ROOT RUN_RECORD_ROOT RUN_STAGE_TIMEOUT
-
-  if [[ "$RELEASE_STATUS" == 0 ]]; then
-    case_failed=true
-  fi
-  if [[ ! -f "$marker" || -L "$marker" \
-    || "$(<"$marker")" != codestead-release-quarantine-v1 ]]; then
-    case_failed=true
-  fi
-  while IFS= read -r line; do
-    [[ -n "$line" ]] || continue
-    IFS=$'\t' read -r command env_flag env_path file_flag file_path action \
-      timeout_flag seconds service extra <<<"$line"
-    if [[ "$command" != compose || "$env_flag" != --env-file \
-      || "$env_path" != "$work/compose.env" || "$file_flag" != -f \
-      || "$file_path" != "$candidate_repo/compose.yaml" || "$action" != stop \
-      || "$timeout_flag" != --timeout || "$seconds" != 30 \
-      || "$service" != cloudflared || -n "$extra" ]]; then
-      case_failed=true
-    fi
-    stop_count="$((stop_count + 1))"
-  done <"$RELEASE_CASE_DIR/docker.log"
-  (( stop_count >= 1 )) || case_failed=true
-  if grep -Eq \
-      '^(prepare-postgres|prepare-object|validate|smoke)([[:space:]]|$)|^docker[[:space:]].*[[:space:]](up|run|exec)([[:space:]]|$)' \
-      "$RELEASE_CASE_DIR/trace.log"; then
-    case_failed=true
-  fi
-  [[ ! -s "$RELEASE_CASE_DIR/smoke.log" ]] || case_failed=true
-  [[ ! -s "$RELEASE_CASE_DIR/stdout" ]] || case_failed=true
-  [[ ! -e "$record_root/current-release.env" \
-    && ! -e "$record_root/latest-candidate.env" ]] || case_failed=true
-  grep -Fqx "fatal: $task7_release_diagnostic" \
-    "$RELEASE_CASE_DIR/stderr" || case_failed=true
-  (( $(wc -c <"$RELEASE_CASE_DIR/stderr") <= 512 )) || case_failed=true
-  (( $(wc -l <"$RELEASE_CASE_DIR/stderr") <= 3 )) || case_failed=true
-  if grep -Eq '[0-9a-f]{40}|[0-9a-f]{64}' \
-      "$RELEASE_CASE_DIR/stdout" "$RELEASE_CASE_DIR/stderr" \
-    || grep -Fq "$task7_unrecognized_secret" \
-      "$RELEASE_CASE_DIR/stdout" "$RELEASE_CASE_DIR/stderr"; then
-    case_failed=true
-  fi
-
-  if [[ "$case_failed" == true ]]; then
-    printf 'unsafe 0067 release denial case: %s\n' "$scenario" >&2
-    task7_release_denial_failures="$((task7_release_denial_failures + 1))"
-  fi
+grep -Fq '0069_mail_outbox_guarded_delivery_authority requires a checked-in guarded delivery capability before release' \
+  "$RELEASE_CASE_DIR/stderr" || {
+  cat "$RELEASE_CASE_DIR/stderr" >&2
+  fail "0069 missing capability refusal was not explicit"
 }
+if grep -Eq '[0-9a-f]{40}|[0-9a-f]{64}' \
+    "$RELEASE_CASE_DIR/stdout" "$RELEASE_CASE_DIR/stderr"; then
+  fail "0069 missing capability refusal disclosed Git or capability hashes"
+fi
+echo "ok - release fails closed for a 0069 tree without the exact capability"
 
-check_task7_release_denial task7-receipt-missing \
-  "$task7_release_repo"
-check_task7_release_denial task7-receipt-schema-flag \
-  "$task7_release_repo" --schema-backward-compatible
-check_task7_release_denial task7-receipt-mail-store-flag \
-  "$task7_release_repo" --mail-store-cutover
-export MAIL_OUTBOX_TASK7_RECEIPT_CAPABILITY="$task7_unrecognized_secret"
-check_task7_release_denial task7-receipt-ambient-claim \
-  "$task7_release_repo"
-unset MAIL_OUTBOX_TASK7_RECEIPT_CAPABILITY
-
-mkdir -p "$task7_release_repo/infra/ops"
-printf '%s\n' \
-  'SCHEMA_VERSION=999' \
-  "TASK7_RECEIPT_CAPABILITY=$task7_unrecognized_secret" \
-  >"$task7_release_repo/$task7_unrecognized_capability_path"
-git -C "$task7_release_repo" add "$task7_unrecognized_capability_path"
-git -C "$task7_release_repo" commit -qm \
-  'fixture unrecognized Task 7 receipt-looking file'
-task7_unrecognized_tree="$(
-  git -C "$task7_release_repo" rev-parse --verify 'HEAD^{tree}'
+guarded_delivery_exact_repo="$work/guarded-delivery-exact-repo"
+git -c advice.detachedHead=false clone --quiet --no-local \
+  "$guarded_delivery_missing_repo" "$guarded_delivery_exact_repo"
+git -C "$guarded_delivery_exact_repo" remote set-url origin \
+  https://github.com/example/codestead
+mkdir -p "$guarded_delivery_exact_repo/infra/ops"
+cp "$repo_root/$guarded_delivery_capability_path" \
+  "$guarded_delivery_exact_repo/$guarded_delivery_capability_path"
+chmod 0644 "$guarded_delivery_exact_repo/$guarded_delivery_capability_path"
+git -C "$guarded_delivery_exact_repo" add "$guarded_delivery_capability_path"
+git -C "$guarded_delivery_exact_repo" commit -qm \
+  'fixture exact guarded delivery capability'
+guarded_delivery_exact_commit="$(
+  git -C "$guarded_delivery_exact_repo" rev-parse --verify HEAD
 )"
-[[ "$(
-  git -C "$task7_release_repo" ls-tree -r --name-only \
-    "$task7_unrecognized_tree" -- "$task7_unrecognized_capability_path"
-)" == "$task7_unrecognized_capability_path" ]] || {
-  fail "unrecognized Task 7 capability fixture is not in the exact Git tree"
+guarded_delivery_exact_tree="$(
+  git -C "$guarded_delivery_exact_repo" rev-parse --verify 'HEAD^{tree}'
+)"
+[[ "$(git -C "$guarded_delivery_exact_repo" ls-tree "$guarded_delivery_exact_tree" -- \
+  "$guarded_delivery_capability_path")" == \
+  "100644 blob $guarded_delivery_capability_blob"$'\t'"$guarded_delivery_capability_path" ]] || {
+  fail "0069 exact candidate tree does not contain the pinned capability blob"
 }
 /usr/bin/python3 "$fixture_generator" \
-  --source "$task7_release_repo" \
-  --packager "$task7_release_repo/infra/ops/package-release-tree.py" \
-  --destination "$work/task7-release-unrecognized-package" \
-  >/dev/null || fail "unable to package the unrecognized Task 7 file fixture"
-[[ -z "$(git -C "$task7_release_repo" status --porcelain=v1 --untracked-files=all)" ]] || {
-  fail "unrecognized Task 7 file fixture is not an exact clean Git tree"
+  --source "$guarded_delivery_exact_repo" \
+  --packager "$guarded_delivery_exact_repo/infra/ops/package-release-tree.py" \
+  --destination "$work/guarded-delivery-exact-package" \
+  >/dev/null || fail "unable to package the exact 0069 release fixture"
+[[ -z "$(git -C "$guarded_delivery_exact_repo" status --porcelain=v1 --untracked-files=all)" ]] || {
+  fail "0069 exact release fixture is not a clean Git tree"
 }
-check_task7_release_denial task7-receipt-unrecognized-file \
-  "$task7_release_repo"
+guarded_delivery_exact_records="$work/guarded-delivery-exact-records"
+RUN_REPO_ROOT="$guarded_delivery_exact_repo" \
+  RUN_RECORD_ROOT="$guarded_delivery_exact_records" RUN_STAGE_TIMEOUT=30 \
+  run_release guarded-delivery-exact
+unset RUN_REPO_ROOT RUN_RECORD_ROOT RUN_STAGE_TIMEOUT
+[[ "$RELEASE_STATUS" == 0 ]] || {
+  cat "$RELEASE_CASE_DIR/stderr" >&2
+  fail "release rejected the exact 0069 guarded delivery capability tree"
+}
+guarded_delivery_exact_record="$(only_record_dir "$guarded_delivery_exact_records")"
+[[ "$(<"$guarded_delivery_exact_record/git-commit.txt")" == "$guarded_delivery_exact_commit" \
+  && "$(<"$guarded_delivery_exact_record/git-tree.txt")" == "$guarded_delivery_exact_tree" ]] || {
+  fail "successful 0069 release evidence is not bound to its exact commit and tree"
+}
+cat >"$work/expected-guarded-delivery-contract.env" <<EOF
+SCHEMA_VERSION=4
+MAIL_OUTBOX_PHASE=dual-write-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
+OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability
+DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract
+GUARDED_DELIVERY_RUNTIME=$guarded_delivery_runtime_capability
+DELIVERY_RELEASE_AUTHORITY=$delivery_release_authority_contract
+GUARDED_DELIVERY_PRIVILEGE=$guarded_delivery_privilege_contract
+STORE_CUTOVER=false
+PREVIOUS_MAIL_OUTBOX_PHASE=legacy-v0
+PREVIOUS_OUTBOX_WORKER_MODE=legacy-direct-v1
+PREVIOUS_OUTBOX_RETENTION_AUTHORITY=legacy-direct-v1
+PREVIOUS_DISPATCH_BINDING_RUNTIME=none
+PREVIOUS_DISPATCH_BINDING_PRIVILEGE=none
+PREVIOUS_GUARDED_DELIVERY_RUNTIME=none
+PREVIOUS_DELIVERY_RELEASE_AUTHORITY=none
+PREVIOUS_GUARDED_DELIVERY_PRIVILEGE=none
+PREVIOUS_RUNTIME_COMPATIBLE=false
+FORWARD_ONLY_MIGRATION=0069_mail_outbox_guarded_delivery_authority
+EOF
+cmp -s "$guarded_delivery_exact_record/mail-outbox-contract.env" \
+  "$work/expected-guarded-delivery-contract.env" || {
+  diff -u "$work/expected-guarded-delivery-contract.env" \
+    "$guarded_delivery_exact_record/mail-outbox-contract.env" >&2 || true
+  fail "successful 0069 release omitted exact V4 compatibility evidence"
+}
+echo "ok - release accepts only the exact candidate-bound 0069 capability and writes V4 evidence"
 
-(( task7_release_denial_failures == 0 )) || {
-  fail "$task7_release_denial_failures unsafe 0067 release cases reached work beyond quarantine or lacked the Task 7 receipt denial"
+printf '%s\n' 'second exact guarded delivery release fixture' \
+  >"$guarded_delivery_exact_repo/guarded-delivery-second-release.fixture"
+git -C "$guarded_delivery_exact_repo" add guarded-delivery-second-release.fixture
+git -C "$guarded_delivery_exact_repo" commit -qm \
+  'fixture second exact guarded delivery release'
+guarded_delivery_second_commit="$(
+  git -C "$guarded_delivery_exact_repo" rev-parse --verify HEAD
+)"
+guarded_delivery_second_tree="$(
+  git -C "$guarded_delivery_exact_repo" rev-parse --verify 'HEAD^{tree}'
+)"
+[[ "$(git -C "$guarded_delivery_exact_repo" ls-tree "$guarded_delivery_second_tree" -- \
+  "$guarded_delivery_capability_path")" == \
+  "100644 blob $guarded_delivery_capability_blob"$'\t'"$guarded_delivery_capability_path" ]] || {
+  fail "second 0069 candidate tree does not retain the pinned capability blob"
 }
-echo "ok - release denies every exact 0067 tree until a reviewed Task 7 receipt capability exists"
+/usr/bin/python3 "$fixture_generator" \
+  --source "$guarded_delivery_exact_repo" \
+  --packager "$guarded_delivery_exact_repo/infra/ops/package-release-tree.py" \
+  --destination "$work/guarded-delivery-second-package" \
+  >/dev/null || fail "unable to package the second exact 0069 release fixture"
+[[ -z "$(git -C "$guarded_delivery_exact_repo" status --porcelain=v1 --untracked-files=all)" ]] || {
+  fail "second 0069 release fixture is not a clean Git tree"
+}
+RUN_REPO_ROOT="$guarded_delivery_exact_repo" \
+  RUN_RECORD_ROOT="$guarded_delivery_exact_records" RUN_STAGE_TIMEOUT=30 \
+  run_release guarded-delivery-exact-compatible-second
+unset RUN_REPO_ROOT RUN_RECORD_ROOT RUN_STAGE_TIMEOUT
+[[ "$RELEASE_STATUS" == 0 ]] || {
+  cat "$RELEASE_CASE_DIR/stderr" >&2
+  fail "release rejected the second exact 0069 guarded delivery tree"
+}
+guarded_delivery_second_release_id="$(
+  sed -n 's/^release_id=//p' "$guarded_delivery_exact_records/current-release.env"
+)"
+guarded_delivery_second_record="$guarded_delivery_exact_records/$guarded_delivery_second_release_id"
+[[ -d "$guarded_delivery_second_record" \
+  && "$(<"$guarded_delivery_second_record/git-commit.txt")" == "$guarded_delivery_second_commit" \
+  && "$(<"$guarded_delivery_second_record/git-tree.txt")" == "$guarded_delivery_second_tree" \
+  && "$(<"$guarded_delivery_second_record/previous-git-commit.txt")" == "$guarded_delivery_exact_commit" ]] || {
+  fail "second 0069 release evidence is not bound to exact current and previous commits"
+}
+cat >"$work/expected-guarded-delivery-compatible-contract.env" <<EOF
+SCHEMA_VERSION=4
+MAIL_OUTBOX_PHASE=dual-write-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
+OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability
+DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract
+GUARDED_DELIVERY_RUNTIME=$guarded_delivery_runtime_capability
+DELIVERY_RELEASE_AUTHORITY=$delivery_release_authority_contract
+GUARDED_DELIVERY_PRIVILEGE=$guarded_delivery_privilege_contract
+STORE_CUTOVER=false
+PREVIOUS_MAIL_OUTBOX_PHASE=dual-write-v1
+PREVIOUS_OUTBOX_WORKER_MODE=fenced-postgres-v1
+PREVIOUS_OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+PREVIOUS_DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability
+PREVIOUS_DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract
+PREVIOUS_GUARDED_DELIVERY_RUNTIME=$guarded_delivery_runtime_capability
+PREVIOUS_DELIVERY_RELEASE_AUTHORITY=$delivery_release_authority_contract
+PREVIOUS_GUARDED_DELIVERY_PRIVILEGE=$guarded_delivery_privilege_contract
+PREVIOUS_RUNTIME_COMPATIBLE=true
+FORWARD_ONLY_MIGRATION=none
+EOF
+cmp -s "$guarded_delivery_second_record/mail-outbox-contract.env" \
+  "$work/expected-guarded-delivery-compatible-contract.env" || {
+  diff -u "$work/expected-guarded-delivery-compatible-contract.env" \
+    "$guarded_delivery_second_record/mail-outbox-contract.env" >&2 || true
+  fail "second 0069 release omitted compatible V4 previous-capability evidence"
+}
+grep -Fxq "git_commit=$guarded_delivery_second_commit" \
+  "$guarded_delivery_exact_records/current-release.env" || {
+  fail "second compatible 0069 release did not advance the current pointer"
+}
+echo "ok - a second exact 0069 release retains the previous tuple and records compatibility"
+
+guarded_delivery_tampered_repo="$work/guarded-delivery-tampered-repo"
+git -c advice.detachedHead=false clone --quiet --no-local \
+  "$guarded_delivery_exact_repo" "$guarded_delivery_tampered_repo"
+git -C "$guarded_delivery_tampered_repo" remote set-url origin \
+  https://github.com/example/codestead
+sed -i 's/least-privilege-v1/least-privilege-v1-tampered/' \
+  "$guarded_delivery_tampered_repo/$guarded_delivery_capability_path"
+git -C "$guarded_delivery_tampered_repo" add "$guarded_delivery_capability_path"
+git -C "$guarded_delivery_tampered_repo" commit -qm \
+  'fixture tampered guarded delivery capability'
+/usr/bin/python3 "$fixture_generator" \
+  --source "$guarded_delivery_tampered_repo" \
+  --packager "$guarded_delivery_tampered_repo/infra/ops/package-release-tree.py" \
+  --destination "$work/guarded-delivery-tampered-package" \
+  >/dev/null || fail "unable to package the tampered 0069 release fixture"
+guarded_delivery_tampered_records="$work/guarded-delivery-tampered-records"
+RUN_REPO_ROOT="$guarded_delivery_tampered_repo" \
+  RUN_RECORD_ROOT="$guarded_delivery_tampered_records" RUN_STAGE_TIMEOUT=30 \
+  run_release guarded-delivery-capability-tampered
+unset RUN_REPO_ROOT RUN_RECORD_ROOT RUN_STAGE_TIMEOUT
+[[ "$RELEASE_STATUS" != 0 ]] || fail "release accepted a tampered 0069 capability"
+assert_only_early_quarantine \
+  "$RELEASE_CASE_DIR/docker.log" "0069 tampered guarded delivery capability refusal" \
+  "$guarded_delivery_tampered_repo/compose.yaml"
+if find "$guarded_delivery_tampered_records" -mindepth 2 -maxdepth 2 \
+    -name mail-outbox-contract.env -print -quit | grep -q .; then
+  fail "0069 tampered capability refusal wrote mail outbox contract evidence"
+fi
+[[ ! -e "$guarded_delivery_tampered_records/current-release.env" \
+  && ! -e "$guarded_delivery_tampered_records/latest-candidate.env" ]] || {
+  fail "0069 tampered capability refusal advanced a release pointer"
+}
+grep -Fq 'guarded delivery capability has an absent, unknown, or mismatched version' \
+  "$RELEASE_CASE_DIR/stderr" || {
+  cat "$RELEASE_CASE_DIR/stderr" >&2
+  fail "tampered 0069 capability refusal was not explicit"
+}
+if grep -Eq '[0-9a-f]{40}|[0-9a-f]{64}' \
+    "$RELEASE_CASE_DIR/stdout" "$RELEASE_CASE_DIR/stderr"; then
+  fail "tampered 0069 capability refusal disclosed Git or capability hashes"
+fi
+echo "ok - release rejects a candidate-bound but noncanonical 0069 capability"
 
 cat >"$work/compose.env" <<EOF
 APP_URL=https://127.0.0.1

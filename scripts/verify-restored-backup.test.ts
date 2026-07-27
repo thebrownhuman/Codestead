@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -13,6 +14,52 @@ import {
 } from "./verify-restored-backup";
 
 const temporary: string[] = [];
+const requiredRestoreRelations = [
+  "drizzle.__drizzle_migrations",
+  "public.\"user\"",
+  "public.course",
+  "public.lesson",
+  "public.enrollment",
+  "public.email_outbox",
+  "public.email_outbox_idempotency_authority",
+  "public.backup_status_mail_authority",
+  "public.mail_delivery_release_receipt",
+] as const;
+
+type ReviewedLedger = Readonly<{
+  REVIEWED_MIGRATION_LEDGER: readonly Readonly<{
+    idx: number;
+    when: number;
+    tag: string;
+    sqlSha256: string;
+  }>[];
+  REVIEWED_MIGRATION_LEDGER_SHA256: string;
+}>;
+
+async function reviewedLedger() {
+  const moduleUrl = pathToFileURL(path.resolve(
+    process.cwd(),
+    "scripts/lib/reviewed-migration-ledger.mjs",
+  )).href;
+  return await import(moduleUrl) as ReviewedLedger;
+}
+
+async function exactAppliedLedgerRows() {
+  const { REVIEWED_MIGRATION_LEDGER } = await reviewedLedger();
+  return REVIEWED_MIGRATION_LEDGER.map((entry, index) => ({
+    id: String(index + 1),
+    hash: entry.sqlSha256,
+    created_at: String(entry.when),
+  }));
+}
+
+function restoredRelationRows(missing?: string) {
+  return requiredRestoreRelations.map((name) => ({
+    name,
+    relation: name === missing ? null : name,
+    relkind: name === missing ? null : "r",
+  }));
+}
 
 afterEach(async () => {
   await Promise.all(temporary.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
@@ -25,26 +72,96 @@ async function fixtureRoot() {
 }
 
 describe("restore smoke verifier", () => {
-  it("validates the required restored schema without trusting row data", async () => {
+  it("validates the exact 0069 ledger and required authority relations without trusting row data", async () => {
     const queries: string[] = [];
+    const ledgerRows = await exactAppliedLedgerRows();
+    const {
+      REVIEWED_MIGRATION_LEDGER,
+      REVIEWED_MIGRATION_LEDGER_SHA256,
+    } = await reviewedLedger();
+    expect(REVIEWED_MIGRATION_LEDGER).toHaveLength(70);
+    expect(REVIEWED_MIGRATION_LEDGER.at(-1)).toMatchObject({
+      idx: 69,
+      tag: "0069_mail_outbox_guarded_delivery_authority",
+    });
     const client = {
       async query(sql: string) {
         queries.push(sql);
         if (sql.includes("information_schema.tables")) return { rows: [{ count: "18" }] };
-        return {
-          rows: [{
-            migrations: "drizzle.__drizzle_migrations",
-            users: "\"user\"",
-            courses: "course",
-            lessons: "lesson",
-            enrollments: "enrollment",
-          }],
-        };
+        if (sql.includes("required_restore_relations")) {
+          return { rows: restoredRelationRows() };
+        }
+        if (sql.includes("reviewed_migration_journal_present")) {
+          return { rows: [{ reviewed_migration_journal_present: true }] };
+        }
+        if (sql.includes("reviewed_full_migration_journal_rows")) {
+          return { rows: ledgerRows };
+        }
+        return { rows: [] };
       },
     };
 
-    await expect(verifyDatabaseSchema(client)).resolves.toEqual({ publicTableCount: 18 });
-    expect(queries).toHaveLength(2);
+    await expect(verifyDatabaseSchema(client)).resolves.toEqual({
+      appliedMigrationCount: 70,
+      migrationLedgerSha256: REVIEWED_MIGRATION_LEDGER_SHA256,
+      publicTableCount: 18,
+    });
+    expect(queries).toHaveLength(4);
+    expect(queries[1]).toContain("public.mail_delivery_release_receipt");
+    expect(queries[3]).toContain("reviewed_full_migration_journal_rows");
+  });
+
+  it.each([
+    "public.email_outbox",
+    "public.email_outbox_idempotency_authority",
+    "public.backup_status_mail_authority",
+    "public.mail_delivery_release_receipt",
+  ])("rejects a restore missing mail authority relation %s", async (missing) => {
+    let query = 0;
+    const client = {
+      async query() {
+        query += 1;
+        return query === 1
+          ? { rows: [{ count: "18" }] }
+          : { rows: restoredRelationRows(missing) };
+      },
+    };
+
+    await expect(verifyDatabaseSchema(client)).rejects.toThrow(
+      "restored database is missing a required mail authority relation",
+    );
+  });
+
+  it.each([
+    ["missing migration", (rows: Awaited<ReturnType<typeof exactAppliedLedgerRows>>) =>
+      rows.slice(0, -1)],
+    ["changed historical digest", (rows: Awaited<ReturnType<typeof exactAppliedLedgerRows>>) =>
+      rows.map((row, index) => index === 12 ? { ...row, hash: "0".repeat(64) } : row)],
+    ["extra migration", (rows: Awaited<ReturnType<typeof exactAppliedLedgerRows>>) =>
+      [...rows, {
+        id: "71",
+        hash: "f".repeat(64),
+        created_at: "1785012972253",
+      }]],
+  ] as const)("rejects restored ledger corruption: %s", async (_name, mutate) => {
+    const ledgerRows = mutate(await exactAppliedLedgerRows());
+    const client = {
+      async query(sql: string) {
+        if (sql.includes("information_schema.tables")) return { rows: [{ count: "18" }] };
+        if (sql.includes("required_restore_relations")) {
+          return { rows: restoredRelationRows() };
+        }
+        if (sql.includes("reviewed_migration_journal_present")) {
+          return { rows: [{ reviewed_migration_journal_present: true }] };
+        }
+        if (sql.includes("reviewed_full_migration_journal_rows")) {
+          return { rows: ledgerRows };
+        }
+        return { rows: [] };
+      },
+    };
+
+    await expect(verifyDatabaseSchema(client)).rejects.toThrow();
   });
 
   it("opens the credential probe with the recovered master key", async () => {
@@ -101,13 +218,13 @@ describe("restore smoke verifier", () => {
     await expect(verifyDatabaseSchema(client)).rejects.toThrow(message);
   });
 
-  it("rejects every missing required regclass", async () => {
-    const valid = {
-      migrations: "drizzle.__drizzle_migrations", users: "\"user\"",
-      courses: "course", lessons: "lesson", enrollments: "enrollment",
-    };
+  it("rejects every missing required application relation", async () => {
     for (const missing of [
-      "migrations", "users", "courses", "lessons", "enrollments",
+      "drizzle.__drizzle_migrations",
+      "public.\"user\"",
+      "public.course",
+      "public.lesson",
+      "public.enrollment",
     ] as const) {
       let query = 0;
       const client = {
@@ -115,7 +232,7 @@ describe("restore smoke verifier", () => {
           query += 1;
           return query === 1
             ? { rows: [{ count: "18" }] }
-            : { rows: [{ ...valid, [missing]: null }] };
+            : { rows: restoredRelationRows(missing) };
         },
       };
       await expect(verifyDatabaseSchema(client)).rejects.toThrow(
@@ -126,7 +243,9 @@ describe("restore smoke verifier", () => {
     const noRow = {
       async query() {
         query += 1;
-        return query === 1 ? { rows: [{ count: "18" }] } : { rows: [] };
+        return query === 1
+          ? { rows: [{ count: "18" }] }
+          : { rows: restoredRelationRows().slice(1) };
       },
     };
     await expect(verifyDatabaseSchema(noRow)).rejects.toThrow(

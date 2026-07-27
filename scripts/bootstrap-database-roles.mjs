@@ -8,6 +8,7 @@ import {
   BACKUP_STATUS_AUTHORITY_0065_CONTRACT,
   BACKUP_STATUS_AUTHORITY_0067_CONTRACT,
   verifyBackupStatusMailAuthorityObjects,
+  BACKUP_STATUS_AUTHORITY_0069_CONTRACT,
 } from "./verify-backup-status-mail-authority.mjs";
 import { verifyAppliedMigrationLedger as verifyAppliedMigrationLedgerContract } from "./lib/reviewed-migration-ledger.mjs";
 
@@ -30,6 +31,7 @@ function reviewedRoutine(contract) {
   if (
     !/^[0-9a-f]{64}$/u.test(contract.bodySha256) ||
     (contract.definitionSha256 !== undefined &&
+      contract.definitionSha256 !== null &&
       !/^[0-9a-f]{64}$/u.test(contract.definitionSha256))
   ) {
     throw new Error("reviewed database routine digest is invalid");
@@ -350,7 +352,7 @@ export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
     configuration: ["search_path=pg_catalog, pg_temp"],
     allowedRoles: [],
     bodySha256:
-      "70e587220b716395c07d1efcabfb35aed45f9dccf23a0f2ed7e13791774b526c",
+      "9b0b6468cb0aad890bd78ecfa68bdab9f476d5f93a9841d515e0cea019926499",
     language: "plpgsql",
     kind: "f",
     volatility: "v",
@@ -366,7 +368,7 @@ export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
     returnsSet: false,
     variadic: false,
     definitionSha256:
-      "4ddccd9ac5ee3bc0f217c13e146c2dd2ec313e4980c30de8a51deec3dc6088a4",
+      "c5e22b06c168cb1aa4099f3b3c66cc959b4a0b116313d2bce8fa3a3d9d77197b",
   }),
   reviewedRoutine({
     signature: "public.persist_email_outbox_idempotency_authority()",
@@ -454,7 +456,7 @@ export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
     configuration: ["search_path=pg_catalog, pg_temp"],
     allowedRoles: [OPS_ROLE],
     bodySha256:
-      "7957a8c6e5b5e1a87ef22f59b02cda7600c2f902ef2b78700600387ee33e8509",
+      "417c8583bb2509354b89e63317718a14cd0afbf08e62d534cd64341acc290e48",
     language: "plpgsql",
     kind: "f",
     volatility: "v",
@@ -470,7 +472,428 @@ export const REVIEWED_APPLICATION_FUNCTIONS = Object.freeze([
     returnsSet: false,
     variadic: false,
     definitionSha256:
-      "6e7e07cb84083bef2bdf2dcf58578b7fb4e224494fe1a70ba33284bd76358da8",
+      "2efbc33e8ee9dd33402f11682697f4e522cd9e7e3c70c8bf820f533b37aec1ac",
+  }),
+  reviewedRoutine({
+    signature: "public.enforce_email_outbox_delivery_hold()",
+    migrationFile: "0067_mail_outbox_durable_replay_authority.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog, pg_temp"],
+    allowedRoles: [],
+    bodySha256:
+      "bf644f8a69cea40011d7268ac8f14d8775045fe923cb2ca5f06a9cd25a39c8e8",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [],
+    argumentModes: [],
+    argumentTypes: [],
+    inputArgumentCount: 0,
+    argumentDefaultCount: 0,
+    returnType: "trigger",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "9af2d218cd9a189c84db693acefefa10826d796058505cce85124d6830d6fe53",
+  }),
+]);
+
+const REVIEWED_0068_RETIRED_ROUTINE_SIGNATURES = new Set([
+  "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+  "public.classify_email_outbox_retention_redaction(public.email_outbox,timestamp with time zone)",
+  "public.enforce_email_outbox_payload_immutable()",
+]);
+
+export const REVIEWED_0068_APPLICATION_FUNCTIONS = Object.freeze([
+  ...REVIEWED_APPLICATION_FUNCTIONS.filter(
+    ({ signature }) => !REVIEWED_0068_RETIRED_ROUTINE_SIGNATURES.has(signature),
+  ),
+  reviewedRoutine({
+    signature:
+      "public.classify_email_outbox_quarantine_redaction_v2(public.email_outbox,timestamp with time zone)",
+    migrationFile: "0068_mail_outbox_quarantine_redaction_authority_v2.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog"],
+    allowedRoles: [],
+    bodySha256:
+      "056ab5e7fdd72b643ba48d9fe6caf0e1c678f4c7e8afbdf8edf0c844e02f0424",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "s",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: ["candidate", "cutoff_at"],
+    argumentModes: [],
+    argumentTypes: ["public.email_outbox", "timestamp with time zone"],
+    inputArgumentCount: 2,
+    argumentDefaultCount: 0,
+    returnType: "text",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "8331736656001b0bb0fa5d303667353846ea4ff39c3f5aeba71979141f2dc612",
+  }),
+  reviewedRoutine({
+    signature: "public.enforce_email_outbox_payload_immutable()",
+    migrationFile: "0068_mail_outbox_quarantine_redaction_authority_v2.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: false,
+    configuration: ["search_path=pg_catalog"],
+    allowedRoles: [],
+    bodySha256:
+      "bc7518bd7a4aaa294ac72945abc0b5001957f47a581f6e9b69037b82894528cb",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [],
+    argumentModes: [],
+    argumentTypes: [],
+    inputArgumentCount: 0,
+    argumentDefaultCount: 0,
+    returnType: "trigger",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256: null,
+  }),
+  reviewedRoutine({
+    signature:
+      "public.redact_quarantined_email_outbox_authority_v2(timestamp with time zone,integer)",
+    migrationFile: "0068_mail_outbox_quarantine_redaction_authority_v2.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog"],
+    allowedRoles: [OPS_ROLE],
+    bodySha256:
+      "5a10a9df1684cb1355941c456eb03e46309eb12fa4dcdcda4ecf5f942241ae7b",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [
+      "cutoff_at",
+      "batch_limit",
+      "disposition",
+      "eligible",
+      "transitioned",
+    ],
+    argumentModes: ["i", "i", "t", "t", "t"],
+    argumentTypes: [
+      "timestamp with time zone",
+      "integer",
+      "text",
+      "bigint",
+      "bigint",
+    ],
+    inputArgumentCount: 2,
+    argumentDefaultCount: 0,
+    returnType: "record",
+    returnsSet: true,
+    variadic: false,
+    definitionSha256:
+      "29ee2d3b4bf45322c9c68a3bc612084a460bfca3e54e7c2c044081d195fbe2b7",
+  }),
+]);
+
+const REVIEWED_0069_MIGRATION_FILE =
+  "0069_mail_outbox_guarded_delivery_authority.sql";
+const REVIEWED_0069_REPLACED_ROUTINE_SIGNATURES = new Set([
+  "public.enqueue_backup_status_mail_authority(text,text)",
+  "public.enforce_email_outbox_delivery_hold()",
+  "public.enforce_email_outbox_payload_immutable()",
+]);
+
+function reviewed0069TriggerRoutine({
+  signature,
+  bodySha256,
+  definitionSha256 = null,
+  securityDefiner = true,
+}) {
+  return reviewedRoutine({
+    signature,
+    migrationFile: REVIEWED_0069_MIGRATION_FILE,
+    owner: OWNER_ROLE,
+    securityDefiner,
+    configuration: ["search_path=pg_catalog, pg_temp"],
+    allowedRoles: [],
+    bodySha256,
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [],
+    argumentModes: [],
+    argumentTypes: [],
+    inputArgumentCount: 0,
+    argumentDefaultCount: 0,
+    returnType: "trigger",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256,
+  });
+}
+
+export const REVIEWED_0069_APPLICATION_FUNCTIONS = Object.freeze([
+  ...REVIEWED_0068_APPLICATION_FUNCTIONS.filter(
+    ({ signature }) =>
+      !REVIEWED_0069_REPLACED_ROUTINE_SIGNATURES.has(signature),
+  ),
+  reviewedRoutine({
+    signature:
+      "public.mail_delivery_release_receipt_sha256(uuid,uuid,text,text,text,text)",
+    migrationFile: REVIEWED_0069_MIGRATION_FILE,
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog, pg_temp"],
+    allowedRoles: [WORKER_ROLE],
+    bodySha256:
+      "95169176e113b1a65fe08428dbec49e0b943b41a03867c3ed309141b3d011676",
+    language: "sql",
+    kind: "f",
+    volatility: "i",
+    strict: true,
+    parallel: "s",
+    leakproof: false,
+    argumentNames: [
+      "input_outbox_id",
+      "input_operation_id",
+      "input_authority_version",
+      "input_authority_sha256",
+      "input_original_payload_sha256",
+      "input_release_version",
+    ],
+    argumentModes: [],
+    argumentTypes: ["uuid", "uuid", "text", "text", "text", "text"],
+    inputArgumentCount: 6,
+    argumentDefaultCount: 0,
+    returnType: "text",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "63614be0762f14c3593ef05fc9f5f440a67a65bec27e703b59a18cd60273057d",
+  }),
+  reviewed0069TriggerRoutine({
+    signature: "public.enforce_email_outbox_delivery_release_insert_xid()",
+    bodySha256:
+      "a76581c119a10ce8943cd7a60e674938d7163f8a3fe444e83f49751a7c116e46",
+    definitionSha256:
+      "b766a3512540a3d511a8126d87e9cbcd40847a87ea82ce27bdb2838290d97ec3",
+  }),
+  reviewed0069TriggerRoutine({
+    signature: "public.enforce_email_outbox_delivery_release_identity()",
+    bodySha256:
+      "fcceb4bb8d7e434188d871fe0eda17976c833a128e67f67f9b753393daca9c0c",
+    definitionSha256:
+      "150ec4c692f4f6c6247fce236d2ec7ea1b65f4b1f2864e201345867b814e9f60",
+  }),
+  reviewed0069TriggerRoutine({
+    signature: "public.enforce_email_outbox_delivery_release_insert_final()",
+    bodySha256:
+      "42283dadeb5bed965d91ae3ff385d471295e5eb93f45b1598c9c2268cba20081",
+  }),
+  reviewed0069TriggerRoutine({
+    signature: "public.enforce_mail_delivery_release_receipt_append_only()",
+    bodySha256:
+      "ba3b8d7a3dd78f927778d41856c8c57430d188de2c3b05f8a7c3173776bed131",
+    definitionSha256:
+      "88e9e02ba13bfd210a724e56e6216c9e0375c046b6d904307d51c50cbae4cd3a",
+  }),
+  reviewed0069TriggerRoutine({
+    signature: "public.enforce_mail_delivery_release_receipt_insert()",
+    bodySha256:
+      "5214d841459e6be0d0ab80d2a61299ddee7669d535814c287dfbc3b91c6b8225",
+    definitionSha256:
+      "295db3f75181663dd4491b4a84d53617179965e2a0a156995b721e53ab9c5fb1",
+    securityDefiner: false,
+  }),
+  reviewedRoutine({
+    signature: "public.release_email_outbox_delivery(uuid,uuid,text,text,text)",
+    migrationFile: REVIEWED_0069_MIGRATION_FILE,
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog, pg_temp"],
+    allowedRoles: [APP_ROLE, WORKER_ROLE],
+    bodySha256:
+      "b90df49087aa1ca69e80fc18a4963d5fc724d91db8612b338c2d2b98f2a3db0f",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [
+      "requested_outbox_id",
+      "requested_operation_id",
+      "requested_authority_sha256",
+      "requested_original_payload_sha256",
+      "requested_release_version",
+    ],
+    argumentModes: [],
+    argumentTypes: ["uuid", "uuid", "text", "text", "text"],
+    inputArgumentCount: 5,
+    argumentDefaultCount: 0,
+    returnType: "public.mail_delivery_release_receipt",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "9516f96ef9133bdf61f6db352422d521cf4616c6bd5b365888f1c614670ed409",
+  }),
+  reviewedRoutine({
+    signature:
+      "public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)",
+    migrationFile: REVIEWED_0069_MIGRATION_FILE,
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog, pg_temp"],
+    allowedRoles: [APP_ROLE],
+    bodySha256:
+      "b3277feeb2ed099406e17a3fe548bae580f978f5cd94a7f55f28687c81d9042c",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [
+      "requested_outbox_id",
+      "requested_operation_id",
+      "requested_authority_sha256",
+      "requested_original_payload_sha256",
+      "requested_release_version",
+      "outbox_id",
+      "operation_id",
+    ],
+    argumentModes: ["i", "i", "i", "i", "i", "t", "t"],
+    argumentTypes: ["uuid", "uuid", "text", "text", "text", "uuid", "uuid"],
+    inputArgumentCount: 5,
+    argumentDefaultCount: 0,
+    returnType: "record",
+    returnsSet: true,
+    variadic: false,
+    definitionSha256:
+      "8e50e51aae34e3657a6a2d9d90fc546025512f2678b083e824a5cc0f8457ee5f",
+  }),
+  reviewedRoutine({
+    signature: "public.attest_email_outbox_delivery_release_lineage(text)",
+    migrationFile: REVIEWED_0069_MIGRATION_FILE,
+    owner: OWNER_ROLE,
+    securityDefiner: true,
+    configuration: ["search_path=pg_catalog, pg_temp"],
+    allowedRoles: [WORKER_ROLE],
+    bodySha256:
+      "5963663f65d5be7e4e44c1ab1b1daa17a04d4bd711a9af9abc5bf2d1bb62bd91",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "s",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [
+      "candidate_migration_sha256",
+      "phase_0066_count",
+      "phase_0067_count",
+      "phase_0068_count",
+      "phase_0069_count",
+      "candidate_hash_count",
+      "lineage_window_count",
+    ],
+    argumentModes: ["i", "t", "t", "t", "t", "t", "t"],
+    argumentTypes: [
+      "text",
+      "integer",
+      "integer",
+      "integer",
+      "integer",
+      "integer",
+      "integer",
+    ],
+    inputArgumentCount: 1,
+    argumentDefaultCount: 0,
+    returnType: "record",
+    returnsSet: true,
+    variadic: false,
+    definitionSha256:
+      "261d8137a8ad635af563b6e5478ad3ebc7579c68c5693ff87a7e2fe517e5dbbf",
+  }),
+  reviewed0069TriggerRoutine({
+    signature: "public.enforce_email_outbox_delivery_release_commit_exact()",
+    bodySha256:
+      "27f8e42eb07338f1a543c7aec686c75d393a3fb7fb75501e576172ddf635c144",
+  }),
+  reviewed0069TriggerRoutine({
+    signature: "public.enforce_mail_delivery_release_receipt_delete_exact()",
+    bodySha256:
+      "39aa24c40d6dc950b15722006552a3180a80ad1345bc6450e7880a500129f0b6",
+  }),
+  reviewed0069TriggerRoutine({
+    signature: "public.enforce_email_outbox_delivery_release_delete_exact()",
+    bodySha256:
+      "81f7777b8fa44b02aa45f2d92a5a6219c15109a8b99eabab9ecff1190cf3e8df",
+  }),
+  ...BACKUP_STATUS_AUTHORITY_0069_CONTRACT.routines
+    .filter(({ signature }) =>
+      [
+        "public.enqueue_backup_status_mail_authority_unreleased_0067(text,text)",
+        "public.enqueue_backup_status_mail_authority(text,text)",
+      ].includes(signature),
+    )
+    .map((routine) =>
+      reviewedRoutine({
+        ...routine,
+        migrationFile: REVIEWED_0069_MIGRATION_FILE,
+      }),
+    ),
+  reviewed0069TriggerRoutine({
+    signature: "public.enforce_email_outbox_provider_request_body_immutable()",
+    bodySha256:
+      "a7a9a6c120a0e32410e620bb745d65b53d0d0b8429467faf74e8c62c08cc5b5f",
+    definitionSha256:
+      "ca95ebd3100dca787652477a7d0a3b63282a616777b44069557f503a7952a0f2",
+  }),
+  reviewed0069TriggerRoutine({
+    signature: "public.enforce_email_outbox_delivery_hold()",
+    bodySha256:
+      "7636ab37cc17692c0c31d160dc5d7f0421d6660c0da2dfb6a2d8cae4501ea4e1",
+    definitionSha256:
+      "8504298d876a6fe1256f13441fe84681d0f8f47fe29cac2d42763c068e98ee7d",
+  }),
+  reviewedRoutine({
+    signature: "public.enforce_email_outbox_payload_immutable()",
+    migrationFile: REVIEWED_0069_MIGRATION_FILE,
+    owner: OWNER_ROLE,
+    securityDefiner: false,
+    configuration: ["search_path=pg_catalog"],
+    allowedRoles: [],
+    bodySha256:
+      "fa3762c9faff6d8c6c3b6f1f67483ba9a888a02cfff32b29b04d6b8603e7c9fe",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: [],
+    argumentModes: [],
+    argumentTypes: [],
+    inputArgumentCount: 0,
+    argumentDefaultCount: 0,
+    returnType: "trigger",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "a29a285813afa8d466198900f29680f46be35ec4c511fbcf656c78fcb9b21844",
   }),
 ]);
 
@@ -583,12 +1006,277 @@ export const REVIEWED_APPLICATION_TRIGGERS = Object.freeze([
     arguments: Object.freeze([]),
     watchedColumns: Object.freeze([]),
   }),
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_delivery_hold",
+    functionSignature: "public.enforce_email_outbox_delivery_hold()",
+    enabled: "A",
+    type: 19,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([
+      "idempotency_authority_version",
+      "idempotency_authority_sha256",
+      "idempotency_original_payload_sha256",
+      "status",
+      "attempt_count",
+      "claim_token",
+      "claim_owner",
+      "claim_version",
+      "lease_expires_at",
+      "provider_call_started",
+      "adapter",
+      "dispatch_binding_version",
+      "dispatch_binding_sha256",
+      "provider_correlation_version",
+      "provider_evidence_version",
+      "provider_evidence_sha256",
+      "provider_message_id",
+      "next_attempt_at",
+      "sent_at",
+      "quarantined_at",
+      "last_error_code",
+      "delivery_hold_version",
+    ]),
+  }),
+]);
+
+export const REVIEWED_0068_APPLICATION_TRIGGERS = Object.freeze(
+  REVIEWED_APPLICATION_TRIGGERS.map((trigger) =>
+    trigger.name === "email_outbox_payload_immutable"
+      ? Object.freeze({
+          relation: "public.email_outbox",
+          name: "email_outbox_payload_immutable",
+          functionSignature: "public.enforce_email_outbox_payload_immutable()",
+          enabled: "A",
+          type: 19,
+          predicate: null,
+          arguments: Object.freeze([]),
+          watchedColumns: Object.freeze([
+            "user_id",
+            "to_email",
+            "template",
+            "template_version",
+            "variables",
+            "idempotency_key",
+            "idempotency_authority_version",
+            "idempotency_authority_sha256",
+            "idempotency_original_payload_sha256",
+            "delivery_hold_version",
+            "operation_id",
+            "delivery_scope_key",
+          ]),
+        })
+      : trigger,
+  ),
+);
+
+const REVIEWED_0069_REPLACED_TRIGGER_NAMES = new Set([
+  "email_outbox_delivery_hold",
+]);
+
+export const REVIEWED_0069_APPLICATION_TRIGGERS = Object.freeze([
+  ...REVIEWED_0068_APPLICATION_TRIGGERS.filter(
+    ({ name }) => !REVIEWED_0069_REPLACED_TRIGGER_NAMES.has(name),
+  ).map((trigger) =>
+    [
+      "email_outbox_dispatch_binding_guard",
+      "email_outbox_provider_correlation_evidence_guard",
+    ].includes(trigger.name)
+      ? Object.freeze({ ...trigger, enabled: "A" })
+      : trigger,
+  ),
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_delivery_release_insert_xid",
+    functionSignature:
+      "public.enforce_email_outbox_delivery_release_insert_xid()",
+    enabled: "A",
+    type: 7,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_delivery_release_insert_xid_immutable",
+    functionSignature:
+      "public.enforce_email_outbox_delivery_release_insert_xid()",
+    enabled: "A",
+    type: 19,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([
+      "delivery_release_insert_xid",
+      "delivery_release_insert_system_identifier",
+      "created_at",
+    ]),
+  }),
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "zz_email_outbox_delivery_release_identity",
+    functionSignature:
+      "public.enforce_email_outbox_delivery_release_identity()",
+    enabled: "A",
+    type: 7,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "zz_email_outbox_delivery_release_insert_final",
+    functionSignature:
+      "public.enforce_email_outbox_delivery_release_insert_final()",
+    enabled: "A",
+    type: 5,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_provider_request_body_immutable",
+    functionSignature:
+      "public.enforce_email_outbox_provider_request_body_immutable()",
+    enabled: "A",
+    type: 23,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([
+      "provider_call_started",
+      "provider_request_body_sha256",
+      "provider_request_body_length",
+    ]),
+  }),
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_delivery_hold",
+    functionSignature: "public.enforce_email_outbox_delivery_hold()",
+    enabled: "A",
+    type: 19,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([
+      "id",
+      "idempotency_authority_version",
+      "idempotency_authority_sha256",
+      "idempotency_original_payload_sha256",
+      "status",
+      "attempt_count",
+      "claim_token",
+      "claim_owner",
+      "claim_version",
+      "lease_expires_at",
+      "provider_call_started",
+      "adapter",
+      "dispatch_binding_version",
+      "dispatch_binding_sha256",
+      "provider_correlation_version",
+      "provider_evidence_version",
+      "provider_evidence_sha256",
+      "provider_message_id",
+      "provider_request_body_sha256",
+      "provider_request_body_length",
+      "next_attempt_at",
+      "sent_at",
+      "quarantined_at",
+      "last_error_code",
+      "delivery_hold_version",
+    ]),
+  }),
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_delivery_hold_final",
+    functionSignature: "public.enforce_email_outbox_delivery_hold()",
+    enabled: "A",
+    type: 17,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: "public.mail_delivery_release_receipt",
+    name: "mail_delivery_release_receipt_insert_authority",
+    functionSignature: "public.enforce_mail_delivery_release_receipt_insert()",
+    enabled: "A",
+    type: 7,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: "public.mail_delivery_release_receipt",
+    name: "mail_delivery_release_receipt_append_only",
+    functionSignature:
+      "public.enforce_mail_delivery_release_receipt_append_only()",
+    enabled: "A",
+    type: 19,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: "public.mail_delivery_release_receipt",
+    name: "mail_delivery_release_receipt_no_truncate",
+    functionSignature:
+      "public.enforce_mail_delivery_release_receipt_append_only()",
+    enabled: "A",
+    type: 34,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+  }),
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_delivery_release_commit_exact",
+    functionSignature:
+      "public.enforce_email_outbox_delivery_release_commit_exact()",
+    enabled: "A",
+    type: 5,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+    constraint: true,
+    deferrable: true,
+    initiallyDeferred: true,
+  }),
+  Object.freeze({
+    relation: "public.mail_delivery_release_receipt",
+    name: "mail_delivery_release_receipt_delete_exact",
+    functionSignature:
+      "public.enforce_mail_delivery_release_receipt_delete_exact()",
+    enabled: "A",
+    type: 9,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+    constraint: true,
+    deferrable: true,
+    initiallyDeferred: true,
+  }),
+  Object.freeze({
+    relation: "public.email_outbox",
+    name: "email_outbox_delivery_release_delete_exact",
+    functionSignature:
+      "public.enforce_email_outbox_delivery_release_delete_exact()",
+    enabled: "A",
+    type: 9,
+    predicate: null,
+    arguments: Object.freeze([]),
+    watchedColumns: Object.freeze([]),
+    constraint: true,
+    deferrable: true,
+    initiallyDeferred: true,
+  }),
 ]);
 
 export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY =
   BACKUP_STATUS_AUTHORITY_0065_CONTRACT;
 export const REVIEWED_0067_BACKUP_STATUS_AUTHORITY =
   BACKUP_STATUS_AUTHORITY_0067_CONTRACT;
+export const REVIEWED_0069_BACKUP_STATUS_AUTHORITY =
+  BACKUP_STATUS_AUTHORITY_0069_CONTRACT;
 const EMAIL_OUTBOX_DISPATCH_BINDING_CONSTRAINT_NORMALIZED_EXPRESSION = [
   "provider_call_startedISNULLANDadapterISNULLANDprovider_message_idISNULL",
   "ANDdispatch_binding_versionISNULLANDdispatch_binding_sha256ISNULLOR",
@@ -854,6 +1542,7 @@ function reviewedCatalogPhase({
   requiresWorkerContract,
   requiresProviderEvidence = false,
   requiresReplayAuthority = false,
+  requiresGuardedDelivery = false,
   backupStatusAuthority = null,
 }) {
   return Object.freeze({
@@ -866,6 +1555,7 @@ function reviewedCatalogPhase({
     requiresWorkerContract,
     requiresProviderEvidence,
     requiresReplayAuthority,
+    requiresGuardedDelivery,
     backupStatusAuthority,
   });
 }
@@ -942,6 +1632,34 @@ export const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES = Object.freeze([
     requiresReplayAuthority: true,
     backupStatusAuthority: REVIEWED_0067_BACKUP_STATUS_AUTHORITY,
   }),
+  reviewedCatalogPhase({
+    index: 68,
+    createdAt: "1785005772253",
+    migrationFile: "0068_mail_outbox_quarantine_redaction_authority_v2.sql",
+    migrationSha256:
+      "68cf968578070a0cc6e61df91c941215f0208ec9c6a3180c5010b626868a0ee1",
+    routines: REVIEWED_0068_APPLICATION_FUNCTIONS,
+    triggers: REVIEWED_0068_APPLICATION_TRIGGERS,
+    requiresWorkerContract: true,
+    requiresProviderEvidence: true,
+    requiresReplayAuthority: true,
+    requiresGuardedDelivery: false,
+    backupStatusAuthority: REVIEWED_0067_BACKUP_STATUS_AUTHORITY,
+  }),
+  reviewedCatalogPhase({
+    index: 69,
+    createdAt: "1785009372253",
+    migrationFile: "0069_mail_outbox_guarded_delivery_authority.sql",
+    migrationSha256:
+      "b311d7af248535550f025dac4a62d1997a330d7636a7940f79877cd634b75918",
+    routines: REVIEWED_0069_APPLICATION_FUNCTIONS,
+    triggers: REVIEWED_0069_APPLICATION_TRIGGERS,
+    requiresWorkerContract: true,
+    requiresProviderEvidence: true,
+    requiresReplayAuthority: true,
+    requiresGuardedDelivery: true,
+    backupStatusAuthority: REVIEWED_0069_BACKUP_STATUS_AUTHORITY,
+  }),
 ]);
 const REVIEWED_MAIL_AUTHORITY_CATALOG_PHASE_BY_INDEX = new Map(
   REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.map((phase) => [phase.index, phase]),
@@ -999,7 +1717,6 @@ export function reviewedApplicationFunctionPrivilegesSql(phase) {
           ...routine.allowedRoles,
         ]),
       ];
-      const revokeSql = `revoke all on function ${routine.signature} from public, ${requiredRoles.join(", ")}`;
       const grants = [...new Set([routine.owner, ...routine.allowedRoles])]
         .map(
           (role) =>
@@ -1010,9 +1727,13 @@ export function reviewedApplicationFunctionPrivilegesSql(phase) {
         .join("\n        ");
       return `
       do $${blockTag}$
+      declare
+        routine_oid pg_catalog.oid := pg_catalog.to_regprocedure(
+          ${sqlLiteral(routine.signature)}
+        );
+        acl_entry record;
       begin
-        if pg_catalog.to_regprocedure(${sqlLiteral(routine.signature)})
-             is not null
+        if routine_oid is not null
            and ${requiredRoles
              .map(
                (role) =>
@@ -1020,7 +1741,31 @@ export function reviewedApplicationFunctionPrivilegesSql(phase) {
              )
              .join("\n           and ")}
         then
-          execute ${sqlLiteral(revokeSql)};
+          for acl_entry in
+            select distinct expanded.grantee
+              from pg_catalog.pg_proc routine
+              cross join lateral pg_catalog.aclexplode(
+                coalesce(
+                  routine.proacl,
+                  pg_catalog.acldefault('f', routine.proowner)
+                )
+              ) expanded
+             where routine.oid = routine_oid
+             order by expanded.grantee
+          loop
+            if acl_entry.grantee = 0 then
+              execute pg_catalog.format(
+                'revoke all on function %s from public cascade',
+                routine_oid::pg_catalog.regprocedure
+              );
+            else
+              execute pg_catalog.format(
+                'revoke all on function %s from %I cascade',
+                routine_oid::pg_catalog.regprocedure,
+                pg_catalog.pg_get_userbyid(acl_entry.grantee)
+              );
+            end if;
+          end loop;
           ${grants}
         end if;
       end
@@ -2675,6 +3420,7 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
     requiresDispatchBinding: latestPhase.requiresWorkerContract,
     requiresProviderEvidence: latestPhase.requiresProviderEvidence,
     requiresReplayAuthority: latestPhase.requiresReplayAuthority,
+    requiresGuardedDelivery: latestPhase.requiresGuardedDelivery,
   });
   return 1;
 }

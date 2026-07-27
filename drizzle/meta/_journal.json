@@ -477,6 +477,20 @@
       "when": 1785002172253,
       "tag": "0067_mail_outbox_durable_replay_authority",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1785005772253,
+      "tag": "0068_mail_outbox_quarantine_redaction_authority_v2",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1785009372253,
+      "tag": "0069_mail_outbox_guarded_delivery_authority",
+      "breakpoints": true
     }
   ]
 }

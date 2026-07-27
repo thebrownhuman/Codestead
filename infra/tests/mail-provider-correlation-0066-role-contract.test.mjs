@@ -59,19 +59,25 @@ test("worker manifests preserve the 0066 authority columns only for SELECT and U
   for (const column of authorityColumns) {
     assert.ok(allColumns.includes(column), `${column} missing from worker ACL`);
     assert.ok(updateColumns.includes(column), `${column} UPDATE missing`);
-    assert.ok(!insertColumns.includes(column), `${column} INSERT must be denied`);
+    assert.ok(
+      !insertColumns.includes(column),
+      `${column} INSERT must be denied`,
+    );
   }
-  assert.match(
-    bootstrap,
-    /MAIL_WORKER_OUTBOX_PRE_EVIDENCE_UPDATE_COLUMNS/u,
-  );
+  assert.match(bootstrap, /MAIL_WORKER_OUTBOX_PRE_EVIDENCE_UPDATE_COLUMNS/u);
 });
 
 test("bootstrap detects only exact 0-or-3 provider evidence column states", () => {
   for (const column of authorityColumns) {
-    assert.ok(bootstrap.includes(column), `bootstrap detector missing ${column}`);
+    assert.ok(
+      bootstrap.includes(column),
+      `bootstrap detector missing ${column}`,
+    );
   }
-  assert.match(bootstrap, /provider_evidence_column_count\s+not\s+in\s+\(0,\s*3\)/u);
+  assert.match(
+    bootstrap,
+    /provider_evidence_column_count\s+not\s+in\s+\(0,\s*3\)/u,
+  );
   assert.match(
     bootstrap,
     /provider_evidence_column_count\s*=\s*3[\s\S]*?provider_evidence_column_exact_count\s*<>\s*3/u,
@@ -87,10 +93,7 @@ test("production verifier models the intermediate 0064/0065 and final 0066 grant
     verifier.includes("MAIL_WORKER_OUTBOX_PRE_EVIDENCE_UPDATE_COLUMNS"),
   );
   assert.ok(verifier.includes("requiresProviderEvidence"));
-  assert.match(
-    verifier,
-    /expectedProviderEvidenceColumnCount/u,
-  );
+  assert.match(verifier, /expectedProviderEvidenceColumnCount/u);
   for (const column of authorityColumns) {
     assert.ok(verifier.includes(column), `verifier missing ${column}`);
   }
@@ -121,10 +124,7 @@ test("0066 migration seals its privileged objects without relying on bootstrap o
     migration,
     /\) ON TABLE public\.email_outbox FROM PUBLIC CASCADE'/u,
   );
-  assert.match(
-    migration,
-    /\) ON TABLE public\.email_outbox FROM %I CASCADE'/u,
-  );
+  assert.match(migration, /\) ON TABLE public\.email_outbox FROM %I CASCADE'/u);
   assert.match(
     migration,
     /GRANT EXECUTE ON FUNCTION\s+"public"\."enforce_email_outbox_provider_correlation_evidence"\(\)\s+TO learncoding_owner/u,
@@ -142,8 +142,8 @@ test("0066 migration seals its privileged objects without relying on bootstrap o
 test("0066 exact routine, trigger, constraint, and phase are frozen in the verifier manifest", () => {
   const routine = REVIEWED_APPLICATION_FUNCTIONS.find(
     ({ signature }) =>
-      signature
-      === "public.enforce_email_outbox_provider_correlation_evidence()",
+      signature ===
+      "public.enforce_email_outbox_provider_correlation_evidence()",
   );
   assert.deepEqual(
     routine
@@ -175,20 +175,17 @@ test("0066 exact routine, trigger, constraint, and phase are frozen in the verif
   const trigger = REVIEWED_APPLICATION_TRIGGERS.find(
     ({ name }) => name === "email_outbox_provider_correlation_evidence_guard",
   );
-  assert.deepEqual(
-    trigger ?? null,
-    {
-      relation: "public.email_outbox",
-      name: "email_outbox_provider_correlation_evidence_guard",
-      functionSignature:
-        "public.enforce_email_outbox_provider_correlation_evidence()",
-      enabled: "O",
-      type: 23,
-      predicate: null,
-      arguments: [],
-      watchedColumns: [],
-    },
-  );
+  assert.deepEqual(trigger ?? null, {
+    relation: "public.email_outbox",
+    name: "email_outbox_provider_correlation_evidence_guard",
+    functionSignature:
+      "public.enforce_email_outbox_provider_correlation_evidence()",
+    enabled: "O",
+    type: 23,
+    predicate: null,
+    arguments: [],
+    watchedColumns: [],
+  });
 
   const constraint = REVIEWED_APPLICATION_CONSTRAINTS.find(
     ({ name }) => name === "email_outbox_provider_correlation_evidence_valid",
@@ -223,7 +220,7 @@ test("0066 exact routine, trigger, constraint, and phase are frozen in the verif
 
   assert.deepEqual(
     REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.map(({ index }) => index),
-    [62, 63, 64, 65, 66, 67],
+    [62, 63, 64, 65, 66, 67, 68, 69],
   );
   const phase0065 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
     ({ index }) => index === 65,

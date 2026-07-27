@@ -48,8 +48,8 @@ function exactIndex(name, keyColumn, primary) {
     expressions: null,
     predicate: null,
     definition:
-      `CREATE UNIQUE INDEX ${name} ON ${relationName} `
-      + `USING btree (${keyColumn})`,
+      `CREATE UNIQUE INDEX ${name} ON ${relationName} ` +
+      `USING btree (${keyColumn})`,
     reloptions: null,
     tablespace: 0,
   });
@@ -132,11 +132,7 @@ export const BACKUP_STATUS_AUTHORITY_RELATIONS = Object.freeze([
         false,
       ),
       exactIndex("backup_status_mail_authority_pkey", "id", true),
-      exactIndex(
-        "backup_status_mail_authority_run_key_key",
-        "run_key",
-        false,
-      ),
+      exactIndex("backup_status_mail_authority_run_key_key", "run_key", false),
     ]),
   }),
   Object.freeze({
@@ -170,11 +166,7 @@ export const BACKUP_STATUS_AUTHORITY_RELATIONS = Object.freeze([
       ),
     ]),
     indexes: Object.freeze([
-      exactIndex(
-        "backup_status_mail_admin_guard_pkey",
-        "singleton",
-        true,
-      ),
+      exactIndex("backup_status_mail_admin_guard_pkey", "singleton", true),
     ]),
   }),
 ]);
@@ -182,7 +174,9 @@ export const BACKUP_STATUS_AUTHORITY_RELATIONS = Object.freeze([
 function exactRoutine(contract) {
   if (
     !/^[0-9a-f]{64}$/u.test(contract.bodySha256) ||
-    !/^[0-9a-f]{64}$/u.test(contract.definitionSha256)
+    (contract.definitionSha256 !== undefined &&
+      contract.definitionSha256 !== null &&
+      !/^[0-9a-f]{64}$/u.test(contract.definitionSha256))
   ) {
     throw new Error("backup status routine digest is invalid");
   }
@@ -377,10 +371,10 @@ export const BACKUP_STATUS_AUTHORITY_0067_RELATIONS = Object.freeze(
                 constraint.name,
                 constraint.type,
                 constraint.keyColumns,
-                "CHECK (((run_key ~ '^[0-9]{8}T[0-9]{6}Z$'::text) OR "
-                  + `(run_key ~ '${BACKUP_STATUS_UUID_V4_PATTERN}'::text)))`,
+                "CHECK (((run_key ~ '^[0-9]{8}T[0-9]{6}Z$'::text) OR " +
+                  `(run_key ~ '${BACKUP_STATUS_UUID_V4_PATTERN}'::text)))`,
               )
-            : constraint
+            : constraint,
         ),
       ),
     });
@@ -394,11 +388,10 @@ export const BACKUP_STATUS_AUTHORITY_0067_ROUTINES = Object.freeze(
           ...routine,
           configuration: ["search_path=pg_catalog, pg_temp"],
           bodySha256:
-            "03de5c191a17996fabf881a7916343aa73ffeaf5b522c48aaf4c5f2a57b7a43a",
-          definitionSha256:
-            "c8e48d582c9caefd8665b78482fecf64437d7055ff8d6c5ee24a9b9319c304d9",
+            "ac406b4dff127c10f791267c1464faddbe93e8ce88faa0a52c215881ac1b7480",
+          definitionSha256: null,
         })
-      : routine
+      : routine,
   ),
 );
 
@@ -410,9 +403,50 @@ export const BACKUP_STATUS_AUTHORITY_0067_CONTRACT = Object.freeze({
   guardState: BACKUP_STATUS_AUTHORITY_GUARD_STATE,
 });
 
+const BACKUP_STATUS_AUTHORITY_0067_ENQUEUE_ROUTINE =
+  BACKUP_STATUS_AUTHORITY_0067_ROUTINES.find(
+    ({ signature }) => signature === BACKUP_STATUS_ENQUEUE_ROUTINE_SIGNATURE,
+  );
+if (BACKUP_STATUS_AUTHORITY_0067_ENQUEUE_ROUTINE === undefined) {
+  throw new Error("backup status 0067 enqueue routine is missing");
+}
+
+export const BACKUP_STATUS_AUTHORITY_0069_ROUTINES = Object.freeze([
+  ...BACKUP_STATUS_AUTHORITY_0067_ROUTINES.filter(
+    ({ signature }) => signature !== BACKUP_STATUS_ENQUEUE_ROUTINE_SIGNATURE,
+  ),
+  exactRoutine({
+    ...BACKUP_STATUS_AUTHORITY_0067_ENQUEUE_ROUTINE,
+    signature:
+      "public.enqueue_backup_status_mail_authority_unreleased_0067(text,text)",
+    allowedRoles: [],
+    bodySha256:
+      "ac406b4dff127c10f791267c1464faddbe93e8ce88faa0a52c215881ac1b7480",
+    definitionSha256:
+      "30138cd5d305d74407dc3f294177d4ea9fa7155672d1dcf089b44fe010dd2b59",
+  }),
+  exactRoutine({
+    ...BACKUP_STATUS_AUTHORITY_0067_ENQUEUE_ROUTINE,
+    allowedRoles: ["learncoding_backup_reporter"],
+    bodySha256:
+      "2cc0bf920b31af64566f1eb0352bd63f078bcccab3d064748ba5af226805c81b",
+    definitionSha256:
+      "6d944b1dd9ef5cfaa4371d204569f27134bf2431dd61a078b0722a3a782da6b6",
+  }),
+]);
+
+export const BACKUP_STATUS_AUTHORITY_0069_CONTRACT = Object.freeze({
+  phase: 69,
+  relations: BACKUP_STATUS_AUTHORITY_0067_RELATIONS,
+  routines: BACKUP_STATUS_AUTHORITY_0069_ROUTINES,
+  triggers: BACKUP_STATUS_AUTHORITY_TRIGGERS,
+  guardState: BACKUP_STATUS_AUTHORITY_GUARD_STATE,
+});
+
 const CANONICAL_BACKUP_STATUS_AUTHORITY_CONTRACTS = new Map([
   [65, BACKUP_STATUS_AUTHORITY_0065_CONTRACT],
   [67, BACKUP_STATUS_AUTHORITY_0067_CONTRACT],
+  [69, BACKUP_STATUS_AUTHORITY_0069_CONTRACT],
 ]);
 
 export class BackupStatusMailAuthorityContractError extends Error {
@@ -433,12 +467,12 @@ function canonicalBackupStatusAuthorityContract(contract) {
     contract?.phase,
   );
   if (
-    canonical === undefined
-    || canonical !== contract
-    || contract.relations !== canonical.relations
-    || contract.routines !== canonical.routines
-    || contract.triggers !== canonical.triggers
-    || contract.guardState !== canonical.guardState
+    canonical === undefined ||
+    canonical !== contract ||
+    contract.relations !== canonical.relations ||
+    contract.routines !== canonical.routines ||
+    contract.triggers !== canonical.triggers ||
+    contract.guardState !== canonical.guardState
   ) {
     fail("contract");
   }
@@ -449,11 +483,7 @@ function exactTrueRow(row, keys) {
   return row !== undefined && keys.every((key) => row[key] === true);
 }
 
-async function verifyRestrictedRelation(
-  client,
-  relation,
-  restrictedRoles,
-) {
+async function verifyRestrictedRelation(client, relation, restrictedRoles) {
   const expectedColumns = relation.columns.map(({ name }) => name);
   const exactKeys = [
     "owner_exact",
@@ -473,7 +503,8 @@ async function verifyRestrictedRelation(
     "effective_column_acl_exact",
     "direct_acl_exact",
   ];
-  const result = await client.query(`
+  const result = await client.query(
+    `
     with target as (
       select c.*
         from pg_catalog.pg_class c
@@ -798,19 +829,17 @@ async function verifyRestrictedRelation(
       JSON.stringify(relation.indexes),
     ],
   );
-  const failedKeys = exactKeys.filter(
-    (key) => result.rows[0]?.[key] !== true,
-  );
+  const failedKeys = exactKeys.filter((key) => result.rows[0]?.[key] !== true);
   if (result.rows.length !== 1 || failedKeys.length > 0) {
-    const detail = failedKeys.length > 0
-      ? `[${failedKeys.join(",")}]`
-      : "[row_count]";
+    const detail =
+      failedKeys.length > 0 ? `[${failedKeys.join(",")}]` : "[row_count]";
     fail(`relation:${relation.name}${detail}`);
   }
 }
 
 async function verifyRoutine(client, routine, restrictedRoles) {
-  const result = await client.query(`
+  const result = await client.query(
+    `
     select pg_catalog.encode(
              pg_catalog.sha256(
                pg_catalog.convert_to(p.prosrc, 'UTF8')
@@ -1028,10 +1057,14 @@ async function verifyRoutine(client, routine, restrictedRoles) {
     "effective_execute_exact",
     "direct_acl_exact",
   ];
-  if (result.rows.length !== 1 || !exactTrueRow(result.rows[0], routineChecks)) {
-    const failures = result.rows.length === 1
-      ? routineChecks.filter((key) => result.rows[0][key] !== true)
-      : ["missing"];
+  if (
+    result.rows.length !== 1 ||
+    !exactTrueRow(result.rows[0], routineChecks)
+  ) {
+    const failures =
+      result.rows.length === 1
+        ? routineChecks.filter((key) => result.rows[0][key] !== true)
+        : ["missing"];
     fail(`routine:${routine.signature}:${failures.join(",")}`);
   }
 }
@@ -1063,7 +1096,8 @@ async function verifyTriggers(client, contract) {
   );
   if (userTrigger === undefined) fail("contract:triggers:user");
 
-  const result = await client.query(`
+  const result = await client.query(
+    `
     with expected_manifest as (
       select manifest.relation_name,
              manifest.trigger_name::name trigger_name,
@@ -1203,11 +1237,13 @@ async function verifyTriggers(client, contract) {
   );
   if (
     result.rows.length !== 1 ||
-    !exactTrueRow(
-      result.rows[0],
-      ["relations_present", "guard_state_exact", "triggers_exact"],
-    )
-  ) fail("triggers");
+    !exactTrueRow(result.rows[0], [
+      "relations_present",
+      "guard_state_exact",
+      "triggers_exact",
+    ])
+  )
+    fail("triggers");
 }
 export async function verifyBackupStatusMailAuthorityObjects(
   client,
@@ -1221,13 +1257,14 @@ export async function verifyBackupStatusMailAuthorityObjects(
     new Set(restrictedRoles).size !== restrictedRoles.length ||
     canonicalContract.relations.length === 0 ||
     canonicalContract.routines.length === 0
-  ) fail();
+  )
+    fail();
   const trustedSearchPath = await client.query(
     "select pg_catalog.set_config('search_path', 'pg_catalog,pg_temp', false) trusted_search_path",
   );
   if (
-    trustedSearchPath.rows.length !== 1
-    || trustedSearchPath.rows[0]?.trusted_search_path !== "pg_catalog,pg_temp"
+    trustedSearchPath.rows.length !== 1 ||
+    trustedSearchPath.rows[0]?.trusted_search_path !== "pg_catalog,pg_temp"
   ) {
     fail("trusted_search_path");
   }
@@ -1238,7 +1275,7 @@ export async function verifyBackupStatusMailAuthorityObjects(
     await verifyRoutine(client, routine, restrictedRoles);
   }
   await verifyTriggers(client, canonicalContract);
-  return canonicalContract.relations.length
-    + canonicalContract.routines.length
-    + 1;
+  return (
+    canonicalContract.relations.length + canonicalContract.routines.length + 1
+  );
 }

@@ -30,6 +30,86 @@ const receiptSchemaEnd = schema.indexOf(
 const outboxSchema = schema.slice(outboxSchemaStart, receiptSchemaStart);
 const receiptSchema = schema.slice(receiptSchemaStart, receiptSchemaEnd);
 
+type SnapshotTable = {
+  columns: Record<
+    string,
+    {
+      name: string;
+      type: string;
+      primaryKey: boolean;
+      notNull: boolean;
+      default?: string;
+    }
+  >;
+  indexes: Record<string, unknown>;
+  foreignKeys: Record<
+    string,
+    {
+      name: string;
+      tableFrom: string;
+      tableTo: string;
+      columnsFrom: string[];
+      columnsTo: string[];
+      onDelete: string;
+      onUpdate: string;
+    }
+  >;
+  uniqueConstraints: Record<
+    string,
+    {
+      name: string;
+      nullsNotDistinct: boolean;
+      columns: string[];
+    }
+  >;
+  checkConstraints: Record<
+    string,
+    {
+      name: string;
+      value: string;
+    }
+  >;
+};
+type Snapshot = {
+  id: string;
+  prevId: string;
+  version: string;
+  dialect: string;
+  tables: Record<string, SnapshotTable>;
+};
+const metaDirectory = resolve(process.cwd(), "drizzle", "meta");
+const readSnapshot = (name: string) =>
+  JSON.parse(
+    readFileSync(resolve(metaDirectory, `${name}_snapshot.json`), "utf8"),
+  ) as Snapshot;
+const snapshot0067 = readSnapshot("0067");
+const snapshot0068 = readSnapshot("0068");
+const snapshot0069 = readSnapshot("0069");
+const journal = JSON.parse(
+  readFileSync(resolve(metaDirectory, "_journal.json"), "utf8"),
+) as {
+  entries: Array<{
+    idx: number;
+    version: string;
+    when: number;
+    tag: string;
+    breakpoints: boolean;
+  }>;
+};
+const withoutSnapshotIdentity = (snapshot: Snapshot) =>
+  Object.fromEntries(
+    Object.entries(snapshot).filter(
+      ([key]) => key !== "id" && key !== "prevId",
+    ),
+  );
+const addedKeys = (
+  predecessor: Record<string, unknown>,
+  successor: Record<string, unknown>,
+) =>
+  Object.keys(successor)
+    .filter((key) => !(key in predecessor))
+    .sort();
+
 function functionBody(name: string) {
   const start = migration.search(
     new RegExp(
@@ -73,6 +153,144 @@ function schemaCheckSql(source: string, name: string) {
 }
 
 describe("0069 guarded delivery release authority", () => {
+  it("registers the exact 0067-to-0069 snapshot lineage and journal tail", () => {
+    expect(snapshot0067.id).toBe("2a926997-45e8-45f3-9455-45d0ece8e54d");
+    expect(snapshot0068).toMatchObject({
+      id: "c42a819d-8944-49e6-913e-ab30d59e1755",
+      prevId: snapshot0067.id,
+      version: "7",
+      dialect: "postgresql",
+    });
+    expect(snapshot0069).toMatchObject({
+      id: "44745a18-9cab-4fe2-97ed-f25eef12af95",
+      prevId: snapshot0068.id,
+      version: "7",
+      dialect: "postgresql",
+    });
+    expect(snapshot0068.id).not.toBe(snapshot0067.id);
+    expect(snapshot0069.id).not.toBe(snapshot0068.id);
+    expect(journal.entries).toHaveLength(70);
+    expect(journal.entries.map(({ idx }) => idx)).toEqual(
+      Array.from({ length: 70 }, (_, idx) => idx),
+    );
+    expect(journal.entries.slice(-2)).toEqual([
+      {
+        idx: 68,
+        version: "7",
+        when: 1785005772253,
+        tag: "0068_mail_outbox_quarantine_redaction_authority_v2",
+        breakpoints: true,
+      },
+      {
+        idx: 69,
+        version: "7",
+        when: 1785009372253,
+        tag: "0069_mail_outbox_guarded_delivery_authority",
+        breakpoints: true,
+      },
+    ]);
+  });
+
+  it("freezes the exact schema-neutral 0068 and structural 0069 snapshot delta", () => {
+    expect(withoutSnapshotIdentity(snapshot0068)).toEqual(
+      withoutSnapshotIdentity(snapshot0067),
+    );
+    expect(addedKeys(snapshot0068.tables, snapshot0069.tables)).toEqual([
+      "public.mail_delivery_release_receipt",
+    ]);
+    expect(addedKeys(snapshot0069.tables, snapshot0068.tables)).toEqual([]);
+
+    const outbox0068 = snapshot0068.tables["public.email_outbox"];
+    const outbox0069 = snapshot0069.tables["public.email_outbox"];
+    expect(outbox0068).toBeDefined();
+    expect(outbox0069).toBeDefined();
+    expect(addedKeys(outbox0068.columns, outbox0069.columns)).toEqual([
+      "delivery_release_insert_system_identifier",
+      "delivery_release_insert_xid",
+      "provider_request_body_length",
+      "provider_request_body_sha256",
+    ]);
+    expect(addedKeys(outbox0068.indexes, outbox0069.indexes)).toEqual([]);
+    expect(addedKeys(outbox0068.foreignKeys, outbox0069.foreignKeys)).toEqual(
+      [],
+    );
+    expect(
+      addedKeys(outbox0068.uniqueConstraints, outbox0069.uniqueConstraints),
+    ).toEqual(["email_outbox_delivery_release_parent_unique"]);
+    expect(
+      addedKeys(outbox0068.checkConstraints, outbox0069.checkConstraints),
+    ).toEqual([
+      "email_outbox_attempt_count_nonnegative",
+      "email_outbox_delivery_release_insert_identity_valid",
+      "email_outbox_provider_request_body_valid",
+    ]);
+    expect(
+      Object.fromEntries(
+        [
+          "delivery_release_insert_xid",
+          "delivery_release_insert_system_identifier",
+          "provider_request_body_sha256",
+          "provider_request_body_length",
+        ].map((name) => [name, outbox0069.columns[name]]),
+      ),
+    ).toEqual({
+      delivery_release_insert_xid: {
+        name: "delivery_release_insert_xid",
+        type: "xid8",
+        primaryKey: false,
+        notNull: false,
+      },
+      delivery_release_insert_system_identifier: {
+        name: "delivery_release_insert_system_identifier",
+        type: "bigint",
+        primaryKey: false,
+        notNull: false,
+      },
+      provider_request_body_sha256: {
+        name: "provider_request_body_sha256",
+        type: "text",
+        primaryKey: false,
+        notNull: false,
+      },
+      provider_request_body_length: {
+        name: "provider_request_body_length",
+        type: "bigint",
+        primaryKey: false,
+        notNull: false,
+      },
+    });
+
+    const receipt = snapshot0069.tables["public.mail_delivery_release_receipt"];
+    expect(receipt).toBeDefined();
+    expect(Object.keys(receipt.columns)).toEqual([
+      "outbox_id",
+      "operation_id",
+      "idempotency_authority_version",
+      "idempotency_authority_sha256",
+      "idempotency_original_payload_sha256",
+      "release_version",
+      "release_receipt_sha256",
+      "released_at",
+    ]);
+    expect(Object.keys(receipt.indexes)).toEqual([
+      "mail_delivery_release_receipt_authority_fk_idx",
+    ]);
+    expect(Object.keys(receipt.foreignKeys).sort()).toEqual([
+      "mail_delivery_release_receipt_idempotency_authority_fk",
+      "mail_delivery_release_receipt_outbox_fk",
+    ]);
+    expect(Object.keys(receipt.uniqueConstraints).sort()).toEqual([
+      "mail_delivery_release_receipt_digest_unique",
+      "mail_delivery_release_receipt_operation_unique",
+    ]);
+    expect(Object.keys(receipt.checkConstraints).sort()).toEqual([
+      "mail_delivery_release_receipt_authority_version_valid",
+      "mail_delivery_release_receipt_digest_exact",
+      "mail_delivery_release_receipt_digest_valid",
+      "mail_delivery_release_receipt_release_version_valid",
+    ]);
+  });
+
   it("adds a forward-only successor without rewriting 0067 or 0068", () => {
     expect(existsSync(migrationPath)).toBe(true);
     expect(compactMigration).toContain(
@@ -897,10 +1115,7 @@ describe("0069 guarded delivery release authority", () => {
       migration.indexOf("do $verify_terminal_catalog$"),
     );
     const start = terminal.indexOf("expected_guarded_outbox_columns");
-    const end = terminal.indexOf(
-      "guarded_outbox_column_delta",
-      start,
-    );
+    const end = terminal.indexOf("guarded_outbox_column_delta", start);
     expect(start).toBeGreaterThanOrEqual(0);
     expect(end).toBeGreaterThan(start);
     const columnContract = terminal.slice(start, end);

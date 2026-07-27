@@ -18,9 +18,7 @@ import {
   REVIEWED_REPLAY_AUTHORITY_RELATIONAL_CONTRACT,
   mailReplayAuthorityPrivilegesSql,
 } from "../../scripts/bootstrap-database-roles.mjs";
-import {
-  REVIEWED_MIGRATION_LEDGER,
-} from "../../scripts/lib/reviewed-migration-ledger.mjs";
+import { REVIEWED_MIGRATION_LEDGER } from "../../scripts/lib/reviewed-migration-ledger.mjs";
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(testDirectory, "../..");
@@ -32,11 +30,7 @@ const sha256 = (value) =>
 function migrationFunctionBody(source, signature) {
   const declaration = `CREATE FUNCTION ${signature}`;
   const declarationIndex = source.indexOf(declaration);
-  assert.notEqual(
-    declarationIndex,
-    -1,
-    `${signature} missing from migration`,
-  );
+  assert.notEqual(declarationIndex, -1, `${signature} missing from migration`);
   const delimiter = "AS $function$";
   const bodyStart = source.indexOf(delimiter, declarationIndex);
   assert.notEqual(bodyStart, -1, `${signature} body start missing`);
@@ -58,9 +52,7 @@ function assertOrdered(source, markers, label) {
   }
 }
 
-const migration = read(
-  "drizzle/0067_mail_outbox_durable_replay_authority.sql",
-);
+const migration = read("drizzle/0067_mail_outbox_durable_replay_authority.sql");
 const backupAuthorityMigration0065 = read(
   "drizzle/0065_backup_status_mail_authority.sql",
 );
@@ -99,9 +91,9 @@ const routineContracts = new Map([
     {
       allowedRoles: [],
       bodySha256:
-        "70e587220b716395c07d1efcabfb35aed45f9dccf23a0f2ed7e13791774b526c",
+        "9b0b6468cb0aad890bd78ecfa68bdab9f476d5f93a9841d515e0cea019926499",
       definitionSha256:
-        "4ddccd9ac5ee3bc0f217c13e146c2dd2ec313e4980c30de8a51deec3dc6088a4",
+        "c5e22b06c168cb1aa4099f3b3c66cc959b4a0b116313d2bce8fa3a3d9d77197b",
       language: "plpgsql",
       volatility: "v",
       argumentNames: [],
@@ -144,9 +136,9 @@ const routineContracts = new Map([
     {
       allowedRoles: ["learncoding_ops"],
       bodySha256:
-        "7957a8c6e5b5e1a87ef22f59b02cda7600c2f902ef2b78700600387ee33e8509",
+        "417c8583bb2509354b89e63317718a14cd0afbf08e62d534cd64341acc290e48",
       definitionSha256:
-        "6e7e07cb84083bef2bdf2dcf58578b7fb4e224494fe1a70ba33284bd76358da8",
+        "2efbc33e8ee9dd33402f11682697f4e522cd9e7e3c70c8bf820f533b37aec1ac",
       language: "plpgsql",
       volatility: "v",
       argumentNames: ["candidate_ids"],
@@ -216,14 +208,10 @@ test("0067 migration bytes and bootstrap column contracts are frozen", () => {
     assert.ok(MAIL_WORKER_OUTBOX_COLUMNS.includes(column));
   }
   assert.ok(
-    MAIL_WORKER_OUTBOX_INSERT_COLUMNS.includes(
-      "idempotency_authority_version",
-    ),
+    MAIL_WORKER_OUTBOX_INSERT_COLUMNS.includes("idempotency_authority_version"),
   );
   assert.ok(
-    !MAIL_WORKER_OUTBOX_INSERT_COLUMNS.includes(
-      "idempotency_authority_sha256",
-    ),
+    !MAIL_WORKER_OUTBOX_INSERT_COLUMNS.includes("idempotency_authority_sha256"),
   );
   assert.ok(
     !MAIL_WORKER_OUTBOX_INSERT_COLUMNS.includes(
@@ -253,15 +241,16 @@ test("0067 resists hostile temporary built-in types and search paths", () => {
     "0067 migration search-path preamble",
   );
   assert.equal(
-    [...migration.matchAll(
-      /SET LOCAL search_path = pg_catalog, pg_temp;/gu,
-    )].length,
+    [...migration.matchAll(/SET LOCAL search_path = pg_catalog, pg_temp;/gu)]
+      .length,
     1,
   );
 
-  const functionHeaders = [...migration.matchAll(
-    /CREATE(?: OR REPLACE)? FUNCTION [\s\S]*?AS \$function\$/gu,
-  )].map(([declaration]) => declaration);
+  const functionHeaders = [
+    ...migration.matchAll(
+      /CREATE(?: OR REPLACE)? FUNCTION [\s\S]*?AS \$function\$/gu,
+    ),
+  ].map(([declaration]) => declaration);
   const definerHeaders = functionHeaders.filter((declaration) =>
     declaration.includes("SECURITY DEFINER"),
   );
@@ -361,17 +350,19 @@ test("0067 adds canonical UUIDv4 backup identities without rewriting 0065", () =
     replacement[0],
     /SECURITY DEFINER\s+SET search_path = pg_catalog\s+AS/u,
   );
-  assert.ok(migration.includes(
-    "p_run_key !~ '^[0-9]{8}T[0-9]{6}Z$'",
-  ));
+  assert.ok(migration.includes("p_run_key !~ '^[0-9]{8}T[0-9]{6}Z$'"));
   assert.ok(migration.includes(`p_run_key !~ '^${uuidV4}$'`));
-  assert.ok(migration.includes(
-    "NEW.idempotency_key ~ '^backup-status:v1:[0-9]{8}T[0-9]{6}Z$'",
-  ));
   assert.ok(
-    migration.replace(/\r\n?/gu, "\n").includes(
-      `NEW.idempotency_key ~\n         '^backup-status:v1:${uuidV4}$'`,
+    migration.includes(
+      "NEW.idempotency_key ~ '^backup-status:v1:[0-9]{8}T[0-9]{6}Z$'",
     ),
+  );
+  assert.ok(
+    migration
+      .replace(/\r\n?/gu, "\n")
+      .includes(
+        `NEW.idempotency_key ~\n         '^backup-status:v1:${uuidV4}$'`,
+      ),
   );
   assert.match(
     migration,
@@ -381,7 +372,10 @@ test("0067 adds canonical UUIDv4 backup identities without rewriting 0065", () =
     backupAuthorityMigration0065,
     /CHECK \("run_key" ~ '\^\[0-9\]\{8\}T\[0-9\]\{6\}Z\$'\)/u,
   );
-  assert.doesNotMatch(backupAuthorityMigration0065, /CREATE OR REPLACE FUNCTION/u);
+  assert.doesNotMatch(
+    backupAuthorityMigration0065,
+    /CREATE OR REPLACE FUNCTION/u,
+  );
   assert.match(integrationHarness, /BACKUP_UUID_COMPATIBILITY_RUN_KEY/u);
   assert.match(integrationHarness, /BACKUP_UUID_SECOND_RUN_KEY/u);
 });
@@ -391,9 +385,7 @@ test("the shared writer targets exactly the worker-granted insert columns", () =
     /INSERT INTO public[.]email_outbox\s*[(]([\s\S]*?)[)]\s*VALUES/u,
   );
   assert.ok(statement, "the central explicit outbox INSERT is missing");
-  const targetColumns = statement[1]
-    .split(",")
-    .map((column) => column.trim());
+  const targetColumns = statement[1].split(",").map((column) => column.trim());
   assert.deepEqual(targetColumns, MAIL_WORKER_OUTBOX_INSERT_COLUMNS);
   assert.equal(new Set(targetColumns).size, targetColumns.length);
   assert.doesNotMatch(outboxRuntime, /[.]insert[(]emailOutbox[)]/u);
@@ -405,17 +397,11 @@ test("the shared writer targets exactly the worker-granted insert columns", () =
     outboxRuntime,
     /[$][{]row[.]idempotencyAuthorityVersion[}],[\s\S]*?'pending',[\s\S]*?pg_catalog[.]now[(][)]/u,
   );
+  assert.match(outboxRuntime, /ON CONFLICT [(]idempotency_key[)] DO NOTHING/u);
+  assert.match(outboxRuntime, /await persistQueuedEmail[(]tx, row[)]/u);
   assert.match(
     outboxRuntime,
-    /ON CONFLICT [(]idempotency_key[)] DO NOTHING/u,
-  );
-  assert.match(
-    outboxRuntime,
-    /await tx[.]execute[(]queuedEmailInsert[(]row[)][)]/u,
-  );
-  assert.match(
-    outboxRuntime,
-    /await db[.]execute[(]queuedEmailInsert[(]row[)][)]/u,
+    /db[.]transaction[(][(]tx[)] => persistQueuedEmail[(]tx, row[)][)]/u,
   );
 });
 
@@ -450,10 +436,10 @@ test("the live harness proves the shared worker writer after final ACL reconcili
   assert.match(proof, /idempotency_authority_sha256/u);
 
   const finalBootstrap = integrationHarness.indexOf(
-    "await proveBootstrapReconciliation(port, \"mail0067\")",
+    'await proveBootstrapReconciliation(port, "mail0067")',
   );
   const liveProof = integrationHarness.indexOf(
-    "await proveWorkerRoleSharedWriter(port, \"mail0067\")",
+    'await proveWorkerRoleSharedWriter(port, "mail0067")',
   );
   assert.ok(finalBootstrap >= 0);
   assert.ok(
@@ -507,9 +493,7 @@ test("the catalog reporter uses the production verifier normalization", () => {
   ]) {
     assert.match(reporter, contract);
   }
-  assert.ok(
-    reporter.includes(`'"?' || relation.relname || '"?[.]'`),
-  );
+  assert.ok(reporter.includes(`'"?' || relation.relname || '"?[.]'`));
   assert.ok(reporter.includes(`'[[:space:]"]'`));
   assert.doesNotMatch(
     reporter,
@@ -569,8 +553,7 @@ test("0067 trigger and constraint manifests freeze the live PG18 catalog", () =>
     {
       relation: "public.email_outbox",
       name: "email_outbox_idempotency_claim",
-      functionSignature:
-        "public.claim_email_outbox_idempotency_authority()",
+      functionSignature: "public.claim_email_outbox_idempotency_authority()",
       enabled: "A",
       type: 7,
       predicate: null,
@@ -580,8 +563,7 @@ test("0067 trigger and constraint manifests freeze the live PG18 catalog", () =>
     {
       relation: "public.email_outbox",
       name: "00_email_outbox_idempotency_persist",
-      functionSignature:
-        "public.persist_email_outbox_idempotency_authority()",
+      functionSignature: "public.persist_email_outbox_idempotency_authority()",
       enabled: "A",
       type: 5,
       predicate: null,
@@ -633,8 +615,7 @@ test("0067 trigger and constraint manifests freeze the live PG18 catalog", () =>
           relationOwner: constraint.relationOwner,
           type: constraint.type,
           validated: constraint.validated,
-          normalizedExpressionSha256:
-            constraint.normalizedExpressionSha256,
+          normalizedExpressionSha256: constraint.normalizedExpressionSha256,
           columns: constraint.columns,
         }
       : null,
@@ -780,10 +761,7 @@ test("0067 trigger and constraint manifests freeze the live PG18 catalog", () =>
         "idempotency_original_payload_sha256",
       ],
       referencedRelation: "public.email_outbox_idempotency_authority",
-      referencedColumns: [
-        "idempotency_sha256",
-        "original_payload_sha256",
-      ],
+      referencedColumns: ["idempotency_sha256", "original_payload_sha256"],
       deferrable: true,
       initiallyDeferred: true,
       noInherit: true,
@@ -803,12 +781,10 @@ test("0067 trigger and constraint manifests freeze the live PG18 catalog", () =>
       "email_outbox_idempotency_metadata_immutable",
       "email_outbox_idempotency_append_only",
       "email_outbox_idempotency_no_truncate",
+      "email_outbox_delivery_hold",
     ],
   );
-  assert.match(
-    verifier,
-    /outbox_authority_trigger_order_exact/u,
-  );
+  assert.match(verifier, /outbox_authority_trigger_order_exact/u);
   assert.match(
     verifier,
     /reviewed_fk_trigger\.tgconstraint\s*=\s*reviewed_foreign_key\.oid/u,
@@ -827,13 +803,14 @@ test("0067 trigger and constraint manifests freeze the live PG18 catalog", () =>
       "public.enforce_email_outbox_idempotency_metadata_immutable()",
       "public.enforce_email_outbox_idempotency_append_only()",
       "public.email_outbox_idempotency_coverage_authority(uuid[])",
+      "public.enforce_email_outbox_delivery_hold()",
     ],
   );
   assert.match(
     verifier,
     /select\s+pg_catalog[.]count[(][*][)]\s*=\s*2\s*[+]\s*pg_catalog[.]jsonb_array_length[(][$]58::jsonb[)][\s\S]*?from\s+pg_catalog[.]pg_constraint\s+authority_constraint[\s\S]*?where\s+authority_constraint[.]conrelid[\s\S]*?and\s+authority_constraint[.]contype\s*<>\s*'n'/u,
-    "PG18 derived NOT NULL catalog rows must not change the reviewed "
-      + "PK/UNIQUE/CHECK constraint cardinality",
+    "PG18 derived NOT NULL catalog rows must not change the reviewed " +
+      "PK/UNIQUE/CHECK constraint cardinality",
   );
   assert.ok(
     verifier.includes("attribute.attnotnull = ($43::boolean[])["),
@@ -844,13 +821,16 @@ test("0067 trigger and constraint manifests freeze the live PG18 catalog", () =>
 test("0067 phase and replay authority reconciliation are exact and contiguous", () => {
   assert.deepEqual(
     REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.map(({ index }) => index),
-    [62, 63, 64, 65, 66, 67],
+    [62, 63, 64, 65, 66, 67, 68, 69],
   );
   assert.equal(
-    REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.at(-2)?.createdAt,
+    REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(({ index }) => index === 66)
+      ?.createdAt,
     "1784997273087",
   );
-  const phase = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.at(-1);
+  const phase = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
+    ({ index }) => index === 67,
+  );
   assert.deepEqual(
     phase
       ? {
@@ -977,10 +957,7 @@ test("H1 isolates every libpq control and bounds asynchronous setup", () => {
     integrationHarness,
     /await settleWithin\(\s*allocateDisposableLoopbackPort\(\),\s*"allocate disposable loopback port",\s*SETUP_TIMEOUT_MS,\s*\)/u,
   );
-  assert.match(
-    integrationHarness,
-    /const SETUP_TIMEOUT_MS = 5_000;/u,
-  );
+  assert.match(integrationHarness, /const SETUP_TIMEOUT_MS = 5_000;/u);
 });
 
 test("H1 explicitly bounds every production migration invocation", () => {
@@ -1076,9 +1053,7 @@ test("H1 polling consumes one monotonic remaining-time budget", () => {
 });
 
 test("H1 timeout races abort real work and observe its late outcome", () => {
-  const settleStart = integrationHarness.indexOf(
-    "async function settleWithin",
-  );
+  const settleStart = integrationHarness.indexOf("async function settleWithin");
   const settleEnd = integrationHarness.indexOf(
     "function observePromiseOutcome",
     settleStart,
@@ -1141,9 +1116,7 @@ test("H1 hard-bounds Pool and Client lifecycles", () => {
     "raw awaited Client connections must use bounded helpers",
   );
   const directlyAwaitedEnds = [
-    ...integrationHarness.matchAll(
-      /await [A-Za-z][A-Za-z0-9_]*\.end\(\);/gu,
-    ),
+    ...integrationHarness.matchAll(/await [A-Za-z][A-Za-z0-9_]*\.end\(\);/gu),
   ].map(([statement]) => statement);
   assert.deepEqual(
     directlyAwaitedEnds,
@@ -1269,9 +1242,7 @@ test("B3 top-level cleanup drains one shared registry deadline before cluster st
   }
   assert.doesNotMatch(cleanup, /Promise[.]allSettled/u);
 
-  const mainStart = integrationHarness.indexOf(
-    "export async function main()",
-  );
+  const mainStart = integrationHarness.indexOf("export async function main()");
   const main = integrationHarness.slice(mainStart);
   assertOrdered(
     main,
@@ -1289,10 +1260,7 @@ test("B3 top-level cleanup drains one shared registry deadline before cluster st
 test("H1 observes asynchronous outcomes and preserves every cleanup failure", () => {
   assert.match(integrationHarness, /function observePromiseOutcome\(/u);
   assert.match(integrationHarness, /async function runCleanupStep\(/u);
-  assert.doesNotMatch(
-    integrationHarness,
-    /[.]catch\(\(\) => undefined\)/u,
-  );
+  assert.doesNotMatch(integrationHarness, /[.]catch\(\(\) => undefined\)/u);
   assert.doesNotMatch(integrationHarness, /Promise[.]allSettled/u);
 
   for (const [startMarker, endMarker, label] of [
@@ -1306,11 +1274,7 @@ test("H1 observes asynchronous outcomes and preserves every cleanup failure", ()
       "async function proveCutoverNowaitAndAtomicRetry",
       "source-first topology",
     ],
-    [
-      "const coverageSnapshotController",
-      "  ownerSql(",
-      "coverage snapshot",
-    ],
+    ["const coverageSnapshotController", "  ownerSql(", "coverage snapshot"],
   ]) {
     const start = integrationHarness.indexOf(startMarker);
     const end = integrationHarness.indexOf(endMarker, start);
@@ -1362,10 +1326,7 @@ test("H1 query helpers keep the query/assertion primary when close also fails", 
     assert.match(helper, /const cleanupFailures = \[\]/u);
     assert.match(helper, /operationError = error/u);
     assert.match(helper, /await runCleanupStep/u);
-    assert.match(
-      helper,
-      /throw preserveOperationAndCleanupFailures\(/u,
-    );
+    assert.match(helper, /throw preserveOperationAndCleanupFailures\(/u);
   }
 
   const preserveStart = integrationHarness.indexOf(
@@ -1376,10 +1337,7 @@ test("H1 query helpers keep the query/assertion primary when close also fails", 
     preserveStart,
   );
   assert.ok(preserveStart >= 0 && preserveEnd > preserveStart);
-  const preserveSource = integrationHarness.slice(
-    preserveStart,
-    preserveEnd,
-  );
+  const preserveSource = integrationHarness.slice(preserveStart, preserveEnd);
   const preserve = Function(
     `"use strict"; ${preserveSource}; return preserveOperationAndCleanupFailures;`,
   )();
@@ -1411,7 +1369,9 @@ test("H2 proves the real cutover relation-lock wait topology", () => {
   }
 
   const topologyProof = integrationHarness.slice(
-    integrationHarness.indexOf("async function proveSourceFirstCutoverTopology"),
+    integrationHarness.indexOf(
+      "async function proveSourceFirstCutoverTopology",
+    ),
     integrationHarness.indexOf(
       "async function proveCutoverNowaitAndAtomicRetry",
     ),
@@ -1427,9 +1387,7 @@ test("H2 proves the real cutover relation-lock wait topology", () => {
     "the controller must acquire exactly the producer and migration gates",
   );
   const advisoryTopologyWaits = [
-    ...topologyProof.matchAll(
-      /await waitForCutoverAdvisoryLockTopology[(]/gu,
-    ),
+    ...topologyProof.matchAll(/await waitForCutoverAdvisoryLockTopology[(]/gu),
   ];
   assert.equal(
     advisoryTopologyWaits.length,
@@ -1471,7 +1429,10 @@ test("H2 proves the real cutover relation-lock wait topology", () => {
   assert.ok(observeRelation > releaseProducer);
   assert.ok(releaseMigration > observeRelation);
   assert.ok(assertLockUnavailable > releaseMigration);
-  assert.match(topologyProof, /assert\.notEqual\(\s*migrationOutcome\.error\?\.code,\s*"40P01"/u);
+  assert.match(
+    topologyProof,
+    /assert\.notEqual\(\s*migrationOutcome\.error\?\.code,\s*"40P01"/u,
+  );
 });
 
 test("H3 proves live coverage timeout clamp and caller-setting restoration", () => {
@@ -1495,9 +1456,7 @@ test("H3 proves live coverage timeout clamp and caller-setting restoration", () 
     assert.match(integrationHarness, contract);
   }
   const coverageProof = integrationHarness.slice(
-    integrationHarness.indexOf(
-      "async function proveCoverageTimeoutSemantics",
-    ),
+    integrationHarness.indexOf("async function proveCoverageTimeoutSemantics"),
     integrationHarness.indexOf(
       "async function proveCoverageLockAndTerminalReplay",
     ),
@@ -1536,9 +1495,7 @@ test("H3 orders timeout, late-candidate, and divergent rollback/retry proofs", (
     ],
     "coverage timeout proof",
   );
-  const timeoutHolderStart = timeoutProof.indexOf(
-    "const holder = spawnPsql",
-  );
+  const timeoutHolderStart = timeoutProof.indexOf("const holder = spawnPsql");
   const timeoutHolderEnd = timeoutProof.indexOf(
     "await waitForMarker",
     timeoutHolderStart,
@@ -1587,11 +1544,7 @@ test("H3 orders timeout, late-candidate, and divergent rollback/retry proofs", (
   );
   assertOrdered(
     coverageProof.slice(snapshotHolderStart, snapshotHolderEnd),
-    [
-      "FOR UPDATE;",
-      "pg_advisory_xact_lock(",
-      "${COVERAGE_SNAPSHOT_GATE}",
-    ],
+    ["FOR UPDATE;", "pg_advisory_xact_lock(", "${COVERAGE_SNAPSHOT_GATE}"],
     "late-candidate holder row/advisory gate ordering",
   );
   assert.match(
@@ -1623,8 +1576,7 @@ test("H3 orders timeout, late-candidate, and divergent rollback/retry proofs", (
     coverageTopologyStart,
   );
   assert.ok(
-    coverageTopologyStart >= 0
-      && coverageTopologyEnd > coverageTopologyStart,
+    coverageTopologyStart >= 0 && coverageTopologyEnd > coverageTopologyStart,
   );
   const coverageTopology = integrationHarness.slice(
     coverageTopologyStart,
@@ -1691,9 +1643,7 @@ test("H3 orders timeout, late-candidate, and divergent rollback/retry proofs", (
     "function proveNewReplayAndRollback",
     sameStatementStart,
   );
-  assert.ok(
-    sameStatementStart >= 0 && sameStatementEnd > sameStatementStart,
-  );
+  assert.ok(sameStatementStart >= 0 && sameStatementEnd > sameStatementStart);
   const sameStatementProof = integrationHarness.slice(
     sameStatementStart,
     sameStatementEnd,
@@ -1735,9 +1685,7 @@ test("H3 orders timeout, late-candidate, and divergent rollback/retry proofs", (
     "const divergentRetry = {",
   );
   assert.ok(divergentRetryStart >= 0);
-  const divergentRetryProof = sameStatementProof.slice(
-    divergentRetryStart,
-  );
+  const divergentRetryProof = sameStatementProof.slice(divergentRetryStart);
   assert.match(
     divergentRetryProof,
     /SELECT pg_catalog[.]count[(][*][)]\s+FROM public[.]email_outbox\s+WHERE idempotency_key = '[$][{]divergentRetry[.]key[}]'[\s\S]*?[)] = 1/u,
@@ -1757,10 +1705,7 @@ test("H3 orders timeout, late-candidate, and divergent rollback/retry proofs", (
 });
 
 test("H3 exact multi-row proofs contain no ON CONFLICT escape hatch", () => {
-  assert.match(
-    integrationHarness,
-    /function insertExactEventRowsSql\(rows\)/u,
-  );
+  assert.match(integrationHarness, /function insertExactEventRowsSql\(rows\)/u);
   const exactBuilder = integrationHarness.slice(
     integrationHarness.indexOf("function insertExactEventRowsSql"),
     integrationHarness.indexOf("function systemVariables"),
@@ -1802,26 +1747,30 @@ test("0067 original-payload vector fixture is byte-pinned and semantically expli
       {
         name: "nested-json",
         canonicalPayloadJson:
-          "[\"mail-replay-conflict-v1\", \"storage-quota-changed\", \"a:mail-0067-vector-user\", \"vector@example.invalid\", \"1\", {\"aa\": {\"bb\": [\"x\", {\"cc\": true}]}, \"dd\": null}]",
-        sha256: "5a6b0fd1e88e8f98d05804d90a5353362b5aa1c3e2c8e3fa3dd0b866b6929de2",
+          '["mail-replay-conflict-v1", "storage-quota-changed", "a:mail-0067-vector-user", "vector@example.invalid", "1", {"aa": {"bb": ["x", {"cc": true}]}, "dd": null}]',
+        sha256:
+          "5a6b0fd1e88e8f98d05804d90a5353362b5aa1c3e2c8e3fa3dd0b866b6929de2",
       },
       {
         name: "numeric-forms",
         canonicalPayloadJson:
-          "[\"mail-replay-conflict-v1\", \"storage-quota-changed\", \"a:mail-0067-vector-user\", \"vector@example.invalid\", \"1\", {\"aa\": 42, \"bb\": 42.5, \"cc\": -7}]",
-        sha256: "031175ce0821548428880c32a7e7b520adc693c1b68296202577a8905504f387",
+          '["mail-replay-conflict-v1", "storage-quota-changed", "a:mail-0067-vector-user", "vector@example.invalid", "1", {"aa": 42, "bb": 42.5, "cc": -7}]',
+        sha256:
+          "031175ce0821548428880c32a7e7b520adc693c1b68296202577a8905504f387",
       },
       {
         name: "unicode",
         canonicalPayloadJson:
-          "[\"mail-replay-conflict-v1\", \"storage-quota-changed\", \"a:mail-0067-vector-user\", \"vector@example.invalid\", \"1\", {\"aa\": \"नमस्ते\", \"bb\": \"東京\", \"cc\": \"🙂\"}]",
-        sha256: "b930c31033833bea1060632f31aacc031516dd99b34e2af9eedbb853e4955e5b",
+          '["mail-replay-conflict-v1", "storage-quota-changed", "a:mail-0067-vector-user", "vector@example.invalid", "1", {"aa": "नमस्ते", "bb": "東京", "cc": "🙂"}]',
+        sha256:
+          "b930c31033833bea1060632f31aacc031516dd99b34e2af9eedbb853e4955e5b",
       },
       {
         name: "system-envelope",
         canonicalPayloadJson:
-          "[\"mail-replay-conflict-v1\", \"invitation\", \"s:access-request-approved:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb:cccccccc-cccc-4ccc-8ccc-cccccccccccc\", \"system@example.invalid\", \"1\", {\"aa\": \"kept\", \"_mailProducer\": \"access-request-approved\", \"_mailSourceId\": \"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb\", \"_mailAudienceId\": \"cccccccc-cccc-4ccc-8ccc-cccccccccccc\"}]",
-        sha256: "b3c8de0ca119880b4cb0eedff6a73b626c3fa970e24d309d6ed329f8bfdb7be8",
+          '["mail-replay-conflict-v1", "invitation", "s:access-request-approved:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb:cccccccc-cccc-4ccc-8ccc-cccccccccccc", "system@example.invalid", "1", {"aa": "kept", "_mailProducer": "access-request-approved", "_mailSourceId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "_mailAudienceId": "cccccccc-cccc-4ccc-8ccc-cccccccccccc"}]',
+        sha256:
+          "b3c8de0ca119880b4cb0eedff6a73b626c3fa970e24d309d6ed329f8bfdb7be8",
       },
     ],
   );
@@ -1997,29 +1946,34 @@ test("0067 live payload proof uses the runtime recipient and PostgreSQL-native v
     semanticsProof,
     /variablesSql:\s*"NULL"[\s\S]*?code:\s*"23502"/u,
   );
-  const numericStart = semanticsProof.indexOf(
-    "POSTGRES_NUMERIC_EDGE_PAIRS",
-  );
+  const numericStart = semanticsProof.indexOf("POSTGRES_NUMERIC_EDGE_PAIRS");
   const numericEnd = semanticsProof.indexOf(
     "for (const invalidVariables",
     numericStart,
   );
   assert.ok(numericStart >= 0 && numericEnd > numericStart);
   const numericProof = semanticsProof.slice(numericStart, numericEnd);
-  assert.match(numericProof, /123456789012345678901234567890[.]12345678901234567890/u);
+  assert.match(
+    numericProof,
+    /123456789012345678901234567890[.]12345678901234567890/u,
+  );
   assert.match(numericProof, /1[.]2300e[+]10/iu);
   assert.match(numericProof, /1[.]23400e-19/iu);
   assert.doesNotMatch(numericProof, /JSON[.](?:parse|stringify)/u);
 });
 
 test("0067 validates replay identity before a prior fingerprint can suppress the row", () => {
-  const claimStart = migration.toLowerCase().indexOf(
-    "create function public.claim_email_outbox_idempotency_authority()",
-  );
-  const claimEnd = migration.toLowerCase().indexOf(
-    "create function public.persist_email_outbox_idempotency_authority()",
-    claimStart,
-  );
+  const claimStart = migration
+    .toLowerCase()
+    .indexOf(
+      "create function public.claim_email_outbox_idempotency_authority()",
+    );
+  const claimEnd = migration
+    .toLowerCase()
+    .indexOf(
+      "create function public.persist_email_outbox_idempotency_authority()",
+      claimStart,
+    );
   assert.ok(claimStart >= 0 && claimEnd > claimStart);
   const claim = migration.slice(claimStart, claimEnd).toLowerCase();
   const lookup = claim.indexOf("select authority.original_payload_sha256");
@@ -2041,7 +1995,10 @@ test("0067 validates replay identity before a prior fingerprint can suppress the
     const validation = claim.indexOf(marker);
     assert.ok(validation >= 0, marker);
     assert.ok(validation < lookup, `${marker} must precede authority lookup`);
-    assert.ok(validation < replayReturn, `${marker} must precede replay return`);
+    assert.ok(
+      validation < replayReturn,
+      `${marker} must precede replay return`,
+    );
   }
   assert.match(
     claim,
@@ -2084,9 +2041,7 @@ test("0067 validates replay identity before a prior fingerprint can suppress the
 });
 
 test("0067 disposable root is covered by top-level cleanup from its first fallible use", () => {
-  const mainStart = integrationHarness.indexOf(
-    "export async function main()",
-  );
+  const mainStart = integrationHarness.indexOf("export async function main()");
   assert.ok(mainStart >= 0);
   const mainBody = integrationHarness.slice(mainStart);
   const rootIndex = mainBody.indexOf("const temporaryRoot = mkdtempSync");
@@ -2101,9 +2056,9 @@ test("0067 disposable root is covered by top-level cleanup from its first fallib
   );
   for (const fallibleMarker of [
     "diagnosticTemporaryRoot = temporaryRoot",
-    "path.join(temporaryRoot, \"data\")",
-    "path.join(temporaryRoot, \"postgres.log\")",
-    "path.join(temporaryRoot, \"socket\")",
+    'path.join(temporaryRoot, "data")',
+    'path.join(temporaryRoot, "postgres.log")',
+    'path.join(temporaryRoot, "socket")',
     "assertExactClusterPaths",
     "mkdirSync(socketDirectory)",
     "stagedMigrationsThrough(temporaryRoot, 66)",
@@ -2144,18 +2099,12 @@ test("0067 entrypoint fails closed with one fixed diagnostic", () => {
     integrationEntrypoint,
     /[.]stack|[.]message|[.]cause|formatHarnessFailure|String\(/u,
   );
-  assert.match(
-    integrationHarness,
-    /export async function main\(\)/u,
-  );
+  assert.match(integrationHarness, /export async function main\(\)/u);
   assert.doesNotMatch(
     integrationHarness,
     /main\(\)[.]catch|formatHarnessFailure/u,
   );
-  assert.doesNotMatch(
-    integrationHarness,
-    /isolated_root_token|isolated_port/u,
-  );
+  assert.doesNotMatch(integrationHarness, /isolated_root_token|isolated_port/u);
   assert.match(
     integrationHarness,
     /mail_durable_replay_0067=constraint_catalog:pass/u,
@@ -2189,10 +2138,7 @@ test("0067 entrypoint fails closed with one fixed diagnostic", () => {
   );
   assert.equal(smoke.status, 1);
   assert.equal(smoke.stdout, "");
-  assert.equal(
-    smoke.stderr,
-    "mail_durable_replay_0067_error=HARNESS_FAILED\n",
-  );
+  assert.equal(smoke.stderr, "mail_durable_replay_0067_error=HARNESS_FAILED\n");
 });
 
 test("A binds both pg constructors and executes the tracked factories", () => {
@@ -2248,10 +2194,7 @@ function evaluateHarnessFailurePreserver() {
     preserveStart,
   );
   assert.ok(preserveStart >= 0 && preserveEnd > preserveStart);
-  const preserveSource = integrationHarness.slice(
-    preserveStart,
-    preserveEnd,
-  );
+  const preserveSource = integrationHarness.slice(preserveStart, preserveEnd);
   return Function(
     `"use strict"; ${preserveSource}; return preserveOperationAndCleanupFailures;`,
   )();
@@ -2292,9 +2235,11 @@ test("C bootstrap pool ownership unregisters exactly once after success or failu
   );
 
   assert.equal(
-    [...bootstrapOwnership.matchAll(
-      /trackedPools[.]delete[(]bootstrapPool[)]/gu,
-    )].length,
+    [
+      ...bootstrapOwnership.matchAll(
+        /trackedPools[.]delete[(]bootstrapPool[)]/gu,
+      ),
+    ].length,
     1,
     "the bootstrap pool must be unregistered exactly once",
   );
@@ -2514,10 +2459,7 @@ test("C preserves unknown-template failure when rollback database drop also fail
     functionStart,
   );
   assert.ok(functionStart >= 0 && functionEnd > functionStart);
-  const rollbackProof = integrationHarness.slice(
-    functionStart,
-    functionEnd,
-  );
+  const rollbackProof = integrationHarness.slice(functionStart, functionEnd);
   for (const contract of [
     /let operationError/u,
     /const cleanupFailures = \[\]/u,

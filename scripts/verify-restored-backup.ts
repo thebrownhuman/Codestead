@@ -26,13 +26,40 @@ export interface QueryClientLike {
   query(sql: string): Promise<QueryResultLike>;
 }
 
-const requiredTables = [
-  "migrations",
-  "users",
-  "courses",
-  "lessons",
-  "enrollments",
+const requiredApplicationRelations = [
+  "drizzle.__drizzle_migrations",
+  "public.\"user\"",
+  "public.course",
+  "public.lesson",
+  "public.enrollment",
 ] as const;
+const requiredMailAuthorityRelations = [
+  "public.email_outbox",
+  "public.email_outbox_idempotency_authority",
+  "public.backup_status_mail_authority",
+  "public.mail_delivery_release_receipt",
+] as const;
+const requiredRestoreRelations = [
+  ...requiredApplicationRelations,
+  ...requiredMailAuthorityRelations,
+] as const;
+const requiredPublicTableCount = requiredRestoreRelations.length - 1;
+
+type ReviewedMigrationLedgerModule = Readonly<{
+  REVIEWED_MIGRATION_LEDGER: readonly Readonly<{
+    idx: number;
+    tag: string;
+  }>[];
+  REVIEWED_MIGRATION_LEDGER_SHA256: string;
+  verifyAppliedMigrationLedger: (
+    client: QueryClientLike,
+    options: Readonly<{ requireComplete: boolean }>,
+  ) => Promise<Readonly<{
+    appliedCount: number;
+    complete: boolean;
+    ledgerSha256: string;
+  }>>;
+}>;
 
 function requireAbsolute(value: string, label: string) {
   if (!path.isAbsolute(value) || path.resolve(value) !== value) {
@@ -69,6 +96,59 @@ function exactObject(value: unknown, keys: readonly string[]) {
   return actual.length === expected.length && actual.every((key, index) => key === expected[index]);
 }
 
+async function verifyRestoredMigrationLedger(client: QueryClientLike) {
+  const moduleUrl = pathToFileURL(path.resolve(
+    process.cwd(),
+    "scripts/lib/reviewed-migration-ledger.mjs",
+  )).href;
+  let reviewed: ReviewedMigrationLedgerModule;
+  try {
+    reviewed = await import(moduleUrl) as ReviewedMigrationLedgerModule;
+  } catch {
+    throw new Error("restore migration ledger contract is unavailable");
+  }
+
+  const tail = reviewed.REVIEWED_MIGRATION_LEDGER.at(-1);
+  if (
+    reviewed.REVIEWED_MIGRATION_LEDGER.length !== 70
+    || tail?.idx !== 69
+    || tail.tag !== "0069_mail_outbox_guarded_delivery_authority"
+    || !/^[0-9a-f]{64}$/.test(reviewed.REVIEWED_MIGRATION_LEDGER_SHA256)
+    || typeof reviewed.verifyAppliedMigrationLedger !== "function"
+  ) {
+    throw new Error("restore migration ledger contract is not the reviewed 0069 contract");
+  }
+
+  let verification: Awaited<ReturnType<
+    ReviewedMigrationLedgerModule["verifyAppliedMigrationLedger"]
+  >>;
+  try {
+    verification = await reviewed.verifyAppliedMigrationLedger(client, {
+      requireComplete: true,
+    });
+  } catch {
+    throw new Error("restored database migration ledger is not the exact reviewed 0069 ledger");
+  }
+  if (
+    verification.appliedCount !== reviewed.REVIEWED_MIGRATION_LEDGER.length
+    || verification.complete !== true
+    || verification.ledgerSha256 !== reviewed.REVIEWED_MIGRATION_LEDGER_SHA256
+  ) {
+    throw new Error("restored database migration ledger is not the exact reviewed 0069 ledger");
+  }
+  return verification;
+}
+
+function restoredRelationAvailable(
+  row: Record<string, unknown> | undefined,
+  expectedName: string,
+) {
+  return row?.name === expectedName
+    && typeof row.relation === "string"
+    && row.relation.length > 0
+    && (row.relkind === "r" || row.relkind === "p");
+}
+
 export async function verifyDatabaseSchema(client: QueryClientLike) {
   const countResult = await client.query(
     "SELECT count(*)::text AS count FROM information_schema.tables WHERE table_schema = 'public'",
@@ -78,23 +158,63 @@ export async function verifyDatabaseSchema(client: QueryClientLike) {
     throw new Error("restored table count is invalid");
   }
   const publicTableCount = Number(countValue);
-  if (!Number.isSafeInteger(publicTableCount) || publicTableCount < requiredTables.length) {
+  if (!Number.isSafeInteger(publicTableCount) || publicTableCount < requiredPublicTableCount) {
     throw new Error("restored database contains too few public tables");
   }
 
   const requiredResult = await client.query(`
-    SELECT
-      to_regclass('drizzle.__drizzle_migrations')::text AS migrations,
-      to_regclass('public."user"')::text AS users,
-      to_regclass('public.course')::text AS courses,
-      to_regclass('public.lesson')::text AS lessons,
-      to_regclass('public.enrollment')::text AS enrollments
+    WITH required_restore_relations(name) AS (
+      VALUES
+        ('drizzle.__drizzle_migrations'::text),
+        ('public."user"'::text),
+        ('public.course'::text),
+        ('public.lesson'::text),
+        ('public.enrollment'::text),
+        ('public.email_outbox'::text),
+        ('public.email_outbox_idempotency_authority'::text),
+        ('public.backup_status_mail_authority'::text),
+        ('public.mail_delivery_release_receipt'::text)
+    )
+    SELECT required.name,
+           pg_catalog.to_regclass(required.name)::text AS relation,
+           catalog.relkind::text AS relkind
+      FROM required_restore_relations AS required
+      LEFT JOIN pg_catalog.pg_class AS catalog
+        ON catalog.oid = pg_catalog.to_regclass(required.name)
+     ORDER BY required.name
   `);
-  const required = requiredResult.rows[0];
-  if (!required || requiredTables.some((table) => typeof required[table] !== "string" || !required[table])) {
+  const byName = new Map<string, Record<string, unknown>>();
+  let relationInventoryValid = requiredResult.rows.length === requiredRestoreRelations.length;
+  for (const row of requiredResult.rows) {
+    if (
+      !exactObject(row, ["name", "relation", "relkind"])
+      || typeof row.name !== "string"
+      || !requiredRestoreRelations.includes(row.name as typeof requiredRestoreRelations[number])
+      || byName.has(row.name)
+    ) {
+      relationInventoryValid = false;
+      continue;
+    }
+    byName.set(row.name, row);
+  }
+  if (requiredApplicationRelations.some((name) =>
+    !restoredRelationAvailable(byName.get(name), name))) {
     throw new Error("restored database is missing a required application table");
   }
-  return { publicTableCount };
+  if (requiredMailAuthorityRelations.some((name) =>
+    !restoredRelationAvailable(byName.get(name), name))) {
+    throw new Error("restored database is missing a required mail authority relation");
+  }
+  if (!relationInventoryValid) {
+    throw new Error("restored database relation inventory is invalid");
+  }
+
+  const ledger = await verifyRestoredMigrationLedger(client);
+  return {
+    appliedMigrationCount: ledger.appliedCount,
+    migrationLedgerSha256: ledger.ledgerSha256,
+    publicTableCount,
+  };
 }
 
 export async function verifyCredentialProbe(probePath: string, masterKeyPath: string) {

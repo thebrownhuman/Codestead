@@ -13,8 +13,39 @@ fail() {
   echo "FAIL: $*" >&2
   exit 1
 }
-
+[[ "$EUID" == 0 ]] || fail "release and rollback behavioral tests require root"
 chmod 0700 "$work"
+[[ ! -L "$work" && -d "$work" ]] || fail "test temporary root is not a real directory"
+[[ "$(stat -c '%u:%a' -- "$work")" == "0:700" ]] || {
+  fail "test temporary root is not private and root-owned"
+}
+[[ -z "${GIT_CONFIG_COUNT+x}" && -z "${GIT_CONFIG_PARAMETERS+x}" ]] || {
+  fail "ambient Git configuration injection is forbidden"
+}
+source_git_config="$work/source-git.config"
+(
+  umask 077
+  : >"$source_git_config"
+)
+[[ ! -L "$source_git_config" && -f "$source_git_config" ]] || {
+  fail "source Git configuration is not a regular file"
+}
+[[ "$(stat -c '%u:%a' -- "$source_git_config")" == "0:600" ]] || {
+  fail "source Git configuration is not private and root-owned"
+}
+export GIT_CONFIG_GLOBAL="$source_git_config"
+export GIT_CONFIG_NOSYSTEM=1
+git config --file "$source_git_config" --add safe.directory "$repo_root" || {
+  fail "unable to trust the exact source repository"
+}
+mapfile -t source_safe_directories < <(
+  git config --file "$source_git_config" --get-all safe.directory
+)
+[[ "${#source_safe_directories[@]}" == 1 \
+  && "${source_safe_directories[0]}" == "$repo_root" ]] || {
+  fail "source Git configuration does not contain only the exact repository"
+}
+
 mkdir -p "$work/bin" "$work/repo/infra/ops" "$work/repo/infra/runner-vm" \
   "$work/runtime-state" "$work/records/20260719T000000Z-1" "$work/records/20260719T000000Z-2"
 chmod 0750 "$work/runtime-state"
@@ -45,6 +76,13 @@ dispatch_binding_capability_blob=ea707715f84608b1e1a33ac1832d533b878b6c07
 dispatch_binding_runtime_capability=exact-adapter-payload-sha256-before-provider-call-v1
 dispatch_binding_privilege_contract=owner-execute-worker-columns-update-only-no-grant-option-trigger-v1
 dispatch_binding_registry_row="0064_mail_outbox_dispatch_binding|$dispatch_binding_boundary_commit|$dispatch_binding_capability_path|100644|$dispatch_binding_capability_blob|SCHEMA_VERSION=1|OUTBOX_WORKER_MODE=fenced-postgres-v1|DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability|DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract"
+guarded_delivery_boundary_commit=7eeafd73c5d41ea49526d908165e0a7cefa92097
+guarded_delivery_capability_path=infra/ops/mail-outbox-guarded-delivery-capability.env
+guarded_delivery_capability_blob=2b0cd7af4b6d7a39756e94485aa370abfb6e2acf
+guarded_delivery_runtime_capability=guarded-prepared-dispatch-tx1-tx2-exact-byte-v1
+delivery_release_authority_contract=append-only-task7-release-receipt-v1
+guarded_delivery_privilege_contract=owner-app-worker-release-receipt-least-privilege-v1
+guarded_delivery_registry_row="0069_mail_outbox_guarded_delivery_authority|$guarded_delivery_boundary_commit|$guarded_delivery_capability_path|100644|$guarded_delivery_capability_blob|SCHEMA_VERSION=1|OUTBOX_WORKER_MODE=fenced-postgres-v1|GUARDED_DELIVERY_RUNTIME=$guarded_delivery_runtime_capability|DELIVERY_RELEASE_AUTHORITY=$delivery_release_authority_contract|GUARDED_DELIVERY_PRIVILEGE=$guarded_delivery_privilege_contract"
 contract_required_commit=abe2a67ad20215bff64317182cc306b3329e5bed
 contract_required_tree=6cf35f3a88e373e9cba13647d7be01265d21e0da
 pre_contract_commit=c893132eb4f2778575d566957cbdb55626efc1fa
@@ -61,11 +99,20 @@ for capability_consumer in "$release" "$rollback"; do
   }
   grep -Fq "readonly mail_outbox_dispatch_binding_capability_blob=$dispatch_binding_capability_blob" \
     "$capability_consumer" || fail "capability consumer does not pin the reviewed Git blob"
+  grep -Fq "$guarded_delivery_registry_row" "$capability_consumer" || {
+    fail "release and rollback must share the exact pinned 0069 capability registry row"
+  }
+  grep -Fq "readonly mail_outbox_guarded_delivery_capability_blob=$guarded_delivery_capability_blob" \
+    "$capability_consumer" || fail "capability consumer does not pin the reviewed 0069 Git blob"
 done
 grep -Fq "load_dispatch_binding_capability \"\$record_git_commit\" \"\$record_git_tree\" \"source image\"" \
   "$rollback" || fail "rollback capability is not bound to the recorded source tree"
 grep -Fq "load_dispatch_binding_capability \"\$previous_git_commit\" \"\$previous_git_tree\" \"previous image\"" \
   "$rollback" || fail "rollback capability is not bound to the previous Git tree"
+grep -Fq "load_guarded_delivery_capability \"\$record_git_commit\" \"\$record_git_tree\" \"source image\"" \
+  "$rollback" || fail "guarded rollback capability is not bound to the recorded source tree"
+grep -Fq "load_guarded_delivery_capability \"\$previous_git_commit\" \"\$previous_git_tree\" \"previous image\"" \
+  "$rollback" || fail "guarded rollback capability is not bound to the previous Git tree"
 
 declare -a source_git
 if source_git_dir="$(
@@ -83,9 +130,24 @@ else
   )"
   source_git_dir="$(wslpath -u "$source_git_dir_windows")"
 fi
+source_git_dir="$(realpath -e -- "$source_git_dir")" || {
+  fail "source Git directory is unavailable"
+}
 [[ -d "$source_git_dir" ]] || fail "source Git directory is unavailable"
+git config --file "$source_git_config" --add safe.directory "$source_git_dir" || {
+  fail "unable to trust the exact source Git directory"
+}
+mapfile -t source_safe_directories < <(
+  git config --file "$source_git_config" --get-all safe.directory
+)
+[[ "${#source_safe_directories[@]}" == 2 \
+  && "${source_safe_directories[0]}" == "$repo_root" \
+  && "${source_safe_directories[1]}" == "$source_git_dir" ]] || {
+  fail "source Git configuration is not the exact closed trust set"
+}
 dispatch_binding_real_source_commit="$(
-  "${source_git[@]}" rev-parse --verify HEAD | tr -d '\r'
+  "${source_git[@]}" rev-parse --verify \
+    '76d2854b537aa9165083074e1c841f4f18ed84ce^{commit}' | tr -d '\r'
 )"
 dispatch_binding_real_source_tree="$(
   "${source_git[@]}" rev-parse --verify \
@@ -186,6 +248,15 @@ git -C "$dispatch_binding_real_repo" checkout --quiet --detach \
   "$dispatch_binding_real_source_commit" || {
   fail "unable to check out the real post-0064 rollback source"
 }
+dispatch_binding_imported_capability_blob="$(
+  GIT_NO_LAZY_FETCH=1 "${source_git[@]}" cat-file blob \
+    "$dispatch_binding_capability_blob" \
+    | GIT_NO_LAZY_FETCH=1 git -C "$work/repo" hash-object \
+        -t blob -w --stdin
+)" || fail "unable to import the pinned 0064 capability blob"
+[[ "$dispatch_binding_imported_capability_blob" == "$dispatch_binding_capability_blob" ]] || {
+  fail "imported 0064 capability blob does not match the pinned identity"
+}
 git -C "$dispatch_binding_real_repo" remote remove source
 
 dispatch_binding_boundary_tree="$(
@@ -222,9 +293,55 @@ dispatch_binding_pruned_source_tree="$(
   && "$dispatch_binding_pruned_source_tree" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || {
   fail "pruned pre-0064 fixture evidence is malformed"
 }
-if GIT_NO_LAZY_FETCH=1 git -C "$work/repo" cat-file -e \
-    "${dispatch_binding_pruned_source_commit}^{commit}" >/dev/null 2>&1; then
-  fail "pruned pre-0064 fixture object is unexpectedly available"
+dispatch_binding_pruned_objects="$work/dispatch-binding-pruned-objects"
+dispatch_binding_pruned_expected_objects="$work/dispatch-binding-pruned-expected.objects"
+dispatch_binding_pruned_actual_objects="$work/dispatch-binding-pruned-actual.objects"
+mkdir -p "$dispatch_binding_pruned_objects/pack"
+GIT_NO_LAZY_FETCH=1 git -C "$work/repo" cat-file --batch-all-objects \
+    --batch-check='%(objectname)' \
+  | awk -v omitted="$dispatch_binding_pruned_source_commit" \
+      '$1 != omitted { print $1 }' \
+  | LC_ALL=C sort -u >"$dispatch_binding_pruned_expected_objects" || {
+  fail "unable to enumerate the expected pruned pre-0064 object set"
+}
+[[ -s "$dispatch_binding_pruned_expected_objects" ]] || {
+  fail "expected pruned pre-0064 object set is empty"
+}
+dispatch_binding_pruned_pack="$(
+  GIT_NO_LAZY_FETCH=1 git -C "$work/repo" pack-objects \
+    "$dispatch_binding_pruned_objects/pack/pack" \
+    <"$dispatch_binding_pruned_expected_objects"
+)" || fail "unable to create the pruned pre-0064 lineage fixture"
+[[ "$dispatch_binding_pruned_pack" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || {
+  fail "pruned pre-0064 lineage fixture pack identity is malformed"
+}
+GIT_OBJECT_DIRECTORY="$dispatch_binding_pruned_objects" GIT_NO_LAZY_FETCH=1 \
+  git -C "$work/repo" cat-file --batch-all-objects \
+    --batch-check='%(objectname)' \
+  | LC_ALL=C sort -u >"$dispatch_binding_pruned_actual_objects" || {
+  fail "unable to enumerate the isolated pruned pre-0064 object set"
+}
+cmp -s "$dispatch_binding_pruned_expected_objects" \
+  "$dispatch_binding_pruned_actual_objects" || {
+  fail "isolated pruned pre-0064 object set does not match the exact expected set"
+}
+for dispatch_binding_pruned_retained_object in \
+    'HEAD^{commit}' 'HEAD^{tree}' \
+    "${dispatch_binding_boundary_commit}^{commit}" \
+    "${dispatch_binding_boundary_commit}^{tree}" \
+    "${older_pre_contract_commit}^{commit}" \
+    "${older_pre_contract_commit}^{tree}" \
+    "$dispatch_binding_pruned_source_tree"; do
+  GIT_OBJECT_DIRECTORY="$dispatch_binding_pruned_objects" GIT_NO_LAZY_FETCH=1 \
+    git -C "$work/repo" cat-file -e \
+      "$dispatch_binding_pruned_retained_object" >/dev/null 2>&1 || {
+    fail "pruned pre-0064 fixture lost required local Git evidence"
+  }
+done
+if GIT_OBJECT_DIRECTORY="$dispatch_binding_pruned_objects" GIT_NO_LAZY_FETCH=1 \
+    git -C "$work/repo" cat-file -e \
+      "${dispatch_binding_pruned_source_commit}^{commit}" >/dev/null 2>&1; then
+  fail "pruned pre-0064 fixture unexpectedly retained its missing parent"
 fi
 dispatch_binding_compatible_source_commit="$dispatch_binding_real_source_commit"
 dispatch_binding_compatible_tree="$dispatch_binding_real_source_tree"
@@ -241,87 +358,97 @@ git -C "$work/repo" merge-base --is-ancestor \
   "$dispatch_binding_compatible_source_commit" || {
   fail "the real compatible capability target is not an ancestor of its source"
 }
-task7_durable_replay_migration=drizzle/0067_mail_outbox_durable_replay_authority.sql
-task7_unrecognized_capability_path=infra/ops/mail-outbox-durable-replay-receipt-capability.env
-task7_unrecognized_secret=fixture-task7-receipt-do-not-log
-task7_fixture_index="$work/task7-release-denial.index"
-task7_migration_blob="$(
-  git -C "$work/repo" hash-object -w -- \
-    "$repo_root/$task7_durable_replay_migration"
+guarded_delivery_boundary_tree="$(
+  git -C "$work/repo" rev-parse --verify "${guarded_delivery_boundary_commit}^{tree}"
 )"
-GIT_INDEX_FILE="$task7_fixture_index" \
-  git -C "$work/repo" read-tree "$dispatch_binding_compatible_target_tree"
-GIT_INDEX_FILE="$task7_fixture_index" \
+guarded_delivery_index="$work/guarded-delivery.index"
+guarded_delivery_actual_blob="$(
+  git -C "$work/repo" hash-object -w -- \
+    "$repo_root/$guarded_delivery_capability_path"
+)"
+[[ "$guarded_delivery_actual_blob" == "$guarded_delivery_capability_blob" ]] || {
+  fail "checked-in guarded delivery capability does not match the reviewed blob"
+}
+GIT_INDEX_FILE="$guarded_delivery_index" \
+  git -C "$work/repo" read-tree "$guarded_delivery_boundary_tree"
+GIT_INDEX_FILE="$guarded_delivery_index" \
   git -C "$work/repo" update-index --add --cacheinfo \
-    100644 "$task7_migration_blob" "$task7_durable_replay_migration"
-task7_without_receipt_tree="$(
-  GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE="$task7_fixture_index" \
+    100644 "$guarded_delivery_capability_blob" "$guarded_delivery_capability_path"
+guarded_delivery_exact_tree="$(
+  GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE="$guarded_delivery_index" \
     git -C "$work/repo" write-tree --missing-ok
 )"
-task7_without_receipt_target_commit="$(
-  printf '%s\n' 'fixture 0067 rollback target without Task 7 receipt capability' \
-    | git -C "$work/repo" commit-tree "$task7_without_receipt_tree" \
-      -p "$dispatch_binding_compatible_target_commit"
+guarded_delivery_exact_target_commit="$(
+  printf '%s\n' 'fixture exact 0069 guarded rollback target' \
+    | git -C "$work/repo" commit-tree "$guarded_delivery_exact_tree" \
+      -p "$guarded_delivery_boundary_commit"
 )"
-task7_without_receipt_source_commit="$(
-  printf '%s\n' 'fixture 0067 rollback source without Task 7 receipt capability' \
-    | git -C "$work/repo" commit-tree "$task7_without_receipt_tree" \
-      -p "$task7_without_receipt_target_commit"
+guarded_delivery_exact_source_commit="$(
+  printf '%s\n' 'fixture exact 0069 guarded rollback source' \
+    | git -C "$work/repo" commit-tree "$guarded_delivery_exact_tree" \
+      -p "$guarded_delivery_exact_target_commit"
 )"
-for task7_commit in "$task7_without_receipt_source_commit" \
-  "$task7_without_receipt_target_commit"; do
-  [[ "$(
-    git -C "$work/repo" ls-tree -r --name-only \
-      "$task7_commit" -- "$task7_durable_replay_migration"
-  )" == "$task7_durable_replay_migration" ]] || {
-    fail "Task 7 rollback denial fixture omits 0067 from an exact Git tree"
-  }
-done
-if git -C "$work/repo" ls-tree -r --name-only \
-    "$task7_without_receipt_tree" \
-    | grep -Eq '(^|/).*task7.*receipt.*capability|(^|/).*receipt.*task7.*capability'; then
-  fail "plain Task 7 rollback fixture unexpectedly contains a receipt capability"
-fi
-
-task7_unrecognized_capability_blob="$(
+guarded_delivery_missing_target_commit="$(
+  printf '%s\n' 'fixture 0069 rollback target without guarded capability' \
+    | git -C "$work/repo" commit-tree "$guarded_delivery_boundary_tree" \
+      -p "$guarded_delivery_boundary_commit"
+)"
+guarded_delivery_missing_source_commit="$(
+  printf '%s\n' 'fixture 0069 rollback source without guarded capability' \
+    | git -C "$work/repo" commit-tree "$guarded_delivery_boundary_tree" \
+      -p "$guarded_delivery_missing_target_commit"
+)"
+guarded_delivery_missing_previous_source_commit="$(
+  printf '%s\n' 'fixture exact 0069 source over target without guarded capability' \
+    | git -C "$work/repo" commit-tree "$guarded_delivery_exact_tree" \
+      -p "$guarded_delivery_missing_target_commit"
+)"
+guarded_delivery_tampered_blob="$(
   printf '%s\n' \
-    'SCHEMA_VERSION=999' \
-    "TASK7_RECEIPT_CAPABILITY=$task7_unrecognized_secret" \
+    'SCHEMA_VERSION=1' \
+    'OUTBOX_WORKER_MODE=fenced-postgres-v1' \
+    "GUARDED_DELIVERY_RUNTIME=${guarded_delivery_runtime_capability}-tampered" \
+    "DELIVERY_RELEASE_AUTHORITY=$delivery_release_authority_contract" \
+    "GUARDED_DELIVERY_PRIVILEGE=$guarded_delivery_privilege_contract" \
     | git -C "$work/repo" hash-object -w --stdin
 )"
-GIT_INDEX_FILE="$task7_fixture_index" \
+GIT_INDEX_FILE="$guarded_delivery_index" \
+  git -C "$work/repo" read-tree "$guarded_delivery_boundary_tree"
+GIT_INDEX_FILE="$guarded_delivery_index" \
   git -C "$work/repo" update-index --add --cacheinfo \
-    100644 "$task7_unrecognized_capability_blob" \
-    "$task7_unrecognized_capability_path"
-task7_unrecognized_tree="$(
-  GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE="$task7_fixture_index" \
+    100644 "$guarded_delivery_tampered_blob" "$guarded_delivery_capability_path"
+guarded_delivery_tampered_tree="$(
+  GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE="$guarded_delivery_index" \
     git -C "$work/repo" write-tree --missing-ok
 )"
-task7_unrecognized_target_commit="$(
-  printf '%s\n' 'fixture 0067 rollback target with unrecognized receipt file' \
-    | git -C "$work/repo" commit-tree "$task7_unrecognized_tree" \
-      -p "$dispatch_binding_compatible_target_commit"
+guarded_delivery_tampered_target_commit="$(
+  printf '%s\n' 'fixture 0069 rollback target with tampered guarded capability' \
+    | git -C "$work/repo" commit-tree "$guarded_delivery_tampered_tree" \
+      -p "$guarded_delivery_boundary_commit"
 )"
-task7_unrecognized_source_commit="$(
-  printf '%s\n' 'fixture 0067 rollback source with unrecognized receipt file' \
-    | git -C "$work/repo" commit-tree "$task7_unrecognized_tree" \
-      -p "$task7_unrecognized_target_commit"
+guarded_delivery_tampered_source_commit="$(
+  printf '%s\n' 'fixture 0069 rollback source with tampered guarded capability' \
+    | git -C "$work/repo" commit-tree "$guarded_delivery_tampered_tree" \
+      -p "$guarded_delivery_tampered_target_commit"
 )"
-for task7_commit in "$task7_unrecognized_source_commit" \
-  "$task7_unrecognized_target_commit"; do
-  [[ "$(
-    git -C "$work/repo" ls-tree -r --name-only \
-      "$task7_commit" -- "$task7_durable_replay_migration"
-  )" == "$task7_durable_replay_migration" \
-    && "$(
-      git -C "$work/repo" ls-tree -r --name-only \
-        "$task7_commit" -- "$task7_unrecognized_capability_path"
-    )" == "$task7_unrecognized_capability_path" ]] || {
-    fail "unrecognized Task 7 file fixture is not in both exact rollback trees"
+guarded_delivery_tampered_previous_source_commit="$(
+  printf '%s\n' 'fixture exact 0069 source over target with tampered guarded capability' \
+    | git -C "$work/repo" commit-tree "$guarded_delivery_exact_tree" \
+      -p "$guarded_delivery_tampered_target_commit"
+)"
+for guarded_delivery_commit in \
+    "$guarded_delivery_exact_source_commit" "$guarded_delivery_exact_target_commit" \
+    "$guarded_delivery_missing_source_commit" "$guarded_delivery_missing_target_commit" \
+    "$guarded_delivery_missing_previous_source_commit" \
+    "$guarded_delivery_tampered_source_commit" "$guarded_delivery_tampered_target_commit" \
+    "$guarded_delivery_tampered_previous_source_commit"; do
+  [[ "$(git -C "$work/repo" ls-tree -r --name-only "$guarded_delivery_commit" -- \
+    drizzle/0069_mail_outbox_guarded_delivery_authority.sql)" == \
+    drizzle/0069_mail_outbox_guarded_delivery_authority.sql ]] || {
+    fail "guarded delivery rollback fixture omits the reviewed 0069 migration"
   }
 done
-rm -f -- "$task7_fixture_index"
-
+rm -f -- "$guarded_delivery_index"
 dispatch_binding_index="$work/dispatch-binding.index"
 GIT_INDEX_FILE="$dispatch_binding_index" \
   git -C "$work/repo" read-tree "$dispatch_binding_compatible_tree"
@@ -1100,11 +1227,12 @@ check_v2_dispatch_binding_lineage_refusal \
   cccccccccccccccccccccccccccccccccccccccc \
   dddddddddddddddddddddddddddddddddddddddd \
   'unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage'
-check_v2_dispatch_binding_lineage_refusal \
-  dispatch-binding-v2-pruned-shallow-target \
-  "$older_pre_contract_commit" "$older_pre_contract_tree" \
-  "$dispatch_binding_pruned_source_commit" "$dispatch_binding_pruned_source_tree" \
-  'unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage'
+RUN_GIT_OBJECT_DIRECTORY="$dispatch_binding_pruned_objects" \
+  check_v2_dispatch_binding_lineage_refusal \
+    dispatch-binding-v2-pruned-shallow-target \
+    "$older_pre_contract_commit" "$older_pre_contract_tree" \
+    "$dispatch_binding_pruned_source_commit" "$dispatch_binding_pruned_source_tree" \
+    'unable to verify the trusted 0064_mail_outbox_dispatch_binding lineage'
 RUN_GIT_OBJECT_DIRECTORY="$dispatch_binding_boundary_tree_missing_objects" \
   check_v2_dispatch_binding_lineage_refusal \
     dispatch-binding-v2-missing-boundary-tree \
@@ -1231,109 +1359,137 @@ if grep -Eq '0064_mail_outbox_dispatch_binding|dispatch binding capability' \
 fi
 echo "ok - rollback permits only exact compatible fenced dispatch binding images"
 
-task7_rollback_diagnostic='0067_mail_outbox_durable_replay_authority requires an approved Task 7 delivery receipt capability'
-write_task7_rollback_contract() {
+write_guarded_delivery_rollback_contract() {
   cat >"$mail_contract_path" <<EOF
-SCHEMA_VERSION=3
+SCHEMA_VERSION=4
 MAIL_OUTBOX_PHASE=dual-write-v1
 OUTBOX_WORKER_MODE=fenced-postgres-v1
 OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
 DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability
 DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract
+GUARDED_DELIVERY_RUNTIME=$guarded_delivery_runtime_capability
+DELIVERY_RELEASE_AUTHORITY=$delivery_release_authority_contract
+GUARDED_DELIVERY_PRIVILEGE=$guarded_delivery_privilege_contract
 STORE_CUTOVER=false
 PREVIOUS_MAIL_OUTBOX_PHASE=dual-write-v1
 PREVIOUS_OUTBOX_WORKER_MODE=fenced-postgres-v1
 PREVIOUS_OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
 PREVIOUS_DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability
 PREVIOUS_DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract
+PREVIOUS_GUARDED_DELIVERY_RUNTIME=$guarded_delivery_runtime_capability
+PREVIOUS_DELIVERY_RELEASE_AUTHORITY=$delivery_release_authority_contract
+PREVIOUS_GUARDED_DELIVERY_PRIVILEGE=$guarded_delivery_privilege_contract
 PREVIOUS_RUNTIME_COMPATIBLE=true
 FORWARD_ONLY_MIGRATION=none
 EOF
   chmod 0600 "$mail_contract_path"
 }
 
-task7_rollback_denial_failures=0
-check_task7_rollback_denial() {
+set_rollback_git_evidence \
+  "$guarded_delivery_exact_source_commit" "$guarded_delivery_exact_tree" \
+  "$guarded_delivery_exact_target_commit" "$guarded_delivery_exact_tree"
+write_guarded_delivery_rollback_contract
+cp "$work/records/20260719T000000Z-2/previous-runtime.override.yaml" \
+  "$work/guarded-delivery-exact-valid.override.yaml"
+printf '%s\n' 'not-services:' >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+RUN_STAGE_TIMEOUT=30 \
+  run_rollback guarded-delivery-exact-compatible --schema-backward-compatible
+unset RUN_STAGE_TIMEOUT
+mv "$work/guarded-delivery-exact-valid.override.yaml" \
+  "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "exact 0069 capability fixture unexpectedly completed rollback"
+assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "exact 0069 guarded delivery rollback gate"
+[[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "exact 0069 gate reached smoke"
+grep -Fq 'rollback override is malformed' "$ROLLBACK_CASE/stderr" || {
+  cat "$ROLLBACK_CASE/stderr" >&2
+  fail "exact source and previous 0069 capabilities did not pass the guarded rollback gate"
+}
+if grep -Eq '0069_mail_outbox_guarded_delivery_authority|guarded delivery capability' \
+    "$ROLLBACK_CASE/stderr"; then
+  fail "exact source and previous 0069 capabilities were rejected"
+fi
+echo "ok - rollback accepts exact compatible source and previous 0069 capability trees"
+
+snapshot_guarded_delivery_evidence() {
+  /usr/bin/sha256sum \
+    "$work/records/20260719T000000Z-2/status.env" \
+    "$work/records/20260719T000000Z-2/git-commit.txt" \
+    "$work/records/20260719T000000Z-2/git-tree.txt" \
+    "$work/records/20260719T000000Z-2/previous-release-id.txt" \
+    "$work/records/20260719T000000Z-2/previous-git-commit.txt" \
+    "$work/records/20260719T000000Z-2/previous-running-images.tsv" \
+    "$work/records/20260719T000000Z-2/previous-runtime.override.yaml" \
+    "$mail_contract_path" \
+    "$work/records/20260719T000000Z-1/status.env" \
+    "$work/records/20260719T000000Z-1/git-commit.txt" \
+    "$work/records/20260719T000000Z-1/git-tree.txt"
+}
+
+guarded_delivery_refusal_failures=0
+check_guarded_delivery_refusal() {
   local scenario="$1" source_commit="$2" source_tree="$3"
-  local target_commit="$4" target_tree="$5"
+  local target_commit="$4" target_tree="$5" expected_image="$6"
   local current_before="$work/$scenario.current-before.env"
   local candidate_before="$work/$scenario.candidate-before.env"
-  local marker="$work/control/release-quarantine"
-  local case_failed=false line
-  local command env_flag env_path file_flag file_path action
-  local timeout_flag seconds service extra
-  local stop_count=0
+  local evidence_before="$work/$scenario.evidence-before.sha256"
+  local evidence_after="$work/$scenario.evidence-after.sha256"
+  local case_failed=false
 
   set_rollback_git_evidence \
     "$source_commit" "$source_tree" "$target_commit" "$target_tree"
-  write_task7_rollback_contract
+  write_guarded_delivery_rollback_contract
   cp "$work/records/current-release.env" "$current_before"
   cp "$work/records/latest-candidate.env" "$candidate_before"
+  snapshot_guarded_delivery_evidence >"$evidence_before"
   RUN_STAGE_TIMEOUT=30 \
     run_rollback "$scenario" --schema-backward-compatible
   unset RUN_STAGE_TIMEOUT
 
-  if [[ "$ROLLBACK_STATUS" == 0 ]]; then
-    case_failed=true
-  fi
-  if [[ ! -f "$marker" || -L "$marker" \
-    || "$(<"$marker")" != codestead-release-quarantine-v1 ]]; then
-    case_failed=true
-  fi
-  while IFS= read -r line; do
-    [[ -n "$line" ]] || continue
-    IFS=$'\t' read -r command env_flag env_path file_flag file_path action \
-      timeout_flag seconds service extra <<<"$line"
-    if [[ "$command" != compose || "$env_flag" != --env-file \
-      || "$env_path" != "$work/compose.env" || "$file_flag" != -f \
-      || "$file_path" != "$work/repo/compose.yaml" || "$action" != stop \
-      || "$timeout_flag" != --timeout || "$seconds" != 30 \
-      || "$service" != cloudflared || -n "$extra" ]]; then
-      case_failed=true
-    fi
-    stop_count="$((stop_count + 1))"
-  done <"$ROLLBACK_CASE/docker.log"
-  (( stop_count >= 1 )) || case_failed=true
+  [[ "$ROLLBACK_STATUS" != 0 ]] || case_failed=true
+  assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "$scenario" || case_failed=true
   [[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || case_failed=true
   [[ ! -s "$ROLLBACK_CASE/stdout" ]] || case_failed=true
-  cmp -s "$work/records/current-release.env" "$current_before" \
-    || case_failed=true
-  cmp -s "$work/records/latest-candidate.env" "$candidate_before" \
-    || case_failed=true
-  grep -Fqx "fatal: $task7_rollback_diagnostic" \
+  cmp -s "$work/records/current-release.env" "$current_before" || case_failed=true
+  cmp -s "$work/records/latest-candidate.env" "$candidate_before" || case_failed=true
+  snapshot_guarded_delivery_evidence >"$evidence_after"
+  cmp -s "$evidence_before" "$evidence_after" || case_failed=true
+  grep -Eq '0069_mail_outbox_guarded_delivery_authority|guarded delivery capability' \
     "$ROLLBACK_CASE/stderr" || case_failed=true
-  (( $(wc -c <"$ROLLBACK_CASE/stderr") <= 512 )) || case_failed=true
-  (( $(wc -l <"$ROLLBACK_CASE/stderr") <= 3 )) || case_failed=true
-  if grep -Eq '[0-9a-f]{40}|[0-9a-f]{64}' \
-      "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/stderr" \
-    || grep -Fq "$task7_unrecognized_secret" \
-      "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/stderr"; then
+  grep -Fq "$expected_image" "$ROLLBACK_CASE/stderr" || case_failed=true
+  if grep -Fq 'rollback override is malformed' "$ROLLBACK_CASE/stderr" \
+      || grep -Eq '[0-9a-f]{40}|[0-9a-f]{64}' \
+        "$ROLLBACK_CASE/stdout" "$ROLLBACK_CASE/stderr"; then
     case_failed=true
   fi
 
   if [[ "$case_failed" == true ]]; then
-    printf 'unsafe 0067 rollback denial case: %s\n' "$scenario" >&2
-    task7_rollback_denial_failures="$((task7_rollback_denial_failures + 1))"
+    printf 'unsafe guarded delivery rollback case: %s\n' "$scenario" >&2
+    guarded_delivery_refusal_failures="$((guarded_delivery_refusal_failures + 1))"
   fi
 }
 
-check_task7_rollback_denial task7-receipt-schema-assertion \
-  "$task7_without_receipt_source_commit" "$task7_without_receipt_tree" \
-  "$task7_without_receipt_target_commit" "$task7_without_receipt_tree"
-export MAIL_OUTBOX_TASK7_RECEIPT_CAPABILITY="$task7_unrecognized_secret"
-check_task7_rollback_denial task7-receipt-ambient-claim \
-  "$task7_without_receipt_source_commit" "$task7_without_receipt_tree" \
-  "$task7_without_receipt_target_commit" "$task7_without_receipt_tree"
-unset MAIL_OUTBOX_TASK7_RECEIPT_CAPABILITY
-check_task7_rollback_denial task7-receipt-unrecognized-file \
-  "$task7_unrecognized_source_commit" "$task7_unrecognized_tree" \
-  "$task7_unrecognized_target_commit" "$task7_unrecognized_tree"
+check_guarded_delivery_refusal guarded-delivery-capability-missing \
+  "$guarded_delivery_missing_source_commit" "$guarded_delivery_boundary_tree" \
+  "$guarded_delivery_missing_target_commit" "$guarded_delivery_boundary_tree" \
+  'source image'
+check_guarded_delivery_refusal guarded-delivery-capability-tampered \
+  "$guarded_delivery_tampered_source_commit" "$guarded_delivery_tampered_tree" \
+  "$guarded_delivery_tampered_target_commit" "$guarded_delivery_tampered_tree" \
+  'source image'
+check_guarded_delivery_refusal guarded-delivery-previous-capability-missing \
+  "$guarded_delivery_missing_previous_source_commit" "$guarded_delivery_exact_tree" \
+  "$guarded_delivery_missing_target_commit" "$guarded_delivery_boundary_tree" \
+  'previous image'
+check_guarded_delivery_refusal guarded-delivery-previous-capability-tampered \
+  "$guarded_delivery_tampered_previous_source_commit" "$guarded_delivery_exact_tree" \
+  "$guarded_delivery_tampered_target_commit" "$guarded_delivery_tampered_tree" \
+  'previous image'
 
-(( task7_rollback_denial_failures == 0 )) || {
-  fail "$task7_rollback_denial_failures unsafe 0067 rollback cases reached work beyond quarantine or lacked the Task 7 receipt denial"
+(( guarded_delivery_refusal_failures == 0 )) || {
+  fail "$guarded_delivery_refusal_failures unsafe guarded delivery rollback cases reached mutation or lacked an explicit refusal"
 }
-echo "ok - rollback denies exact 0067 source and target trees until a reviewed Task 7 receipt capability exists"
-
+echo "ok - rollback fails closed for missing or tampered source and previous 0069 capabilities"
 set_rollback_git_evidence \
   "$dispatch_binding_unknown_capability_commit" "$dispatch_binding_unknown_capability_tree" \
   "$dispatch_binding_compatible_target_commit" "$dispatch_binding_compatible_target_tree"

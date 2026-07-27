@@ -4,13 +4,13 @@ import { acquireMigrationLock, runProductionMigration } from "../migrate-product
 
 vi.mock("../lib/reviewed-migration-ledger.mjs", () => ({
   verifyReviewedMigrationRepository: vi.fn(() => ({
-    entryCount: 68,
+    entryCount: 70,
     ledgerSha256: "a".repeat(64),
-    tailIndex: 67,
-    tailTag: "0067_mail_outbox_durable_replay_authority",
+    tailIndex: 69,
+    tailTag: "0069_mail_outbox_guarded_delivery_authority",
   })),
   verifyAppliedMigrationLedger: vi.fn(async () => ({
-    appliedCount: 68,
+    appliedCount: 70,
     complete: true,
     ledgerSha256: "a".repeat(64),
   })),
@@ -55,13 +55,13 @@ it("verifies the reviewed repository and applied ledger around the migration bou
   const migrate = vi.fn(async () => undefined);
   const migrationsFolder = "/reviewed/drizzle";
   const verifyReviewedMigrationRepository = vi.fn(() => ({
-    entryCount: 68,
+    entryCount: 70,
     ledgerSha256: "a".repeat(64),
-    tailIndex: 67,
-    tailTag: "0067_mail_outbox_durable_replay_authority",
+    tailIndex: 69,
+    tailTag: "0069_mail_outbox_guarded_delivery_authority",
   }));
   const verifyAppliedMigrationLedger = vi.fn(async () => ({
-    appliedCount: 68,
+    appliedCount: 70,
     complete: true,
     ledgerSha256: "a".repeat(64),
   }));

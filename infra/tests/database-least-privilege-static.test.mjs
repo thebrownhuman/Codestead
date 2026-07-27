@@ -4,27 +4,30 @@ import path from "node:path";
 import test from "node:test";
 
 import {
-  REVIEWED_APPLICATION_FUNCTIONS,
+  REVIEWED_0069_APPLICATION_FUNCTIONS,
   REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES,
   reviewedApplicationFunctionPrivilegesSql,
 } from "../../scripts/bootstrap-database-roles.mjs";
 
-const REVIEWED_PHASE_0067 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.at(-1);
-assert.equal(REVIEWED_PHASE_0067?.index, 67);
+const REVIEWED_PHASE_0069 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
+  ({ index }) => index === 69,
+);
+assert.equal(REVIEWED_PHASE_0069?.index, 69);
 const root = path.resolve(import.meta.dirname, "../..");
 const read = (file) => readFileSync(path.join(root, file), "utf8");
 
 function serviceBlock(compose, name) {
   const escapedName = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-  const serviceMatch = new RegExp(
-    `^  ${escapedName}:\\s*$`,
-    "mu",
-  ).exec(compose);
+  const serviceMatch = new RegExp(`^  ${escapedName}:\\s*$`, "mu").exec(
+    compose,
+  );
   assert.ok(serviceMatch, `missing Compose service ${name}`);
   const start = serviceMatch.index;
   const remainder = compose.slice(start + 1);
   const next = remainder.search(/^  [a-zA-Z0-9][a-zA-Z0-9-]*:\s*$/mu);
-  return next === -1 ? compose.slice(start) : compose.slice(start, start + 1 + next);
+  return next === -1
+    ? compose.slice(start)
+    : compose.slice(start, start + 1 + next);
 }
 
 function databaseSecretTargets(block) {
@@ -76,11 +79,16 @@ test("Compose mounts the exact database credential matrix", () => {
     lifecycle: ["database_ops_url:database_url"],
     "platform-seed": ["database_ops_url:database_url"],
     "admin-bootstrap": ["database_ops_url:database_url"],
-    "backup-status-reporter": ["database_backup_reporter_url:database_backup_reporter_url"],
+    "backup-status-reporter": [
+      "database_backup_reporter_url:database_backup_reporter_url",
+    ],
   };
 
   for (const [service, mounts] of Object.entries(expected)) {
-    assert.deepEqual(databaseSecretTargets(serviceBlock(compose, service)), mounts);
+    assert.deepEqual(
+      databaseSecretTargets(serviceBlock(compose, service)),
+      mounts,
+    );
   }
 });
 
@@ -89,21 +97,31 @@ test("PostgreSQL is fixed-user, capability-free, and custom-socket-only", () => 
   const postgres = serviceBlock(compose, "postgres");
   const prep = read("infra/ops/prepare-postgres-control-socket.sh");
 
-  assert.match(postgres, /user: "\$\{POSTGRES_UID:\?[^}]+\}:\$\{POSTGRES_GID:\?[^}]+\}"/u);
+  assert.match(
+    postgres,
+    /user: "\$\{POSTGRES_UID:\?[^}]+\}:\$\{POSTGRES_GID:\?[^}]+\}"/u,
+  );
   assert.match(postgres, /cap_drop:\s*\r?\n\s+- ALL/u);
   assert.match(postgres, /pg_isready -h \/run\/learncoding-postgres/u);
   assert.doesNotMatch(prep, /expected_uid=999|expected_gid=999/u);
   assert.match(prep, /POSTGRES_UID/u);
   assert.match(prep, /POSTGRES_GID/u);
   assert.match(prep, /find[^\n]+-xdev/u);
-  assert.match(prep, /realpath[^\n]+--canonicalize-existing[^\n]+--no-symlinks/u);
+  assert.match(
+    prep,
+    /realpath[^\n]+--canonicalize-existing[^\n]+--no-symlinks/u,
+  );
   assert.match(prep, /canonical_data_root[^\n]+==[^\n]+data_root/u);
   assert.doesNotMatch(prep, /findmnt[^\n]*\|\| true/u);
 
   const unit = read("infra/systemd/learncoding-compose.service");
   const guardedStart = read("infra/ops/start-production-stack.sh");
-  const starts = [...unit.matchAll(/^ExecStart=(.+)$/gmu)].map((match) => match[1]);
-  const reloads = [...unit.matchAll(/^ExecReload=(.+)$/gmu)].map((match) => match[1]);
+  const starts = [...unit.matchAll(/^ExecStart=(.+)$/gmu)].map(
+    (match) => match[1],
+  );
+  const reloads = [...unit.matchAll(/^ExecReload=(.+)$/gmu)].map(
+    (match) => match[1],
+  );
   const pinned = "/usr/bin/env PATH=/usr/sbin:/usr/bin:/sbin:/bin";
   const guardedCommand = `${pinned} /usr/bin/bash /opt/learncoding/infra/ops/start-production-stack.sh --startup-wait 600`;
   assert.deepEqual(starts, [guardedCommand]);
@@ -123,7 +141,7 @@ test("PostgreSQL is fixed-user, capability-free, and custom-socket-only", () => 
     'run_with_deadline 120 "$bash_bin" "$postgres_preparer"',
   );
   const prepareObjects = guardedStart.indexOf(
-    "NODE_OPTIONS='' run_with_deadline 120 \"$node_bin\" \"$object_preparer\"",
+    'NODE_OPTIONS=\'\' run_with_deadline 120 "$node_bin" "$object_preparer"',
   );
   const fullValidation = guardedStart.indexOf(
     'run_with_deadline 120 "$bash_bin" "$validator" ||',
@@ -160,20 +178,19 @@ test("bootstrap and migration share the administration lock without broad reassi
 
 test("bootstrap preserves exact reviewed application routine grants", () => {
   const bootstrap = read("scripts/bootstrap-database-roles.mjs");
-  const reviewedGrantSql = reviewedApplicationFunctionPrivilegesSql(
-    REVIEWED_PHASE_0067,
-  );
-  const opsRoutineSignatures = REVIEWED_APPLICATION_FUNCTIONS.filter(
+  const reviewedGrantSql =
+    reviewedApplicationFunctionPrivilegesSql(REVIEWED_PHASE_0069);
+  const opsRoutineSignatures = REVIEWED_0069_APPLICATION_FUNCTIONS.filter(
     ({ allowedRoles }) => allowedRoles.includes("learncoding_ops"),
   ).map(({ signature }) => signature);
 
   assert.deepEqual(opsRoutineSignatures, [
-    "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
     "public.email_outbox_idempotency_coverage_authority(uuid[])",
+    "public.redact_quarantined_email_outbox_authority_v2(timestamp with time zone,integer)",
   ]);
   assert.match(
     reviewedGrantSql,
-    /grant execute on function public\.redact_unresolved_email_outbox_authority\(timestamp with time zone,integer\) to learncoding_ops/iu,
+    /grant execute on function public\.redact_quarantined_email_outbox_authority_v2\(timestamp with time zone,integer\) to learncoding_ops/iu,
   );
   assert.match(
     reviewedGrantSql,
@@ -187,7 +204,39 @@ test("bootstrap preserves exact reviewed application routine grants", () => {
     reviewedGrantSql,
     /grant execute on function public\.backup_status_mail_authorized\(uuid\) to learncoding_worker/iu,
   );
-  assert.match(bootstrap, /has_function_privilege\(0, p\.oid, 'EXECUTE'\)[\s\S]+is distinct from exists/iu);
+  assert.match(
+    reviewedGrantSql,
+    /grant execute on function public\.mail_delivery_release_receipt_sha256\(uuid,uuid,text,text,text,text\) to learncoding_worker/iu,
+  );
+  assert.match(
+    reviewedGrantSql,
+    /grant execute on function public\.release_email_outbox_delivery\(uuid,uuid,text,text,text\) to learncoding_app/iu,
+  );
+  assert.match(
+    reviewedGrantSql,
+    /grant execute on function public\.release_email_outbox_delivery\(uuid,uuid,text,text,text\) to learncoding_worker/iu,
+  );
+  assert.match(
+    reviewedGrantSql,
+    /grant execute on function public\.verify_email_outbox_delivery_release\(uuid,uuid,text,text,text\) to learncoding_app/iu,
+  );
+  assert.match(
+    reviewedGrantSql,
+    /grant execute on function public\.attest_email_outbox_delivery_release_lineage\(text\) to learncoding_worker/iu,
+  );
+  assert.match(
+    reviewedGrantSql,
+    /pg_catalog\.aclexplode\(\s*coalesce\(\s*routine\.proacl,\s*pg_catalog\.acldefault\('f', routine\.proowner\)\s*\)\s*\)/iu,
+  );
+  assert.match(reviewedGrantSql, /revoke all on function %s from %I cascade/iu);
+  assert.match(
+    reviewedGrantSql,
+    /revoke all on function %s from public cascade/iu,
+  );
+  assert.match(
+    bootstrap,
+    /has_function_privilege\(0, p\.oid, 'EXECUTE'\)[\s\S]+is distinct from exists/iu,
+  );
   assert.match(bootstrap, /routine_security_exact/u);
 });
 
@@ -195,14 +244,40 @@ test("mail worker outbox grants allow queue state changes but deny payload mutat
   const bootstrap = read("scripts/bootstrap-database-roles.mjs");
   const migration = read("drizzle/0061_mail_worker_outbox_privileges.sql");
 
+  assert.match(
+    bootstrap,
+    /revoke all on table public\.email_outbox from learncoding_app, learncoding_worker, learncoding_ops/iu,
+  );
+  assert.match(
+    bootstrap,
+    /grant select on table public\.email_outbox to learncoding_app, learncoding_worker, learncoding_ops/iu,
+  );
+  assert.match(
+    migration,
+    /revoke all on table public\.email_outbox from learncoding_worker/iu,
+  );
+  assert.match(
+    migration,
+    /grant select on table public\.email_outbox to learncoding_worker/iu,
+  );
   for (const source of [bootstrap, migration]) {
-    assert.match(source, /revoke all on table public\.email_outbox from learncoding_worker/iu);
-    assert.match(source, /grant select on table public\.email_outbox to learncoding_worker/iu);
-    assert.match(source, /grant insert \([^)]+\)[\s\S]+public\.email_outbox to learncoding_worker/iu);
-    assert.match(source, /grant update \([^)]+\)[\s\S]+public\.email_outbox to learncoding_worker/iu);
-    assert.doesNotMatch(source, /grant (delete|truncate) on table public\.email_outbox to learncoding_worker/iu);
+    assert.match(
+      source,
+      /grant insert \([^)]+\)[\s\S]+public\.email_outbox to learncoding_worker/iu,
+    );
+    assert.match(
+      source,
+      /grant update \([^)]+\)[\s\S]+public\.email_outbox to learncoding_worker/iu,
+    );
+    assert.doesNotMatch(
+      source,
+      /grant (delete|truncate) on table public\.email_outbox to learncoding_worker/iu,
+    );
   }
-  assert.doesNotMatch(migration, /grant update \([^)]*(variables|to_email|template|user_id)/iu);
+  assert.doesNotMatch(
+    migration,
+    /grant update \([^)]*(variables|to_email|template|user_id)/iu,
+  );
 });
 
 test("release brackets migration with canonical role reconciliation", () => {
@@ -211,7 +286,9 @@ test("release brackets migration with canonical role reconciliation", () => {
   const postgresVersion = release.indexOf(
     'current_stage="postgres-version-authority"',
   );
-  const sessions = release.indexOf('current_stage="reject-residual-database-sessions"');
+  const sessions = release.indexOf(
+    'current_stage="reject-residual-database-sessions"',
+  );
   const roles = release.indexOf('current_stage="database-role-bootstrap"');
   const probes = release.indexOf('current_stage="database-negative-probes"');
   const migrate = release.indexOf('current_stage="migrate"');
@@ -238,16 +315,17 @@ test("release brackets migration with canonical role reconciliation", () => {
 test("post-migration reconciliation is an app-rollback-eligible stage", () => {
   const rollback = read("infra/ops/rollback-production.sh");
 
-  assert.match(rollback, /migrate\|database-role-reconciliation\|platform-seed/u);
+  assert.match(
+    rollback,
+    /migrate\|database-role-reconciliation\|platform-seed/u,
+  );
 });
 
 test("restore reconstructs owner and ACL topology and smokes restricted roles", () => {
   const restore = read("scripts/backup/restore-drill-isolated.sh");
   const restoreCompose = read("infra/restore/restore-drill.compose.yaml");
 
-  const restoreVersion = restore.indexOf(
-    "codestead-restore-drill-pg-major-v1",
-  );
+  const restoreVersion = restore.indexOf("codestead-restore-drill-pg-major-v1");
   const firstBootstrap = restore.indexOf(
     "restore_one_shot database-role-bootstrap",
   );
@@ -287,8 +365,13 @@ test("operator PostgreSQL clients name the custom socket", () => {
     const source = read(file);
     const clientLines = source
       .split(/\r?\n/u)
-      .filter((line) => /\b(pg_dump|pg_restore|psql|createdb|dropdb|pg_isready)\b/u.test(line));
-    assert.ok(clientLines.length > 0, `${file} must contain a PostgreSQL client`);
+      .filter((line) =>
+        /\b(pg_dump|pg_restore|psql|createdb|dropdb|pg_isready)\b/u.test(line),
+      );
+    assert.ok(
+      clientLines.length > 0,
+      `${file} must contain a PostgreSQL client`,
+    );
     for (const line of clientLines) {
       assert.match(
         line,

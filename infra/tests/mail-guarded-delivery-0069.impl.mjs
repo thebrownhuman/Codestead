@@ -251,12 +251,16 @@ function captureMigrationManifest(limit) {
 }
 
 function captureRuntimeProofInputs() {
-  const migrationsThrough0068 = captureMigrationManifest(68);
-  const candidate = captureUtf8File(
-    path.join(
-      migrationDirectory,
-      "0069_mail_outbox_guarded_delivery_authority.sql",
-    ),
+  const migrationsThrough0069 = captureMigrationManifest(69);
+  const candidate = migrationsThrough0069[69];
+  assert.ok(candidate !== undefined);
+  assert.equal(
+    candidate.tag,
+    "0069_mail_outbox_guarded_delivery_authority",
+  );
+  assert.equal(
+    path.basename(candidate.path),
+    "0069_mail_outbox_guarded_delivery_authority.sql",
   );
   const journal = JSON.parse(
     captureUtf8File(
@@ -265,14 +269,11 @@ function captureRuntimeProofInputs() {
   );
   assert.ok(Array.isArray(journal?.entries));
   return Object.freeze({
-    candidate: Object.freeze({
-      hash: candidate.hash,
-      sql: candidate.text,
-    }),
+    candidate,
     journalEntries: Object.freeze(
       journal.entries.map((entry) => Object.freeze({ ...entry })),
     ),
-    migrationsThrough0068,
+    migrationsThrough0069,
   });
 }
 
@@ -5697,49 +5698,43 @@ function runtimeDatabaseUrl(port, username) {
 
 function prepareRuntimeProofJournal(
   port,
-  migrationsThrough0068,
+  migrationsThrough0069,
   journalEntries,
 ) {
-  assert.equal(migrationsThrough0068.length, 69);
-  assert.equal(journalEntries.length, 68);
-  const reviewedEntries = journalEntries.map((entry, index) => {
-    const manifest = migrationsThrough0068[index];
-    assert.ok(manifest !== undefined);
-    assert.equal(entry.idx, index);
-    assert.equal(entry.version, "7");
-    assert.equal(entry.breakpoints, true);
-    assert.match(entry.tag, new RegExp(`^${String(index).padStart(4, "0")}_[a-z0-9_]+$`, "u"));
-    assert.ok(Number.isSafeInteger(entry.when) && entry.when > 0);
-    assert.equal(entry.tag, manifest.tag);
-    assert.match(manifest.hash, /^[0-9a-f]{64}$/u);
-    return Object.freeze({
-      createdAt: entry.when,
-      hash: manifest.hash,
-      id: index + 1,
-    });
-  });
-  assert.equal(reviewedEntries[66]?.createdAt, 1784997273087);
-  assert.equal(
-    reviewedEntries[66]?.hash,
-    "3d4962ed82c0209245ca7e0a0e9ea667001eab7ae864f89120894cc1fa915ec9",
-  );
-  assert.equal(reviewedEntries[67]?.createdAt, 1785002172253);
-  assert.equal(
-    reviewedEntries[67]?.hash,
-    "ccb3e093847fb875ded41ec0c36d0ff8405c04d1546ba9dd21696e86a73a6817",
-  );
-  const migration0068 = migrationsThrough0068[68];
-  assert.ok(migration0068 !== undefined);
-  assert.match(migration0068.hash, /^[0-9a-f]{64}$/u);
-  const candidateEntries = [
-    ...reviewedEntries,
-    Object.freeze({
-      createdAt: 1785005772253,
-      hash: migration0068.hash,
-      id: 69,
+  assert.equal(migrationsThrough0069.length, 70);
+  assert.equal(journalEntries.length, migrationsThrough0069.length);
+  const reviewedEntries = Object.freeze(
+    journalEntries.map((entry, index) => {
+      const manifest = migrationsThrough0069[index];
+      assert.ok(manifest !== undefined);
+      assert.equal(entry.idx, index);
+      assert.equal(entry.version, "7");
+      assert.equal(entry.breakpoints, true);
+      assert.match(
+        entry.tag,
+        new RegExp(
+          `^${String(index).padStart(4, "0")}_[a-z0-9_]+$`,
+          "u",
+        ),
+      );
+      assert.ok(Number.isSafeInteger(entry.when) && entry.when > 0);
+      assert.equal(entry.tag, manifest.tag);
+      assert.match(manifest.hash, /^[0-9a-f]{64}$/u);
+      return Object.freeze({
+        createdAt: entry.when,
+        hash: manifest.hash,
+        id: entry.idx + 1,
+      });
     }),
-  ];
-  const values = candidateEntries
+  );
+  const predecessorEntries = reviewedEntries.slice(0, -1);
+  const reviewedCandidate = reviewedEntries.at(-1);
+  const lastPredecessor = predecessorEntries.at(-1);
+  assert.ok(reviewedCandidate !== undefined);
+  assert.ok(lastPredecessor !== undefined);
+  assert.equal(reviewedCandidate.id, reviewedEntries.length);
+  assert.equal(reviewedCandidate.hash, migrationsThrough0069.at(-1)?.hash);
+  const values = predecessorEntries
     .map(({ createdAt, hash, id }) => `(${id}, '${hash}', ${createdAt})`)
     .join(",\n");
 
@@ -5771,7 +5766,7 @@ function prepareRuntimeProofJournal(
     VALUES ${values};
     SELECT pg_catalog.setval(
       'drizzle.__drizzle_migrations_id_seq'::pg_catalog.regclass,
-      69,
+      ${lastPredecessor.id},
       true
     );
   `,
@@ -5803,17 +5798,34 @@ function prepareRuntimeProofJournal(
        WHERE namespace.nspname = 'drizzle'
          AND relation.relname = '__drizzle_migrations';`,
     ),
-    "learncoding_owner|learncoding_owner|69|true|true|true",
+    `learncoding_owner|learncoding_owner|${predecessorEntries.length}|true|true|true`,
   );
+  return reviewedCandidate;
 }
 
-function recordRuntimeProofMigration(port, candidateSha256) {
-  assert.match(candidateSha256, /^[0-9a-f]{64}$/u);
+function recordRuntimeProofMigration(port, reviewedCandidate) {
+  assert.ok(
+    Number.isSafeInteger(reviewedCandidate.id) && reviewedCandidate.id > 0,
+  );
+  assert.match(reviewedCandidate.hash, /^[0-9a-f]{64}$/u);
+  assert.ok(
+    Number.isSafeInteger(reviewedCandidate.createdAt)
+      && reviewedCandidate.createdAt > 0,
+  );
   applyAsOwner(
     port,
     `
-    INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
-    VALUES ('${candidateSha256}', 1785009372253);
+    INSERT INTO drizzle.__drizzle_migrations (id, hash, created_at)
+    VALUES (
+      ${reviewedCandidate.id},
+      '${reviewedCandidate.hash}',
+      ${reviewedCandidate.createdAt}
+    );
+    SELECT pg_catalog.setval(
+      'drizzle.__drizzle_migrations_id_seq'::pg_catalog.regclass,
+      ${reviewedCandidate.id},
+      true
+    );
   `,
   );
   assert.equal(
@@ -5821,15 +5833,17 @@ function recordRuntimeProofMigration(port, candidateSha256) {
       port,
       database,
       `
-      SELECT pg_catalog.concat(
-        pg_catalog.count(*)::pg_catalog.text,
+      SELECT pg_catalog.concat_ws(
         '|',
-        pg_catalog.min(hash)
+        pg_catalog.count(*)::pg_catalog.text,
+        pg_catalog.min(id)::pg_catalog.text,
+        pg_catalog.min(hash),
+        pg_catalog.min(created_at)::pg_catalog.text
       )
         FROM drizzle.__drizzle_migrations
-       WHERE created_at = 1785009372253;`,
+       WHERE id = ${reviewedCandidate.id};`,
     ),
-    `1|${candidateSha256}`,
+    `1|${reviewedCandidate.id}|${reviewedCandidate.hash}|${reviewedCandidate.createdAt}`,
   );
 }
 
@@ -6135,8 +6149,9 @@ export async function main() {
   assert.match(version, new RegExp(`PostgreSQL\\) ${expectedMajor}\\.`, "u"));
 
   const runtimeProofInputs = captureRuntimeProofInputs();
-  const { candidate, journalEntries, migrationsThrough0068 } =
+  const { candidate, journalEntries, migrationsThrough0069 } =
     runtimeProofInputs;
+  const predecessorMigrations = migrationsThrough0069.slice(0, -1);
   const migration0069 = candidate.sql;
   const temporaryRoot = mkdtempSync(
     path.join(os.tmpdir(), `learncoding-mail-guarded-0069-pg${expectedMajor}-`),
@@ -6235,12 +6250,12 @@ export async function main() {
       database,
     ]);
 
-    for (const migration of migrationsThrough0068) {
+    for (const migration of predecessorMigrations) {
       applyAsOwner(port, migration.sql);
     }
-    prepareRuntimeProofJournal(
+    const reviewedCandidate = prepareRuntimeProofJournal(
       port,
-      migrationsThrough0068,
+      migrationsThrough0069,
       journalEntries,
     );
     poison0069Acl(port);
@@ -6251,7 +6266,7 @@ export async function main() {
     proveDrainedBacklogRollback(port, migration0069, temporaryRoot);
     proveLateCatalogRollback(port, migration0069, temporaryRoot);
     applyAsOwner(port, migration0069);
-    recordRuntimeProofMigration(port, candidate.hash);
+    recordRuntimeProofMigration(port, reviewedCandidate);
     assertCatalogAndAcl(port);
     proveLineageAttestor(port, candidate.hash);
     applyAsOwnerFromFile(

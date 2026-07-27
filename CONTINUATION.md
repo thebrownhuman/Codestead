@@ -1,5 +1,20 @@
 # Codestead continuation handoff
 
+## Current superseding checkpoint - 2026-07-27 (Task 8)
+
+This section supersedes the older task and Git state below; the historical material remains for provenance.
+
+- Active branch: `main`; the Task 8 completion commit is the commit containing this update, based on the pushed Task 7 commit `7eeafd73c5d41ea49526d908165e0a7cefa92097` (`feat(mail): complete guarded exact-byte delivery`).
+- Task 8 registers `0068_mail_outbox_quarantine_redaction_authority_v2` and `0069_mail_outbox_guarded_delivery_authority` as contiguous reviewed migrations. The Drizzle journal now contains 70 entries, both successor snapshots are chained and pinned, the raw SQL hashes and aggregate reviewed-ledger digest are regenerated, and exact-final registration rejects unreviewed suffixes or conditional/skipped PostgreSQL gates.
+- Bootstrap, role-boundary, restore, and release verification now reconcile and fail closed on the exact 0068/0069 relations, columns, routines, owners, `SECURITY DEFINER` settings, search paths, ACLs, capability blobs, and authenticated-role behavior. The catalog-based negative privilege probes no longer depend on PostgreSQL object-`GRANT` throwing an error.
+- Release and rollback bind the exact candidate and previous Git commit/tree/mode/blob to the canonical five-line 0069 capability, retain V4 evidence, reject forward-incompatible rollback, and validate guarded-delivery authority before any non-quarantine Docker action. Their UID-0 test harnesses use a private exact `safe.directory` config and deterministic local object fixtures rather than ambient trust or promisor fetches.
+- Frozen local verification passed under Node 22.23.1: migration and CI registration through 0069; role-contract suites (0064 4/4, 0066 5/5, 0067 40/40, 0068 3/3, 0069 5/5); database-role boundaries 45/45; writer inventory 26/26 (`runtime:5:catalog:1:delegated:1`); focused least-privilege/static checks 17/17; focused Vitest checks 117/117; full typecheck; changed-file ESLint; static deployment validation; Bash syntax; ShellCheck; documentation SHA manifests; and `git diff --check`.
+- Native PostgreSQL 18.1 disposable-cluster gates passed with the sole application markers `mail_quarantine_redaction_0068=PASS` and `mail_guarded_delivery_0069=PASS`. The host PostgreSQL listener on port 5432 was not used or stopped, and each disposable listener/process/temp root was verified absent after cleanup.
+- Authentic UID-0 release and rollback behavioral suites passed 44/44 and 42/42 cases respectively. The tests prove exact capability lineage, quarantine-before-mutation ordering, V4 evidence retention, previous-image refusal paths, exact-object rollback fixtures, pointer immutability on failure, and successful recovery-state publication.
+- PostgreSQL 17 is not installed locally and is not claimed. The pushed CI run must prove the registered PostgreSQL 17 and 18 sequences before Task 8 is accepted. Repository-wide lint and secret scans exceeded the 60-second no-progress limit and were terminated, so those runs are `UNKNOWN`, not green; bounded changed-file checks passed and Task 10 still owns the complete release-gate run and repair pass.
+- The next numbered lane is Task 9: execute the registered live concurrency/deletion race matrix. Task 10 then runs the complete release gates, and P3-2 broad app/ops database privileges remain open for technical narrowing or explicit release-specific risk acceptance.
+- Real Gmail, NUC, Cloudflare, Google Drive, reboot, and supervised power-cut evidence remains external and unproven. Repository evidence does not make the product production-ready.
+
 ## Current superseding checkpoint - 2026-07-27 (Task 7)
 
 This section supersedes the older task and Git state below; the historical material remains for provenance.

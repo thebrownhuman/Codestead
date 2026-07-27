@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { postgresCiProjectionThrough0067 } from "./mail-durable-replay-0067-ci-contract.mjs";
+import { postgresCiProjectionThrough0069 } from "./mail-guarded-delivery-0069-ci-contract.mjs";
 import {
   assertPostgresCiProjectionContract,
   projectPostgresCiProjectionContract,
@@ -523,6 +523,12 @@ function normalizeWorkflow(document) {
 }
 
 const registrationRun = "node infra/tests/backup-ci-registration.test.mjs";
+const releaseRollbackRun =
+  "npm run test:mail-guarded-delivery-0069:release-rollback";
+const releaseProductionRun =
+  'sudo -n env "PATH=$PATH" bash infra/tests/release-production.test.sh';
+const rollbackProductionRun =
+  'sudo -n env "PATH=$PATH" bash infra/tests/rollback-production.test.sh';
 const shellSyntaxRun = "bash -n scripts/backup/*.sh infra/tests/*.sh";
 const pythonSyntaxRun =
   "python3 -m py_compile scripts/backup/run-managed-deadline.py infra/tests/managed-deadline-stop-channel-linux.py";
@@ -565,6 +571,8 @@ const requiredBackupRuns = [
 ];
 const expectedApplicationRuns = [
   "npm ci",
+  registrationRun,
+  releaseRollbackRun,
   "npm run test:migration-ledger",
   "npm run test:email-outbox-writer-inventory",
   "npm run production-load:ci-registration",
@@ -641,8 +649,8 @@ const expectedApplicationRuns = [
   "sudo bash infra/tests/systemd-recovery.test.sh",
   "bash infra/ops/install-compose-ci.sh",
   "bash infra/tests/smoke-production.test.sh",
-  "bash infra/tests/release-production.test.sh",
-  "bash infra/tests/rollback-production.test.sh",
+  releaseProductionRun,
+  rollbackProductionRun,
   "REQUIRE_COMPOSE_MAJOR=5 bash infra/tests/compose-release-cli-contract.test.sh",
   "bash infra/tests/runner-reconciliation.test.sh",
   "bash infra/tests/runtime-validator-network-fixture.test.sh",
@@ -784,7 +792,7 @@ function runtimeEvidenceUploadProjection(artifactName) {
 }
 
 const canonicalPostgresProjection = projectPostgresCiProjectionContract(
-  postgresCiProjectionThrough0067,
+  postgresCiProjectionThrough0069,
 );
 const reviewedJobContracts = new Map([
   [
@@ -890,6 +898,8 @@ const reviewedJobContracts = new Map([
       "      - run: npm run test:mail-dispatch-binding-0064:roles",
       "      - run: npm run test:mail-provider-correlation-0066:roles",
       "      - run: npm run test:mail-durable-replay-0067:roles",
+      "      - run: npm run test:mail-retention-redaction-0068:roles",
+      "      - run: npm run test:mail-guarded-delivery-0069:roles",
       canonicalPostgresProjection.livePg17IntegrationLine,
       canonicalPostgresProjection.dockerPg17PullLine,
       "      - run: docker pull node:22.23.1-alpine3.23@sha256:4848379985144e72c7537574c1a894d4ec096704b21ce45e5eee386be9fab737",
@@ -1097,7 +1107,7 @@ function requireCanonicalPostgresCiCrossGuard(blocks) {
     ).join("\n");
     assertPostgresCiProjectionContract(
       projection,
-      postgresCiProjectionThrough0067,
+      postgresCiProjectionThrough0069,
     );
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
@@ -1493,7 +1503,8 @@ function withBackupJobLine(document, line) {
 }
 
 function withBackupStepProperty(document, property) {
-  const anchor = `      - run: ${registrationRun}\n`;
+  const anchor =
+    `          cache: npm\n      - run: ${registrationRun}\n`;
   return replaceExactly(document, anchor, `${anchor}        ${property}\n`);
 }
 
@@ -1501,6 +1512,17 @@ function withApplicationRun(document, command) {
   const anchor =
     "      - run: bash infra/tests/runner-reconciliation.test.sh\n";
   return replaceExactly(document, anchor, `      - run: ${command}\n${anchor}`);
+}
+
+function withApplicationJobLine(document, line) {
+  const anchor = "  application:\n";
+  return replaceExactly(document, anchor, `${anchor}${line}\n`);
+}
+
+function withApplicationStepProperty(document, property) {
+  const anchor =
+    `      - run: npm ci\n      - run: ${registrationRun}\n`;
+  return replaceExactly(document, anchor, `${anchor}        ${property}\n`);
 }
 
 function withRunnerRun(document, command) {
@@ -1851,9 +1873,12 @@ function runAdversarialSelfTests(document) {
   for (const line of [
     "    if: false",
     '    "if": false',
+    "    'if': false",
+    "    if : false",
     "    needs: application",
     '    "needs": application',
     "    <<: *skip-backup",
+    "    << : *skip-backup",
     "    runs-on: ubuntu-24.04",
   ]) {
     expectRejected(
@@ -1864,14 +1889,147 @@ function runAdversarialSelfTests(document) {
   for (const property of [
     "if: false",
     '"if": false',
+    "'if': false",
+    "if : false",
     "continue-on-error: true",
     '"continue-on-error": true',
+    "<<: *skip-backup-step",
+    "<< : *skip-backup-step",
   ]) {
     expectRejected(
       `backup step control ${property}`,
       withBackupStepProperty(document, property),
     );
   }
+  for (const line of [
+    "    if: false",
+    '    "if": false',
+    "    'if': false",
+    "    if : false",
+    "    needs: postgres-integration",
+    '    "needs": postgres-integration',
+    "    continue-on-error: true",
+    "    <<: *skip-application",
+    "    << : *skip-application",
+  ]) {
+    expectRejected(
+      `application job control ${line}`,
+      withApplicationJobLine(document, line),
+    );
+  }
+  for (const property of [
+    "if: false",
+    '"if": false',
+    "'if': false",
+    "if : false",
+    "continue-on-error: true",
+    '"continue-on-error": true',
+    "working-directory: /tmp",
+    "<<: *skip-application-step",
+    "<< : *skip-application-step",
+  ]) {
+    expectRejected(
+      `application cross-guard step control ${property}`,
+      withApplicationStepProperty(document, property),
+    );
+  }
+  const applicationGateSequence = [
+    "      - run: npm ci",
+    `      - run: ${registrationRun}`,
+    `      - run: ${releaseRollbackRun}`,
+    "      - run: npm run test:migration-ledger",
+  ].join("\n");
+  expectRejected(
+    "missing application backup cross-guard",
+    replaceExactly(
+      document,
+      applicationGateSequence,
+      [
+        "      - run: npm ci",
+        `      - run: ${releaseRollbackRun}`,
+        "      - run: npm run test:migration-ledger",
+      ].join("\n"),
+    ),
+  );
+  expectRejected(
+    "duplicate application backup cross-guard",
+    replaceExactly(
+      document,
+      applicationGateSequence,
+      applicationGateSequence.replace(
+        `      - run: ${registrationRun}`,
+        `      - run: ${registrationRun}\n      - run: ${registrationRun}`,
+      ),
+    ),
+  );
+  expectRejected(
+    "missing application 0069 release rollback gate",
+    replaceExactly(
+      document,
+      `      - run: ${releaseRollbackRun}\n`,
+      "",
+    ),
+  );
+  expectRejected(
+    "reordered application cross-guards",
+    replaceExactly(
+      document,
+      applicationGateSequence,
+      [
+        "      - run: npm ci",
+        `      - run: ${releaseRollbackRun}`,
+        `      - run: ${registrationRun}`,
+        "      - run: npm run test:migration-ledger",
+      ].join("\n"),
+    ),
+  );
+
+  for (const [label, reviewed, unsafe] of [
+    [
+      "release",
+      releaseProductionRun,
+      "bash infra/tests/release-production.test.sh",
+    ],
+    [
+      "rollback",
+      rollbackProductionRun,
+      "bash infra/tests/rollback-production.test.sh",
+    ],
+    [
+      "release sudo without non-interactive mode",
+      releaseProductionRun,
+      'sudo env "PATH=$PATH" bash infra/tests/release-production.test.sh',
+    ],
+    [
+      "rollback sudo without sanitized PATH carrier",
+      rollbackProductionRun,
+      "sudo -n bash infra/tests/rollback-production.test.sh",
+    ],
+  ]) {
+    expectRejected(
+      `unsafe ${label} application fixture`,
+      replaceExactly(
+        document,
+        `      - run: ${reviewed}`,
+        `      - run: ${unsafe}`,
+      ),
+    );
+  }
+  expectRejected(
+    "reordered privileged release and rollback fixtures",
+    replaceExactly(
+      document,
+      [
+        `      - run: ${releaseProductionRun}`,
+        `      - run: ${rollbackProductionRun}`,
+      ].join("\n"),
+      [
+        `      - run: ${rollbackProductionRun}`,
+        `      - run: ${releaseProductionRun}`,
+      ].join("\n"),
+    ),
+  );
+
   for (const fixture of rootRequiredFixtures) {
     const reviewedRun = `      - run: ${rootFixtureRun(fixture)}`;
     expectRejected(
@@ -1924,12 +2082,14 @@ function runAdversarialSelfTests(document) {
 
   for (const indicator of ["|", "|-", "|+", ">", ">-", ">+"]) {
     const registrationStep = `      - run: ${registrationRun}`;
+    const backupRegistrationAnchor =
+      `          cache: npm\n${registrationStep}`;
     expectRejected(
       `backup ${indicator} block scalar`,
       replaceExactly(
         document,
-        registrationStep,
-        `      - run: ${indicator} # must be rejected\n          echo bypass\n${registrationStep}`,
+        backupRegistrationAnchor,
+        `          cache: npm\n      - run: ${indicator} # must be rejected\n          echo bypass\n${registrationStep}`,
       ),
     );
   }

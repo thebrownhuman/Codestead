@@ -104,7 +104,7 @@ test("0069 selects exactly one native major and isolates libpq", () => {
 
 test("0069 applies the contiguous raw ledger, tamper-probes, and replays", () => {
   for (const marker of [
-    "captureMigrationManifest(68)",
+    "captureMigrationManifest(69)",
     "0069_mail_outbox_guarded_delivery_authority.sql",
     "provePredecessorTamperRollback",
     "enforce_email_outbox_delivery_hold",
@@ -117,7 +117,7 @@ test("0069 applies the contiguous raw ledger, tamper-probes, and replays", () =>
     implementation.indexOf("export async function main()"),
   );
   const ordered = [
-    "for (const migration of migrationsThrough0068)",
+    "for (const migration of predecessorMigrations)",
     "proveInheritedAclTamperRollback(port, migration0069, temporaryRoot)",
     "proveDigestHelperTamperRollback(port, migration0069, temporaryRoot)",
     "seedAdministrator(port)",
@@ -445,8 +445,11 @@ test("0069 runs the strict production runtime proof after final replay repair", 
   assert.match(journal, /CREATE TABLE drizzle[.]__drizzle_migrations/u);
   assert.match(journal, /REVOKE ALL ON SCHEMA drizzle/u);
   assert.match(journal, /REVOKE ALL ON TABLE drizzle[.]__drizzle_migrations/u);
-  assert.match(journal, /1784997273087/u);
-  assert.match(journal, /1785002172253/u);
+  assert.match(journal, /journalEntries[.]length,\s*migrationsThrough0069[.]length/u);
+  assert.match(journal, /reviewedEntries[.]slice[(]0,\s*-1[)]/u);
+  assert.match(journal, /reviewedEntries[.]at[(]-1[)]/u);
+  assert.match(journal, /return reviewedCandidate/u);
+  assert.doesNotMatch(journal, /178[0-9]{10}/u);
   assert.doesNotMatch(journal, /readFileSync|createHash/u);
   assert.match(capture, /readFileSync/u);
   assert.match(capture, /Buffer[.]from[(]text,\s*"utf8"[)]/u);
@@ -457,8 +460,10 @@ test("0069 runs the strict production runtime proof after final replay repair", 
   assert.match(journal, /has_table_privilege/u);
   assert.match(journal, /assert[.]equal/u);
   assert.doesNotMatch(record, /readFileSync|createHash/u);
-  assert.match(record, /candidateSha256/u);
-  assert.match(record, /1785009372253/u);
+  for (const field of ["id", "hash", "createdAt"]) {
+    assert.ok(record.includes(`reviewedCandidate.${field}`));
+  }
+  assert.doesNotMatch(record, /178[0-9]{10}/u);
   assert.match(record, /INSERT INTO drizzle[.]__drizzle_migrations/u);
   assert.match(record, /assert[.]equal/u);
   assert.match(prepare, /"0[|]0"/u);
@@ -629,7 +634,7 @@ test("0069 runs the strict production runtime proof after final replay repair", 
   const journalPrepared = main.indexOf("prepareRuntimeProofJournal(");
   const migrationApplied = main.indexOf("applyAsOwner(port, migration0069);");
   const migrationRecorded = main.indexOf(
-    "recordRuntimeProofMigration(port, candidate.hash);",
+    "recordRuntimeProofMigration(port, reviewedCandidate);",
     migrationApplied,
   );
   const prepared = main.indexOf("prepareRuntimeProofState(port);", repaired);

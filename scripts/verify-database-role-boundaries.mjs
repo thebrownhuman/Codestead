@@ -617,6 +617,26 @@ export async function verifyReviewedApplicationTriggers(
                    on attribute.attrelid = t.tgrelid
                   and attribute.attnum = watched.attnum
              ) is not distinct from $8::text[] watched_columns_exact,
+             ((t.tgconstraint <> 0) is not distinct from $9::boolean)
+               constraint_exact,
+             (t.tgdeferrable is not distinct from $10::boolean)
+               deferrable_exact,
+             (t.tginitdeferred is not distinct from $11::boolean)
+               initially_deferred_exact,
+             (
+               case when $9::boolean then exists (
+                 select 1
+                   from pg_catalog.pg_constraint constraint_row
+                  where constraint_row.oid = t.tgconstraint
+                    and constraint_row.conrelid = t.tgrelid
+                    and constraint_row.conname = t.tgname
+                    and constraint_row.contype = 't'
+                    and constraint_row.condeferrable = $10::boolean
+                    and constraint_row.condeferred = $11::boolean
+               ) else t.tgconstraint = 0 end
+             ) constraint_catalog_exact,
+             (t.tgoldtable is null and t.tgnewtable is null)
+               transition_tables_exact,
              not t.tgisinternal reviewed_trigger_catalog_exact
         from pg_catalog.pg_trigger t
        where t.tgrelid = pg_catalog.to_regclass($1::text)::oid
@@ -630,6 +650,9 @@ export async function verifyReviewedApplicationTriggers(
         trigger.predicate,
         trigger.arguments,
         trigger.watchedColumns,
+        trigger.constraint === true,
+        trigger.deferrable === true,
+        trigger.initiallyDeferred === true,
       ],
     );
     if (
@@ -642,6 +665,11 @@ export async function verifyReviewedApplicationTriggers(
         predicate_exact: true,
         arguments_exact: true,
         watched_columns_exact: true,
+        constraint_exact: true,
+        deferrable_exact: true,
+        initially_deferred_exact: true,
+        constraint_catalog_exact: true,
+        transition_tables_exact: true,
         reviewed_trigger_catalog_exact: true,
       })
     )
@@ -674,8 +702,8 @@ export async function verifyMailReplayAuthorityTableContract(client) {
     deliveryScope.relation !== foreignKey.relation ||
     deliveryScope.columns.length !== 8 ||
     triggerRelations.length !== 2 ||
-    triggers.length !== 8 ||
-    routines.length !== 7 ||
+    triggers.length !== 9 ||
+    routines.length !== 8 ||
     new Set(triggers.map(({ name }) => name)).size !== triggers.length ||
     new Set(routines.map(({ signature }) => signature)).size !==
       routines.length ||
@@ -1724,14 +1752,14 @@ export async function verifyMailReplayAuthorityTableContract(client) {
            not exists (
              (
                select namespace.nspname || '.' || relation.relname,
-                      trigger.tgname
-                 from pg_catalog.pg_trigger trigger
+                      trigger_row.tgname
+                 from pg_catalog.pg_trigger trigger_row
                  join pg_catalog.pg_class relation
-                   on relation.oid = trigger.tgrelid
+                   on relation.oid = trigger_row.tgrelid
                  join pg_catalog.pg_namespace namespace
                    on namespace.oid = relation.relnamespace
-                where not trigger.tgisinternal
-                  and trigger.tgrelid = any(
+                where not trigger_row.tgisinternal
+                  and trigger_row.tgrelid = any(
                     select pg_catalog.to_regclass(reviewed_relation)::oid
                       from pg_catalog.unnest($66::text[])
                            reviewed(reviewed_relation)
@@ -1748,14 +1776,14 @@ export async function verifyMailReplayAuthorityTableContract(client) {
                       expected(relation text, name text)
                except all
                select namespace.nspname || '.' || relation.relname,
-                      trigger.tgname
-                 from pg_catalog.pg_trigger trigger
+                      trigger_row.tgname
+                 from pg_catalog.pg_trigger trigger_row
                  join pg_catalog.pg_class relation
-                   on relation.oid = trigger.tgrelid
+                   on relation.oid = trigger_row.tgrelid
                  join pg_catalog.pg_namespace namespace
                    on namespace.oid = relation.relnamespace
-                where not trigger.tgisinternal
-                  and trigger.tgrelid = any(
+                where not trigger_row.tgisinternal
+                  and trigger_row.tgrelid = any(
                     select pg_catalog.to_regclass(reviewed_relation)::oid
                       from pg_catalog.unnest($66::text[])
                            reviewed(reviewed_relation)
@@ -2189,6 +2217,7 @@ export async function verifyMailWorkerOutboxContract(
     requiresProviderEvidence = false,
     requiresReplayAuthority = false,
     requiresProviderRequest = false,
+    requiresGuardedDelivery = false,
   } = {},
 ) {
   if (
@@ -2196,9 +2225,11 @@ export async function verifyMailWorkerOutboxContract(
     typeof requiresProviderEvidence !== "boolean" ||
     typeof requiresReplayAuthority !== "boolean" ||
     typeof requiresProviderRequest !== "boolean" ||
+    typeof requiresGuardedDelivery !== "boolean" ||
     (requiresProviderEvidence && !requiresDispatchBinding) ||
     (requiresReplayAuthority && !requiresProviderEvidence) ||
-    (requiresProviderRequest && !requiresReplayAuthority)
+    (requiresProviderRequest && !requiresReplayAuthority) ||
+    (requiresGuardedDelivery && !requiresReplayAuthority)
   )
     fail();
   await establishTrustedCatalogSearchPath(client);
@@ -2787,7 +2818,302 @@ export async function verifyMailWorkerOutboxContract(
       expectedAppInsertColumns,
       expectedWorkerInsertColumns: expectedInsertColumns,
       expectedWorkerUpdateColumns: expectedUpdateColumns,
+      requiresGuardedDelivery,
     });
+  }
+  return 1;
+}
+async function verifyMailGuardedDeliveryCatalogContract(
+  client,
+  requiresGuardedDelivery,
+) {
+  const outboxColumns = [
+    ["delivery_release_insert_xid", 34, "xid8", false, null, true],
+    ["provider_request_body_sha256", 35, "text", false, null, true],
+    ["provider_request_body_length", 36, "bigint", false, null, true],
+    ["delivery_release_insert_system_identifier", 37, "bigint", false, null, true],
+  ];
+  const outboxConstraints = [
+    ["email_outbox_attempt_count_nonnegative", "c", ["attempt_count"], false, false, false, null, true, true],
+    ["email_outbox_delivery_release_insert_identity_valid", "c", ["delivery_release_insert_xid", "delivery_release_insert_system_identifier"], false, false, false, null, true, true],
+    ["email_outbox_delivery_release_parent_unique", "u", ["id", "operation_id"], false, false, true, "public.email_outbox_delivery_release_parent_unique", true, true],
+    ["email_outbox_provider_request_body_valid", "c", ["provider_request_body_sha256", "provider_request_body_length"], false, false, false, null, true, true],
+  ];
+  const receiptColumns = [
+    ["outbox_id", 1, "uuid", true, null, true],
+    ["operation_id", 2, "uuid", true, null, true],
+    ["idempotency_authority_version", 3, "text", true, null, true],
+    ["idempotency_authority_sha256", 4, "text", true, null, true],
+    ["idempotency_original_payload_sha256", 5, "text", true, null, true],
+    ["release_version", 6, "text", true, null, true],
+    ["release_receipt_sha256", 7, "text", true, null, true],
+    ["released_at", 8, "timestamp with time zone", true, "statement_timestamp()", true],
+  ];
+  const receiptConstraints = [
+    ["mail_delivery_release_receipt_authority_version_valid", "c", ["idempotency_authority_version", "idempotency_authority_sha256", "idempotency_original_payload_sha256"], false, false, false, "17258e40bf2d8255135dc1c7283f0afa789e55d103eaf6d64b68f9c9d92eaae4", true],
+    ["mail_delivery_release_receipt_digest_exact", "c", ["release_receipt_sha256", "outbox_id", "operation_id", "idempotency_authority_version", "idempotency_authority_sha256", "idempotency_original_payload_sha256", "release_version"], false, false, false, "e15d12ca6ebec8c01ebd06c12b6644ed98aed74f2324cefe79ee284a554d6921", true],
+    ["mail_delivery_release_receipt_digest_unique", "u", ["release_receipt_sha256"], false, false, true, "eac9079638de5b93751ad98ec465bcb8df523d896fec82a9a85becfb57e11e76", true],
+    ["mail_delivery_release_receipt_digest_valid", "c", ["release_receipt_sha256"], false, false, false, "f52f84f271dcc21c4f726913d18aa774aafcd5b319f2b3314159c416ac1e83f0", true],
+    ["mail_delivery_release_receipt_idempotency_authority_fk", "f", ["idempotency_authority_sha256", "idempotency_original_payload_sha256"], true, true, true, "69f0fb95c52b6cbc54abd0b2a4e444320899d2a0c75ee6865e4225af86de1561", true],
+    ["mail_delivery_release_receipt_operation_unique", "u", ["operation_id"], false, false, true, "ceda61a9e51c434fdd6437c1ee7697e3efca12a088f334255c0e095a310bc1db", true],
+    ["mail_delivery_release_receipt_outbox_fk", "f", ["outbox_id", "operation_id"], false, false, true, "a404224075eb2229356afced34903caa44c5621308b335ec68fa36104584cc4b", true],
+    ["mail_delivery_release_receipt_pkey", "p", ["outbox_id"], false, false, true, "66060e6653fde114e853a55e2ffe9b592976948dc2505d2d3190652c3d76b18f", true],
+    ["mail_delivery_release_receipt_release_version_valid", "c", ["release_version"], false, false, false, "0f1cc09b02197483a4caba15e736bd7552f393d76aa66040771183230014a48a", true],
+  ];
+  const receiptIndexes = [
+    ["mail_delivery_release_receipt_authority_fk_idx", ["idempotency_authority_sha256", "idempotency_original_payload_sha256"], false, false, true, true],
+    ["mail_delivery_release_receipt_digest_unique", ["release_receipt_sha256"], true, false, true, true],
+    ["mail_delivery_release_receipt_operation_unique", ["operation_id"], true, false, true, true],
+    ["mail_delivery_release_receipt_pkey", ["outbox_id"], true, true, true, true],
+  ];
+  const receiptForeignKeys = [
+    ["mail_delivery_release_receipt_idempotency_authority_fk", ["idempotency_authority_sha256", "idempotency_original_payload_sha256"], "public.email_outbox_idempotency_authority", ["idempotency_sha256", "original_payload_sha256"], "r", "r", "s", true, true, "public.email_outbox_idempotency_authority_payload_unique", "69f0fb95c52b6cbc54abd0b2a4e444320899d2a0c75ee6865e4225af86de1561", true],
+    ["mail_delivery_release_receipt_outbox_fk", ["outbox_id", "operation_id"], "public.email_outbox", ["id", "operation_id"], "r", "c", "s", false, false, "public.email_outbox_delivery_release_parent_unique", "a404224075eb2229356afced34903caa44c5621308b335ec68fa36104584cc4b", true],
+  ];
+  const result = await client.query(
+    `with outbox as (
+       select relation.* from pg_catalog.pg_class relation
+        where relation.oid = pg_catalog.to_regclass('public.email_outbox')
+     ), receipt as (
+       select relation.* from pg_catalog.pg_class relation
+        where relation.oid = pg_catalog.to_regclass('public.mail_delivery_release_receipt')
+     )
+     select
+       ((select pg_catalog.count(*) = 1 from outbox) and
+        ((select pg_catalog.count(*) from receipt) = case when $1::boolean then 1 else 0 end))
+         guarded_delivery_catalog_phase_exact,
+       case when $1::boolean then coalesce((
+         select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
+                  attribute.attname, attribute.attnum,
+                  pg_catalog.format_type(attribute.atttypid, attribute.atttypmod),
+                  attribute.attnotnull,
+                  pg_catalog.pg_get_expr(default_value.adbin, default_value.adrelid, true),
+                  attribute.attcollation = type_row.typcollation
+                    and attribute.attlen = type_row.typlen
+                    and attribute.attbyval = type_row.typbyval
+                    and attribute.attalign = type_row.typalign
+                    and attribute.attstorage = type_row.typstorage
+                    and attribute.attcompression = ''::"char"
+                    and attribute.attstattarget is null and attribute.attndims = 0
+                    and attribute.attidentity = '' and attribute.attgenerated = ''
+                    and not attribute.atthasmissing and attribute.attmissingval is null
+                    and attribute.attislocal and attribute.attinhcount = 0
+                    and attribute.attoptions is null and attribute.attfdwoptions is null
+                    and not attribute.attisdropped
+                ) order by attribute.attnum)
+           from outbox
+           join pg_catalog.pg_attribute attribute on attribute.attrelid = outbox.oid
+           join pg_catalog.pg_type type_row on type_row.oid = attribute.atttypid
+           left join pg_catalog.pg_attrdef default_value
+             on default_value.adrelid = attribute.attrelid and default_value.adnum = attribute.attnum
+          where attribute.attname = any(array[
+            'delivery_release_insert_xid','provider_request_body_sha256',
+            'provider_request_body_length','delivery_release_insert_system_identifier'
+          ]::text[])
+       ) = $2::jsonb, false) else not exists (
+         select 1 from outbox join pg_catalog.pg_attribute attribute on attribute.attrelid = outbox.oid
+          where attribute.attname = any(array[
+            'delivery_release_insert_xid','provider_request_body_sha256',
+            'provider_request_body_length','delivery_release_insert_system_identifier'
+          ]::text[]) and not attribute.attisdropped
+       ) end guarded_outbox_columns_exact,
+       case when $1::boolean then coalesce((
+         select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
+           constraint_row.conname, constraint_row.contype,
+           (select pg_catalog.jsonb_agg(attribute.attname order by key_column.ordinality)
+              from pg_catalog.unnest(constraint_row.conkey) with ordinality key_column(attnum, ordinality)
+              join pg_catalog.pg_attribute attribute
+                on attribute.attrelid = constraint_row.conrelid and attribute.attnum = key_column.attnum),
+           constraint_row.condeferrable, constraint_row.condeferred, constraint_row.connoinherit,
+           case when constraint_row.conindid = 0 then null else constraint_row.conindid::pg_catalog.regclass::text end,
+           case constraint_row.conname
+             when 'email_outbox_provider_request_body_valid' then pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(pg_catalog.pg_get_constraintdef(constraint_row.oid, false), 'UTF8')), 'hex') = '73b1dd1a15655f3bc1e08516f98eccf0abed9511d3b4eb7e8bc52e1860ec0afc'
+             when 'email_outbox_delivery_release_parent_unique' then pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(pg_catalog.pg_get_constraintdef(constraint_row.oid, false), 'UTF8')), 'hex') = '2f5fa6b88fc8018a513ab5b1c5e1cf4c6f882c4463a08e04b8916f0ddd484b2b'
+             else constraint_row.conbin is not null end,
+           constraint_row.connamespace = 'public'::pg_catalog.regnamespace
+             and constraint_row.convalidated and constraint_row.conislocal
+             and constraint_row.coninhcount = 0 and constraint_row.conparentid = 0
+             and constraint_row.contypid = 0 and constraint_row.confrelid = 0
+             and coalesce((pg_catalog.to_jsonb(constraint_row)->>'conenforced')::boolean, true)
+             and not coalesce((pg_catalog.to_jsonb(constraint_row)->>'conperiod')::boolean, false)
+         ) order by constraint_row.conname)
+         from outbox join pg_catalog.pg_constraint constraint_row on constraint_row.conrelid = outbox.oid
+         where constraint_row.conname = any(array[
+           'email_outbox_attempt_count_nonnegative',
+           'email_outbox_delivery_release_insert_identity_valid',
+           'email_outbox_delivery_release_parent_unique',
+           'email_outbox_provider_request_body_valid'
+         ]::text[])
+       ) = $3::jsonb, false) and exists (
+         select 1 from pg_catalog.pg_constraint parent_identity
+         join pg_catalog.pg_class index_relation on index_relation.oid = parent_identity.conindid
+         join pg_catalog.pg_index index_row on index_row.indexrelid = index_relation.oid
+         join pg_catalog.pg_am access_method on access_method.oid = index_relation.relam
+         where parent_identity.conrelid = pg_catalog.to_regclass('public.email_outbox')
+           and parent_identity.conname = 'email_outbox_delivery_release_parent_unique'
+           and index_relation.relnamespace = 'public'::pg_catalog.regnamespace
+           and index_relation.relname = 'email_outbox_delivery_release_parent_unique'
+           and pg_catalog.pg_get_userbyid(index_relation.relowner) = 'learncoding_owner'
+           and access_method.amname = 'btree' and index_row.indkey::int2[] = array[1,15]::int2[]
+           and index_row.indisunique and not index_row.indisprimary
+           and index_row.indisvalid and index_row.indisready and index_row.indislive
+           and index_row.indpred is null and index_row.indexprs is null
+           and pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(pg_catalog.pg_get_indexdef(index_relation.oid), 'UTF8')), 'hex') = 'b953dc6f2b39756fa0a4a2dd962d37172381802f2d4bc86fce2847de0457c7ee'
+       ) else not exists (
+         select 1 from outbox join pg_catalog.pg_constraint constraint_row on constraint_row.conrelid = outbox.oid
+          where constraint_row.conname = any(array[
+            'email_outbox_attempt_count_nonnegative','email_outbox_delivery_release_insert_identity_valid',
+            'email_outbox_delivery_release_parent_unique','email_outbox_provider_request_body_valid'
+          ]::text[])
+       ) end guarded_outbox_constraints_exact,
+       case when $1::boolean then coalesce((select
+         pg_catalog.pg_get_userbyid(receipt.relowner) = 'learncoding_owner'
+         and receipt.relkind = 'r' and receipt.relpersistence = 'p'
+         and receipt.relnatts = 8 and receipt.relchecks = 4
+         and receipt.relhasindex and receipt.relhastriggers and not receipt.relhasrules
+         and not receipt.relhassubclass and receipt.relrowsecurity = false
+         and receipt.relforcerowsecurity = false and not receipt.relispartition
+         and receipt.relreplident = 'd' and receipt.reloptions is null
+         and receipt.reltablespace = 0 and receipt.relpartbound is null
+         and receipt.relispopulated and access_method.amname = 'heap'
+         from receipt join pg_catalog.pg_am access_method on access_method.oid = receipt.relam), false)
+       else not exists (select 1 from receipt) end receipt_relation_exact,
+       case when $1::boolean then coalesce((
+         select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
+           attribute.attname, attribute.attnum,
+           pg_catalog.format_type(attribute.atttypid, attribute.atttypmod),
+           attribute.attnotnull,
+           pg_catalog.pg_get_expr(default_value.adbin, default_value.adrelid, true),
+           attribute.attcollation = type_row.typcollation
+             and attribute.attlen = type_row.typlen and attribute.attbyval = type_row.typbyval
+             and attribute.attalign = type_row.typalign and attribute.attstorage = type_row.typstorage
+             and attribute.attcompression = ''::"char" and attribute.attstattarget is null
+             and attribute.attndims = 0 and attribute.attidentity = '' and attribute.attgenerated = ''
+             and not attribute.atthasmissing and attribute.attmissingval is null
+             and attribute.attislocal and attribute.attinhcount = 0
+             and attribute.attoptions is null and attribute.attfdwoptions is null
+             and not attribute.attisdropped
+         ) order by attribute.attnum)
+         from receipt join pg_catalog.pg_attribute attribute on attribute.attrelid = receipt.oid
+         join pg_catalog.pg_type type_row on type_row.oid = attribute.atttypid
+         left join pg_catalog.pg_attrdef default_value
+           on default_value.adrelid = attribute.attrelid and default_value.adnum = attribute.attnum
+         where attribute.attnum > 0 and not attribute.attisdropped
+       ) = $4::jsonb, false) else not exists (select 1 from receipt) end receipt_columns_exact,
+       case when $1::boolean then coalesce((
+         select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
+           constraint_row.conname, constraint_row.contype,
+           (select pg_catalog.jsonb_agg(attribute.attname order by key_column.ordinality)
+              from pg_catalog.unnest(constraint_row.conkey) with ordinality key_column(attnum, ordinality)
+              join pg_catalog.pg_attribute attribute
+                on attribute.attrelid = constraint_row.conrelid and attribute.attnum = key_column.attnum),
+           constraint_row.condeferrable, constraint_row.condeferred, constraint_row.connoinherit,
+           pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(pg_catalog.pg_get_constraintdef(constraint_row.oid, false), 'UTF8')), 'hex'),
+           constraint_row.connamespace = 'public'::pg_catalog.regnamespace
+             and constraint_row.convalidated and constraint_row.conislocal
+             and constraint_row.coninhcount = 0 and constraint_row.conparentid = 0
+             and constraint_row.contypid = 0
+             and coalesce((pg_catalog.to_jsonb(constraint_row)->>'conenforced')::boolean, true)
+             and not coalesce((pg_catalog.to_jsonb(constraint_row)->>'conperiod')::boolean, false)
+         ) order by constraint_row.conname)
+         from receipt join pg_catalog.pg_constraint constraint_row on constraint_row.conrelid = receipt.oid
+         where constraint_row.contype in ('c','p','u','f')
+       ) = $5::jsonb, false) and (
+         (pg_catalog.current_setting('server_version_num')::integer < 180000 and
+          (select pg_catalog.count(*) from receipt join pg_catalog.pg_constraint c on c.conrelid = receipt.oid and c.contype = 'n') = 0)
+         or
+         (pg_catalog.current_setting('server_version_num')::integer >= 180000 and
+          (select pg_catalog.count(*) = 8 and pg_catalog.count(distinct c.conkey[1]) = 8 and pg_catalog.bool_and(
+             pg_catalog.cardinality(c.conkey) = 1 and c.conkey[1] between 1 and 8
+             and c.convalidated and c.conislocal and c.coninhcount = 0 and c.conparentid = 0
+             and not c.connoinherit and not c.condeferrable and not c.condeferred
+             and c.contypid = 0 and c.conindid = 0 and c.confrelid = 0)
+           from receipt join pg_catalog.pg_constraint c on c.conrelid = receipt.oid and c.contype = 'n'))
+       ) else not exists (select 1 from receipt) end receipt_constraints_exact,
+       case when $1::boolean then coalesce((
+         select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
+           index_relation.relname,
+           (select pg_catalog.jsonb_agg(attribute.attname order by key_column.ordinality)
+              from pg_catalog.unnest(index_row.indkey::int2[]) with ordinality key_column(attnum, ordinality)
+              join pg_catalog.pg_attribute attribute on attribute.attrelid = index_row.indrelid and attribute.attnum = key_column.attnum),
+           index_row.indisunique, index_row.indisprimary,
+           index_relation.relkind = 'i' and index_relation.relpersistence = 'p'
+             and pg_catalog.pg_get_userbyid(index_relation.relowner) = 'learncoding_owner'
+             and index_relation.reltablespace = 0 and index_relation.reloptions is null
+             and index_relation.relacl is null and not index_relation.relispartition
+             and access_method.amname = 'btree' and index_row.indnatts = index_row.indnkeyatts
+             and not index_row.indnullsnotdistinct and not index_row.indisexclusion
+             and index_row.indimmediate and not index_row.indisclustered
+             and index_row.indisvalid and index_row.indisready and index_row.indislive
+             and not index_row.indcheckxmin and not index_row.indisreplident
+             and index_row.indpred is null and index_row.indexprs is null
+             and not exists (select 1 from pg_catalog.unnest(index_row.indoption::int2[]) option_value where option_value <> 0),
+           case when index_relation.relname = 'mail_delivery_release_receipt_authority_fk_idx'
+             then pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(pg_catalog.pg_get_indexdef(index_relation.oid), 'UTF8')), 'hex') = '42c8ad3b7f9c12b92fccf91f3161b90416e1a585195315bea449cde212c6c78e'
+             else true end
+         ) order by index_relation.relname)
+         from receipt join pg_catalog.pg_index index_row on index_row.indrelid = receipt.oid
+         join pg_catalog.pg_class index_relation on index_relation.oid = index_row.indexrelid
+         join pg_catalog.pg_am access_method on access_method.oid = index_relation.relam
+       ) = $6::jsonb, false) else not exists (select 1 from receipt) end receipt_indexes_exact,
+       case when $1::boolean then coalesce((
+         select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
+           constraint_row.conname,
+           (select pg_catalog.jsonb_agg(attribute.attname order by key_column.ordinality)
+              from pg_catalog.unnest(constraint_row.conkey) with ordinality key_column(attnum, ordinality)
+              join pg_catalog.pg_attribute attribute on attribute.attrelid = constraint_row.conrelid and attribute.attnum = key_column.attnum),
+           constraint_row.confrelid::pg_catalog.regclass::text,
+           (select pg_catalog.jsonb_agg(attribute.attname order by key_column.ordinality)
+              from pg_catalog.unnest(constraint_row.confkey) with ordinality key_column(attnum, ordinality)
+              join pg_catalog.pg_attribute attribute on attribute.attrelid = constraint_row.confrelid and attribute.attnum = key_column.attnum),
+           constraint_row.confupdtype, constraint_row.confdeltype, constraint_row.confmatchtype,
+           constraint_row.condeferrable, constraint_row.condeferred,
+           constraint_row.conindid::pg_catalog.regclass::text,
+           pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(pg_catalog.pg_get_constraintdef(constraint_row.oid, false), 'UTF8')), 'hex'),
+           constraint_row.connamespace = 'public'::pg_catalog.regnamespace
+             and constraint_row.convalidated and constraint_row.conislocal
+             and constraint_row.coninhcount = 0 and constraint_row.conparentid = 0
+             and constraint_row.contypid = 0 and constraint_row.connoinherit
+         ) order by constraint_row.conname)
+         from receipt join pg_catalog.pg_constraint constraint_row on constraint_row.conrelid = receipt.oid
+         where constraint_row.contype = 'f'
+       ) = $7::jsonb, false) and not exists (
+         select 1 from receipt join pg_catalog.pg_constraint inbound on inbound.confrelid = receipt.oid
+       ) else not exists (select 1 from receipt) end receipt_foreign_keys_exact,
+       case when $1::boolean then coalesce((select
+         not receipt.relrowsecurity and not receipt.relforcerowsecurity
+         and not exists (select 1 from pg_catalog.pg_policy policy where policy.polrelid = receipt.oid)
+         and not exists (select 1 from pg_catalog.pg_rewrite rewrite_rule where rewrite_rule.ev_class = receipt.oid)
+         and not exists (select 1 from pg_catalog.pg_inherits inheritance where inheritance.inhrelid = receipt.oid or inheritance.inhparent = receipt.oid)
+         and not exists (select 1 from pg_catalog.pg_constraint exclusion where (exclusion.conrelid = receipt.oid or exclusion.confrelid = receipt.oid) and exclusion.contype = 'x')
+         from receipt), false) else not exists (select 1 from receipt) end receipt_relation_safety_exact`,
+    [
+      requiresGuardedDelivery,
+      JSON.stringify(outboxColumns),
+      JSON.stringify(outboxConstraints),
+      JSON.stringify(receiptColumns),
+      JSON.stringify(receiptConstraints),
+      JSON.stringify(receiptIndexes),
+      JSON.stringify(receiptForeignKeys),
+    ],
+  );
+  const expected = {
+    guarded_delivery_catalog_phase_exact: true,
+    guarded_outbox_columns_exact: true,
+    guarded_outbox_constraints_exact: true,
+    receipt_relation_exact: true,
+    receipt_columns_exact: true,
+    receipt_constraints_exact: true,
+    receipt_indexes_exact: true,
+    receipt_foreign_keys_exact: true,
+    receipt_relation_safety_exact: true,
+  };
+  const row = result.rows[0];
+  if (result.rows.length !== 1 || !exactRow(row, expected)) {
+    const mismatches = result.rows.length === 1
+      ? exactRowMismatchKeys(row, expected).join(",")
+      : "missing-or-duplicate";
+    fail(`mail-guarded-delivery-catalog-contract:${mismatches}`);
   }
   return 1;
 }
@@ -2797,6 +3123,7 @@ export async function verifyMailGuardedDeliveryAclContract(
     expectedAppInsertColumns,
     expectedWorkerInsertColumns,
     expectedWorkerUpdateColumns,
+    requiresGuardedDelivery = false,
   },
 ) {
   const vectors = [
@@ -2826,9 +3153,15 @@ export async function verifyMailGuardedDeliveryAclContract(
         expectedWorkerInsertColumns.includes(column) ||
         expectedWorkerUpdateColumns.includes(column),
     ) ||
-    MAIL_DELIVERY_RELEASE_RECEIPT_WORKER_SELECT_COLUMNS.length !== 7
+    MAIL_DELIVERY_RELEASE_RECEIPT_WORKER_SELECT_COLUMNS.length !== 7 ||
+    typeof requiresGuardedDelivery !== "boolean"
   )
     fail("mail-guarded-delivery-acl-manifest");
+
+  await verifyMailGuardedDeliveryCatalogContract(
+    client,
+    requiresGuardedDelivery,
+  );
 
   const result = await client.query(
     `with recursive
@@ -2993,24 +3326,21 @@ export async function verifyMailGuardedDeliveryAclContract(
        select
          (
            (select pg_catalog.count(*) = 1 from outbox)
-           and (
-             (
-               (select present_count = 0 from release_marker_columns)
-               and (select pg_catalog.count(*) = 0 from receipt)
-             )
-             or (
-               (select present_count = 2 from release_marker_columns)
-               and (select pg_catalog.count(*) = 1 from receipt)
-               and (
-                 select pg_catalog.bool_and(
-                   pg_catalog.pg_get_userbyid(receipt.relowner)
-                     = 'learncoding_owner'
-                 )
-                   from receipt
+           and case when $6::boolean then (
+             (select present_count = 2 from release_marker_columns)
+             and (select pg_catalog.count(*) = 1 from receipt)
+             and (
+               select pg_catalog.bool_and(
+                 pg_catalog.pg_get_userbyid(receipt.relowner)
+                   = 'learncoding_owner'
                )
-               and (select present_count = 7 from receipt_worker_columns)
+                 from receipt
              )
-           )
+             and (select present_count = 7 from receipt_worker_columns)
+           ) else (
+             (select present_count = 0 from release_marker_columns)
+             and (select pg_catalog.count(*) = 0 from receipt)
+           ) end
          ) guarded_delivery_presence_exact,
          not exists (
            (select * from observed_outbox_table_acl
@@ -3162,6 +3492,7 @@ export async function verifyMailGuardedDeliveryAclContract(
       expectedWorkerUpdateColumns,
       MAIL_DELIVERY_RELEASE_INSERT_MARKER_COLUMNS,
       MAIL_DELIVERY_RELEASE_RECEIPT_WORKER_SELECT_COLUMNS,
+      requiresGuardedDelivery,
     ],
   );
   const expected = {
@@ -3340,6 +3671,8 @@ export async function verifyReviewedMailAuthorityCatalogContracts(
     requiresDispatchBinding: canonicalPhase.requiresWorkerContract,
     requiresProviderEvidence: canonicalPhase.requiresProviderEvidence,
     requiresReplayAuthority: canonicalPhase.requiresReplayAuthority,
+    requiresProviderRequest: canonicalPhase.requiresGuardedDelivery,
+    requiresGuardedDelivery: canonicalPhase.requiresGuardedDelivery,
   });
   return {
     routinesVerified,
@@ -3376,7 +3709,119 @@ async function verifyApplicationObjectAccess(client, objects) {
   return positiveChecks;
 }
 
-async function verifyRole({ client, role, database, objects }) {
+async function verifyAuthenticatedGuardedDeliveryPrivileges(client) {
+  const result = await client.query(`
+    with receipt as (
+      select relation.oid from pg_catalog.pg_class relation
+       where relation.oid = pg_catalog.to_regclass(
+         'public.mail_delivery_release_receipt'
+       )
+    ), outbox as (
+      select relation.oid from pg_catalog.pg_class relation
+       where relation.oid = pg_catalog.to_regclass('public.email_outbox')
+    ), expected_function(signature, allowed_roles) as (
+      values
+        ('public.release_email_outbox_delivery(uuid,uuid,text,text,text)'::text,
+         array['learncoding_app','learncoding_worker']::text[]),
+        ('public.verify_email_outbox_delivery_release(uuid,uuid,text,text,text)',
+         array['learncoding_app']::text[]),
+        ('public.mail_delivery_release_receipt_sha256(uuid,uuid,text,text,text,text)',
+         array['learncoding_worker']::text[]),
+        ('public.attest_email_outbox_delivery_release_lineage(text)',
+         array['learncoding_worker']::text[])
+    )
+    select
+      (select pg_catalog.count(*) = 1 from receipt)
+      and (select pg_catalog.count(*) = 1 from outbox)
+      and (select pg_catalog.count(*) = 8
+             from receipt join pg_catalog.pg_attribute attribute
+               on attribute.attrelid = receipt.oid
+              and attribute.attnum > 0 and not attribute.attisdropped)
+      and not exists (
+        select 1 from receipt
+        join pg_catalog.pg_attribute attribute
+          on attribute.attrelid = receipt.oid
+         and attribute.attnum > 0 and not attribute.attisdropped
+        cross join (values ('SELECT'::text),('INSERT'),('UPDATE'),('REFERENCES'))
+          privilege(privilege_type)
+        where pg_catalog.has_column_privilege(
+          current_user, receipt.oid, attribute.attnum, privilege.privilege_type
+        ) is distinct from (
+          current_user = 'learncoding_worker'
+          and privilege.privilege_type = 'SELECT'
+          and attribute.attnum between 1 and 7
+        )
+      )
+      and not exists (
+        select 1 from receipt
+        cross join (values
+          ('SELECT'::text),('INSERT'),('UPDATE'),('DELETE'),('TRUNCATE'),
+          ('REFERENCES'),('TRIGGER'),('MAINTAIN')
+        ) privilege(privilege_type)
+        where pg_catalog.has_table_privilege(
+          current_user, receipt.oid, privilege.privilege_type
+        )
+      )
+      and (select pg_catalog.count(*) = 4
+             from outbox join pg_catalog.pg_attribute attribute
+               on attribute.attrelid = outbox.oid
+              and attribute.attname = any(array[
+                'delivery_release_insert_xid',
+                'delivery_release_insert_system_identifier',
+                'provider_request_body_sha256',
+                'provider_request_body_length'
+              ]::text[])
+              and not attribute.attisdropped)
+      and not exists (
+        select 1 from outbox
+        join pg_catalog.pg_attribute attribute
+          on attribute.attrelid = outbox.oid
+         and attribute.attname = any(array[
+           'delivery_release_insert_xid',
+           'delivery_release_insert_system_identifier',
+           'provider_request_body_sha256',
+           'provider_request_body_length'
+         ]::text[])
+         and not attribute.attisdropped
+        cross join (values ('SELECT'::text),('INSERT'),('UPDATE'),('REFERENCES'))
+          privilege(privilege_type)
+        where pg_catalog.has_column_privilege(
+          current_user, outbox.oid, attribute.attnum, privilege.privilege_type
+        ) is distinct from (
+          current_user = any(array[
+            'learncoding_app','learncoding_worker','learncoding_ops'
+          ]::text[])
+          and privilege.privilege_type = 'SELECT'
+        )
+      )
+      and not exists (
+        select 1 from expected_function expected
+        where pg_catalog.to_regprocedure(expected.signature) is null
+           or pg_catalog.has_function_privilege(
+                current_user,
+                pg_catalog.to_regprocedure(expected.signature),
+                'EXECUTE'
+              ) is distinct from (
+                current_user = any(expected.allowed_roles)
+              )
+      ) authenticated_guarded_delivery_privileges_exact`);
+  if (
+    result.rows.length !== 1 ||
+    !exactRow(result.rows[0], {
+      authenticated_guarded_delivery_privileges_exact: true,
+    })
+  ) {
+    fail("authenticated-guarded-delivery-privileges");
+  }
+  return 1;
+}
+async function verifyRole({
+  client,
+  role,
+  database,
+  objects,
+  requiresGuardedDelivery,
+}) {
   let positiveChecks = 0;
   let negativeChecks = 0;
   const identity = await client.query(
@@ -3426,6 +3871,10 @@ async function verifyRole({ client, role, database, objects }) {
   )
     fail();
   positiveChecks += 1;
+
+  if (requiresGuardedDelivery === true) {
+    positiveChecks += await verifyAuthenticatedGuardedDeliveryPrivileges(client);
+  }
 
   await expectInsufficientPrivilege(
     client,
@@ -3514,9 +3963,10 @@ export async function verifyDatabaseRoleBoundaries(options) {
     await acquireAdministrationLock(lockClient, lockTimeoutMs);
     lockAcquired = true;
     let objects;
+    let reviewedPhase;
     if (requireApplicationObjects) {
       objects = await discoverApplicationObjects(lockClient);
-      const reviewedPhase = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.at(-1);
+      reviewedPhase = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.at(-1);
       if (reviewedPhase?.backupStatusAuthority == null) {
         fail("backup-status-authority-phase");
       }
@@ -3538,6 +3988,8 @@ export async function verifyDatabaseRoleBoundaries(options) {
         role: role.username,
         database: role.database,
         objects,
+        requiresGuardedDelivery:
+          reviewedPhase?.requiresGuardedDelivery === true,
       });
       rolesAuthenticated += 1;
       positiveChecks += result.positiveChecks;

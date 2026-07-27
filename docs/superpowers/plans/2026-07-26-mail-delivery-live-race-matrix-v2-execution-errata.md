@@ -95,7 +95,7 @@ launcher-owned cleanup connection may terminate an exact registered backend.
 Delete the dynamic "all public tables + CASCADE" reset.
 
 The launcher installs a frozen, schema-qualified relation inventory with a
-reset flag and digest after the final 0068 migration. The protected reset
+reset flag and digest after the final 0069 migration. The protected reset
 routine:
 
 - revalidates the server attestation in the same transaction;
@@ -397,7 +397,8 @@ Use this order:
 The start gate consumes one clean candidate dependency manifest with exact
 hashes for:
 
-- 0067 and 0068 SQL, journal, and snapshots;
+- 0067, 0068, and 0069 SQL, the exact journal and reviewed-ledger entries,
+  and every checked-in snapshot required by the final Drizzle metadata chain;
 - producer inventory and replay/hold/release contracts;
 - guarded TX2, provider, reconciler, and watchdog runtime;
 - role/bootstrap/catalog verifier;
@@ -409,17 +410,18 @@ All Program Task 5-8 proofs and both major runs name the same manifest
 digest.
 
 Evidence records SQL-derived `server_version_num`, exact migration tail
-`0068`, and the complete applied-migration catalog digest. Per leaf it records
-only reviewed codes for projection match, provider-attempt count, exact lock
-topology, fault consumption, xid outcome where relevant, and cleanup status.
-This is a candidate-bound pass ledger; it is not live Gmail or hardware
-evidence.
+`0069_mail_outbox_guarded_delivery_authority`, and the complete
+applied-migration catalog digest. Per leaf it records only reviewed codes for
+projection match, provider-attempt count, exact lock topology, fault
+consumption, xid outcome where relevant, and cleanup status. This is a
+candidate-bound pass ledger; it is not live Gmail or hardware evidence.
 
 ## 8. CI and dependency gates
 
-Run both the final 0068 static registration command and its behavioral PG17
-and PG18 commands. The earlier V2 erratum must not replace behavioral proof
-with registration.
+Run both the final 0068 and 0069 static registration commands and each
+migration's behavioral PG17 and PG18 commands. Also run the exact migration
+ledger, database-role, restore, and rollback commands frozen by Task 8. The
+earlier V2 erratum must not replace behavioral proof with registration.
 
 Use a dedicated matrix job whose timeout is derived from:
 

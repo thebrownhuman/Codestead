@@ -2,10 +2,11 @@
 
 This is the entry point for Task 9. Read the bundle in this precedence order:
 
-1. this authority index;
-2. `2026-07-26-mail-delivery-live-race-matrix-v2-execution-errata.md`;
-3. `2026-07-26-mail-delivery-live-race-matrix-v2-errata.md`;
-4. `2026-07-26-mail-delivery-live-race-matrix-v2.md`.
+1. `2026-07-26-mail-delivery-live-race-matrix-v2-authority-amendment.md`;
+2. this authority index;
+3. `2026-07-26-mail-delivery-live-race-matrix-v2-execution-errata.md`;
+4. `2026-07-26-mail-delivery-live-race-matrix-v2-errata.md`;
+5. `2026-07-26-mail-delivery-live-race-matrix-v2.md`.
 
 The readiness snapshot is historical and invalidated. The original plan and
 original errata are audit history only.
@@ -98,7 +99,7 @@ reconciliation cases.
 - `CRASH-02` records exactly one physical attempt.
 - `CRASH-03` follows
   `sending -> explicit expiry/sweep -> quarantined -> one exact-match
-  reconciliation`.
+reconciliation`.
 - `SWEEP-03` freezes one exact loser result after the API freezes; an
   `A-or-B` assertion is not acceptable.
 - `DEL-01` uses accepted sent mail; ambiguity/quarantine blocks deletion.
@@ -109,9 +110,10 @@ checked-in JSON schema. Static JSON does not import JavaScript by itself.
 
 ### Candidate and command authority
 
-The authoritative checksum uses repository-relative paths and is verified
-from the repository root before implementation, before each major, and
-before release evidence is accepted.
+The canonical authoritative checksum is
+`2026-07-26-mail-delivery-live-race-matrix-v2-final.sha256`. It uses
+repository-relative paths and is verified from the repository root before
+implementation, before each major, and before release evidence is accepted.
 
 Use:
 
@@ -119,13 +121,27 @@ Use:
 - `npm run ...` in Linux CI;
 - no `.cmd` token inside package scripts.
 
-Run both the exact 0068 registration command and its PG17/PG18 behavioral
-commands. Registration never substitutes for behavior.
+Task 8 freezes and registers these exact dependency commands before Task 9:
 
+- `test:migration-ledger`;
+- `test:mail-retention-redaction-0068:registration`;
+- `test:mail-retention-redaction-0068:pg17`;
+- `test:mail-retention-redaction-0068:pg18`;
+- `test:mail-guarded-delivery-0069:registration`;
+- `test:mail-guarded-delivery-0069:pg17`;
+- `test:mail-guarded-delivery-0069:pg18`;
+- `test:database-role-boundaries`;
+- `backup:restore-smoke`;
+- `bash infra/tests/rollback-production.test.sh`.
+
+Registration never substitutes for PG17/PG18 behavior.
+
+The accepted Task 9 candidate is a clean detached commit created only after
+Task 8 has registered the contiguous journal and reviewed ledger through
+`0069_mail_outbox_guarded_delivery_authority` and all commands above pass.
 Freeze all implementation and handoff bytes before matrix execution. Run the
-pair from one clean detached candidate and write evidence outside that
-worktree. Any later tracked change produces a new tree and requires both
-majors again.
+pair from that one candidate and write evidence outside its worktree. Any
+later tracked change produces a new tree and requires both majors again.
 
 ## Completion rule
 

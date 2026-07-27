@@ -46,6 +46,8 @@ const REVIEWED_PHASE_0064 = reviewedPhase(64);
 const REVIEWED_PHASE_0065 = reviewedPhase(65);
 const REVIEWED_PHASE_0066 = reviewedPhase(66);
 const REVIEWED_PHASE_0067 = reviewedPhase(67);
+const REVIEWED_PHASE_0068 = reviewedPhase(68);
+const REVIEWED_PHASE_0069 = reviewedPhase(69);
 
 function reviewedPhaseForOptions(options) {
   if (
@@ -150,8 +152,8 @@ test("pins reviewed-SQL and live-catalog Group 4 CHECK hashes separately", () =>
     ),
     contract.deliveryScope.reviewedSqlExpressionSha256,
   );
-  assert.equal(contract.triggers.length, 8);
-  assert.equal(contract.routines.length, 7);
+  assert.equal(contract.triggers.length, 9);
+  assert.equal(contract.routines.length, 8);
 });
 test("composes the mail worker outbox role without payload mutation authority", () => {
   assert.deepEqual(MAIL_WORKER_OUTBOX_INSERT_COLUMNS, [
@@ -356,6 +358,8 @@ test("rejects direct, effective, marker, receipt, and membership ACL reopenings"
     requiresDispatchBinding: true,
     requiresProviderEvidence: true,
     requiresReplayAuthority: true,
+    requiresProviderRequest: true,
+    requiresGuardedDelivery: true,
   });
   const guardedQuery = verified.queries.find((sql) =>
     sql.includes("guarded_delivery_presence_exact"),
@@ -387,11 +391,72 @@ test("rejects direct, effective, marker, receipt, and membership ACL reopenings"
           requiresDispatchBinding: true,
           requiresProviderEvidence: true,
           requiresReplayAuthority: true,
+    requiresProviderRequest: true,
+    requiresGuardedDelivery: true,
         },
       ),
       (error) =>
         error instanceof DatabaseRoleBoundaryError &&
         error.message.includes(guardedDeliveryAclTamper),
+    );
+  }
+});
+test("selects guarded-delivery presence only for reviewed phase 0069", async () => {
+  for (const [phase, expected] of [
+    [REVIEWED_PHASE_0068, false],
+    [REVIEWED_PHASE_0069, true],
+  ]) {
+    const client = makeClient("learncoding_ops", "learncoding", {
+      appliedMigrationIndex: phase.index,
+    });
+    await verifyReviewedMailAuthorityCatalogContracts(client, phase);
+    const index = client.queries.findIndex((sql) =>
+      sql.includes("guarded_delivery_presence_exact"),
+    );
+    assert.notEqual(index, -1);
+    assert.equal(client.queryParameters[index].at(-1), expected);
+  }
+});
+test("rejects exact guarded-delivery relation catalog drift", async () => {
+  const verified = makeClient("learncoding_ops", "learncoding", {
+    appliedMigrationIndex: 69,
+  });
+  await verifyReviewedMailAuthorityCatalogContracts(
+    verified,
+    REVIEWED_PHASE_0069,
+  );
+  const catalogQuery = verified.queries.find((sql) =>
+    sql.includes("guarded_delivery_catalog_phase_exact"),
+  );
+  assert.equal(typeof catalogQuery, "string");
+  assert.match(catalogQuery, /pg_catalog\.pg_constraint/iu);
+  assert.match(catalogQuery, /pg_catalog\.pg_index/iu);
+  assert.match(catalogQuery, /pg_catalog\.pg_rewrite/iu);
+  assert.match(catalogQuery, /pg_catalog\.pg_inherits/iu);
+  assert.match(catalogQuery, /pg_catalog\.pg_policy/iu);
+
+  for (const guardedDeliveryCatalogTamper of [
+    "guarded_delivery_catalog_phase_exact",
+    "guarded_outbox_columns_exact",
+    "guarded_outbox_constraints_exact",
+    "receipt_relation_exact",
+    "receipt_columns_exact",
+    "receipt_constraints_exact",
+    "receipt_indexes_exact",
+    "receipt_foreign_keys_exact",
+    "receipt_relation_safety_exact",
+  ]) {
+    await assert.rejects(
+      verifyReviewedMailAuthorityCatalogContracts(
+        makeClient("learncoding_ops", "learncoding", {
+          appliedMigrationIndex: 69,
+          guardedDeliveryCatalogTamper,
+        }),
+        REVIEWED_PHASE_0069,
+      ),
+      (error) =>
+        error instanceof DatabaseRoleBoundaryError &&
+        error.message.includes(guardedDeliveryCatalogTamper),
     );
   }
 });
@@ -414,7 +479,7 @@ test("guards reviewed application grants on both role and object existence", () 
   );
   assert.match(
     routineSql,
-    /pg_catalog\.to_regprocedure\('public\.redact_unresolved_email_outbox_authority\(timestamp with time zone,integer\)'\)\s+is\s+not\s+null/iu,
+    /routine_oid\s+pg_catalog\.oid\s*:=\s*pg_catalog\.to_regprocedure\(\s*'public\.redact_unresolved_email_outbox_authority\(timestamp with time zone,integer\)'\s*\)/iu,
   );
 });
 
@@ -856,7 +921,20 @@ function makeClient(role, database, options) {
           ],
         };
       }
-      if (normalized.includes("reviewed_migration_journal_present")) {
+      if (
+        normalized.includes(
+          "authenticated_guarded_delivery_privileges_exact",
+        )
+      ) {
+        return {
+          rows: [
+            {
+              authenticated_guarded_delivery_privileges_exact:
+                options.authenticatedGuardedDeliveryTamper !== true,
+            },
+          ],
+        };
+      }      if (normalized.includes("reviewed_migration_journal_present")) {
         return {
           rows: [
             {
@@ -1101,12 +1179,34 @@ function makeClient(role, database, options) {
               predicate_exact: tamper !== "predicate",
               arguments_exact: tamper !== "arguments",
               watched_columns_exact: tamper !== "watched-columns",
+              constraint_exact: tamper !== "constraint",
+              deferrable_exact: tamper !== "deferrable",
+              initially_deferred_exact: tamper !== "initially-deferred",
+              constraint_catalog_exact: tamper !== "constraint-catalog",
+              transition_tables_exact: tamper !== "transition-tables",
               reviewed_trigger_catalog_exact: tamper !== "catalog",
             },
           ],
         };
       }
-      if (normalized.includes("guarded_delivery_presence_exact")) {
+      if (normalized.includes("guarded_delivery_catalog_phase_exact")) {
+        const tamper = options.guardedDeliveryCatalogTamper;
+        const row = {
+          guarded_delivery_catalog_phase_exact: true,
+          guarded_outbox_columns_exact: true,
+          guarded_outbox_constraints_exact: true,
+          receipt_relation_exact: true,
+          receipt_columns_exact: true,
+          receipt_constraints_exact: true,
+          receipt_indexes_exact: true,
+          receipt_foreign_keys_exact: true,
+          receipt_relation_safety_exact: true,
+        };
+        if (typeof tamper === "string" && Object.hasOwn(row, tamper)) {
+          row[tamper] = false;
+        }
+        return { rows: [row] };
+      }      if (normalized.includes("guarded_delivery_presence_exact")) {
         const tamper = options.guardedDeliveryAclTamper;
         const row = {
           guarded_delivery_presence_exact: true,
@@ -1879,7 +1979,7 @@ test("proves application-object access without mutating application rows", async
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 71,
+    positiveChecks: 105,
     negativeChecks: 29,
   });
   for (const role of [
@@ -1910,7 +2010,35 @@ test("proves application-object access without mutating application rows", async
   );
 });
 
-test("requires the exact reviewed 0062 through 0067 routine contracts in application-object mode", async () => {
+test("authenticates guarded-delivery privileges as every restricted role", async () => {
+  const verified = makePoolHarness();
+  await verifyDatabaseRoleBoundaries({
+    ...validInput(),
+    poolFactory: verified.factory,
+    lockTimeoutMs: 50,
+    requireApplicationObjects: true,
+  });
+  for (const client of verified.clients.values()) {
+    assert.equal(
+      client.queries.some((query) =>
+        query.includes("authenticated_guarded_delivery_privileges_exact"),
+      ),
+      true,
+    );
+  }
+  await assert.rejects(
+    verifyDatabaseRoleBoundaries({
+      ...validInput(),
+      poolFactory: makePoolHarness({
+        authenticatedGuardedDeliveryTamper: true,
+      }).factory,
+      lockTimeoutMs: 50,
+      requireApplicationObjects: true,
+    }),
+    DatabaseRoleBoundaryError,
+  );
+});
+test("requires the exact reviewed 0062 through 0069 routine contracts in application-object mode", async () => {
   const verified = makePoolHarness();
   const result = await verifyDatabaseRoleBoundaries({
     ...validInput(),
@@ -1921,13 +2049,13 @@ test("requires the exact reviewed 0062 through 0067 routine contracts in applica
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 71,
+    positiveChecks: 105,
     negativeChecks: 29,
   });
   const routineQueries = verified.clients
     .get("learncoding_ops")
     .queries.filter((sql) => sql.includes("routine_direct_acl_exact"));
-  assert.equal(routineQueries.length, REVIEWED_APPLICATION_FUNCTIONS.length);
+  assert.equal(routineQueries.length, REVIEWED_PHASE_0069.routines.length);
   assert.match(routineQueries[0], /pg_catalog\.to_regprocedure/iu);
   assert.match(routineQueries[0], /p\.prosecdef/iu);
   assert.match(routineQueries[0], /p\.proconfig/iu);
@@ -1965,7 +2093,7 @@ test("requires the exact reviewed 0062 through 0067 routine contracts in applica
         ({ index }) =>
           verified.clients.get("learncoding_ops").queryParameters[index],
       ),
-    REVIEWED_APPLICATION_FUNCTIONS.map((routine) => [
+    REVIEWED_PHASE_0069.routines.map((routine) => [
       routine.signature,
       routine.owner,
       routine.securityDefiner,
@@ -2130,7 +2258,7 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
   });
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 71,
+    positiveChecks: 105,
     negativeChecks: 29,
   });
 
@@ -2138,7 +2266,7 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
   const triggerQueries = opsClient.queries.filter((sql) =>
     sql.includes("reviewed_trigger_catalog_exact"),
   );
-  assert.equal(triggerQueries.length, REVIEWED_APPLICATION_TRIGGERS.length);
+  assert.equal(triggerQueries.length, REVIEWED_PHASE_0069.triggers.length);
   assert.match(triggerQueries[0], /pg_catalog\.pg_trigger/iu);
   assert.match(triggerQueries[0], /tgqual/iu);
   assert.match(triggerQueries[0], /tgnargs/iu);
@@ -2257,13 +2385,18 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
     "predicate",
     "arguments",
     "watched-columns",
+    "constraint",
+    "deferrable",
+    "initially-deferred",
+    "constraint-catalog",
+    "transition-tables",
     "catalog",
   ]) {
     const tampered = makeClient("learncoding_ops", "learncoding", {
       triggerContractTamper,
     });
     await assert.rejects(
-      verifyReviewedApplicationTriggers(tampered),
+      verifyReviewedApplicationTriggers(tampered, REVIEWED_PHASE_0069.triggers),
       DatabaseRoleBoundaryError,
     );
   }
@@ -2847,7 +2980,7 @@ test("grounds PostgreSQL's successful no-op GRANT in unchanged effective and cat
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 71,
+    positiveChecks: 105,
     negativeChecks: 29,
   });
   for (const role of [

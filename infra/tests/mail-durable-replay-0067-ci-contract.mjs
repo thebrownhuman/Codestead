@@ -60,6 +60,7 @@ export function assertMailDurableReplay0067PostgresProjection(
   assertPostgresCiProjectionContract(
     postgresProjection,
     postgresCiProjectionThrough0067,
+    { allowReviewedSuffix: true },
   );
   const {
     registrationScript,
