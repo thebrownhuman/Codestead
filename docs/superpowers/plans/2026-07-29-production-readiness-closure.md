@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Work directly on `main` because the user explicitly required it; never create a feature branch or discard existing work.
-- Start from clean commit `a1a4ea2da6c5648208b45825cdb4f430f47175a4`; record and report any divergence before continuing.
+- Treat `a1a4ea2da6c5648208b45825cdb4f430f47175a4` as the historical recovery baseline for this closure sequence, not as an instruction to rewind accepted work. Task 2A starts from clean current checkpoint `4a512706f6756582a1c8c20f644b6473a20b376d`; before each later task, record the exact HEAD and worktree status and report unexpected divergence.
 - Keep laptop Docker off. Do not start, stop, connect to, reconfigure, or test against the Windows PostgreSQL service listening on port 5432.
 - Only one implementation subagent may edit at a time. Read-only auditors may run concurrently. Each accepted task gets an independent diff-based review before the next implementation task.
 - Use TDD: capture the focused failing test, implement the smallest complete fix, run the focused and adjacent gates, then commit. Never weaken a guard merely to make a stale test pass.
@@ -53,10 +53,10 @@
 
 **Steps:**
 1. Add RED tests proving the current blanket `GRANT ... ON ALL TABLES/SEQUENCES` and broad default ACLs are rejected.
-2. Encode every managed database role, table/column grant, routine execution grant, type use, sequence use, owner, membership, and default ACL in one checked-in manifest.
+2. Encode every managed database role, table/column grant, routine execution grant, type use, sequence use, owner, membership, and default ACL in one checked-in post-contract manifest. Separately encode the finite predecessor-compatibility allowance used only while `0070` is current; that allowance is not new grant authority and expires at `0071`.
 3. Include all 127 public tables/1,489 public columns plus the Drizzle schema/table/sequence; require exact catalog equality and deny unknown objects by default.
-4. Make bootstrap reconciliation and the standalone verifier consume the same manifest without circularly trusting generated SQL.
-5. Add drift, grant-option, delegated-grant, PUBLIC, default-ACL, unknown-object, and idempotent-reconciliation tests.
+4. Make bootstrap reconciliation and the standalone verifier consume the same manifest without circularly trusting generated SQL. Give both an explicit expand/prepare mode that reports but never revokes the named predecessor allowance, and a contracted mode that requires exact post-contract equality.
+5. Add drift, grant-option, delegated-grant, PUBLIC, default-ACL, unknown-object, phase-transition, and idempotent-reconciliation tests.
 
 ### Task 3: Split shared runtime and operations database identities
 
@@ -71,15 +71,17 @@
 
 **Steps:**
 1. Add failing secret/topology tests for dedicated roles rather than one union `learncoding_worker`/`learncoding_ops` credential.
-2. Introduce narrowly scoped identities for mail dispatch, rewards, regrade, exam finalization, practice recovery, project correction, storage scanning, file erasure, seed/catalog, admin bootstrap, storage reconciliation, retention reporting/apply, restore verification, dump, and restore loading.
+2. Define narrowly scoped replacement identities for mail dispatch, rewards, regrade, exam finalization, practice recovery, project correction, storage scanning, file erasure, seed/catalog, admin bootstrap, storage reconciliation, retention reporting/apply, restore verification, dump, and restore loading in the Task 2 manifest and bootstrap topology. Task 3 defines and wires them; `0070` installs their additive database capabilities.
 3. Keep `learncoding_owner` NOLOGIN and migrator membership SET-only; keep bootstrap authority one-shot.
-4. Wire each service to only its dedicated secret and prove unrelated credentials are absent from its environment.
-5. Add positive path and cross-role negative probes for every identity.
+4. Wire each replacement service to only its dedicated secret and prove unrelated credentials are absent from its environment, but do not revoke or disable predecessor identities or grants before the Task 5 cutover gate.
+5. Add positive path and cross-role negative probes for every identity, plus candidate/image-bound predecessor and replacement compatibility probes consumed by `0070`, `0071`, deployment, and rollback tooling.
 
-### Task 4: Replace raw destructive authority with owner-controlled capabilities
+### Task 4: Add owner-controlled capabilities in `0070` (expand/prepare)
 
 **Files:**
-- Create: next contiguous Drizzle migration after `0069`
+- Create: `drizzle/0070_p3_2_capability_expand_prepare.sql`
+- Create: `drizzle/meta/0070_snapshot.json`
+- Modify: `drizzle/meta/_journal.json` and the reviewed migration ledger so the accepted tail is `0069` → `0070`
 - Modify: `src/lib/data-lifecycle/deletion.ts`
 - Modify: `src/lib/data-lifecycle/retention.ts`
 - Modify: `src/lib/data-lifecycle/file-erasure.ts`
@@ -87,26 +89,30 @@
 - Modify: mail/outbox lifecycle code and corresponding integration tests
 
 **Steps:**
-1. Add RED live-database harness cases proving app/ops/worker can currently overreach through raw DML.
-2. Add fixed-search-path SECURITY DEFINER routines for account deletion phases, bounded retention categories, mail redaction/deletion, file-erasure enqueue/claim/complete/fail/purge, and storage reconciliation.
+1. Starting from the accepted Task 2 manifest and Task 3 identity/probe contracts, add RED live-database harness cases proving app/ops/worker can currently overreach through raw DML.
+2. Create `0070` immediately after `0069` as an additive expand/prepare migration: install the replacement roles, owner-controlled fixed-search-path SECURITY DEFINER routines, narrowly scoped grants, and compatibility probes for account deletion phases, bounded retention categories, mail redaction/deletion, file-erasure enqueue/claim/complete/fail/purge, and storage reconciliation.
 3. Bind every destructive call to exact run/target/capability identifiers and advisory-lock/fence rules; make replay idempotent.
-4. Remove direct outbox DELETE and unnecessary full-payload SELECT from app/ops; refactor startup attestation so column-scoped reads are possible.
-5. Resolve retention retry-key replay, restricted-FK blockers, wrong-type erasure conflicts, and competing eraser behavior with behavioral regressions.
+4. Close the implicit ACLs of objects newly created by `0070`, but retain every legacy direct/default ACL, shared identity, and grant required by the predecessor runtime. `0070` must not scrub, narrow, reassign, drop, or otherwise remove predecessor-required authority.
+5. Refactor the replacement runtime to use the new capabilities instead of direct outbox DELETE or unnecessary full-payload SELECT, make startup attestation work with column-scoped reads, and resolve retention retry-key replay, restricted-FK blockers, wrong-type erasure conflicts, and competing eraser behavior with behavioral regressions.
+6. On disposable, non-5432 PostgreSQL 17 and PostgreSQL 18 clusters, prove `0069` → `0070`, predecessor-runtime compatibility, replacement positive workflows, negative overreach, idempotent reconciliation/replay, and injected-failure rollback. Bind the passing records to the exact runtime candidate and image digests for Task 5; do not cut over or contract ACLs in Task 4.
 
-### Task 5: Apply and prove the P3-2 ACL contraction
+### Task 5: Cut over and contract ACLs in `0071`
 
 **Files:**
-- Modify: capability manifest, bootstrap, verifier, migration journal, reviewed migration ledger
+- Create: `drizzle/0071_p3_2_acl_contract_scrub.sql`
+- Create: `drizzle/meta/0071_snapshot.json`
+- Modify: capability manifest, bootstrap, verifier, migration journal, and reviewed migration ledger so the accepted tail is `0069` → `0070` → `0071`
 - Modify: PG17/PG18 ACL integration harnesses
 - Modify: release/rollback capability records and tests
 - Modify: restore-role-boundary tests
 
 **Steps:**
-1. In the new migration, require migrator session/owner effective role, acquire reviewed NOWAIT locks, scrub all direct/default ACLs, and grant only the manifest.
-2. Run bootstrap reconciliation twice and prove the exact catalog fingerprint is unchanged.
-3. Run positive workflows and negative overreach probes per dedicated role on disposable PG17 and PG18 clusters, never local port 5432.
-4. Prove atomic rollback of data, ownership, membership, ACL, default ACL, and routine authority after injected failures.
-5. Mark the capability forward-only unless the predecessor runtime passes a live compatibility probe; make rollback reject incompatible images before mutation.
+1. Before `0071` acquires a mutating lock or changes database/deployment state, require candidate-bound proof that `0070` is current, the replacement runtime is fully cut over, predecessor connections are drained, and the exact active and configured rollback images have known compatibility verdicts. Also require the Task 4 replacement-capability positive, negative, idempotence, and injected-failure rollback proofs to be PASS on both PostgreSQL 17 and PostgreSQL 18; reject missing, stale, unknown, mismatched, or incompatible evidence before mutation.
+2. Create `0071` as the contract/scrub migration only: require the migrator session and owner effective role, acquire reviewed NOWAIT locks, scrub legacy direct/default ACLs and predecessor-only memberships, and grant exactly the post-contract manifest. `0071` must not introduce replacement roles, routines, grants, or probes deferred from `0070`.
+3. Run bootstrap reconciliation twice in contracted mode and prove the exact catalog fingerprint is unchanged.
+4. Re-run positive workflows and negative overreach probes per dedicated role on disposable PostgreSQL 17 and PostgreSQL 18 clusters, never local port 5432.
+5. Prove atomic rollback of data, ownership, membership, ACL, default ACL, and routine authority after injected failures.
+6. Declare `0071` forward-only. Deployment and rollback tooling must reject an unknown or incompatible predecessor/runtime image before database or deployment mutation; only an image proven live against the contracted manifest may be selected, and a rejection must never re-expand legacy ACLs.
 
 ### Task 6: Repair live restore and backup database authority
 
@@ -119,7 +125,7 @@
 
 **Steps:**
 1. Add RED tests showing one-URL restore cutover leaves service identities on the old database and restored ACLs unprepared.
-2. Add explicit least-privilege dump and ephemeral restore-loader identities; do not expand backup reporter or use the bootstrap superuser for routine dump/restore.
+2. Use the Task 3-defined least-privilege dump and ephemeral restore-loader identities in the backup and restore paths; do not expand backup reporter or use the bootstrap superuser for routine dump/restore.
 3. Reconstruct ownership/ACLs through the complete-ledger restored-no-ACL path and atomically switch every service database URL.
 4. Sanitize Docker authority/environment in root backup/restore units.
 5. Prove PG17/PG18 restore, exact ACL topology, smoke, cleanup, and root-cause-preserving failures.
