@@ -24,8 +24,11 @@ HEX_C = "c" * 64
 HEX_D = "d" * 64
 HEX_E = "e" * 64
 HEX_F = "f" * 64
-GIT = "1" * 40
-GIT_TREE = "2" * 40
+APPLICATION_GIT = "1" * 40
+APPLICATION_GIT_TREE = "2" * 40
+HOST_OPERATIONS_GIT = "3" * 40
+HOST_OPERATIONS_GIT_TREE = "4" * 40
+HOST_OPERATIONS_CONTRACT_SHA256 = "5" * 64
 CAPTURED_AT = "2026-07-19T12:00:00Z"
 
 
@@ -39,9 +42,13 @@ def backup_evidence() -> dict[str, str]:
 
 def active_release_bytes() -> bytes:
     return (
-        "SCHEMA_VERSION=1\n"
-        f"GIT_COMMIT={GIT}\n"
-        f"GIT_TREE={GIT_TREE}\n"
+        "SCHEMA_VERSION=2\n"
+        f"APPLICATION_GIT_COMMIT={APPLICATION_GIT}\n"
+        f"APPLICATION_GIT_TREE={APPLICATION_GIT_TREE}\n"
+        f"HOST_OPERATIONS_GIT_COMMIT={HOST_OPERATIONS_GIT}\n"
+        f"HOST_OPERATIONS_GIT_TREE={HOST_OPERATIONS_GIT_TREE}\n"
+        "HOST_OPERATIONS_CONTRACT_VERSION=host-operations-semantic-v1\n"
+        f"HOST_OPERATIONS_CONTRACT_SHA256={HOST_OPERATIONS_CONTRACT_SHA256}\n"
         f"RELEASE_MANIFEST_SHA256={HEX_A}\n"
         f"APPLICATION_IMAGE_RECORD_SHA256={HEX_F}\n"
         "COMPOSE_PROJECT=learncoding\n"
@@ -60,8 +67,12 @@ def active_release_identity() -> dict[str, str]:
         "composeProject": "learncoding",
         "composeWorkdir": "/opt/learncoding",
         "firewallPolicySha256": HEX_C,
-        "gitCommit": GIT,
-        "gitTree": GIT_TREE,
+        "applicationGitCommit": APPLICATION_GIT,
+        "applicationGitTree": APPLICATION_GIT_TREE,
+        "hostOperationsContractSha256": HOST_OPERATIONS_CONTRACT_SHA256,
+        "hostOperationsContractVersion": "host-operations-semantic-v1",
+        "hostOperationsGitCommit": HOST_OPERATIONS_GIT,
+        "hostOperationsGitTree": HOST_OPERATIONS_GIT_TREE,
         "inventorySha256": HEX_B,
         "manifestSha256": HEX_A,
         "publicOrigin": "https://pilot.example.test",
@@ -74,6 +85,7 @@ SERVICES = (
     "app",
     "cloudflared",
     "exam-finalization-worker",
+    "file-erasure-worker",
     "mail-worker",
     "postgres",
     "practice-runner-recovery-worker",
@@ -188,15 +200,19 @@ def firewall_json() -> bytes:
 class ActiveReleaseTests(unittest.TestCase):
     def test_exact_active_release_is_accepted(self) -> None:
         release = helper.parse_active_release(active_release_bytes())
-        self.assertEqual(release.git_commit, GIT)
-        self.assertEqual(release.git_tree, GIT_TREE)
+        self.assertEqual(release.application_git_commit, APPLICATION_GIT)
+        self.assertEqual(release.application_git_tree, APPLICATION_GIT_TREE)
+        self.assertEqual(release.host_operations_git_commit, HOST_OPERATIONS_GIT)
+        self.assertEqual(release.host_operations_git_tree, HOST_OPERATIONS_GIT_TREE)
+        self.assertEqual(release.host_operations_contract_version, "host-operations-semantic-v1")
+        self.assertEqual(release.host_operations_contract_sha256, HOST_OPERATIONS_CONTRACT_SHA256)
         self.assertEqual(release.application_image_record_sha256, HEX_F)
         self.assertEqual(release.public_origin, "https://pilot.example.test")
         self.assertEqual(release.compose_workdir, "/opt/learncoding")
 
     def test_duplicate_unknown_or_noncanonical_release_field_is_rejected(self) -> None:
         for mutation in (
-            active_release_bytes() + b"GIT_COMMIT=" + GIT.encode("ascii") + b"\n",
+            active_release_bytes() + b"APPLICATION_GIT_COMMIT=" + APPLICATION_GIT.encode("ascii") + b"\n",
             active_release_bytes() + b"UNREVIEWED=value\n",
             active_release_bytes().replace(b"PUBLIC_ORIGIN=https://", b"PUBLIC_ORIGIN=http://"),
             active_release_bytes().replace(b"COMPOSE_PROJECT=learncoding", b"COMPOSE_PROJECT=other"),
@@ -216,6 +232,18 @@ class ManagedInventoryTests(unittest.TestCase):
                 container_inspection(record.service), record, "learncoding", "/opt/learncoding"
             )
             self.assertTrue(observed["healthy"])
+
+    def test_tagged_postgres_digest_reference_is_accepted(self) -> None:
+        tagged_reference = f"registry.example.test/codestead/postgres:17-bookworm@sha256:{'2' * 64}"
+        raw = inventory_bytes().replace(
+            f"registry.invalid/codestead/postgres@sha256:{'2' * 64}".encode("ascii"),
+            tagged_reference.encode("ascii"),
+        )
+
+        records = helper.parse_managed_inventory(raw, hashlib.sha256(raw).hexdigest())
+
+        postgres = next(record for record in records if record.service == "postgres")
+        self.assertEqual(postgres.image_reference, tagged_reference)
 
     def test_any_runtime_identity_or_compose_label_drift_is_rejected(self) -> None:
         raw = inventory_bytes()

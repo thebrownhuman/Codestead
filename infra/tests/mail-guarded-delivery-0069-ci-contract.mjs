@@ -67,6 +67,28 @@ export const mailGuardedDelivery0069PostgresCiExtension =
     ],
   });
 
+export const restoreDrillRoleBoundaryCiContract = Object.freeze({
+  extensionId: "restore-drill-role-boundary",
+  registrationScript: "test:restore-drill-role-boundary:registration",
+  pg17Script: "test:restore-drill-role-boundary:pg17",
+  pg18Script: "test:restore-drill-role-boundary:pg18",
+  registrationCommand:
+    "node --test infra/tests/restore-drill-role-boundary-harness.test.mjs",
+  harnessCommand: "node infra/tests/restore-drill-role-boundary.integration.mjs",
+});
+
+export const restoreDrillRoleBoundaryPostgresCiExtension =
+  definePostgresCiProjectionExtension({
+    id: restoreDrillRoleBoundaryCiContract.extensionId,
+    kind: "restore",
+    minimumTimeoutMinutes: 35,
+    registrationScripts: [
+      restoreDrillRoleBoundaryCiContract.registrationScript,
+    ],
+    productionPg17Scripts: [restoreDrillRoleBoundaryCiContract.pg17Script],
+    targetedPg18Scripts: [restoreDrillRoleBoundaryCiContract.pg18Script],
+  });
+
 export const postgresCiProjectionThrough0069 =
   composeCanonicalPostgresCiProjectionContract(
     mailDispatchBinding0064PostgresCiExtension,
@@ -75,6 +97,7 @@ export const postgresCiProjectionThrough0069 =
     mailDurableReplay0067PostgresCiExtension,
     mailRetentionRedaction0068PostgresCiExtension,
     mailGuardedDelivery0069PostgresCiExtension,
+    restoreDrillRoleBoundaryPostgresCiExtension,
   );
 
 function assertExactWorkflowControls(
@@ -160,7 +183,7 @@ export function assertMailGuardedDelivery0069PostgresProjection(
     {
       expectedJobProperties: [
         "    runs-on: ubuntu-24.04",
-        "    timeout-minutes: 20",
+        "    timeout-minutes: 35",
         "    steps:",
       ],
       allowedStepProperties: ["with:", "run: |"],
@@ -180,11 +203,20 @@ export function assertMailGuardedDelivery0069PostgresProjection(
     pg17Script,
     pg18Script,
   } = mailGuardedDelivery0069CiContract;
+  const restorePg17Line =
+    `      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run ${restoreDrillRoleBoundaryCiContract.pg17Script}`;
+  const restorePg18Line =
+    `      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run ${restoreDrillRoleBoundaryCiContract.pg18Script}`;
+  const restoreRegistrationLine =
+    `      - run: npm run ${restoreDrillRoleBoundaryCiContract.registrationScript}`;
   const commandLines = [
     `      - run: npm run ${registrationScript}`,
+    restoreRegistrationLine,
     `      - run: npm run ${roleContractScript}`,
     `      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run ${pg17Script}`,
     `      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run ${pg18Script}`,
+    restorePg17Line,
+    restorePg18Line,
   ];
   for (const commandLine of commandLines) {
     assert.equal(
@@ -206,22 +238,31 @@ export function assertMailGuardedDelivery0069PostgresProjection(
   const role0068Index = postgresProjection.indexOf(
     "      - run: npm run test:mail-retention-redaction-0068:roles",
   );
-  const role0069Index = postgresProjection.indexOf(commandLines[1]);
+  const restoreRegistrationIndex =
+    postgresProjection.indexOf(restoreRegistrationLine);
+  const role0069Index = postgresProjection.indexOf(commandLines[2]);
   const liveIntegrationIndex = postgresProjection.indexOf(
     "      - run: npm run test:integration",
   );
   const pg17RedactionIndex = postgresProjection.indexOf(
     "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0068:pg17",
   );
-  const pg17GuardedIndex = postgresProjection.indexOf(commandLines[2]);
+  const pg17GuardedIndex = postgresProjection.indexOf(commandLines[3]);
   const pg18RedactionIndex = postgresProjection.indexOf(
     "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-retention-redaction-0068:pg18",
   );
-  const pg18GuardedIndex = postgresProjection.indexOf(commandLines[3]);
+  const pg18GuardedIndex = postgresProjection.indexOf(commandLines[4]);
+  const restorePg17Index = postgresProjection.indexOf(restorePg17Line);
+  const restorePg18Index = postgresProjection.indexOf(restorePg18Line);
 
   assert.ok(
     registration0069Index > registration0068Index,
     "0069 registration must follow its 0068 dependency",
+  );
+  assert.ok(
+    restoreRegistrationIndex > registration0069Index
+      && role0068Index > restoreRegistrationIndex,
+    "restore registration must follow 0069 registration and precede role contracts",
   );
   assert.ok(
     role0069Index > role0068Index,
@@ -238,6 +279,18 @@ export function assertMailGuardedDelivery0069PostgresProjection(
   assert.ok(
     pg18GuardedIndex > pg18RedactionIndex,
     "the 0069 PostgreSQL 18 proof must follow the 0068 proof",
+  );
+  assert.ok(
+    restorePg17Index > pg17GuardedIndex,
+    "the PostgreSQL 17 restore and post-restore boundary cycle must follow the 0069 proof",
+  );
+  assert.ok(
+    pg18RedactionIndex > restorePg17Index,
+    "the complete PostgreSQL 17 restore cycle must finish before PostgreSQL 18 begins",
+  );
+  assert.ok(
+    restorePg18Index > pg18GuardedIndex,
+    "the PostgreSQL 18 restore and post-restore boundary cycle must follow the 0069 proof",
   );
   assert.ok(
     pg18GuardedIndex > pg17GuardedIndex,

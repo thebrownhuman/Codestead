@@ -6,6 +6,12 @@ readonly FULL_BACKUP_MAGIC="LEARNCODING_BACKUP_V1"
 readonly EMERGENCY_BACKUP_MAGIC="LEARNCODING_EMERGENCY_V1"
 readonly PRODUCTION_POSTGRES_MAJOR=17
 readonly BACKUP_STATUS_REPORT_DEADLINE_SECONDS="45"
+readonly RESTORE_REPORT_REVIEWED_MIGRATION_COUNT=70
+readonly RESTORE_REPORT_REVIEWED_MIGRATION_TAIL_IDX=69
+readonly RESTORE_REPORT_REVIEWED_MIGRATION_TAIL_CREATED_AT=1785009372253
+readonly RESTORE_REPORT_REVIEWED_MIGRATION_TAIL_TAG="0069_mail_outbox_guarded_delivery_authority"
+readonly RESTORE_REPORT_REVIEWED_MIGRATION_LEDGER_SHA256="20b480c7dd694d6e8e243704f14aeb05aa42fda4c5b7e863f6c357bf095a2551"
+readonly RESTORE_REPORT_POSTGRES_IMAGE="postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394"
 
 log() {
   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >&2
@@ -66,6 +72,73 @@ _valid_compact_utc_timestamp() {
     "${value:0:4}-${value:4:2}-${value:6:2} ${value:9:2}:${value:11:2}:${value:13:2} UTC" \
     '+%Y%m%dT%H%M%SZ' 2>/dev/null)" || return 1
   [[ "$normalized" == "$value" ]]
+}
+
+parse_restore_report_v2() {
+  local report_path="${1:-}" array_name="${2:-}" expected_verifier_sha256
+  local source_database_version_pattern timestamp_line
+
+  (( $# == 2 )) || return 1
+  [[ -f "$report_path" && ! -L "$report_path" ]] || return 1
+  _require_indexed_array_name "$array_name" || return 1
+  local -n restore_report_lines="$array_name"
+  mapfile -t restore_report_lines <"$report_path"
+  source_database_version_pattern='^source_database_version=postgres[[:space:]]+\(PostgreSQL\)[[:space:]]+17([.][0-9]+)?([[:space:]][A-Za-z0-9._+\(\)/:=-]+)*$'
+
+  [[ ${#restore_report_lines[@]} -eq 35 \
+    && "${restore_report_lines[0]}" == version=2 \
+    && "${restore_report_lines[1]}" == result=pass \
+    && "${restore_report_lines[2]}" == source=offsite \
+    && "${restore_report_lines[3]}" =~ ^archive=learncoding-full-[0-9]{8}T[0-9]{6}Z\.tar\.gz\.age$ \
+    && "${restore_report_lines[4]}" =~ ^archive_sha256=[0-9a-f]{64}$ \
+    && "${restore_report_lines[5]}" =~ ^approval_utc=[0-9]{8}T[0-9]{6}Z$ \
+    && "${restore_report_lines[6]}" =~ ^snapshot_utc=[0-9]{8}T[0-9]{6}Z$ \
+    && "${restore_report_lines[7]}" =~ ^incident_utc=[0-9]{8}T[0-9]{6}Z$ \
+    && "${restore_report_lines[8]}" =~ ^recorded_utc=[0-9]{8}T[0-9]{6}Z$ \
+    && "${restore_report_lines[9]}" == chronology_valid=true \
+    && "${restore_report_lines[10]}" == database_schema_valid=true \
+    && "${restore_report_lines[11]}" =~ ^public_table_count=[1-9][0-9]*$ \
+    && "${restore_report_lines[12]}" == app_data_valid=true \
+    && "${restore_report_lines[13]}" == credential_recovery=true \
+    && "${restore_report_lines[14]}" == live_database_modified=false \
+    && "${restore_report_lines[15]}" == cleanup_complete=true \
+    && "${restore_report_lines[16]}" =~ ^rpo_seconds=[0-9]+$ \
+    && "${restore_report_lines[17]}" == rpo_within_24h=true \
+    && "${restore_report_lines[18]}" =~ ^rto_seconds=[0-9]+$ \
+    && "${restore_report_lines[19]}" == rto_within_4h=true \
+    && "${restore_report_lines[20]}" =~ ^source_release_git_commit=([0-9a-f]{40}|[0-9a-f]{64})$ \
+    && "${restore_report_lines[21]}" =~ ^verifier_release_git_commit=([0-9a-f]{40}|[0-9a-f]{64})$ \
+    && "${restore_report_lines[22]}" =~ $source_database_version_pattern \
+    && "${restore_report_lines[23]}" == "migration_count=$RESTORE_REPORT_REVIEWED_MIGRATION_COUNT" \
+    && "${restore_report_lines[24]}" =~ ^migration_last_id=[0-9]{1,20}$ \
+    && "${restore_report_lines[25]}" == "migration_last_created_at=$RESTORE_REPORT_REVIEWED_MIGRATION_TAIL_CREATED_AT" \
+    && "${restore_report_lines[26]}" =~ ^migration_state_sha256=[0-9a-f]{64}$ \
+    && "${restore_report_lines[27]}" == "reviewed_migration_count=$RESTORE_REPORT_REVIEWED_MIGRATION_COUNT" \
+    && "${restore_report_lines[28]}" == "reviewed_migration_tail_idx=$RESTORE_REPORT_REVIEWED_MIGRATION_TAIL_IDX" \
+    && "${restore_report_lines[29]}" == "reviewed_migration_tail_tag=$RESTORE_REPORT_REVIEWED_MIGRATION_TAIL_TAG" \
+    && "${restore_report_lines[30]}" == "reviewed_migration_ledger_sha256=$RESTORE_REPORT_REVIEWED_MIGRATION_LEDGER_SHA256" \
+    && -n "${RESTORE_OPERATIONS_IMAGE:-}" \
+    && "$RESTORE_OPERATIONS_IMAGE" =~ ^[^@,[:space:]]+@sha256:[0-9a-f]{64}$ \
+    && "${restore_report_lines[31]}" == "restore_operations_image=$RESTORE_OPERATIONS_IMAGE" \
+    && "${restore_report_lines[32]}" == "restore_postgres_image=$RESTORE_REPORT_POSTGRES_IMAGE" \
+    && "${restore_report_lines[33]}" =~ ^restore_postgres_version_num=([1-9][0-9]{4,7})$ \
+    && "${restore_report_lines[34]}" =~ ^restore_verifier_sha256=[0-9a-f]{64}$ ]] \
+    || return 1
+
+  [[ "${restore_report_lines[20]#source_release_git_commit=}" \
+      == "${restore_report_lines[21]#verifier_release_git_commit=}" ]] \
+    || return 1
+  production_postgres_version_num_is_reviewed \
+    "${restore_report_lines[33]#restore_postgres_version_num=}" || return 1
+  for timestamp_line in 5 6 7 8; do
+    _valid_compact_utc_timestamp "${restore_report_lines[$timestamp_line]#*=}" || return 1
+  done
+  [[ -f "$REPO_ROOT/scripts/verify-restored-backup.ts" \
+    && ! -L "$REPO_ROOT/scripts/verify-restored-backup.ts" ]] || return 1
+  expected_verifier_sha256="$(sha256sum \
+    "$REPO_ROOT/scripts/verify-restored-backup.ts" | awk '{print $1}')" || return 1
+  [[ "$expected_verifier_sha256" =~ ^[0-9a-f]{64}$ \
+    && "${restore_report_lines[34]}" == "restore_verifier_sha256=$expected_verifier_sha256" ]]
 }
 
 _valid_canonical_uuid_v4() {

@@ -160,7 +160,17 @@ assert.deepEqual(
   [62, 63, 64, 65],
 );
 const phase0065 = phasesThrough0065.at(-1);
-assert.equal(phase0064?.routines.length, 4);
+const reviewedRewardRoutineSignatures = [
+  "public.enqueue_reward_jobs_for_attempt_v1(uuid,text,timestamp with time zone)",
+  "public.enqueue_reward_jobs_for_mastery_scope_v1(uuid,text,timestamp with time zone)",
+];
+assert.equal(phase0064?.routines.length, 6);
+assert.deepEqual(
+  phase0064?.routines
+    .map(({ signature }) => signature)
+    .filter((signature) => reviewedRewardRoutineSignatures.includes(signature)),
+  reviewedRewardRoutineSignatures,
+);
 assert.equal(phase0064?.triggers.length, 2);
 assert.equal(phase0064?.backupStatusAuthority, null);
 assert.deepEqual(
@@ -179,7 +189,13 @@ assert.deepEqual(
     requiresWorkerContract: true,
   },
 );
-assert.equal(phase0065?.routines.length, 8);
+assert.equal(phase0065?.routines.length, 10);
+assert.deepEqual(
+  phase0065?.routines
+    .map(({ signature }) => signature)
+    .filter((signature) => reviewedRewardRoutineSignatures.includes(signature)),
+  reviewedRewardRoutineSignatures,
+);
 assert.equal(phase0065?.triggers.length, 7);
 assert.equal(
   phase0065?.backupStatusAuthority?.relations,

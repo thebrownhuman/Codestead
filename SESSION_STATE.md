@@ -158,3 +158,41 @@ production_ready: false
 # Operational note
 
 Read `CONTINUATION.md` before taking any action. Preserve every listed worktree and do not treat RED tests as regressions introduced by the handoff.
+
+---
+current_superseding_update:
+  snapshot_time: "2026-07-28T15:05:00+05:30"
+  branch: "main"
+  checkpoint_base: "cb91a86cc1a2"
+  task_8_status: "repository-scoped CI, roles, capabilities, restore and rollback core verified; the commit containing this record is the Task 8 checkpoint"
+  docker_touched: false
+  windows_postgres_service_touched: false
+  port_5432_touched: false
+  verification:
+    postgres_17_10_restore_role_boundary: "PASS"
+    postgres_18_1_restore_role_boundary: "PASS"
+    database_least_privilege: "47/47"
+    database_role_boundaries: "76/76"
+    restore_role_boundary_harness: "45/45"
+    host_operations_compatibility: "12/12"
+    release_simulation: "release-production-tests-ok"
+    rollback_simulation: "rollback-production-tests-ok"
+    lint: "PASS"
+    typecheck: "PASS"
+    build: "PASS"
+    candidate_secret_scan: "2,834 tracked/unignored files; zero findings"
+    diff_check: "PASS; line-ending normalization warnings only"
+  p3_2_database_role_risk:
+    status: "OPEN / DEFERRED FOR LOCAL FEW-USER SCOPE"
+    technical_completion: false
+    production_ready: false
+    required_before_external_release: "narrow broad app/ops CRUD or record exact-SHA release-specific acceptance"
+  deferred_harness_hardening:
+    - "signal-cleanup race containment"
+    - "Windows DACL behavioral proof"
+    - "outer disposable-child lifecycle deadline"
+  external_evidence_status: "Gmail, NUC, Cloudflare, Drive, reboot and supervised power-cut evidence remain unproven"
+  next_task: "Task 9 - complete live concurrency and deletion race execution"
+  following_task: "Task 10 - clean-checkout release matrix and repair"
+  safe_to_continue: true
+  production_ready: false

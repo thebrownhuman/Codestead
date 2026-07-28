@@ -30,6 +30,7 @@ import { deleteLearnerAccount } from "@/lib/data-lifecycle/deletion";
 import { DrizzleLearningStore } from "@/lib/learning-service/drizzle-store";
 import { LearningService } from "@/lib/learning-service/service";
 import { scheduleSmartRemindersWithDatabase } from "@/lib/notifications/smart-reminders";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
 
 const LEARNER = "daily-review-learner";
 const OTHER = "daily-review-other";
@@ -63,7 +64,7 @@ type PoolClientWithProcessId = PoolClient & {
 };
 
 function requiredDatabaseUrl(
-  environmentKey: "DATABASE_APP_URL" | "DATABASE_URL",
+  environmentKey: "DATABASE_APP_URL",
 ): string {
   const connectionString = process.env[environmentKey];
   if (!connectionString) {
@@ -168,12 +169,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 function reviewedBank(skillId: string, itemId: string): Record<string, unknown> {
@@ -614,7 +610,13 @@ describe("daily review PostgreSQL journey", () => {
 
     const suffix = randomUUID().slice(0, 12);
     const appConnectionString = requiredDatabaseUrl("DATABASE_APP_URL");
-    const ownerConnectionString = requiredDatabaseUrl("DATABASE_URL");
+
+    const submissionPool = new Pool({
+      connectionString: appConnectionString,
+      max: 1,
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 5_000,
+    });
     const appCanaryPool = new Pool({
       connectionString: appConnectionString,
       max: 1,
@@ -633,8 +635,8 @@ describe("daily review PostgreSQL journey", () => {
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 5_000,
     });
-    const [ownerSubmissionClient, appCanaryClient, schedulerClient, blockerClient, observerClient, peerClient] = await Promise.all([
-      pool.connect(),
+    const [submissionClient, appCanaryClient, schedulerClient, blockerClient, observerClient, peerClient] = await Promise.all([
+      submissionPool.connect(),
       appCanaryPool.connect(),
       schedulerPool.connect(),
       coordinationPool.connect(),
@@ -651,11 +653,11 @@ describe("daily review PostgreSQL journey", () => {
     let blockerReleased = false;
     try {
       const submissionIdentity = await identifyDatabaseBackend(
-        ownerSubmissionClient,
+        submissionClient,
         `codestead.review-completion.submission.${suffix}`,
         {
-          connectionString: ownerConnectionString,
-          currentRole: "learncoding_owner",
+          connectionString: appConnectionString,
+
         },
       );
       await identifyDatabaseBackend(
@@ -715,7 +717,7 @@ describe("daily review PostgreSQL journey", () => {
         ),
       )).rejects.toMatchObject({ code: "LEARNER_NOT_FOUND", status: 404 });
 
-      const submissionDatabase = drizzle(ownerSubmissionClient, { schema });
+      const submissionDatabase = drizzle(submissionClient, { schema });
       const learning = new LearningService({
         store: storeForDatabase(submissionDatabase),
         now: () => NOW,
@@ -828,12 +830,13 @@ describe("daily review PostgreSQL journey", () => {
       if (scheduled) await scheduled.catch(() => undefined);
       if (peerKeyShare) await peerKeyShare.catch(() => undefined);
       schedulerClient.release();
-      ownerSubmissionClient.release();
+      submissionClient.release();
       appCanaryClient.release();
       blockerClient.release();
       observerClient.release();
       peerClient.release();
       await Promise.all([
+        submissionPool.end(),
         appCanaryPool.end(),
         schedulerPool.end(),
         coordinationPool.end(),

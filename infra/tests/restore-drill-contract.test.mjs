@@ -11,6 +11,24 @@ const drill = [
   readFileSync(path.join(root, "scripts/backup/validate-restore-metrics.sh"), "utf8"),
 ].join("\n");
 const smoke = readFileSync(path.join(root, "scripts/verify-restored-backup.ts"), "utf8");
+const entrypoint = readFileSync(path.join(root, "infra/docker/entrypoint.sh"), "utf8");
+const smokeServiceStart = compose.indexOf("\n  smoke:");
+const smokeServiceEnd = compose.indexOf("\nsecrets:", smokeServiceStart);
+const bootstrapServiceStart = compose.indexOf("\n  database-role-bootstrap:");
+const bootstrapServiceEnd = compose.indexOf(
+  "\n  database-boundary-preflight:",
+  bootstrapServiceStart,
+);
+if (
+  smokeServiceStart < 0
+  || smokeServiceEnd <= smokeServiceStart
+  || bootstrapServiceStart < 0
+  || bootstrapServiceEnd <= bootstrapServiceStart
+) {
+  throw new Error("restore compose service boundaries are invalid");
+}
+const smokeService = compose.slice(smokeServiceStart, smokeServiceEnd);
+const bootstrapService = compose.slice(bootstrapServiceStart, bootstrapServiceEnd);
 
 function requireText(document, text, label) {
   if (!document.includes(text)) throw new Error(`${label} is missing: ${text}`);
@@ -36,6 +54,54 @@ requireText(compose, "cap_drop:\n      - ALL", "restore compose");
 requireText(compose, "read_only: true", "restore compose");
 requireText(compose, "source: ${RESTORE_EXTRACTED_ROOT", "restore compose");
 requireText(compose, "source: ${RESTORE_CREDENTIAL_MASTER_KEY_FILE", "restore compose");
+requireText(
+  smokeService,
+  "RESTORE_CREDENTIAL_MASTER_KEY_PATH: /run/secrets/credential_master_key",
+  "restore smoke service",
+);
+requireText(smokeService, "source: database_ops_url", "restore smoke service");
+requireText(smokeService, "target: database_url", "restore smoke service");
+if (/^\s+CREDENTIAL_MASTER_KEY_FILE\s*:/mu.test(smokeService)) {
+  throw new Error("restore smoke must not use the generic entrypoint-consumed key path");
+}
+requireText(
+  bootstrapService,
+  "/app/scripts/verify-restored-backup.ts --remove-ledger-authority-before-bootstrap",
+  "restore role bootstrap service",
+);
+requireText(
+  bootstrapService,
+  "/app/scripts/verify-restored-backup.ts --install-ledger-authority",
+  "restore role bootstrap service",
+);
+requireText(
+  bootstrapService,
+  "RESTORE_NO_ACL_RECONCILIATION: ${RESTORE_NO_ACL_RECONCILIATION:-false}",
+  "restore role bootstrap service",
+);
+if (
+  (
+    compose.match(
+      /RESTORE_NO_ACL_RECONCILIATION:\s*\$\{RESTORE_NO_ACL_RECONCILIATION:-false\}/gu,
+    ) ?? []
+  ).length !== 1
+) {
+  throw new Error("restore no-ACL pass-through must be scoped to one bootstrap service");
+}
+const removeAuthority = bootstrapService.indexOf(
+  "--remove-ledger-authority-before-bootstrap",
+);
+const bootstrapRoles = bootstrapService.indexOf(
+  "node /app/scripts/bootstrap-database-roles.mjs",
+);
+const installAuthority = bootstrapService.indexOf("--install-ledger-authority");
+if (
+  removeAuthority < 0
+  || bootstrapRoles <= removeAuthority
+  || installAuthority <= bootstrapRoles
+) {
+  throw new Error("restore authority convergence/bootstrap/install order is unsafe");
+}
 if (/\n\s+ports\s*:/.test(compose) || /network_mode\s*:/.test(compose)) {
   throw new Error("restore compose must not publish ports or join a host/production network");
 }
@@ -82,6 +148,27 @@ for (const expected of [
   "rpo_within_24h=true",
   "rto_within_4h=true",
 ]) requireText(drill, expected, "restore drill");
+const noAclRestoreAssignments = [
+  ...drill.matchAll(/^RESTORE_NO_ACL_RECONCILIATION=true\s*\\$/gmu),
+];
+if (noAclRestoreAssignments.length !== 1) {
+  throw new Error("restore drill must enable no-ACL reconciliation exactly once");
+}
+const restoreMutation = drill.indexOf("exec pg_restore ");
+const noAclRestoreAssignment = noAclRestoreAssignments[0].index;
+const postRestoreBootstrap = drill.indexOf(
+  "restore_one_shot database-role-bootstrap",
+  noAclRestoreAssignment,
+);
+if (
+  restoreMutation < 0
+  || noAclRestoreAssignment <= restoreMutation
+  || postRestoreBootstrap <= noAclRestoreAssignment
+) {
+  throw new Error(
+    "restore no-ACL reconciliation must apply only to the post-pg_restore bootstrap",
+  );
+}
 
 if (!/RESTORE_OPERATIONS_IMAGE[^\n]*@sha256:/.test(drill)) {
   throw new Error("restore drill must reject a mutable operations image reference");
@@ -92,6 +179,42 @@ for (const expected of [
   "verifyCredentialProbe",
   "timingSafeEqual",
 ]) requireText(smoke, expected, "restore smoke verifier");
-requireText(smoke, "process.env.DATABASE_URL", "restore smoke verifier");
+requireText(smoke, "resolveRestoreSmokeEnvironment(process.env)", "restore smoke verifier");
+requireText(smoke, "environment.DATABASE_URL", "restore smoke verifier");
+requireText(smoke, "process.env.DATABASE_BOOTSTRAP_URL", "restore smoke verifier");
+requireText(
+  smoke,
+  "environment.RESTORE_CREDENTIAL_MASTER_KEY_PATH",
+  "restore smoke verifier",
+);
+requireText(
+  smoke,
+  "codestead_restore_audit.reviewed_migration_ledger()",
+  "restore smoke verifier",
+);
+requireText(smoke, "restore_ledger_runtime_identity", "restore smoke verifier");
+requireText(smoke, "learncoding_restore_ledger_reader", "restore smoke verifier");
+requireText(smoke, "definer_drizzle_acl_exact", "restore smoke verifier");
+if (
+  smoke.includes("process.env.CREDENTIAL_MASTER_KEY_FILE")
+  || smoke.includes("process.env.CREDENTIAL_MASTER_KEY;")
+) {
+  throw new Error("restore smoke verifier must not consume generic key variables");
+}
+requireText(
+  entrypoint,
+  'RESTORE_CREDENTIAL_MASTER_KEY_PATH',
+  "image entrypoint",
+);
+requireText(
+  entrypoint,
+  '"/run/secrets/credential_master_key"',
+  "image entrypoint",
+);
+const genericFileExpansion = entrypoint.indexOf("file_env \"$variable\"");
+const restorePathValidation = entrypoint.indexOf("RESTORE_CREDENTIAL_MASTER_KEY_PATH");
+if (genericFileExpansion < 0 || restorePathValidation < 0) {
+  throw new Error("restore credential handoff is not enforced by the image entrypoint");
+}
 
 process.stdout.write("restore-drill-contract-tests-ok\n");

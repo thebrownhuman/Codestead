@@ -17,6 +17,10 @@ describe("access-request system-mail producers", () => {
       "tx.insert(accessRequest)",
       transaction,
     );
+    const authorityLock = source.indexOf(
+      "await lockAccessRequestSourceAuthority(tx, parsed.data.email)",
+      transaction,
+    );
     const adminLookup = source.indexOf(".from(user)", requestInsert);
     const mailInsert = source.indexOf(
       "enqueueEmailInTransaction(tx",
@@ -24,6 +28,9 @@ describe("access-request system-mail producers", () => {
     );
 
     expect(transaction).toBeGreaterThanOrEqual(0);
+    expect(authorityLock).toBeGreaterThan(transaction);
+    expect(authorityLock).toBeLessThan(requestInsert);
+    expect(source).toContain("if (!sourceAuthorized) return");
     expect(requestInsert).toBeGreaterThan(transaction);
     expect(source).toContain(".returning({ id: accessRequest.id })");
     expect(adminLookup).toBeGreaterThan(requestInsert);
@@ -44,6 +51,11 @@ describe("access-request system-mail producers", () => {
       "tx.insert(invitation)",
       transaction,
     );
+    const authorityLock = source.indexOf(
+      "await lockAccessRequestSourceAuthority(tx, candidateEmail.email)",
+      transaction,
+    );
+    const sourceRowLock = source.indexOf('.for("update")', authorityLock);
     const decisionUpdate = source.indexOf(
       "tx.update(accessRequest)",
       invitationInsert,
@@ -54,7 +66,10 @@ describe("access-request system-mail producers", () => {
     );
 
     expect(transaction).toBeGreaterThanOrEqual(0);
-    expect(invitationInsert).toBeGreaterThan(transaction);
+    expect(authorityLock).toBeGreaterThan(transaction);
+    expect(sourceRowLock).toBeGreaterThan(authorityLock);
+    expect(source).toContain("if (!sourceAuthorized) return null");
+    expect(invitationInsert).toBeGreaterThan(sourceRowLock);
     expect(decisionUpdate).toBeGreaterThan(invitationInsert);
     expect(mailInsert).toBeGreaterThan(decisionUpdate);
     expect(source).toContain('systemProducer: "access-request-approved"');
@@ -67,6 +82,11 @@ describe("access-request system-mail producers", () => {
   it("persists rejection and rejection mail in one transaction", () => {
     const source = route("admin/access-requests/[id]/reject/route.ts");
     const transaction = source.indexOf("db.transaction(async (tx)");
+    const authorityLock = source.indexOf(
+      "await lockAccessRequestSourceAuthority(tx, candidateEmail.email)",
+      transaction,
+    );
+    const sourceRowLock = source.indexOf('.for("update")', authorityLock);
     const decisionUpdate = source.indexOf(
       "tx.update(accessRequest)",
       transaction,
@@ -77,7 +97,10 @@ describe("access-request system-mail producers", () => {
     );
 
     expect(transaction).toBeGreaterThanOrEqual(0);
-    expect(decisionUpdate).toBeGreaterThan(transaction);
+    expect(authorityLock).toBeGreaterThan(transaction);
+    expect(sourceRowLock).toBeGreaterThan(authorityLock);
+    expect(source).toContain("if (!sourceAuthorized) return null");
+    expect(decisionUpdate).toBeGreaterThan(sourceRowLock);
     expect(mailInsert).toBeGreaterThan(decisionUpdate);
     expect(source).toContain('systemProducer: "access-request-rejected"');
     expect(source).toContain("sourceId: pending.id");

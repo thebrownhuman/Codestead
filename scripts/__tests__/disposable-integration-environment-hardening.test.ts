@@ -13,7 +13,8 @@ type EnvironmentHardeningModule = Readonly<{
       databaseMigratorUrl: string;
       databaseWorkerUrl: string;
       databaseOpsUrl: string;
-      databaseUrl: string;
+      databaseBackupReporterUrl: string;
+      databaseOwnerUrl: string;
       betterAuthSecret: string;
     }>,
   ) => NodeJS.ProcessEnv;
@@ -127,13 +128,26 @@ describe("disposable integration environment hardening", () => {
       .toBe("function");
     if (!environment.buildDisposableIntegrationRuntimeEnvironment) return;
 
+    const migratorUrl =
+      "postgresql://learncoding_migrator:migrator-password"
+      + "@127.0.0.1:49152/learncoding_integration";
     const explicit = {
       taskHomeDirectory: process.cwd(),
-      databaseAppUrl: "postgresql://explicit-app",
-      databaseMigratorUrl: "postgresql://explicit-migrator",
-      databaseWorkerUrl: "postgresql://explicit-worker",
-      databaseOpsUrl: "postgresql://explicit-ops",
-      databaseUrl: "postgresql://explicit-owner",
+      databaseAppUrl:
+        "postgresql://learncoding_app:app-password"
+        + "@127.0.0.1:49152/learncoding_integration",
+      databaseMigratorUrl: migratorUrl,
+      databaseWorkerUrl:
+        "postgresql://learncoding_worker:worker-password"
+        + "@127.0.0.1:49152/learncoding_integration",
+      databaseOpsUrl:
+        "postgresql://learncoding_ops:ops-password"
+        + "@127.0.0.1:49152/learncoding_integration",
+      databaseBackupReporterUrl:
+        "postgresql://learncoding_backup_reporter:backup-reporter-password"
+        + "@127.0.0.1:49152/learncoding_integration",
+      databaseOwnerUrl:
+        `${migratorUrl}?options=-c+role%3Dlearncoding_owner`,
       betterAuthSecret: "explicit-integration-auth-secret",
     };
     expect(
@@ -150,7 +164,9 @@ describe("disposable integration environment hardening", () => {
       DATABASE_MIGRATOR_URL: explicit.databaseMigratorUrl,
       DATABASE_WORKER_URL: explicit.databaseWorkerUrl,
       DATABASE_OPS_URL: explicit.databaseOpsUrl,
-      DATABASE_URL: explicit.databaseUrl,
+      DATABASE_BACKUP_REPORTER_URL: explicit.databaseBackupReporterUrl,
+      DATABASE_OWNER_URL: explicit.databaseOwnerUrl,
+      DATABASE_URL: explicit.databaseAppUrl,
       DATABASE_POOL_SIZE: "8",
       NODE_ENV: "test",
       BETTER_AUTH_SECRET: explicit.betterAuthSecret,
@@ -205,6 +221,10 @@ describe("disposable integration environment hardening", () => {
 
     reporter.enter("initial-migration");
     reporter.report();
+    reporter.enter("reset-capability-install");
+    reporter.report();
+    reporter.enter("reset-capability-teardown");
+    reporter.report();
     reporter.enter(
       "invalid:postgresql://learncoding_it:"
         + "generated-password-canary@127.0.0.1/db",
@@ -214,6 +234,10 @@ describe("disposable integration environment hardening", () => {
     expect(output).toEqual([
       '{"event":"integration.failed","phase":"initial-migration",'
         + '"reason":"migration_failed"}\n',
+      '{"event":"integration.failed","phase":"reset-capability-install",'
+        + '"reason":"reset_capability_install_failed"}\n',
+      '{"event":"integration.failed","phase":"reset-capability-teardown",'
+        + '"reason":"reset_capability_teardown_failed"}\n',
       '{"event":"integration.failed","phase":"unknown",'
         + '"reason":"unexpected_failure"}\n',
     ]);

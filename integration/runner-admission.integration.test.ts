@@ -13,6 +13,7 @@ import {
   settleRunnerJob,
 } from "@/lib/runner/admission";
 import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
 
 const ADMIN_ID = "runner-admission-admin";
 const LEARNER_ID = "runner-admission-learner";
@@ -36,14 +37,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  if (result.rows.length) {
-    const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(",");
-    await pool.query(`truncate table ${names} restart identity cascade`);
-  }
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 async function waitForAdvisoryWaiter(blockerPid: number) {

@@ -16,9 +16,8 @@ describe("production user-authority writers", () => {
     const deletion = source("src/lib/data-lifecycle/deletion.ts");
     const normalized = compact(deletion);
 
-    expect(deletion).toContain(
-      'import { lockUserAuthorityOnPgClient } from "@/lib/security/user-authority-lock"',
-    );
+    expect(deletion).toContain("lockAccessRequestAuthorityOnPgClient");
+    expect(deletion).toContain("lockUserAuthorityOnPgClient");
     expect(deletion).not.toContain("userAuthorityLockKey");
     expect(
       normalized.match(
@@ -74,6 +73,35 @@ describe("production user-authority writers", () => {
     expect(transaction).toBeGreaterThanOrEqual(0);
     expect(lock).toBeGreaterThan(transaction);
     expect(update).toBeGreaterThan(lock);
+  });
+
+  it("locks quota mutation and revalidates the active public identity before recreating learner rows", () => {
+    const quota = compact(source("src/lib/storage/admin-quota.ts"));
+    const identity = quota.indexOf("const [identity] = await tx");
+    const authorityLock = quota.indexOf(
+      "await lockUserAuthority(tx, identity.id)",
+      identity,
+    );
+    const uploadLock = quota.indexOf(
+      "pg_advisory_xact_lock(hashtext(${identity.id}))",
+      authorityLock,
+    );
+    const current = quota.indexOf("const [current] = await tx", uploadLock);
+    const profileInsert = quota.indexOf("tx.insert(learnerProfile)", current);
+    const notificationInsert = quota.indexOf("tx.insert(notification)", current);
+
+    expect(identity).toBeGreaterThanOrEqual(0);
+    expect(authorityLock).toBeGreaterThan(identity);
+    expect(uploadLock).toBeGreaterThan(authorityLock);
+    expect(current).toBeGreaterThan(uploadLock);
+    expect(quota.slice(current, profileInsert)).toContain(
+      "eq(user.publicId, request.learnerPublicId)",
+    );
+    expect(quota.slice(current, profileInsert)).toContain(
+      'eq(user.status, "active")',
+    );
+    expect(profileInsert).toBeGreaterThan(current);
+    expect(notificationInsert).toBeGreaterThan(profileInsert);
   });
 
   it("keeps generic Better Auth user/admin mutations outside the raw HTTP surface", () => {

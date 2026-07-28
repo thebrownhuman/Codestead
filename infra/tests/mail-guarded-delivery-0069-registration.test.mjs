@@ -8,6 +8,7 @@ import {
   assertMailGuardedDelivery0069PostgresProjection,
   mailGuardedDelivery0069CiContract,
 } from "./mail-guarded-delivery-0069-ci-contract.mjs";
+import * as postgresCiContract from "./mail-guarded-delivery-0069-ci-contract.mjs";
 
 const read = (relativePath) =>
   readFileSync(new URL(`../../${relativePath}`, import.meta.url), "utf8");
@@ -33,6 +34,68 @@ const {
   harnessCommand,
 } = mailGuardedDelivery0069CiContract;
 
+const restoreRoleBoundaryContract =
+  postgresCiContract.restoreDrillRoleBoundaryCiContract;
+assert.ok(
+  restoreRoleBoundaryContract,
+  "through-0069 CI must define the dedicated restore role-boundary contract",
+);
+assert.deepEqual(restoreRoleBoundaryContract, {
+  extensionId: "restore-drill-role-boundary",
+  registrationScript: "test:restore-drill-role-boundary:registration",
+  pg17Script: "test:restore-drill-role-boundary:pg17",
+  pg18Script: "test:restore-drill-role-boundary:pg18",
+  registrationCommand:
+    "node --test infra/tests/restore-drill-role-boundary-harness.test.mjs",
+  harnessCommand: "node infra/tests/restore-drill-role-boundary.integration.mjs",
+});
+assert.deepEqual(
+  Object.fromEntries(
+    Object.entries(
+      postgresCiContract.restoreDrillRoleBoundaryPostgresCiExtension,
+    ),
+  ),
+  {
+    id: restoreRoleBoundaryContract.extensionId,
+    kind: "restore",
+    registrationScripts: [restoreRoleBoundaryContract.registrationScript],
+    productionPg17Scripts: [restoreRoleBoundaryContract.pg17Script],
+    targetedPg18Scripts: [restoreRoleBoundaryContract.pg18Script],
+    minimumTimeoutMinutes: 35,
+  },
+  "the Task 8 extension must remain the exact canonical restore extension",
+);
+assert.equal(
+  postgresCiContract.postgresCiProjectionThrough0069.timeoutMinutes,
+  35,
+  "Task 8 restore compatibility needs the accepted 35-minute timeout",
+);
+assert.equal(
+  postgresCiContract.postgresCiProjectionThrough0069.restoreExtensionId,
+  restoreRoleBoundaryContract.extensionId,
+  "the Task 8 cycle must be the sole restore extension",
+);
+assert.equal(
+  postgresCiContract.postgresCiProjectionThrough0069.extensionIds.at(-1),
+  restoreRoleBoundaryContract.extensionId,
+  "the complete restore cycle must extend the final through-0069 projection",
+);
+assert.equal(
+  scripts[restoreRoleBoundaryContract.registrationScript],
+  restoreRoleBoundaryContract.registrationCommand,
+  "the restore registration alias must execute the unit harness",
+);
+assert.equal(
+  scripts[restoreRoleBoundaryContract.pg17Script],
+  restoreRoleBoundaryContract.harnessCommand,
+  "the PostgreSQL 17 alias must execute the real restore role-boundary harness",
+);
+assert.equal(
+  scripts[restoreRoleBoundaryContract.pg18Script],
+  restoreRoleBoundaryContract.harnessCommand,
+  "the PostgreSQL 18 alias must execute the real restore role-boundary harness",
+);
+
 assert.equal(scripts[registrationScript], registrationCommand);
 assert.equal(scripts[writerInventoryScript], writerInventoryCommand);
 assert.equal(scripts[roleContractScript], roleContractCommand);
@@ -43,6 +106,7 @@ assert.equal(scripts[pg18Script], harnessCommand);
 const checkCommands = scripts.check.split(" && ");
 for (const script of [
   registrationScript,
+  restoreRoleBoundaryContract.registrationScript,
   releaseRollbackScript,
   writerInventoryScript,
   roleContractScript,
@@ -57,6 +121,7 @@ const requiredCheckOrder = [
   "npm run test:mail-durable-replay-0067:registration",
   "npm run test:mail-retention-redaction-0068:registration",
   "npm run test:mail-guarded-delivery-0069:registration",
+  `npm run ${restoreRoleBoundaryContract.registrationScript}`,
   `npm run ${releaseRollbackScript}`,
   `npm run ${writerInventoryScript}`,
   "npm run test:mail-dispatch-binding-0064:roles",
@@ -92,12 +157,18 @@ const replaceExactly = (source, before, after) => {
 };
 const registrationLine =
   "      - run: npm run test:mail-guarded-delivery-0069:registration";
+const restoreRegistrationLine =
+  "      - run: npm run test:restore-drill-role-boundary:registration";
 const roleLine =
   "      - run: npm run test:mail-guarded-delivery-0069:roles";
 const pg17Line =
   "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-guarded-delivery-0069:pg17";
 const pg18Line =
   "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-guarded-delivery-0069:pg18";
+const restorePg17Line =
+  "      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:restore-drill-role-boundary:pg17";
+const restorePg18Line =
+  "      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:restore-drill-role-boundary:pg18";
 const applicationGuardLine =
   "      - run: node infra/tests/backup-ci-registration.test.mjs";
 const runnerContextGuardLine =
@@ -115,10 +186,42 @@ for (const [mutated, expected] of [
     ),
     /duplicated|scripts must not be duplicated/u,
   ],
+  [
+    replaceExactly(postgresJob, restoreRegistrationLine, ""),
+    /registration scripts|command must appear exactly once/u,
+  ],
+  [
+    replaceExactly(
+      postgresJob,
+      restoreRegistrationLine,
+      `${restoreRegistrationLine}\n${restoreRegistrationLine}`,
+    ),
+    /duplicated|registration scripts|command must appear exactly once/u,
+  ],
+  [
+    replaceExactly(
+      postgresJob,
+      restoreRegistrationLine,
+      `${restoreRegistrationLine}\n        continue-on-error: true`,
+    ),
+    /step-level workflow controls|advisory/u,
+  ],
   [replaceExactly(postgresJob, roleLine, ""), /role-contract/u],
   [
     replaceExactly(postgresJob, pg17Line, `${pg17Line}\n${pg17Line}`),
     /PostgreSQL 17 scripts/u,
+  ],
+  [
+    replaceExactly(postgresJob, restorePg17Line, ""),
+    /PostgreSQL 17 scripts|command must appear exactly once/u,
+  ],
+  [
+    replaceExactly(
+      postgresJob,
+      restorePg18Line,
+      `${restorePg18Line}\n${restorePg18Line}`,
+    ),
+    /PostgreSQL 18 scripts|command must appear exactly once/u,
   ],
   [
     replaceExactly(
@@ -154,14 +257,14 @@ for (const [mutated, expected] of [
   ],
   [
     postgresJob.replace(
-      "    timeout-minutes: 20",
+      "    timeout-minutes: 35",
       "    timeout-minutes: 20\n    continue-on-error: true",
     ),
     /advisory|unconditional independent gate/u,
   ],
   [
     postgresJob.replace(
-      "    timeout-minutes: 20",
+      "    timeout-minutes: 35",
       "    timeout-minutes: 20\n    needs: application",
     ),
     /unconditional independent gate/u,
@@ -199,7 +302,7 @@ for (const property of [
     () =>
       assertMailGuardedDelivery0069PostgresProjection(
         postgresJob.replace(
-          "    timeout-minutes: 20",
+          "    timeout-minutes: 35",
           `    timeout-minutes: 20\n${property}`,
         ),
       ),

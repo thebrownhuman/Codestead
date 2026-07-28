@@ -180,10 +180,22 @@ assert.equal(restoreBootstrapCalls.length, 2);
 const restoreMutationIndex = restore.indexOf("exec pg_restore ");
 assert.ok(restoreBootstrapCalls[0] < restoreMutationIndex);
 assert.ok(restoreBootstrapCalls[1] > restoreMutationIndex);
+assert.equal(
+  (restore.match(/^RESTORE_NO_ACL_RECONCILIATION=true\s*\\$/gmu) ?? []).length,
+  1,
+);
 assert.match(
   restore,
-  /REQUIRE_COMPLETE_MIGRATION_LEDGER=true\s*\\\s*\n\s*restore_one_shot database-role-bootstrap/u,
+  /REQUIRE_COMPLETE_MIGRATION_LEDGER=true\s*\\\s*\n\s*RESTORE_NO_ACL_RECONCILIATION=true\s*\\\s*\n\s*restore_one_shot database-role-bootstrap/u,
 );
+assert.ok(
+  restore.indexOf("RESTORE_NO_ACL_RECONCILIATION=true") > restoreMutationIndex,
+);
+assert.doesNotMatch(
+  restore.slice(0, restoreMutationIndex),
+  /RESTORE_NO_ACL_RECONCILIATION=true/u,
+);
+
 assert.ok(
   restore.indexOf("restore_one_shot database-boundary-verifier") >
     restoreBootstrapCalls[1],

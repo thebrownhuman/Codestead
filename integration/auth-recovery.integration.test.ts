@@ -38,6 +38,10 @@ import {
   verifyLostDeviceProof,
 } from "@/lib/security/lost-device-recovery";
 import { and, eq } from "drizzle-orm";
+import { validatedDisposableOwnerDatabaseTarget } from
+  "../scripts/lib/disposable-integration-environment";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
+import { withValidatedOwnerFaultInjection } from "./support/with-validated-owner-fault-injection";
 
 const ADMIN_ID = "auth-recovery-admin";
 const ADMIN_SESSION_ID = "auth-recovery-admin-session";
@@ -62,15 +66,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name
-      from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  const names = tables.rows
-    .map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`)
-    .join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 async function seedSecurityActors(now = new Date()) {
@@ -454,35 +450,41 @@ describe("out-of-band lost-device ceremony", () => {
     });
     expect(verified).not.toBeNull();
 
-    await pool.query(`
-      create function integration_fail_revocation_decision() returns trigger
-      language plpgsql as $$
-      begin
-        if new.status = 'approved' then
-          raise exception 'synthetic decision write failure';
-        end if;
-        return new;
-      end;
-      $$;
-      create trigger integration_fail_revocation_decision_trigger
-      before update on session_revocation_request
-      for each row execute function integration_fail_revocation_decision();
-    `);
-    try {
-      await expect(decideRevocation(
-        jsonPost(
-          `http://localhost/api/admin/session-revocation-requests/${verified!.requestId}/decision`,
-          {
-            decision: "approved",
-            reason: "Identity was confirmed before the synthetic database failure.",
-          },
-        ),
-        { params: Promise.resolve({ id: verified!.requestId }) },
-      )).rejects.toThrow(/Failed query|synthetic decision write failure/i);
-    } finally {
-      await pool.query("drop trigger if exists integration_fail_revocation_decision_trigger on session_revocation_request");
-      await pool.query("drop function if exists integration_fail_revocation_decision()");
-    }
+    await withValidatedOwnerFaultInjection({
+      databaseTarget: validatedDisposableOwnerDatabaseTarget(process.env),
+      context: "Auth-recovery",
+      installSql: [`
+        create function public.integration_fail_revocation_decision() returns trigger
+        language plpgsql as $$
+        begin
+          if new.status = 'approved' then
+            raise exception 'synthetic decision write failure';
+          end if;
+          return new;
+        end;
+        $$
+      `, `
+        create trigger integration_fail_revocation_decision_trigger
+        before update on public.session_revocation_request
+        for each row execute function public.integration_fail_revocation_decision()
+      `],
+      cleanupSql: [
+        "drop trigger if exists integration_fail_revocation_decision_trigger on public.session_revocation_request",
+        "drop function if exists public.integration_fail_revocation_decision()",
+      ],
+      run: async () => {
+        await expect(decideRevocation(
+          jsonPost(
+            `http://localhost/api/admin/session-revocation-requests/${verified!.requestId}/decision`,
+            {
+              decision: "approved",
+              reason: "Identity was confirmed before the synthetic database failure.",
+            },
+          ),
+          { params: Promise.resolve({ id: verified!.requestId }) },
+        )).rejects.toThrow(/Failed query|synthetic decision write failure/i);
+      },
+    });
 
     expect(await db.select().from(session).where(eq(session.id, LEARNER_A_SESSION))).toHaveLength(1);
     expect(

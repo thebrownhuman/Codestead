@@ -25,6 +25,7 @@ import {
 } from "@/lib/db/schema";
 import { issueExamReexamGrant } from "@/lib/exams/reexam-grant";
 import { and, eq } from "drizzle-orm";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
 
 const LEARNER_ID = "exam-reliability-learner";
 const ADMIN_ID = "exam-reliability-admin";
@@ -37,13 +38,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  if (result.rows.length) {
-    await pool.query(`truncate table ${result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(",")} restart identity cascade`);
-  }
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 async function waitForAdvisoryWaitHeldBy(blockerPid: number) {

@@ -27,6 +27,7 @@ import {
 } from "@/lib/db/schema";
 import { consentInsert } from "@/lib/privacy/consent";
 import { sealCredential } from "@/lib/security/credential-vault";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
 
 const ADMIN_ID = "provider-idempotency-admin";
 const LEARNER_ID = "provider-idempotency-learner";
@@ -47,13 +48,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 beforeEach(async () => {

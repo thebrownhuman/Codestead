@@ -143,8 +143,12 @@ def parse_recovery_payload(raw: bytes) -> dict[str, object]:
 
 ACTIVE_RELEASE_KEYS: Final = (
     "SCHEMA_VERSION",
-    "GIT_COMMIT",
-    "GIT_TREE",
+    "APPLICATION_GIT_COMMIT",
+    "APPLICATION_GIT_TREE",
+    "HOST_OPERATIONS_GIT_COMMIT",
+    "HOST_OPERATIONS_GIT_TREE",
+    "HOST_OPERATIONS_CONTRACT_VERSION",
+    "HOST_OPERATIONS_CONTRACT_SHA256",
     "RELEASE_MANIFEST_SHA256",
     "APPLICATION_IMAGE_RECORD_SHA256",
     "COMPOSE_PROJECT",
@@ -159,6 +163,7 @@ PILOT_SERVICES: Final = (
     "app",
     "cloudflared",
     "exam-finalization-worker",
+    "file-erasure-worker",
     "mail-worker",
     "postgres",
     "practice-runner-recovery-worker",
@@ -169,7 +174,8 @@ PILOT_SERVICES: Final = (
 )
 HEX_SHA256_PATTERN: Final = re.compile(r"[0-9a-f]{64}")
 GIT_PATTERN: Final = re.compile(r"[0-9a-f]{40}(?:[0-9a-f]{24})?")
-IMAGE_REFERENCE_PATTERN: Final = re.compile(r"[a-z0-9][a-z0-9./_-]{0,255}@sha256:[0-9a-f]{64}")
+HOST_OPERATIONS_CONTRACT_VERSION: Final = "host-operations-semantic-v1"
+IMAGE_REFERENCE_PATTERN: Final = re.compile(r"[a-z0-9][a-z0-9./_:-]{0,255}@sha256:[0-9a-f]{64}")
 IMAGE_ID_PATTERN: Final = re.compile(r"sha256:[0-9a-f]{64}")
 PUBLIC_ORIGIN_PATTERN: Final = re.compile(
     r"https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+"
@@ -177,8 +183,12 @@ PUBLIC_ORIGIN_PATTERN: Final = re.compile(
 
 
 class ActiveRelease(NamedTuple):
-    git_commit: str
-    git_tree: str
+    application_git_commit: str
+    application_git_tree: str
+    host_operations_git_commit: str
+    host_operations_git_tree: str
+    host_operations_contract_version: str
+    host_operations_contract_sha256: str
     release_manifest_sha256: str
     application_image_record_sha256: str
     compose_project: str
@@ -192,12 +202,16 @@ class ActiveRelease(NamedTuple):
 
 def active_release_identity(active: ActiveRelease) -> dict[str, str]:
     return {
+        "applicationGitCommit": active.application_git_commit,
+        "applicationGitTree": active.application_git_tree,
         "applicationImageRecordSha256": active.application_image_record_sha256,
         "composeProject": active.compose_project,
         "composeWorkdir": active.compose_workdir,
         "firewallPolicySha256": active.firewall_policy_sha256,
-        "gitCommit": active.git_commit,
-        "gitTree": active.git_tree,
+        "hostOperationsContractSha256": active.host_operations_contract_sha256,
+        "hostOperationsContractVersion": active.host_operations_contract_version,
+        "hostOperationsGitCommit": active.host_operations_git_commit,
+        "hostOperationsGitTree": active.host_operations_git_tree,
         "inventorySha256": active.managed_inventory_sha256,
         "manifestSha256": active.release_manifest_sha256,
         "publicOrigin": active.public_origin,
@@ -239,14 +253,18 @@ def parse_active_release(raw: bytes) -> ActiveRelease:
             raise ContractError("active release manifest order or value is invalid")
         values[key] = value
     if (
-        values["SCHEMA_VERSION"] != "1"
-        or GIT_PATTERN.fullmatch(values["GIT_COMMIT"]) is None
-        or GIT_PATTERN.fullmatch(values["GIT_TREE"]) is None
+        values["SCHEMA_VERSION"] != "2"
+        or GIT_PATTERN.fullmatch(values["APPLICATION_GIT_COMMIT"]) is None
+        or GIT_PATTERN.fullmatch(values["APPLICATION_GIT_TREE"]) is None
+        or GIT_PATTERN.fullmatch(values["HOST_OPERATIONS_GIT_COMMIT"]) is None
+        or GIT_PATTERN.fullmatch(values["HOST_OPERATIONS_GIT_TREE"]) is None
+        or values["HOST_OPERATIONS_CONTRACT_VERSION"] != HOST_OPERATIONS_CONTRACT_VERSION
     ):
         raise ContractError("active release identity is invalid")
     for key in (
         "RELEASE_MANIFEST_SHA256",
         "APPLICATION_IMAGE_RECORD_SHA256",
+        "HOST_OPERATIONS_CONTRACT_SHA256",
         "MANAGED_INVENTORY_SHA256",
         "FIREWALL_POLICY_SHA256",
         "RUNNER_GUEST_RELEASE_SHA256",
@@ -259,8 +277,12 @@ def parse_active_release(raw: bytes) -> ActiveRelease:
     if PUBLIC_ORIGIN_PATTERN.fullmatch(values["PUBLIC_ORIGIN"]) is None:
         raise ContractError("active public origin is invalid")
     return ActiveRelease(
-        git_commit=values["GIT_COMMIT"],
-        git_tree=values["GIT_TREE"],
+        application_git_commit=values["APPLICATION_GIT_COMMIT"],
+        application_git_tree=values["APPLICATION_GIT_TREE"],
+        host_operations_git_commit=values["HOST_OPERATIONS_GIT_COMMIT"],
+        host_operations_git_tree=values["HOST_OPERATIONS_GIT_TREE"],
+        host_operations_contract_version=values["HOST_OPERATIONS_CONTRACT_VERSION"],
+        host_operations_contract_sha256=values["HOST_OPERATIONS_CONTRACT_SHA256"],
         release_manifest_sha256=values["RELEASE_MANIFEST_SHA256"],
         application_image_record_sha256=values["APPLICATION_IMAGE_RECORD_SHA256"],
         compose_project=values["COMPOSE_PROJECT"],

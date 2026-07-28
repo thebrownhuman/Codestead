@@ -166,6 +166,40 @@ describe("email outbox", () => {
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 
+  it("binds every account insert to a fresh canonical user-authority decision", async () => {
+    await enqueueEmailInTransaction({ execute: mocks.execute } as never, {
+      to: " Learner@Example.INVALID ",
+      template: "verify-email",
+      variables: {
+        name: "Learner",
+        url: "https://example.invalid/verify",
+      },
+      userId: "learner-authority-1",
+      idempotencySeed: "verify-authority-1",
+    });
+
+    const statement = executedStatementContaining(
+      "insert into public.email_outbox",
+    );
+    expect(statement).toBeDefined();
+    const rendered = renderStatement(statement);
+    const normalizedSql = rendered.sql
+      .replace(/\s+/gu, " ")
+      .trim()
+      .toLowerCase();
+    expect(normalizedSql).toContain("pg_try_advisory_xact_lock");
+    expect(rendered.params).toContain(
+      "user-authority:learner-authority-1",
+    );
+    expect(normalizedSql).toContain('left join public."user"');
+    expect(normalizedSql).toContain("authority_user.status not in");
+    expect(normalizedSql).toContain("'deletion_pending'");
+    expect(normalizedSql).toContain("'deleted'");
+    expect(normalizedSql).toContain(
+      "pg_catalog.lower(pg_catalog.btrim(authority_user.email)) =",
+    );
+  });
+
   it("owns the standalone insert-and-release transaction", async () => {
     const transactionExecute = vi
       .fn()
@@ -300,10 +334,16 @@ describe("email outbox", () => {
   );
 
   it("skips release issuance when the exact replay inserts no row", async () => {
-    const execute = vi.fn().mockResolvedValueOnce({
-      rowCount: 0,
-      rows: [],
-    });
+    const execute = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rowCount: 0,
+        rows: [],
+      })
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ id: INSERTED_OUTBOX_RELEASE.id }],
+      });
 
     await enqueueEmailInTransaction({ execute } as never, {
       to: "learner@example.invalid",
@@ -316,7 +356,7 @@ describe("email outbox", () => {
       idempotencySeed: "verify-release-replay",
     });
 
-    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute).toHaveBeenCalledTimes(2);
     expect(
       renderStatement(execute.mock.calls[0]![0])
         .sql.replace(/\s+/gu, " ")
@@ -420,7 +460,7 @@ describe("email outbox", () => {
         .trim()
         .toLowerCase();
       const targetList = normalizedSql.match(
-        /^insert into public[.]email_outbox [(]([^)]*)[)] values/u,
+        /^insert into public[.]email_outbox [(]([^)]*)[)] select/u,
       )?.[1];
       expect(targetList).toBeDefined();
       const targetColumns = targetList

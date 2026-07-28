@@ -16,6 +16,12 @@ const mocks = vi.hoisted(() => {
       | "mail_quarantined_unresolved"
       | "mail_sending_with_provider_id"
       | "mail_quarantined_resolved"
+      | "mail_multiple_nonterminal"
+      | "mail_nonterminal_set_changed"
+      | "mail_nonterminal_terminalized"
+      | "mail_legacy_terminal"
+      | "mail_redacted_unresolved_after_claim"
+      | "mail_redacted_resolved"
       | "notice_conflict_mismatch"
       | "notice_conflict_exact"
       | "release_failure",
@@ -32,6 +38,7 @@ const mocks = vi.hoisted(() => {
       | "multiple"
       | "mismatch_outbox"
       | "mismatch_operation",
+    mailCandidateScanCount: 0,
   };
   const authoritySha256 = "a".repeat(64);
   const originalPayloadSha256 = "b".repeat(64);
@@ -91,36 +98,116 @@ const mocks = vi.hoisted(() => {
         rowCount: 1,
       };
     }
-    if (sql.startsWith("select id, status, provider_call_started, provider_message_id from email_outbox")) {
-      const rows = state.mode === "mail_boundary_race"
-        ? [{
-            id: "c3000000-0000-4000-8000-000000000001",
-            status: "sending",
-            provider_call_started: new Date("2026-07-12T00:00:01.000Z"),
-            provider_message_id: null,
-          }]
-        : state.mode === "mail_quarantined_unresolved"
-          ? [{
-              id: "c3000000-0000-4000-8000-000000000002",
-              status: "quarantined",
-              provider_call_started: new Date("2026-07-12T00:00:01.000Z"),
-              provider_message_id: null,
-            }]
-          : state.mode === "mail_quarantined_resolved"
-            ? [{
-                id: "c3000000-0000-4000-8000-000000000003",
-                status: "quarantined",
-                provider_call_started: new Date("2026-07-12T00:00:01.000Z"),
-                provider_message_id: "gmail-accepted-1",
-              }]
-          : state.mode === "mail_sending_with_provider_id"
-            ? [{
-                id: "c3000000-0000-4000-8000-000000000004",
-                status: "sending",
-                provider_call_started: new Date("2026-07-12T00:00:01.000Z"),
-                provider_message_id: "gmail-accepted-while-sending",
-              }]
-        : [];
+    if (
+      sql.startsWith("select id::text, operation_id::text, status::text")
+      && sql.includes("from email_outbox")
+      && !sql.includes("idempotency_key")
+    ) {
+      state.mailCandidateScanCount += 1;
+      const isFirstScan = state.mailCandidateScanCount === 1;
+      const candidate = (
+        id: string,
+        operationId: string,
+        status: string,
+        providerCallStarted: Date | null,
+        providerMessageId: string | null,
+      ) => ({
+        id,
+        operation_id: operationId,
+        status,
+        provider_call_started: providerCallStarted,
+        provider_message_id: providerMessageId,
+        idempotency_authority_sha256: authoritySha256,
+        idempotency_original_payload_sha256: originalPayloadSha256,
+        delivery_hold_version: "task7-v1",
+      });
+      const firstPending = candidate(
+        "c3000000-0000-4000-8000-000000000001",
+        "c4000000-0000-4000-8000-000000000001",
+        "pending",
+        null,
+        null,
+      );
+      const secondPending = candidate(
+        "c3000000-0000-4000-8000-000000000002",
+        "c4000000-0000-4000-8000-000000000002",
+        "pending",
+        null,
+        null,
+      );
+      const providerStarted = new Date("2026-07-12T00:00:01.000Z");
+      const rows = state.mode === "mail_multiple_nonterminal"
+        ? isFirstScan
+          ? [firstPending, secondPending]
+          : [
+              firstPending,
+              candidate(
+                secondPending.id,
+                secondPending.operation_id,
+                "sending",
+                providerStarted,
+                null,
+              ),
+            ]
+        : state.mode === "mail_nonterminal_set_changed"
+          ? isFirstScan
+            ? [firstPending]
+            : [firstPending, secondPending]
+          : state.mode === "mail_nonterminal_terminalized"
+            ? isFirstScan
+              ? [firstPending]
+              : [candidate(
+                  firstPending.id,
+                  firstPending.operation_id,
+                  "sent",
+                  providerStarted,
+                  "gmail-accepted-1",
+                )]
+            : state.mode === "mail_boundary_race"
+              ? isFirstScan
+                ? [firstPending]
+                : [candidate(
+                    firstPending.id,
+                    firstPending.operation_id,
+                    "sending",
+                    providerStarted,
+                    null,
+                  )]
+              : state.mode === "mail_quarantined_unresolved"
+                || state.mode === "mail_redacted_unresolved_after_claim"
+                ? [candidate(
+                    firstPending.id,
+                    firstPending.operation_id,
+                    "quarantined",
+                    providerStarted,
+                    null,
+                  )]
+                : state.mode === "mail_quarantined_resolved"
+                  || state.mode === "mail_redacted_resolved"
+                  ? [candidate(
+                      firstPending.id,
+                      firstPending.operation_id,
+                      "quarantined",
+                      providerStarted,
+                      "gmail-accepted-1",
+                    )]
+                  : state.mode === "mail_sending_with_provider_id"
+                    ? [candidate(
+                        firstPending.id,
+                        firstPending.operation_id,
+                        "sending",
+                        providerStarted,
+                        "gmail-accepted-while-sending",
+                      )]
+                    : state.mode === "mail_legacy_terminal"
+                      ? [candidate(
+                          firstPending.id,
+                          firstPending.operation_id,
+                          "sent",
+                          providerStarted,
+                          "legacy-gmail-accepted",
+                        )]
+                      : [];
       return { rows, rowCount: rows.length };
     }
     if (sql.startsWith("select exists (") && sql.includes("from code_submission")) {
@@ -185,6 +272,28 @@ const mocks = vi.hoisted(() => {
       };
     }
     if (
+      sql.startsWith("select id::text, operation_id::text, idempotency_authority_sha256")
+      && sql.includes("from email_outbox")
+      && sql.includes("idempotency_key")
+    ) {
+      const [id, operationId] = state.mode === "notice_conflict_exact"
+        ? state.noticeInsertValues ?? []
+        : [
+            "c3000000-0000-4000-8000-000000000099",
+            "c4000000-0000-4000-8000-000000000099",
+          ];
+      const rows = id && operationId
+        ? [{
+            id,
+            operation_id: operationId,
+            idempotency_authority_sha256: authoritySha256,
+            idempotency_original_payload_sha256: originalPayloadSha256,
+            delivery_hold_version: "task7-v1",
+          }]
+        : [];
+      return { rows, rowCount: rows.length };
+    }
+    if (
       sql.startsWith("select id::text, operation_id::text, user_id")
       && sql.includes("from email_outbox")
       && sql.includes("idempotency_key")
@@ -224,7 +333,7 @@ const mocks = vi.hoisted(() => {
             tombstoneId: "c5000000-0000-4000-8000-000000000099",
             deletionRunId: "run-1",
           },
-          idempotency_key: values[0],
+          idempotency_key: state.noticeInsertValues?.[5],
           idempotency_authority_sha256: authoritySha256,
           idempotency_original_payload_sha256: originalPayloadSha256,
           delivery_hold_version: "task7-v1",
@@ -357,6 +466,7 @@ describe("account deletion runtime orchestration", () => {
     mocks.state.noticeInsertValues = undefined;
     mocks.state.releaseResultMode = "success";
     mocks.state.verificationResultMode = "success";
+    mocks.state.mailCandidateScanCount = 0;
     mocks.unlink.mockResolvedValue(undefined);
     mocks.poolQuery.mockResolvedValue({ rows: [], rowCount: 1 });
     mocks.enqueueFileErasures.mockResolvedValue(1);
@@ -423,11 +533,33 @@ describe("account deletion runtime orchestration", () => {
       .toBeLessThan(statements.findIndex((sql) => sql.includes("delete from provider_credential")));
     expect(mocks.query.mock.calls.some(([sql]) => String(sql).includes("'account-deleted'"))).toBe(true);
     const normalizedStatements = statements.map((sql) => sql.replace(/\s+/g, " ").trim());
-    const outboxLockIndex = normalizedStatements.findIndex((sql) =>
-      sql.startsWith("select id, status, provider_call_started, provider_message_id from email_outbox") && sql.endsWith("for update"));
+    expect(normalizedStatements).toContain(
+      "select id from access_request where pg_catalog.lower(pg_catalog.btrim(email)) = pg_catalog.lower(pg_catalog.btrim($1))",
+    );
+    expect(normalizedStatements).toContain(
+      "delete from access_request where pg_catalog.lower(pg_catalog.btrim(email)) = pg_catalog.lower(pg_catalog.btrim($1))",
+    );
+    expect(normalizedStatements.some((statement) =>
+      statement.includes(
+        "delete from invitation where pg_catalog.lower(pg_catalog.btrim(email)) = pg_catalog.lower(pg_catalog.btrim($1))",
+      ))).toBe(true);
+    expect(normalizedStatements.some((statement) =>
+      statement.includes(
+        "from email_outbox where user_id = $1 or pg_catalog.lower(pg_catalog.btrim(to_email)) = pg_catalog.lower(pg_catalog.btrim($2))",
+      ))).toBe(true);
+    const outboxScanIndexes = normalizedStatements.flatMap((sql, index) =>
+      sql.startsWith("select id::text, operation_id::text, status::text")
+      && !sql.includes("idempotency_key")
+        ? [index]
+        : []);
+    const outboxIdentityIndex = outboxScanIndexes[0] ?? -1;
+    const outboxRereadIndex = outboxScanIndexes[1] ?? -1;
     const outboxDeleteIndex = normalizedStatements.findIndex((sql) => sql.startsWith("delete from email_outbox"));
-    expect(outboxLockIndex).toBeGreaterThan(-1);
-    expect(outboxLockIndex).toBeLessThan(outboxDeleteIndex);
+    expect(outboxIdentityIndex).toBeGreaterThan(-1);
+    expect(outboxRereadIndex).toBeGreaterThan(outboxIdentityIndex);
+    expect(outboxRereadIndex).toBeLessThan(outboxDeleteIndex);
+    expect(normalizedStatements.some((sql) =>
+      sql.includes("email_outbox") && sql.endsWith("for update"))).toBe(false);
     const deletionNoticeInsert = normalizedStatements.find((sql) =>
       sql.startsWith("insert into email_outbox") && sql.includes("'account-deleted'"));
     expect(deletionNoticeInsert).toContain("id, operation_id, user_id, delivery_scope_key");
@@ -507,11 +639,13 @@ describe("account deletion runtime orchestration", () => {
       "user-authority:learner-1",
       "runner-learner:learner-1",
       "account-delete:learner-1",
+      "access-request:learner@example.test",
       "user-authority:learner-1",
       "runner-learner:learner-1",
       "account-delete:learner-1",
+      "access-request:learner@example.test",
     ]);
-    for (const index of [0, 3, 6]) {
+    for (const index of [0, 3, 7]) {
       expect(String(authorityLockCalls[index]?.[0])).toContain(
         "pg_advisory_xact_lock(pg_catalog.hashtext($1)::pg_catalog.int8)",
       );
@@ -586,14 +720,166 @@ describe("account deletion runtime orchestration", () => {
       .toBe(false);
   });
 
+  it("verifies every provider-start-capable row once in ID order before the stable reread", async () => {
+    mocks.state.mode = "mail_multiple_nonterminal";
+
+    await expect(deleteLearnerAccount(input)).rejects.toMatchObject({
+      code: "PROVIDER_OPERATION_IN_PROGRESS",
+    });
+
+    const calls = mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>;
+    const statements = calls.map(([sql]) =>
+      String(sql).replace(/\s+/g, " ").trim().toLowerCase());
+    const identityIndex = statements.findIndex((sql) =>
+      sql.startsWith("select id::text, operation_id::text, status::text")
+      && !sql.includes("idempotency_key"));
+    const verifierIndexes = statements.flatMap((sql, index) =>
+      sql.includes("from public.verify_email_outbox_delivery_release(")
+        ? [index]
+        : []);
+    const rereadIndex = statements.findIndex((sql, index) =>
+      index > (verifierIndexes[1] ?? -1)
+      && sql.startsWith("select id::text, operation_id::text, status::text")
+      && !sql.includes("idempotency_key"));
+    let canonicalLockIndex = -1;
+    for (let index = 0; index < identityIndex; index += 1) {
+      if (
+        statements[index]?.includes("pg_advisory_xact_lock")
+        && calls[index]?.[1]?.[0] === "user-authority:learner-1"
+      ) {
+        canonicalLockIndex = index;
+      }
+    }
+
+    expect(canonicalLockIndex).toBeGreaterThan(-1);
+    expect(identityIndex).toBeGreaterThan(canonicalLockIndex);
+    expect(verifierIndexes).toHaveLength(2);
+    expect(verifierIndexes[0]).toBeGreaterThan(identityIndex);
+    expect(verifierIndexes[1]).toBeGreaterThan(verifierIndexes[0]!);
+    expect(rereadIndex).toBeGreaterThan(verifierIndexes[1]!);
+    expect(verifierIndexes.map((index) => calls[index]?.[1])).toEqual([
+      [
+        "c3000000-0000-4000-8000-000000000001",
+        "c4000000-0000-4000-8000-000000000001",
+        "a".repeat(64),
+        "b".repeat(64),
+        "task7-v1",
+      ],
+      [
+        "c3000000-0000-4000-8000-000000000002",
+        "c4000000-0000-4000-8000-000000000002",
+        "a".repeat(64),
+        "b".repeat(64),
+        "task7-v1",
+      ],
+    ]);
+    expect(calls[rereadIndex]?.[1]).toEqual([
+      "learner-1",
+      "learner@example.test",
+    ]);
+    expect(statements.some((sql) =>
+      sql.includes("email_outbox") && sql.endsWith("for update"))).toBe(false);
+    expect(statements.some((sql) =>
+      sql.startsWith("update email_outbox")
+      || sql.startsWith("update public.email_outbox"))).toBe(false);
+    expect(mocks.processFileErasures).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when a new provider-start-capable row appears after verifier locks", async () => {
+    mocks.state.mode = "mail_nonterminal_set_changed";
+
+    await expect(deleteLearnerAccount(input)).rejects.toMatchObject({
+      code: "PROVIDER_OPERATION_IN_PROGRESS",
+    });
+
+    const statements = mocks.query.mock.calls
+      .map(([sql]) => String(sql).replace(/\s+/g, " ").trim().toLowerCase());
+    expect(statements.filter((sql) =>
+      sql.includes("from public.verify_email_outbox_delivery_release(")))
+      .toHaveLength(1);
+    expect(statements.some((sql) =>
+      sql.startsWith("delete from public_portfolio"))).toBe(false);
+    expect(mocks.processFileErasures).not.toHaveBeenCalled();
+  });
+
+  it("permits a verified row that safely terminalizes before the stable reread", async () => {
+    mocks.state.mode = "mail_nonterminal_terminalized";
+
+    await expect(deleteLearnerAccount(input)).resolves.toMatchObject({
+      learnerNotificationQueued: true,
+    });
+
+    const statements = mocks.query.mock.calls
+      .map(([sql]) => String(sql).replace(/\s+/g, " ").trim().toLowerCase());
+    expect(statements.filter((sql) =>
+      sql.includes("from public.verify_email_outbox_delivery_release(")))
+      .toHaveLength(1);
+  });
+
+  it.each([
+    "zero",
+    "multiple",
+    "mismatch_outbox",
+    "mismatch_operation",
+  ] as const)(
+    "fails closed before deletion when a nonterminal verifier returns %s",
+    async (verificationResultMode) => {
+      mocks.state.mode = "mail_boundary_race";
+      mocks.state.verificationResultMode = verificationResultMode;
+
+      await expect(deleteLearnerAccount(input)).rejects.toMatchObject({
+        name: "EmailOutboxReleaseReceiptError",
+        code: "EMAIL_OUTBOX_RELEASE_RECEIPT_INVALID",
+      });
+
+      const statements = mocks.query.mock.calls
+        .map(([sql]) => String(sql).replace(/\s+/g, " ").trim().toLowerCase());
+      expect(statements.some((sql) =>
+        sql.startsWith("delete from public_portfolio"))).toBe(false);
+      expect(mocks.processFileErasures).not.toHaveBeenCalled();
+    },
+  );
+
+  it("permits a legacy terminal row without requiring a release receipt", async () => {
+    mocks.state.mode = "mail_legacy_terminal";
+
+    await expect(deleteLearnerAccount(input)).resolves.toMatchObject({
+      learnerNotificationQueued: true,
+    });
+
+    const statements = mocks.query.mock.calls
+      .map(([sql]) => String(sql).replace(/\s+/g, " ").trim().toLowerCase());
+    expect(statements.some((sql) =>
+      sql.startsWith("select id::text, operation_id::text, status::text")
+      && !sql.includes("idempotency_key")))
+      .toBe(true);
+    expect(statements.some((sql) =>
+      sql.includes("from public.verify_email_outbox_delivery_release(")))
+      .toBe(false);
+    expect(statements.some((sql) =>
+      sql.includes("email_outbox") && sql.endsWith("for update"))).toBe(false);
+  });
   it("rolls back if mail crosses the provider boundary after the initial conflict check", async () => {
     mocks.state.mode = "mail_boundary_race";
     await expect(deleteLearnerAccount(input)).rejects.toMatchObject({
       code: "PROVIDER_OPERATION_IN_PROGRESS",
     });
-    const statements = mocks.query.mock.calls.map(([sql]) => String(sql).replace(/\s+/g, " ").trim());
-    expect(statements.some((sql) => sql.startsWith("select id, status, provider_call_started, provider_message_id from email_outbox") && sql.endsWith("for update")))
-      .toBe(true);
+    const statements = mocks.query.mock.calls.map(([sql]) =>
+      String(sql).replace(/\s+/g, " ").trim().toLowerCase());
+    const identityIndex = statements.findIndex((sql) =>
+      sql.startsWith("select id::text, operation_id::text, status::text")
+      && !sql.includes("idempotency_key"));
+    const verifierIndex = statements.findIndex((sql) =>
+      sql.includes("from public.verify_email_outbox_delivery_release("));
+    const rereadIndex = statements.findIndex((sql, index) =>
+      index > verifierIndex
+      && sql.startsWith("select id::text, operation_id::text, status::text")
+      && !sql.includes("idempotency_key"));
+    expect(identityIndex).toBeGreaterThan(-1);
+    expect(verifierIndex).toBeGreaterThan(identityIndex);
+    expect(rereadIndex).toBeGreaterThan(verifierIndex);
+    expect(statements.some((sql) =>
+      sql.includes("email_outbox") && sql.endsWith("for update"))).toBe(false);
     expect(statements.some((sql) => sql.startsWith("delete from public_portfolio"))).toBe(false);
     expect(mocks.processFileErasures).not.toHaveBeenCalled();
   });
@@ -629,6 +915,28 @@ describe("account deletion runtime orchestration", () => {
     })).resolves.toMatchObject({ learnerNotificationQueued: true });
   });
 
+  it("handles redacted quarantines without consulting an unverifiable payload digest", async () => {
+    mocks.state.mode = "mail_redacted_unresolved_after_claim";
+    await expect(deleteLearnerAccount(input)).rejects.toMatchObject({
+      code: "PROVIDER_OPERATION_IN_PROGRESS",
+    });
+    expect(mocks.query.mock.calls.some(([sql]) =>
+      String(sql).includes("from public.verify_email_outbox_delivery_release(")))
+      .toBe(false);
+
+    vi.clearAllMocks();
+    mocks.state.mode = "mail_redacted_resolved";
+    mocks.state.mailCandidateScanCount = 0;
+    mocks.connect.mockResolvedValue(mocks.client);
+    await expect(deleteLearnerAccount({
+      ...input,
+      requestId: "c2000000-0000-4000-8000-000000000004",
+    })).resolves.toMatchObject({ learnerNotificationQueued: true });
+    expect(mocks.query.mock.calls.some(([sql]) =>
+      String(sql).includes("from public.verify_email_outbox_delivery_release(")))
+      .toBe(false);
+  });
+
   it("aborts the deletion transaction when an idempotency conflict is not the exact bound notice", async () => {
     mocks.state.mode = "notice_conflict_mismatch";
     await expect(deleteLearnerAccount(input)).rejects.toThrow(
@@ -636,11 +944,21 @@ describe("account deletion runtime orchestration", () => {
     );
     const statements = mocks.query.mock.calls
       .map(([sql]) => String(sql).replace(/\s+/g, " ").trim().toLowerCase());
-    expect(statements.some((sql) => (
+    const identityIndex = statements.findIndex((sql) => (
+      sql.startsWith("select id::text, operation_id::text, idempotency_authority_sha256")
+      && sql.includes("idempotency_key")
+    ));
+    const verifierIndex = statements.findIndex((sql) =>
+      sql.includes("from public.verify_email_outbox_delivery_release("));
+    const payloadIndex = statements.findIndex((sql) => (
       sql.startsWith("select id::text, operation_id::text, user_id")
-      && sql.includes("from email_outbox")
-      && sql.includes("for update")
-    ))).toBe(true);
+      && sql.includes("idempotency_key")
+    ));
+    expect(identityIndex).toBeGreaterThan(-1);
+    expect(verifierIndex).toBeGreaterThan(identityIndex);
+    expect(payloadIndex).toBeGreaterThan(verifierIndex);
+    expect(statements.some((sql) =>
+      sql.includes("email_outbox") && sql.endsWith("for update"))).toBe(false);
     expect(statements).toContain("rollback");
     expect(statements.some((sql) => (
       sql.includes("from public.release_email_outbox_delivery(")
@@ -659,15 +977,19 @@ describe("account deletion runtime orchestration", () => {
 
     const calls = mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>;
     const statements = calls.map(([sql]) => String(sql).replace(/\s+/g, " ").trim());
-    const lookupIndex = statements.findIndex((sql) => (
-      sql.startsWith("select id::text, operation_id::text, user_id")
-      && sql.includes("from email_outbox")
-      && sql.includes("for update")
+    const identityIndex = statements.findIndex((sql) => (
+      sql.startsWith("select id::text, operation_id::text, idempotency_authority_sha256")
+      && sql.includes("idempotency_key")
     ));
     const verificationIndex = statements.findIndex((sql) =>
       sql.includes("from public.verify_email_outbox_delivery_release("));
-    expect(lookupIndex).toBeGreaterThan(-1);
-    expect(verificationIndex).toBeGreaterThan(lookupIndex);
+    const payloadIndex = statements.findIndex((sql) => (
+      sql.startsWith("select id::text, operation_id::text, user_id")
+      && sql.includes("idempotency_key")
+    ));
+    expect(identityIndex).toBeGreaterThan(-1);
+    expect(verificationIndex).toBeGreaterThan(identityIndex);
+    expect(payloadIndex).toBeGreaterThan(verificationIndex);
     expect(verificationIndex).toBeLessThan(statements.lastIndexOf("commit"));
     expect(calls[verificationIndex]?.[1]).toEqual([
       mocks.state.noticeInsertValues?.[0],

@@ -5,6 +5,94 @@ import type { DisposableIntegrationEnvironmentSource } from
 import { buildDisposableToolEnvironment } from
   "./disposable-tool-environment";
 
+const DISPOSABLE_DATABASE = "/learncoding_integration";
+const DISPOSABLE_HOST = "127.0.0.1";
+const DISPOSABLE_OWNER_QUERY =
+  "?options=-c+role%3Dlearncoding_owner";
+
+function failRuntimeDatabaseValidation(): never {
+  throw new Error(
+    "disposable integration runtime database validation failed",
+  );
+}
+
+function parseRuntimeDatabaseUrl(
+  value: string,
+  expectedUsername: string,
+  ownerAssumption: boolean,
+): URL {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    failRuntimeDatabaseValidation();
+  }
+
+  const port = Number(url.port);
+  if (
+    url.protocol !== "postgresql:"
+    || url.username !== expectedUsername
+    || url.password.length === 0
+    || url.hostname !== DISPOSABLE_HOST
+    || !Number.isSafeInteger(port)
+    || port < 1
+    || port > 65_535
+    || port === 5_432
+    || url.pathname !== DISPOSABLE_DATABASE
+    || url.hash !== ""
+    || (
+      ownerAssumption
+        ? url.search !== DISPOSABLE_OWNER_QUERY
+        : url.search !== ""
+    )
+  ) {
+    failRuntimeDatabaseValidation();
+  }
+  return url;
+}
+
+function validateRuntimeDatabaseTopology(input: Readonly<{
+  databaseAppUrl: string;
+  databaseMigratorUrl: string;
+  databaseWorkerUrl: string;
+  databaseOpsUrl: string;
+  databaseBackupReporterUrl: string;
+  databaseOwnerUrl: string;
+  betterAuthSecret: string;
+}>): void {
+  const entries = [
+    [input.databaseAppUrl, "learncoding_app", false],
+    [input.databaseMigratorUrl, "learncoding_migrator", false],
+    [input.databaseWorkerUrl, "learncoding_worker", false],
+    [input.databaseOpsUrl, "learncoding_ops", false],
+    [
+      input.databaseBackupReporterUrl,
+      "learncoding_backup_reporter",
+      false,
+    ],
+    [input.databaseOwnerUrl, "learncoding_migrator", true],
+  ] as const;
+  if (
+    new Set(entries.map(([value]) => value)).size !== entries.length
+    || typeof input.betterAuthSecret !== "string"
+    || input.betterAuthSecret.length === 0
+  ) {
+    failRuntimeDatabaseValidation();
+  }
+
+  const parsed = entries.map(([value, username, ownerAssumption]) =>
+    parseRuntimeDatabaseUrl(value, username, ownerAssumption)
+  );
+  const reference = parsed[0]!;
+  if (parsed.some((url) =>
+    url.hostname !== reference.hostname
+    || url.port !== reference.port
+    || url.pathname !== reference.pathname
+  )) {
+    failRuntimeDatabaseValidation();
+  }
+}
+
 export function buildDisposableIntegrationRuntimeEnvironment(
   source: DisposableIntegrationEnvironmentSource,
   input: Readonly<{
@@ -13,10 +101,12 @@ export function buildDisposableIntegrationRuntimeEnvironment(
     databaseMigratorUrl: string;
     databaseWorkerUrl: string;
     databaseOpsUrl: string;
-    databaseUrl: string;
+    databaseBackupReporterUrl: string;
+    databaseOwnerUrl: string;
     betterAuthSecret: string;
   }>,
 ): NodeJS.ProcessEnv {
+  validateRuntimeDatabaseTopology(input);
   return {
     ...buildDisposableToolEnvironment(
       source,
@@ -26,7 +116,9 @@ export function buildDisposableIntegrationRuntimeEnvironment(
     DATABASE_MIGRATOR_URL: input.databaseMigratorUrl,
     DATABASE_WORKER_URL: input.databaseWorkerUrl,
     DATABASE_OPS_URL: input.databaseOpsUrl,
-    DATABASE_URL: input.databaseUrl,
+    DATABASE_BACKUP_REPORTER_URL: input.databaseBackupReporterUrl,
+    DATABASE_OWNER_URL: input.databaseOwnerUrl,
+    DATABASE_URL: input.databaseAppUrl,
     DATABASE_POOL_SIZE: "8",
     NODE_ENV: "test",
     BETTER_AUTH_SECRET: input.betterAuthSecret,
@@ -52,7 +144,9 @@ const INTEGRATION_FAILURE_REASONS = Object.freeze({
   "replay-reconciliation": "role_reconciliation_failed",
   "replay-boundary-verifier": "role_boundary_verification_failed",
   "replay-verification": "topology_verification_failed",
+  "reset-capability-install": "reset_capability_install_failed",
   "application-tests": "application_tests_failed",
+  "reset-capability-teardown": "reset_capability_teardown_failed",
   "harness-cleanup": "harness_cleanup_failed",
 } as const);
 

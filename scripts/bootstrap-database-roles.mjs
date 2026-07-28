@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import process from "node:process";
 import { performance } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
@@ -8,6 +9,7 @@ import {
   BACKUP_STATUS_AUTHORITY_0065_CONTRACT,
   BACKUP_STATUS_AUTHORITY_0067_CONTRACT,
   verifyBackupStatusMailAuthorityObjects,
+  verifyRestoredBackupStatusMailAuthorityStructuralObjects,
   BACKUP_STATUS_AUTHORITY_0069_CONTRACT,
 } from "./verify-backup-status-mail-authority.mjs";
 import { verifyAppliedMigrationLedger as verifyAppliedMigrationLedgerContract } from "./lib/reviewed-migration-ledger.mjs";
@@ -45,7 +47,10 @@ function reviewedRoutine(contract) {
     sqlBody: null,
     definitionSha256: null,
     ...contract,
-    configuration: Object.freeze([...contract.configuration]),
+    configuration:
+      contract.configuration === null
+        ? null
+        : Object.freeze([...contract.configuration]),
     allowedRoles: Object.freeze([...contract.allowedRoles]),
     argumentNames: Object.freeze([...contract.argumentNames]),
     argumentModes: Object.freeze([...contract.argumentModes]),
@@ -53,7 +58,72 @@ function reviewedRoutine(contract) {
   });
 }
 
+const REVIEWED_BASELINE_APPLICATION_FUNCTIONS = Object.freeze([
+  reviewedRoutine({
+    signature:
+      "public.enqueue_reward_jobs_for_attempt_v1(uuid,text,timestamp with time zone)",
+    migrationFile: "0045_right_mother_askani.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: false,
+    configuration: null,
+    allowedRoles: [APP_ROLE, WORKER_ROLE],
+    bodySha256:
+      "facb629452f45715f4b9dfe577b29f05bee32a0ca44b26f27f80bbaa533b508f",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: ["p_attempt_id", "p_user_id", "p_now"],
+    argumentModes: [],
+    argumentTypes: ["uuid", "text", "timestamp with time zone"],
+    inputArgumentCount: 3,
+    argumentDefaultCount: 0,
+    returnType: "void",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "05f3a04b1bdc75bece262f2692532d8ecfd2a6f3b46d2bf87c1f7a5aa3812983",
+  }),
+  reviewedRoutine({
+    signature:
+      "public.enqueue_reward_jobs_for_mastery_scope_v1(uuid,text,timestamp with time zone)",
+    migrationFile: "0045_right_mother_askani.sql",
+    owner: OWNER_ROLE,
+    securityDefiner: false,
+    configuration: null,
+    allowedRoles: [APP_ROLE, WORKER_ROLE],
+    bodySha256:
+      "a94d35a4bb7e85acc21599c875aec04b2922523bc0da857f184dffa3312c8c82",
+    language: "plpgsql",
+    kind: "f",
+    volatility: "v",
+    strict: false,
+    parallel: "u",
+    leakproof: false,
+    argumentNames: ["p_mastery_evidence_id", "p_user_id", "p_now"],
+    argumentModes: [],
+    argumentTypes: ["uuid", "text", "timestamp with time zone"],
+    inputArgumentCount: 3,
+    argumentDefaultCount: 0,
+    returnType: "void",
+    returnsSet: false,
+    variadic: false,
+    definitionSha256:
+      "871d44498def9aee424a4474a317135e26fa1bc1271d5a4188f80dc04ac59819",
+  }),
+]);
+
+const REVIEWED_BASELINE_REWARD_ROUTINE_SIGNATURES = new Set(
+  REVIEWED_BASELINE_APPLICATION_FUNCTIONS.map(({ signature }) => signature),
+);
+const REVIEWED_RAW_MIGRATION_OWNER_ONLY_ROUTINE_SIGNATURES = new Set(
+  REVIEWED_BASELINE_REWARD_ROUTINE_SIGNATURES,
+);
+
 const REVIEWED_0062_APPLICATION_FUNCTIONS = Object.freeze([
+  ...REVIEWED_BASELINE_APPLICATION_FUNCTIONS,
   reviewedRoutine({
     signature:
       "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
@@ -110,6 +180,7 @@ const REVIEWED_0062_APPLICATION_FUNCTIONS = Object.freeze([
 ]);
 
 const REVIEWED_0063_APPLICATION_FUNCTIONS = Object.freeze([
+  ...REVIEWED_BASELINE_APPLICATION_FUNCTIONS,
   reviewedRoutine({
     signature:
       "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
@@ -1371,7 +1442,7 @@ export const REVIEWED_APPLICATION_CONSTRAINTS = Object.freeze([
     validated: true,
     normalizedExpressionSha256ByPostgresMajor: Object.freeze({
       17: "2cc426fbe12df9a29707bbad22a3addf50fa483f0ad8f4c76c778ad25bf6748e",
-      18: "3f32ee19567df8889a129cc1e2e95af9f70a8e4e5878c7f7930ec396259ceefc",
+      18: "2cc426fbe12df9a29707bbad22a3addf50fa483f0ad8f4c76c778ad25bf6748e",
     }),
     columns: Object.freeze([
       "idempotency_authority_sha256",
@@ -1711,8 +1782,8 @@ function sqlLiteral(value) {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
-export function reviewedApplicationFunctionPrivilegesSql(phase) {
-  return reviewedPhaseRoutines(phase)
+function reviewedFunctionPrivilegesSql(routines) {
+  return routines
     .map((routine, routineIndex) => {
       const blockTag = `codestead_reviewed_function_${routineIndex}`;
       const restrictedRoles = [
@@ -1784,6 +1855,143 @@ export function reviewedApplicationFunctionPrivilegesSql(phase) {
       $${blockTag}$`;
     })
     .join(";\n");
+}
+
+export function reviewedBaselineRewardFunctionPrivilegesSql(phase) {
+  return reviewedFunctionPrivilegesSql(reviewedBaselineRewardRoutines(phase));
+}
+
+function reviewedBaselineRewardRoutines(phase) {
+  const phaseRoutines = reviewedPhaseRoutines(phase);
+  if (phaseRoutines.length === 0) return Object.freeze([]);
+  const rewardRoutines = phaseRoutines.filter(({ signature }) =>
+    REVIEWED_BASELINE_REWARD_ROUTINE_SIGNATURES.has(signature),
+  );
+  if (
+    rewardRoutines.length !== REVIEWED_BASELINE_REWARD_ROUTINE_SIGNATURES.size
+  ) {
+    throw databaseRoleBootstrapInvariantError(
+      "reviewed-baseline-reward-routine-contract",
+    );
+  }
+  return Object.freeze(rewardRoutines);
+}
+
+function reviewedOwnerOnlyRoutines(routines) {
+  return Object.freeze(
+    routines.map((routine) =>
+      Object.freeze({
+        ...routine,
+        allowedRoles: Object.freeze([]),
+      }),
+    ),
+  );
+}
+
+function reviewedRawMigrationRoutines(routines) {
+  if (routines.length === 0) return Object.freeze([]);
+  const rawOwnerOnlyRoutines = routines.filter(({ signature }) =>
+    REVIEWED_RAW_MIGRATION_OWNER_ONLY_ROUTINE_SIGNATURES.has(signature),
+  );
+  if (
+    rawOwnerOnlyRoutines.length !==
+    REVIEWED_RAW_MIGRATION_OWNER_ONLY_ROUTINE_SIGNATURES.size
+  ) {
+    throw databaseRoleBootstrapInvariantError(
+      "reviewed-raw-migration-routine-contract",
+    );
+  }
+  return Object.freeze(
+    routines.map((routine) =>
+      Object.freeze({
+        ...routine,
+        allowedRoles: REVIEWED_RAW_MIGRATION_OWNER_ONLY_ROUTINE_SIGNATURES.has(
+          routine.signature,
+        )
+          ? Object.freeze([])
+          : routine.allowedRoles,
+      }),
+    ),
+  );
+}
+
+async function verifyAndRepairReviewedRoutineSetPrivileges(
+  client,
+  canonicalRoutines,
+  invariantSection,
+  invariantSubject,
+  rawMigrationRoutines,
+) {
+  if (canonicalRoutines.length === 0) return "absent";
+  const verifier = await import("./verify-database-role-boundaries.mjs");
+  let canonicalFailure;
+  try {
+    await verifier.verifyReviewedApplicationRoutines(client, canonicalRoutines);
+    return "canonical";
+  } catch (error) {
+    if (!(error instanceof verifier.DatabaseRoleBoundaryError)) throw error;
+    canonicalFailure = error;
+  }
+
+  const preRepairStates = [
+    ["owner-only", reviewedOwnerOnlyRoutines(canonicalRoutines)],
+    ...(rawMigrationRoutines ? [["raw-migration", rawMigrationRoutines]] : []),
+  ];
+  const preRepairFailures = [canonicalFailure];
+  let matchedPreRepairState;
+  for (const [stateName, routines] of preRepairStates) {
+    try {
+      await verifier.verifyReviewedApplicationRoutines(client, routines);
+      matchedPreRepairState = stateName;
+      break;
+    } catch (preRepairFailure) {
+      if (!(preRepairFailure instanceof verifier.DatabaseRoleBoundaryError)) {
+        throw preRepairFailure;
+      }
+      preRepairFailures.push(preRepairFailure);
+    }
+  }
+  if (!matchedPreRepairState) {
+    const invariant = databaseRoleBootstrapInvariantError(invariantSection);
+    invariant.cause = new AggregateError(
+      preRepairFailures,
+      `${invariantSubject} ACL is not canonical or an exact approved pre-repair state`,
+    );
+    throw invariant;
+  }
+
+  await client.query(reviewedFunctionPrivilegesSql(canonicalRoutines));
+  await verifier.verifyReviewedApplicationRoutines(client, canonicalRoutines);
+  return "repaired";
+}
+
+export async function verifyAndRepairReviewedPhaseRoutinePrivileges(
+  client,
+  phase,
+) {
+  const canonicalRoutines = reviewedPhaseRoutines(phase);
+  return verifyAndRepairReviewedRoutineSetPrivileges(
+    client,
+    canonicalRoutines,
+    "reviewed-phase-routine-pre-repair",
+    "reviewed phase routine",
+    reviewedRawMigrationRoutines(canonicalRoutines),
+  );
+}
+
+export async function verifyAndRepairReviewedBaselineRewardRoutinePrivileges(
+  client,
+  phase,
+) {
+  return verifyAndRepairReviewedRoutineSetPrivileges(
+    client,
+    reviewedBaselineRewardRoutines(phase),
+    "reviewed-baseline-reward-routine-pre-repair",
+    "reviewed baseline reward routine",
+  );
+}
+export function reviewedApplicationFunctionPrivilegesSql(phase) {
+  return reviewedFunctionPrivilegesSql(reviewedPhaseRoutines(phase));
 }
 
 export const MAIL_WORKER_OUTBOX_COLUMNS = Object.freeze([
@@ -3529,10 +3737,28 @@ export function globalDefaultAclScrubSql() {
 
 export async function reconcileDatabaseRolePrivileges(client, phase) {
   const canonicalPhase = canonicalReviewedMailAuthorityCatalogPhase(phase);
-  await verifyPostMigrationReviewedContractsBeforeReconciliation(
-    client,
-    canonicalPhase,
-  );
+  return applyDatabaseRolePrivilegeReconciliation(client, canonicalPhase);
+}
+
+async function applyDatabaseRolePrivilegeReconciliation(
+  client,
+  canonicalPhase,
+  { verifyPreRepairContracts = true } = {},
+) {
+  if (typeof verifyPreRepairContracts !== "boolean") {
+    throw new TypeError("verifyPreRepairContracts must be boolean");
+  }
+  if (verifyPreRepairContracts) {
+    await verifyAndRepairReviewedPhaseRoutinePrivileges(client, canonicalPhase);
+    await verifyAndRepairReviewedBaselineRewardRoutinePrivileges(
+      client,
+      canonicalPhase,
+    );
+    await verifyPostMigrationReviewedContractsBeforeReconciliation(
+      client,
+      canonicalPhase,
+    );
+  }
   await client.query(globalDefaultAclScrubSql());
   await client.query(`
     do $codestead$
@@ -3660,6 +3886,13 @@ export async function reconcileDatabaseRolePrivileges(client, phase) {
       alter default privileges for role current_user in schema drizzle revoke execute on routines from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
       alter default privileges for role current_user in schema drizzle revoke usage on types from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade`);
   }
+}
+
+async function reconcileRestoredNoAclDatabaseRolePrivileges(client, phase) {
+  const canonicalPhase = canonicalReviewedMailAuthorityCatalogPhase(phase);
+  return applyDatabaseRolePrivilegeReconciliation(client, canonicalPhase, {
+    verifyPreRepairContracts: false,
+  });
 }
 
 function databaseRoleBootstrapInvariantError(section, details = []) {
@@ -3870,8 +4103,7 @@ export async function verifyDatabaseRoleBootstrapState(
   const phaseRoutines = reviewedPhaseRoutines(canonicalPhase);
   const phaseSecurityDefiners =
     reviewedSecurityDefinerFunctions(canonicalPhase);
-  const exactAclRelationNames =
-    reviewedExactAclRelationNames(canonicalPhase);
+  const exactAclRelationNames = reviewedExactAclRelationNames(canonicalPhase);
   const roles = await client.query(`
     select rolname, rolcanlogin, rolsuper, rolcreatedb, rolcreaterole,
            rolinherit, rolreplication, rolbypassrls, rolconnlimit,
@@ -4441,16 +4673,12 @@ export async function verifyDatabaseRoleBootstrapState(
   if (outboxPresenceRow.outbox_present) {
     const verifier = await import("./verify-database-role-boundaries.mjs");
     await verifier.verifyMailWorkerOutboxContract(client, {
-      requiresDispatchBinding:
-        canonicalPhase?.requiresWorkerContract ?? false,
+      requiresDispatchBinding: canonicalPhase?.requiresWorkerContract ?? false,
       requiresProviderEvidence:
         canonicalPhase?.requiresProviderEvidence ?? false,
-      requiresReplayAuthority:
-        canonicalPhase?.requiresReplayAuthority ?? false,
-      requiresProviderRequest:
-        canonicalPhase?.requiresGuardedDelivery ?? false,
-      requiresGuardedDelivery:
-        canonicalPhase?.requiresGuardedDelivery ?? false,
+      requiresReplayAuthority: canonicalPhase?.requiresReplayAuthority ?? false,
+      requiresProviderRequest: canonicalPhase?.requiresGuardedDelivery ?? false,
+      requiresGuardedDelivery: canonicalPhase?.requiresGuardedDelivery ?? false,
     });
   }
 
@@ -4621,7 +4849,62 @@ async function boundedCleanupOperation(operation, timeoutMs, phase) {
   }
 }
 
-export async function cleanupDatabaseBootstrapResources({
+export function preserveDatabaseOperationAndCleanupFailures({
+  operationFailed,
+  operationFailure,
+  cleanupFailures,
+  message,
+}) {
+  if (!operationFailed && cleanupFailures.length === 0) {
+    return { failed: false, failure: undefined };
+  }
+  if (operationFailed && cleanupFailures.length === 0) {
+    return { failed: true, failure: operationFailure };
+  }
+  if (!operationFailed && cleanupFailures.length === 1) {
+    return { failed: true, failure: cleanupFailures[0] };
+  }
+  if (!operationFailed) {
+    return {
+      failed: true,
+      failure: new AggregateError(cleanupFailures, message, {
+        cause: cleanupFailures[0],
+      }),
+    };
+  }
+
+  const combinedFailure = new AggregateError(
+    [operationFailure, ...cleanupFailures],
+    message,
+    { cause: operationFailure },
+  );
+  if (!(operationFailure instanceof Error)) {
+    return { failed: true, failure: combinedFailure };
+  }
+
+  try {
+    const hadExistingCause = "cause" in operationFailure;
+    const existingCause = hadExistingCause ? operationFailure.cause : undefined;
+    const cleanupCause = hadExistingCause
+      ? new AggregateError(cleanupFailures, message, { cause: existingCause })
+      : new AggregateError(cleanupFailures, message);
+    const causeDescriptor = Object.getOwnPropertyDescriptor(
+      operationFailure,
+      "cause",
+    );
+    Object.defineProperty(operationFailure, "cause", {
+      value: cleanupCause,
+      configurable: causeDescriptor?.configurable ?? true,
+      writable: causeDescriptor?.writable ?? true,
+      enumerable: causeDescriptor?.enumerable ?? false,
+    });
+    return { failed: true, failure: operationFailure };
+  } catch {
+    return { failed: true, failure: combinedFailure };
+  }
+}
+
+async function collectDatabaseBootstrapCleanupFailures({
   client,
   pool,
   transactionOpen,
@@ -4630,7 +4913,7 @@ export async function cleanupDatabaseBootstrapResources({
   timeoutMs = DEFAULT_CLEANUP_TIMEOUT_MS,
 }) {
   const boundedTimeoutMs = normalizeCleanupTimeoutMs(timeoutMs);
-  let cleanupError;
+  const cleanupFailures = [];
   let cleanupUnsafe = false;
   let destroy = destroyClient;
 
@@ -4642,7 +4925,7 @@ export async function cleanupDatabaseBootstrapResources({
         "rollback",
       );
     } catch (error) {
-      cleanupError = error;
+      cleanupFailures.push(error);
       cleanupUnsafe = true;
       destroy = true;
     }
@@ -4659,19 +4942,20 @@ export async function cleanupDatabaseBootstrapResources({
         boundedTimeoutMs,
         "advisory unlock",
       );
-      if (unlock.rows[0]?.released !== true)
+      if (unlock.rows[0]?.released !== true) {
         throw new DatabaseBootstrapUnlockError();
+      }
     } catch (error) {
-      cleanupError ??= error;
+      cleanupFailures.push(error);
       destroy = true;
     }
   }
 
   if (client) {
     try {
-      client.release(destroy || undefined);
+      client.release(destroy ? true : undefined);
     } catch (error) {
-      cleanupError ??= error;
+      cleanupFailures.push(error);
     }
   }
 
@@ -4682,53 +4966,530 @@ export async function cleanupDatabaseBootstrapResources({
       "pool shutdown",
     );
   } catch (error) {
-    cleanupError ??= error;
+    cleanupFailures.push(error);
   }
-  if (cleanupError) throw cleanupError;
+  return cleanupFailures;
 }
 
+export async function cleanupDatabaseBootstrapResources(options) {
+  const cleanupFailures =
+    await collectDatabaseBootstrapCleanupFailures(options);
+  const outcome = preserveDatabaseOperationAndCleanupFailures({
+    operationFailed: false,
+    operationFailure: undefined,
+    cleanupFailures,
+    message: "database bootstrap cleanup was incomplete",
+  });
+  if (outcome.failed) throw outcome.failure;
+}
+
+export async function cleanupRestoredNoAclMaintenanceResources({
+  client,
+  pool,
+  databaseReenabled,
+  operationFailed,
+  timeoutMs,
+}) {
+  const cleanupFailures = await collectDatabaseBootstrapCleanupFailures({
+    client,
+    pool,
+    transactionOpen: false,
+    lockAcquired: false,
+    destroyClient: operationFailed || !databaseReenabled,
+    timeoutMs,
+  });
+  if (databaseReenabled && cleanupFailures.length > 0) {
+    const cleanupFailure = new AggregateError(
+      cleanupFailures,
+      "restored-no-acl database was enabled but maintenance cleanup was incomplete",
+      { cause: cleanupFailures[0] },
+    );
+    Object.defineProperties(cleanupFailure, {
+      cleanupIncomplete: { value: true, enumerable: true },
+      databaseEnabled: { value: true, enumerable: true },
+    });
+    throw cleanupFailure;
+  }
+  return cleanupFailures;
+}
+async function restoredNoAclDatabaseConnectionState(
+  maintenancePool,
+  postgresDatabase,
+  targetBackendPid,
+) {
+  const result = await maintenancePool.query(
+    `
+    select database.datallowconn allow_connections,
+           (
+             select pg_catalog.count(*)::integer
+               from pg_catalog.pg_stat_activity activity
+              where activity.datid = database.oid
+                and activity.pid <> $2
+           ) other_sessions
+      from pg_catalog.pg_database database
+     where database.datname = $1`,
+    [postgresDatabase, targetBackendPid],
+  );
+  const row = result.rows[0];
+  if (
+    result.rows.length !== 1 ||
+    typeof row?.allow_connections !== "boolean" ||
+    !Number.isInteger(row?.other_sessions) ||
+    row.other_sessions < 0
+  ) {
+    throw databaseRoleBootstrapInvariantError(
+      "restored-no-acl-database-quarantine-state",
+    );
+  }
+  return row;
+}
+
+async function quarantineRestoredNoAclDatabase(
+  maintenancePool,
+  postgresDatabase,
+  targetBackendPid,
+) {
+  const before = await restoredNoAclDatabaseConnectionState(
+    maintenancePool,
+    postgresDatabase,
+    targetBackendPid,
+  );
+  if (before.allow_connections !== true) {
+    throw databaseRoleBootstrapInvariantError(
+      "restored-no-acl-database-quarantine-precondition",
+    );
+  }
+  await maintenancePool.query(
+    `alter database "${postgresDatabase}" with allow_connections false`,
+  );
+  await maintenancePool.query(
+    `select pg_catalog.pg_terminate_backend(activity.pid)
+       from pg_catalog.pg_stat_activity activity
+      where activity.datid = (
+              select database.oid
+                from pg_catalog.pg_database database
+               where database.datname = $1
+            )
+        and activity.pid <> $2`,
+    [postgresDatabase, targetBackendPid],
+  );
+  const deadline = performance.now() + MAX_SESSION_DRAIN_MS;
+  let after;
+  while (true) {
+    await maintenancePool.query("select pg_catalog.pg_stat_clear_snapshot()");
+    after = await restoredNoAclDatabaseConnectionState(
+      maintenancePool,
+      postgresDatabase,
+      targetBackendPid,
+    );
+    if (after.other_sessions === 0) break;
+    if (performance.now() >= deadline) {
+      throw databaseRoleBootstrapInvariantError(
+        "restored-no-acl-database-session-drain",
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, SESSION_DRAIN_POLL_MS));
+  }
+  if (after.allow_connections !== false) {
+    throw databaseRoleBootstrapInvariantError(
+      "restored-no-acl-database-quarantine",
+    );
+  }
+}
+
+async function forceRestoredNoAclDatabaseQuarantine(
+  maintenancePool,
+  postgresDatabase,
+  targetBackendPid,
+) {
+  await maintenancePool.query(
+    `alter database "${postgresDatabase}" with allow_connections false`,
+  );
+  await maintenancePool.query(
+    `select pg_catalog.pg_terminate_backend(activity.pid)
+       from pg_catalog.pg_stat_activity activity
+      where activity.datid = (
+              select database.oid
+                from pg_catalog.pg_database database
+               where database.datname = $1
+            )
+        and activity.pid <> $2`,
+    [postgresDatabase, targetBackendPid],
+  );
+  const deadline = performance.now() + MAX_SESSION_DRAIN_MS;
+  while (true) {
+    await maintenancePool.query("select pg_catalog.pg_stat_clear_snapshot()");
+    const state = await restoredNoAclDatabaseConnectionState(
+      maintenancePool,
+      postgresDatabase,
+      targetBackendPid,
+    );
+    if (state.allow_connections === false && state.other_sessions === 0) return;
+    if (performance.now() >= deadline) {
+      throw databaseRoleBootstrapInvariantError(
+        "restored-no-acl-database-requarantine",
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, SESSION_DRAIN_POLL_MS));
+  }
+}
+
+export async function reenableRestoredNoAclDatabase(
+  maintenancePool,
+  postgresDatabase,
+  targetBackendPid,
+) {
+  const before = await restoredNoAclDatabaseConnectionState(
+    maintenancePool,
+    postgresDatabase,
+    targetBackendPid,
+  );
+  if (before.allow_connections !== false || before.other_sessions !== 0) {
+    throw databaseRoleBootstrapInvariantError(
+      "restored-no-acl-database-reenable-precondition",
+    );
+  }
+  try {
+    await maintenancePool.query(
+      `alter database "${postgresDatabase}" with allow_connections true`,
+    );
+  } catch (error) {
+    try {
+      await forceRestoredNoAclDatabaseQuarantine(
+        maintenancePool,
+        postgresDatabase,
+        targetBackendPid,
+      );
+    } catch (requarantineError) {
+      throw new AggregateError(
+        [error, requarantineError],
+        "restored-no-acl database re-enable outcome is uncertain",
+        { cause: error },
+      );
+    }
+    throw error;
+  }
+}
+async function verifyRestoredNoAclStructureBeforeReconciliation(client, phase) {
+  const canonicalPhase = canonicalReviewedMailAuthorityCatalogPhase(phase);
+  if (canonicalPhase?.backupStatusAuthority == null) {
+    throw databaseRoleBootstrapInvariantError("restored-no-acl-reviewed-phase");
+  }
+  try {
+    await verifyRestoredBackupStatusMailAuthorityStructuralObjects(
+      client,
+      LOGIN_ROLES,
+      canonicalPhase.backupStatusAuthority,
+    );
+  } catch (error) {
+    const invariant = databaseRoleBootstrapInvariantError(
+      "restored-no-acl-backup-status-authority-structure",
+    );
+    invariant.cause = error;
+    throw invariant;
+  }
+  const verifier = await import("./verify-database-role-boundaries.mjs");
+  try {
+    await verifier.verifyRestoredNoAclMailAuthorityStructure(
+      client,
+      canonicalPhase,
+    );
+  } catch (error) {
+    const invariant = databaseRoleBootstrapInvariantError(
+      "restored-no-acl-mail-authority-structure",
+    );
+    invariant.cause = error;
+    throw invariant;
+  }
+}
+
+function restoreMaintenanceConnectionString(connectionString) {
+  const url = new URL(connectionString);
+  url.pathname = "/postgres";
+  return url.href;
+}
+
+const DATABASE_BOOTSTRAP_IDENTITY_SQL = `
+  select current_user,
+         current_database(),
+         role.rolsuper,
+         pg_catalog.pg_backend_pid()::integer backend_pid,
+         control.system_identifier::text cluster_system_identifier,
+         pg_catalog.inet_server_addr()::text server_address,
+         pg_catalog.inet_server_port()::integer server_port
+    from pg_catalog.pg_roles role
+    cross join pg_catalog.pg_control_system() control
+   where role.rolname = current_user`;
+
+export async function proveRestoredNoAclMaintenanceSameInstance(
+  targetClient,
+  maintenanceClient,
+  nonce = randomBytes(32).toString("hex"),
+) {
+  if (!/^[0-9a-f]{64}$/u.test(nonce)) {
+    throw new TypeError("restore maintenance instance nonce is invalid");
+  }
+  const marker = `codestead-restore-v1:${nonce.slice(0, 40)}`;
+  let previousApplicationName;
+  let markerInstalled = false;
+  let operationFailed = false;
+  let operationFailure;
+  const cleanupFailures = [];
+
+  try {
+    const targetProof = await targetClient.query(
+      `select pg_catalog.current_setting('application_name') previous_application_name,
+              pg_catalog.set_config('application_name', $1, false) application_name,
+              pg_catalog.pg_backend_pid()::integer backend_pid,
+              current_database() database_name,
+              current_user user_name`,
+      [marker],
+    );
+    const target = targetProof.rows[0];
+    if (
+      targetProof.rows.length !== 1 ||
+      typeof target?.previous_application_name !== "string" ||
+      target?.application_name !== marker ||
+      !Number.isInteger(target?.backend_pid) ||
+      target.backend_pid <= 0 ||
+      typeof target?.database_name !== "string" ||
+      target.database_name.length === 0 ||
+      typeof target?.user_name !== "string" ||
+      target.user_name.length === 0
+    ) {
+      throw new Error(
+        "restored-no-acl target instance nonce installation failed",
+      );
+    }
+    previousApplicationName = target.previous_application_name;
+    markerInstalled = true;
+
+    const maintenanceProbe = await maintenanceClient.query(
+      `select activity.application_name,
+              activity.datname database_name,
+              activity.usename user_name
+         from pg_catalog.pg_stat_activity activity
+        where activity.pid = $1`,
+      [target.backend_pid],
+    );
+    const observed = maintenanceProbe.rows[0];
+    if (
+      maintenanceProbe.rows.length !== 1 ||
+      observed?.application_name !== marker ||
+      observed?.database_name !== target.database_name ||
+      observed?.user_name !== target.user_name
+    ) {
+      throw new Error(
+        "restored-no-acl maintenance instance verification failed",
+      );
+    }
+  } catch (error) {
+    operationFailed = true;
+    operationFailure = error;
+  }
+
+  if (markerInstalled) {
+    try {
+      const restored = await targetClient.query(
+        "select pg_catalog.set_config('application_name', $1, false) application_name",
+        [previousApplicationName],
+      );
+      if (
+        restored.rows.length !== 1 ||
+        restored.rows[0]?.application_name !== previousApplicationName
+      ) {
+        throw new Error("restored-no-acl target instance nonce cleanup failed");
+      }
+    } catch (error) {
+      cleanupFailures.push(error);
+    }
+  }
+
+  const outcome = preserveDatabaseOperationAndCleanupFailures({
+    operationFailed,
+    operationFailure,
+    cleanupFailures,
+    message: "restore maintenance instance proof cleanup was incomplete",
+  });
+  if (outcome.failed) throw outcome.failure;
+}
+
+export function validateRestoredNoAclMaintenanceIdentity(
+  targetIdentity,
+  maintenanceIdentity,
+  expectedUser,
+) {
+  const targetAddress = targetIdentity?.server_address;
+  const maintenanceAddress = maintenanceIdentity?.server_address;
+  const addressesMatch =
+    (targetAddress === null && maintenanceAddress === null) ||
+    (typeof targetAddress === "string" &&
+      targetAddress.length > 0 &&
+      maintenanceAddress === targetAddress);
+  const targetPort = targetIdentity?.server_port;
+  const maintenancePort = maintenanceIdentity?.server_port;
+  const portsMatch =
+    (targetPort === null && maintenancePort === null) ||
+    (Number.isInteger(targetPort) &&
+      targetPort > 0 &&
+      targetPort <= 65_535 &&
+      maintenancePort === targetPort);
+  if (
+    typeof expectedUser !== "string" ||
+    expectedUser.length === 0 ||
+    targetIdentity?.current_user !== expectedUser ||
+    targetIdentity?.rolsuper !== true ||
+    !Number.isInteger(targetIdentity?.backend_pid) ||
+    targetIdentity.backend_pid <= 0 ||
+    !/^[1-9][0-9]+$/u.test(targetIdentity?.cluster_system_identifier ?? "") ||
+    typeof targetIdentity?.current_database !== "string" ||
+    targetIdentity.current_database.length === 0 ||
+    maintenanceIdentity?.current_user !== expectedUser ||
+    maintenanceIdentity?.current_database !== "postgres" ||
+    maintenanceIdentity?.rolsuper !== true ||
+    !Number.isInteger(maintenanceIdentity?.backend_pid) ||
+    maintenanceIdentity.backend_pid <= 0 ||
+    maintenanceIdentity.backend_pid === targetIdentity.backend_pid ||
+    maintenanceIdentity?.cluster_system_identifier !==
+      targetIdentity.cluster_system_identifier ||
+    !addressesMatch ||
+    !portsMatch
+  ) {
+    throw new Error(
+      "restored-no-acl maintenance authority verification failed",
+    );
+  }
+}
 export async function runDatabaseRoleBootstrap(options) {
-  const parsed = validateDatabaseRoleUrls(options);
-  const verifyAppliedMigrationLedger =
-    options.verifyAppliedMigrationLedger ??
-    verifyAppliedMigrationLedgerContract;
+  const bootstrapMode = options.bootstrapMode ?? "strict";
+  if (bootstrapMode !== "strict" && bootstrapMode !== "restored-no-acl") {
+    throw new TypeError("database bootstrap mode is invalid");
+  }
   const requireCompleteMigrationLedger =
     options.requireCompleteMigrationLedger ?? false;
   if (typeof requireCompleteMigrationLedger !== "boolean") {
     throw new TypeError("requireCompleteMigrationLedger must be boolean");
   }
+  if (bootstrapMode === "restored-no-acl") {
+    if (!requireCompleteMigrationLedger) {
+      throw new Error(
+        "restored-no-acl bootstrap requires a complete migration ledger",
+      );
+    }
+    if (options.verifyAppliedMigrationLedger !== undefined) {
+      throw new Error(
+        "restored-no-acl bootstrap does not allow a custom migration ledger verifier",
+      );
+    }
+    if (options.beforeCommit !== undefined) {
+      throw new Error("restored-no-acl bootstrap does not allow beforeCommit");
+    }
+    if (
+      !/^learncoding_restore(?:_[a-z0-9]+)*$/u.test(options.postgresDatabase)
+    ) {
+      throw new Error("restored-no-acl bootstrap database name is invalid");
+    }
+    if (
+      (options.pool === undefined) !==
+      (options.restoreMaintenancePool === undefined)
+    ) {
+      throw new Error(
+        "restored-no-acl bootstrap requires paired target and maintenance pools",
+      );
+    }
+    if (
+      options.pool !== undefined &&
+      options.pool === options.restoreMaintenancePool
+    ) {
+      throw new Error(
+        "restored-no-acl target and maintenance pools must be distinct",
+      );
+    }
+  } else if (options.restoreMaintenancePool !== undefined) {
+    throw new Error(
+      "strict bootstrap does not allow a restore maintenance pool",
+    );
+  }
+  const parsed = validateDatabaseRoleUrls(options);
+  const verifyAppliedMigrationLedger =
+    options.verifyAppliedMigrationLedger ??
+    verifyAppliedMigrationLedgerContract;
   const cleanupTimeoutMs = normalizeCleanupTimeoutMs(
     options.cleanupTimeoutMs ?? DEFAULT_CLEANUP_TIMEOUT_MS,
   );
   const pool =
     options.pool ??
     new Pool({ connectionString: parsed.bootstrap.connectionString, max: 1 });
+  const restoreMaintenancePool =
+    bootstrapMode === "restored-no-acl"
+      ? (options.restoreMaintenancePool ??
+        new Pool({
+          connectionString: restoreMaintenanceConnectionString(
+            parsed.bootstrap.connectionString,
+          ),
+          connectionTimeoutMillis: cleanupTimeoutMs,
+          max: 1,
+          query_timeout: MAX_SESSION_DRAIN_MS,
+        }))
+      : undefined;
   let client;
+  let restoreMaintenanceClient;
   let lockAcquired = false;
   let transactionOpen = false;
   let destroyClient = false;
+  let operationFailed = false;
+  let operationFailure;
+  let bootstrapResult;
+  let databaseReenabled = false;
+  let restoredReadyForReenable = false;
+  let restoredTargetBackendPid;
 
   try {
     client = await pool.connect();
     await client.query(
       "select pg_catalog.set_config('search_path', 'pg_catalog,pg_temp', false) trusted_search_path",
     );
-    const identity = await client.query(
-      `select current_user, current_database(), rolsuper
-         from pg_roles
-        where rolname = current_user`,
-    );
+    const identity = await client.query(DATABASE_BOOTSTRAP_IDENTITY_SQL);
     const identityRow = identity.rows[0];
     if (
+      identity.rows.length !== 1 ||
       identityRow?.current_user !== options.postgresUser ||
       identityRow?.current_database !== options.postgresDatabase ||
-      identityRow?.rolsuper !== true
+      identityRow?.rolsuper !== true ||
+      (bootstrapMode === "restored-no-acl" &&
+        (!Number.isInteger(identityRow?.backend_pid) ||
+          identityRow.backend_pid <= 0))
     ) {
       throw new Error("database bootstrap authority verification failed");
+    }
+    if (bootstrapMode === "restored-no-acl") {
+      restoreMaintenanceClient = await restoreMaintenancePool.connect();
+      const maintenanceIdentity = await restoreMaintenanceClient.query(
+        DATABASE_BOOTSTRAP_IDENTITY_SQL,
+      );
+      validateRestoredNoAclMaintenanceIdentity(
+        identityRow,
+        maintenanceIdentity.rows.length === 1
+          ? maintenanceIdentity.rows[0]
+          : undefined,
+        options.postgresUser,
+      );
+      await proveRestoredNoAclMaintenanceSameInstance(
+        client,
+        restoreMaintenanceClient,
+      );
     }
 
     await acquireAdministrationLock(client, options.lockTimeoutMs);
     lockAcquired = true;
+    if (bootstrapMode === "restored-no-acl") {
+      restoredTargetBackendPid = identityRow.backend_pid;
+      await quarantineRestoredNoAclDatabase(
+        restoreMaintenanceClient,
+        options.postgresDatabase,
+        identityRow.backend_pid,
+      );
+    }
     await client.query("begin");
     transactionOpen = true;
     await verifyAppliedMigrationLedger(client, {
@@ -4742,11 +5503,26 @@ export async function runDatabaseRoleBootstrap(options) {
     validateOwnershipInventory(inventory);
 
     let reviewedPhase = await resolveReviewedMailAuthorityCatalogPhase(client);
-    await verifyPostMigrationReviewedContractsBeforeReconciliation(
-      client,
-      reviewedPhase,
-    );
-    await verifyBackupStatusAuthorityBeforeRepair(client, reviewedPhase);
+    if (bootstrapMode === "restored-no-acl") {
+      await verifyRestoredNoAclStructureBeforeReconciliation(
+        client,
+        reviewedPhase,
+      );
+    } else {
+      await verifyAndRepairReviewedPhaseRoutinePrivileges(
+        client,
+        reviewedPhase,
+      );
+      await verifyAndRepairReviewedBaselineRewardRoutinePrivileges(
+        client,
+        reviewedPhase,
+      );
+      await verifyPostMigrationReviewedContractsBeforeReconciliation(
+        client,
+        reviewedPhase,
+      );
+      await verifyBackupStatusAuthorityBeforeRepair(client, reviewedPhase);
+    }
     await createAndResetRoles(client);
     const rolePasswords = {
       [MIGRATOR_ROLE]: parsed.migrator,
@@ -4757,7 +5533,11 @@ export async function runDatabaseRoleBootstrap(options) {
     };
     await rotatePasswords(client, rolePasswords);
     await transferApplicationOwnership(client, reviewedPhase);
-    await reconcileDatabaseRolePrivileges(client, reviewedPhase);
+    if (bootstrapMode === "restored-no-acl") {
+      await reconcileRestoredNoAclDatabaseRolePrivileges(client, reviewedPhase);
+    } else {
+      await reconcileDatabaseRolePrivileges(client, reviewedPhase);
+    }
     await verifyPostMigrationReviewedContractsBeforeReconciliation(
       client,
       reviewedPhase,
@@ -4798,6 +5578,9 @@ export async function runDatabaseRoleBootstrap(options) {
       preCommitPhase,
     );
     await verifyBackupStatusAuthorityAfterRepair(client, preCommitPhase);
+    if (bootstrapMode === "restored-no-acl") {
+      await verifyAppliedMigrationLedger(client, { requireComplete: true });
+    }
     await client.query("commit");
     transactionOpen = false;
 
@@ -4808,33 +5591,89 @@ export async function runDatabaseRoleBootstrap(options) {
       committedPhase,
     );
     await verifyBackupStatusAuthorityAfterRepair(client, committedPhase);
-    return await verifyDatabaseRoleBootstrapState(
+    bootstrapResult = await verifyDatabaseRoleBootstrapState(
       client,
       options.postgresDatabase,
       options.postgresUser,
       committedPhase,
     );
+    if (bootstrapMode === "restored-no-acl") {
+      await verifyAppliedMigrationLedger(client, { requireComplete: true });
+      restoredReadyForReenable = true;
+    }
   } catch (error) {
     destroyClient = true;
-    throw error;
-  } finally {
-    await cleanupDatabaseBootstrapResources({
-      client,
-      pool,
-      transactionOpen,
-      lockAcquired,
-      destroyClient,
-      timeoutMs: cleanupTimeoutMs,
-    });
+    operationFailed = true;
+    operationFailure = error;
   }
+
+  const cleanupFailures = await collectDatabaseBootstrapCleanupFailures({
+    client,
+    pool,
+    transactionOpen,
+    lockAcquired,
+    destroyClient,
+    timeoutMs: cleanupTimeoutMs,
+  });
+  if (restoreMaintenancePool !== undefined) {
+    const preReenableOutcome = preserveDatabaseOperationAndCleanupFailures({
+      operationFailed,
+      operationFailure,
+      cleanupFailures,
+      message: "database bootstrap operation failed and cleanup was incomplete",
+    });
+    if (!preReenableOutcome.failed && restoredReadyForReenable) {
+      try {
+        await reenableRestoredNoAclDatabase(
+          restoreMaintenanceClient,
+          options.postgresDatabase,
+          restoredTargetBackendPid,
+        );
+        databaseReenabled = true;
+      } catch (error) {
+        operationFailed = true;
+        operationFailure = error;
+      }
+    }
+
+    const maintenanceCleanupFailures =
+      await cleanupRestoredNoAclMaintenanceResources({
+        client: restoreMaintenanceClient,
+        pool: restoreMaintenancePool,
+        databaseReenabled,
+        operationFailed,
+        timeoutMs: cleanupTimeoutMs,
+      });
+    cleanupFailures.push(...maintenanceCleanupFailures);
+  }
+  const outcome = preserveDatabaseOperationAndCleanupFailures({
+    operationFailed,
+    operationFailure,
+    cleanupFailures,
+    message: "database bootstrap operation failed and cleanup was incomplete",
+  });
+  if (outcome.failed) throw outcome.failure;
+  return bootstrapResult;
+}
+
+export function parseDatabaseRoleBootstrapBooleanSetting(value, label) {
+  const setting = value ?? "false";
+  if (setting !== "true" && setting !== "false") {
+    throw new Error(`${label} must be true or false`);
+  }
+  return setting === "true";
 }
 
 async function main() {
-  const requireCompleteSetting =
-    process.env.REQUIRE_COMPLETE_MIGRATION_LEDGER ?? "false";
-  if (!/^(?:true|false)$/u.test(requireCompleteSetting)) {
-    throw new Error("REQUIRE_COMPLETE_MIGRATION_LEDGER must be true or false");
-  }
+  const requireCompleteMigrationLedger =
+    parseDatabaseRoleBootstrapBooleanSetting(
+      process.env.REQUIRE_COMPLETE_MIGRATION_LEDGER,
+      "REQUIRE_COMPLETE_MIGRATION_LEDGER",
+    );
+  const restoredNoAclReconciliation = parseDatabaseRoleBootstrapBooleanSetting(
+    process.env.RESTORE_NO_ACL_RECONCILIATION,
+    "RESTORE_NO_ACL_RECONCILIATION",
+  );
   const checks = await runDatabaseRoleBootstrap({
     postgresUser: process.env.POSTGRES_USER ?? "",
     postgresDatabase: process.env.POSTGRES_DB ?? "",
@@ -4844,7 +5683,8 @@ async function main() {
     databaseWorkerUrl: process.env.DATABASE_WORKER_URL ?? "",
     databaseOpsUrl: process.env.DATABASE_OPS_URL ?? "",
     databaseBackupReporterUrl: process.env.DATABASE_BACKUP_REPORTER_URL ?? "",
-    requireCompleteMigrationLedger: requireCompleteSetting === "true",
+    bootstrapMode: restoredNoAclReconciliation ? "restored-no-acl" : "strict",
+    requireCompleteMigrationLedger,
   });
   console.info(
     JSON.stringify({

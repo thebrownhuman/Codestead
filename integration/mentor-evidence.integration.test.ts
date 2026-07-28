@@ -6,6 +6,7 @@ import {
   resolveMentorLearner,
 } from "@/lib/admin-mentor/evidence-reader";
 import { pool } from "@/lib/db/client";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
 
 const ADMIN = "mentor-evidence-admin";
 const LEARNER = "mentor-evidence-learner";
@@ -23,11 +24,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'`);
-  const names = tables.rows.map((row) => `"${row.table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 const examResult = {
@@ -151,13 +148,58 @@ async function seedEvidence() {
     [targetProject, JSON.stringify([{ severity: "medium", detail: "Add a loop boundary test.", sessionToken: "private" }]), NOW],
   );
 
-  await pool.query(
-    `insert into email_outbox
-      (id,user_id,delivery_scope_key,to_email,template,template_version,variables,idempotency_key,idempotency_authority_version,status,created_at,updated_at)
-     values ('37000000-0000-4000-8000-000000000001',$1,'a:' || $1,'asha-mentor@integration.invalid','weekly-summary','1',$2::jsonb,'9a955329a8dc2d275b5f70db905671a72580d182ac755d4546fd6582abde1d81','event-v1-native','sent',$4,$4),
-            ('37000000-0000-4000-8000-000000000002',$3,'a:' || $3,'other-mentor@integration.invalid','weekly-summary','1','{"summary":"OTHER-SUMMARY-SENTINEL"}'::jsonb,'bf3e26ef3157fa8bb551f16079174440a617fce2a2d3f8f4468b9deec7469977','event-v1-native','sent',$4,$4)`,
-    [LEARNER, JSON.stringify({ summary: "You completed loops. access token=abcdefghijklmnop" }), OTHER, NOW],
-  );
+  const outboxClient = await pool.connect();
+  const outboxRows = [
+    {
+      id: "37000000-0000-4000-8000-000000000001",
+      operationId: "37100000-0000-4000-8000-000000000001",
+      userId: LEARNER,
+      recipient: "asha-mentor@integration.invalid",
+      variables: JSON.stringify({ summary: "You completed loops. access token=abcdefghijklmnop" }),
+      authoritySha256: "9a955329a8dc2d275b5f70db905671a72580d182ac755d4546fd6582abde1d81",
+    },
+    {
+      id: "37000000-0000-4000-8000-000000000002",
+      operationId: "37100000-0000-4000-8000-000000000002",
+      userId: OTHER,
+      recipient: "other-mentor@integration.invalid",
+      variables: JSON.stringify({ summary: "OTHER-SUMMARY-SENTINEL" }),
+      authoritySha256: "bf3e26ef3157fa8bb551f16079174440a617fce2a2d3f8f4468b9deec7469977",
+    },
+  ] as const;
+  try {
+    await outboxClient.query("begin");
+    for (const row of outboxRows) {
+      await outboxClient.query(
+        `insert into email_outbox
+          (id,operation_id,user_id,delivery_scope_key,to_email,template,template_version,variables,
+           idempotency_key,idempotency_authority_version,status)
+         values ($1::uuid,$2::uuid,$3,'a:' || $3,$4,'weekly-summary','1',$5::jsonb,$6,'event-v1-native','pending')`,
+        [row.id, row.operationId, row.userId, row.recipient, row.variables, row.authoritySha256],
+      );
+      await outboxClient.query(
+        `select released.release_receipt_sha256
+           from public.release_email_outbox_delivery(
+             $1::uuid,
+             $2::uuid,
+             $3,
+             (
+               select outbox.idempotency_original_payload_sha256
+                 from public.email_outbox as outbox
+                where outbox.id = $1::uuid
+             ),
+             'task7-v1'
+           ) as released`,
+        [row.id, row.operationId, row.authoritySha256],
+      );
+    }
+    await outboxClient.query("commit");
+  } catch (error) {
+    await outboxClient.query("rollback");
+    throw error;
+  } finally {
+    outboxClient.release();
+  }
 }
 
 beforeEach(async () => {

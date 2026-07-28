@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -37,11 +36,8 @@ type ReviewedLedger = Readonly<{
 }>;
 
 async function reviewedLedger() {
-  const moduleUrl = pathToFileURL(path.resolve(
-    process.cwd(),
-    "scripts/lib/reviewed-migration-ledger.mjs",
-  )).href;
-  return await import(moduleUrl) as ReviewedLedger;
+  return await import("./lib/reviewed-migration-ledger.mjs") as
+    ReviewedLedger;
 }
 
 async function exactAppliedLedgerRows() {
@@ -60,6 +56,49 @@ function restoredRelationRows(missing?: string) {
     relkind: name === missing ? null : "r",
   }));
 }
+
+const restoreLedgerRuntimeIdentity = {
+  current_user: "learncoding_ops",
+  session_user: "learncoding_ops",
+  superuser: false,
+  owner_membership: false,
+  drizzle_schema_usage: false,
+  ledger_select: false,
+  ledger_column_privilege: false,
+};
+
+const restoreLedgerAuthorityCatalog = {
+  owner_name: "learncoding_restore_ledger_reader",
+  definer_role_exact: true,
+  definer_membership_exact: true,
+  definer_role_setting_exact: true,
+  definer_default_acl_exact: true,
+  definer_dependency_set_exact: true,
+  definer_application_privileges_exact: true,
+  definer_drizzle_acl_exact: true,
+  ledger_relation_exact: true,
+  ledger_columns_exact: true,
+  audit_schema_exact: true,
+  audit_schema_acl_exact: true,
+  audit_object_set_exact: true,
+  audit_namespace_dependency_set_exact: true,
+  authority_extension_dependency_exact: true,
+  overload_set_exact: true,
+  security_definer: true,
+  stable: true,
+  parallel_unsafe: true,
+  leakproof: false,
+  strict: false,
+  language_name: "plpgsql",
+  support_exact: true,
+  binary_exact: true,
+  cost_exact: true,
+  rows_exact: true,
+  search_path_exact: true,
+  signature_exact: true,
+  body_exact: true,
+  acl_exact: true,
+};
 
 afterEach(async () => {
   await Promise.all(temporary.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
@@ -91,10 +130,16 @@ describe("restore smoke verifier", () => {
         if (sql.includes("required_restore_relations")) {
           return { rows: restoredRelationRows() };
         }
-        if (sql.includes("reviewed_migration_journal_present")) {
-          return { rows: [{ reviewed_migration_journal_present: true }] };
+        if (sql.includes("restore_ledger_runtime_identity")) {
+          return { rows: [restoreLedgerRuntimeIdentity] };
         }
-        if (sql.includes("reviewed_full_migration_journal_rows")) {
+        if (sql.includes("restore_ledger_direct_select_denied")) {
+          throw Object.assign(new Error("permission denied"), { code: "42501" });
+        }
+        if (sql.includes("restore_ledger_authority_catalog")) {
+          return { rows: [restoreLedgerAuthorityCatalog] };
+        }
+        if (sql.includes("restore_reviewed_ledger_authority_rows")) {
           return { rows: ledgerRows };
         }
         return { rows: [] };
@@ -106,9 +151,15 @@ describe("restore smoke verifier", () => {
       migrationLedgerSha256: REVIEWED_MIGRATION_LEDGER_SHA256,
       publicTableCount: 18,
     });
-    expect(queries).toHaveLength(4);
+    expect(queries).toHaveLength(6);
     expect(queries[1]).toContain("public.mail_delivery_release_receipt");
-    expect(queries[3]).toContain("reviewed_full_migration_journal_rows");
+    expect(queries[1]).toContain("pg_catalog.pg_namespace");
+    expect(queries[1]).toContain("required.schema_name");
+    expect(queries[1]).not.toContain("pg_catalog.to_regclass");
+    expect(queries[2]).toContain("restore_ledger_runtime_identity");
+    expect(queries[3]).toContain("restore_ledger_direct_select_denied");
+    expect(queries[5]).toContain("restore_reviewed_ledger_authority_rows");
+    expect(queries[5]).not.toContain("FROM drizzle.__drizzle_migrations");
   });
 
   it.each([
@@ -151,10 +202,16 @@ describe("restore smoke verifier", () => {
         if (sql.includes("required_restore_relations")) {
           return { rows: restoredRelationRows() };
         }
-        if (sql.includes("reviewed_migration_journal_present")) {
-          return { rows: [{ reviewed_migration_journal_present: true }] };
+        if (sql.includes("restore_ledger_runtime_identity")) {
+          return { rows: [restoreLedgerRuntimeIdentity] };
         }
-        if (sql.includes("reviewed_full_migration_journal_rows")) {
+        if (sql.includes("restore_ledger_direct_select_denied")) {
+          throw Object.assign(new Error("permission denied"), { code: "42501" });
+        }
+        if (sql.includes("restore_ledger_authority_catalog")) {
+          return { rows: [restoreLedgerAuthorityCatalog] };
+        }
+        if (sql.includes("restore_reviewed_ledger_authority_rows")) {
           return { rows: ledgerRows };
         }
         return { rows: [] };

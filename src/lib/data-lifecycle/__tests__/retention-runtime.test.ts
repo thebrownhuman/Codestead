@@ -42,6 +42,13 @@ const mocks = vi.hoisted(() => {
     { id: "d2000000-0000-4000-8000-000000000001", storage_key: "owner/object-1" },
     { id: "d2000000-0000-4000-8000-000000000002", storage_key: "owner/object-2" },
   ];
+  const terminalEmailCandidateIds = [
+    "e1000000-0000-4000-8000-000000000001",
+    "e1000000-0000-4000-8000-000000000002",
+  ];
+  const consoleEmailCandidateIds = [
+    "e2000000-0000-4000-8000-000000000001",
+  ];
   const query = vi.fn(async (statement: string, parameters?: unknown[]) => {
     const sql = statement.replace(/\s+/g, " ").trim().toLowerCase();
     if (sql.startsWith("insert into data_lifecycle_run")) {
@@ -230,6 +237,18 @@ const mocks = vi.hoisted(() => {
     if (sql.startsWith("select id from model_call")) {
       return { rows: [{ id: "d1000000-0000-4000-8000-000000000001" }], rowCount: 1 };
     }
+    if (sql.includes("terminal_email_deletion_candidates")) {
+      return {
+        rows: terminalEmailCandidateIds.map((id) => ({ id })),
+        rowCount: terminalEmailCandidateIds.length,
+      };
+    }
+    if (sql.includes("console_email_deletion_candidates")) {
+      return {
+        rows: consoleEmailCandidateIds.map((id) => ({ id })),
+        rowCount: consoleEmailCandidateIds.length,
+      };
+    }
     if (sql.startsWith("select id, storage_key from stored_object")) {
       return { rows: objects, rowCount: objects.length };
     }
@@ -242,6 +261,8 @@ const mocks = vi.hoisted(() => {
   const client = { query, release: vi.fn() };
   return {
     state,
+    terminalEmailCandidateIds,
+    consoleEmailCandidateIds,
     query,
     client,
     connect: vi.fn(async () => client),
@@ -463,7 +484,7 @@ describe("retention runtime orchestration", () => {
       .filter((index) => index >= 0);
     const deleted = statements
       .map((sql, index) => (
-        sql.startsWith("delete from email_outbox where id in") ? index : -1
+        sql.startsWith("delete from email_outbox") ? index : -1
       ))
       .filter((index) => index >= 0);
     expect(savepoint).toBeGreaterThan(-1);
@@ -520,6 +541,129 @@ describe("retention runtime orchestration", () => {
     });
   });
 
+  it("deletes only the covered bounded mail candidates after eligibility is revalidated", async () => {
+    await runRetention({
+      idempotencyKey: "retention:test:mail-exact-candidates",
+      dryRun: false,
+      batchSize: 2,
+      now,
+      objectStorageRoot: "C:/retention-objects",
+    });
+
+    const calls = mocks.query.mock.calls as unknown as Array<[string, unknown[]?]>;
+    const normalized = calls.map(([sql]) => String(sql).replace(/\s+/g, " ").trim().toLowerCase());
+    const terminalSelectIndex = normalized.findIndex((sql) => (
+      sql.includes("terminal_email_deletion_candidates")
+    ));
+    const consoleSelectIndex = normalized.findIndex((sql) => (
+      sql.includes("console_email_deletion_candidates")
+    ));
+    const deleteCalls = calls.filter(([sql]) => (
+      String(sql).replace(/\s+/g, " ").trim().toLowerCase()
+        .startsWith("delete from email_outbox")
+    ));
+    const coverageCalls = calls.filter(([sql]) => (
+      String(sql).includes("public.email_outbox_idempotency_coverage_authority(")
+    ));
+
+    expect(terminalSelectIndex).toBeGreaterThan(-1);
+    expect(consoleSelectIndex).toBeGreaterThan(-1);
+    expect(normalized[terminalSelectIndex]).not.toMatch(/\bfor update\b|\bskip locked\b/u);
+    expect(normalized[consoleSelectIndex]).not.toMatch(/\bfor update\b|\bskip locked\b/u);
+    expect(coverageCalls.map(([, parameters]) => parameters)).toEqual([
+      [mocks.terminalEmailCandidateIds],
+      [mocks.consoleEmailCandidateIds],
+    ]);
+    expect(deleteCalls).toHaveLength(2);
+
+    const [terminalDelete, consoleDelete] = deleteCalls;
+    const terminalSql = String(terminalDelete?.[0]).replace(/\s+/g, " ").trim().toLowerCase();
+    const consoleSql = String(consoleDelete?.[0]).replace(/\s+/g, " ").trim().toLowerCase();
+    const predicateBetween = (sql: string, prefix: string, suffix: string) => {
+      const start = sql.indexOf(prefix);
+      const end = sql.indexOf(suffix, start + prefix.length);
+      expect(start).toBeGreaterThan(-1);
+      expect(end).toBeGreaterThan(start);
+      return sql.slice(start + prefix.length, end);
+    };
+    const canonicalPredicate = (sql: string) => (
+      sql.replace(/\s*([()])\s*/g, "$1").replace(/\s+/g, " ").trim()
+    );
+    const terminalCandidatePredicate = predicateBetween(
+      normalized[terminalSelectIndex]!,
+      "from email_outbox where ",
+      " order by ",
+    );
+    const consoleCandidatePredicate = predicateBetween(
+      normalized[consoleSelectIndex]!,
+      "from email_outbox where ",
+      " order by ",
+    );
+    const terminalDeletePredicate = predicateBetween(
+      terminalSql,
+      "where id = any($2::uuid[]) and ",
+      " returning id",
+    );
+    const consoleDeletePredicate = predicateBetween(
+      consoleSql,
+      "where id = any($2::uuid[]) and ",
+      " returning id",
+    );
+
+    expect(terminalDelete?.[1]).toEqual([
+      "2026-06-12T00:00:00.000Z",
+      mocks.terminalEmailCandidateIds,
+    ]);
+    expect(canonicalPredicate(terminalDeletePredicate))
+      .toBe(canonicalPredicate(terminalCandidatePredicate));
+    expect(terminalSql).toContain("id = any($2::uuid[])");
+    expect(terminalSql).not.toContain("select id from email_outbox");
+    expect(terminalSql).toContain("status in ('sent', 'suppressed', 'failed')");
+    expect(terminalSql).toContain("provider_call_started is null");
+    expect(terminalSql).toContain("provider_call_started is not null");
+    expect(terminalSql).toContain("adapter = 'gmail'");
+    expect(terminalSql).toContain("provider_message_id is not null");
+    expect(terminalSql).toContain("btrim(provider_message_id) <> ''");
+    expect(terminalSql).toContain("sent_at is not null");
+    expect(terminalSql).toContain("quarantined_at is not null");
+    expect(terminalSql).toContain("quarantined_at < $1::timestamptz");
+    expect(terminalSql).toContain("claim_version >= 2");
+    expect(terminalSql).toContain("claim_token is null");
+    expect(terminalSql).toContain("claim_owner is null");
+    expect(terminalSql).toContain("lease_expires_at is null");
+    expect(terminalSql).toContain("last_error_code = 'abandoned_post_provider_boundary'");
+    expect(terminalSql).toContain("dispatch_binding_version = 'gmail-raw-v1'");
+    expect(terminalSql).toContain("dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'");
+    expect(terminalSql).toContain("delivery_scope_key = 'a:' || user_id");
+    expect(terminalSql).toContain("delivery_scope_key = 's:' || operation_id::text");
+    expect(terminalSql).toContain("coalesce(sent_at, updated_at) < $1");
+
+    expect(consoleDelete?.[1]).toEqual([
+      "2026-06-12T00:00:00.000Z",
+      mocks.consoleEmailCandidateIds,
+    ]);
+    expect(canonicalPredicate(consoleDeletePredicate))
+      .toBe(canonicalPredicate(consoleCandidatePredicate));
+    expect(consoleSql).toContain("id = any($2::uuid[])");
+    expect(consoleSql).not.toContain("select id from email_outbox");
+    expect(consoleSql).toContain("status = 'quarantined'");
+    expect(consoleSql).toContain("provider_call_started is not null");
+    expect(consoleSql).toContain("adapter = 'console'");
+    expect(consoleSql).toContain("provider_message_id is null");
+    expect(consoleSql).toContain("sent_at is null");
+    expect(consoleSql).toContain("quarantined_at is not null");
+    expect(consoleSql).toContain("quarantined_at < $1::timestamptz");
+    expect(consoleSql).toContain("claim_version >= 2");
+    expect(consoleSql).toContain("claim_token is null");
+    expect(consoleSql).toContain("claim_owner is null");
+    expect(consoleSql).toContain("lease_expires_at is null");
+    expect(consoleSql).toContain("last_error_code = 'abandoned_post_provider_boundary'");
+    expect(consoleSql).toContain("dispatch_binding_version = 'console-json-v1'");
+    expect(consoleSql).toContain("dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'");
+    expect(consoleSql).toContain("delivery_scope_key = 'a:' || user_id");
+    expect(consoleSql).toContain("delivery_scope_key = 's:' || operation_id::text");
+    expect(consoleSql).toContain("coalesce(sent_at, updated_at) < $1");
+  });
   it("keeps a bounded redaction backlog retry-required until a later reviewed run", async () => {
     mocks.state.redactionEligibleTransitioned = 1;
 
@@ -759,7 +903,7 @@ describe("retention runtime orchestration", () => {
     ));
     const rollbackTo = statements.indexOf("rollback to savepoint retention_email_redaction");
     const release = statements.indexOf("release savepoint retention_email_redaction");
-    const terminalDelete = statements.findIndex((sql) => sql.startsWith("delete from email_outbox where id in"));
+    const terminalDelete = statements.findIndex((sql) => sql.startsWith("delete from email_outbox"));
     const objectDelete = statements.findIndex((sql) => sql.startsWith("delete from stored_object where id = any"));
     expect(savepoint).toBeGreaterThan(-1);
     expect(redaction).toBeGreaterThan(savepoint);
@@ -864,7 +1008,7 @@ describe("retention runtime orchestration", () => {
     expect(statements).toContain("rollback to savepoint retention_email_redaction");
     expect(statements).not.toContain("release savepoint retention_email_redaction");
     expect(statements).toContain("rollback");
-    expect(statements.some((sql) => sql.startsWith("delete from email_outbox where id in"))).toBe(false);
+    expect(statements.some((sql) => sql.startsWith("delete from email_outbox"))).toBe(false);
     expect(statements.some((sql) => sql.startsWith("select id, storage_key from stored_object"))).toBe(false);
     expect(mocks.processFileErasures).not.toHaveBeenCalled();
   });
@@ -884,7 +1028,7 @@ describe("retention runtime orchestration", () => {
     ));
     expect(statements).toContain("release savepoint retention_email_redaction");
     expect(statements).toContain("rollback");
-    expect(statements.some((sql) => sql.startsWith("delete from email_outbox where id in"))).toBe(false);
+    expect(statements.some((sql) => sql.startsWith("delete from email_outbox"))).toBe(false);
     expect(statements.some((sql) => sql.startsWith("select id, storage_key from stored_object"))).toBe(false);
     expect(statements.some((sql) => sql.includes("status = 'succeeded'"))).toBe(false);
     expect(mocks.processFileErasures).not.toHaveBeenCalled();

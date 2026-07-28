@@ -26,6 +26,24 @@ file_env() {
   fi
 }
 
+restore_credential_master_key_path="${RESTORE_CREDENTIAL_MASTER_KEY_PATH:-}"
+if [ -n "$restore_credential_master_key_path" ]; then
+  if [ -n "${CREDENTIAL_MASTER_KEY:-}" ] \
+    || [ -n "${CREDENTIAL_MASTER_KEY_FILE:-}" ]; then
+    echo "fatal: restore credential key path conflicts with generic key input" >&2
+    exit 64
+  fi
+  if [ "$restore_credential_master_key_path" != "/run/secrets/credential_master_key" ]; then
+    echo "fatal: RESTORE_CREDENTIAL_MASTER_KEY_PATH is not the reviewed container path" >&2
+    exit 64
+  fi
+  if [ ! -f "$restore_credential_master_key_path" ] \
+    || [ ! -r "$restore_credential_master_key_path" ]; then
+    echo "fatal: RESTORE_CREDENTIAL_MASTER_KEY_PATH must name a readable regular file" >&2
+    exit 66
+  fi
+fi
+
 for variable in \
   DATABASE_URL \
   DATABASE_BOOTSTRAP_URL \
@@ -47,6 +65,7 @@ for variable in \
 do
   file_env "$variable"
 done
+unset restore_credential_master_key_path
 
 if [ "${NODE_ENV:-}" = "production" ]; then
   if [ -n "${DATABASE_BOOTSTRAP_URL:-}" ]; then

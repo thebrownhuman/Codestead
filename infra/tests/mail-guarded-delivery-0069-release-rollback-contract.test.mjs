@@ -25,6 +25,18 @@ const rollbackTest = readFileSync(
   path.join(repoRoot, "infra/tests/rollback-production.test.sh"),
   "utf8",
 );
+const rollbackRunbook = readFileSync(
+  path.join(repoRoot, "docs/runbooks/updates-and-rollback.md"),
+  "utf8",
+);
+const recoveryEvidence = readFileSync(
+  path.join(repoRoot, "infra/ops/recovery-evidence.py"),
+  "utf8",
+);
+const recoveryEvidenceTest = readFileSync(
+  path.join(repoRoot, "infra/tests/recovery-evidence-provenance.test.py"),
+  "utf8",
+);
 const ciWorkflow = readFileSync(
   path.join(repoRoot, ".github/workflows/ci.yml"),
   "utf8",
@@ -69,6 +81,303 @@ const expectedCapability = [
   `GUARDED_DELIVERY_PRIVILEGE=${privilege}`,
   "",
 ].join("\n");
+
+const shellArray = (source, name) => {
+  const match = new RegExp(
+    String.raw`(?:readonly|local) -a ${name}=\(\r?\n([\s\S]*?)\r?\n\s*\)`,
+    "u",
+  ).exec(source);
+  assert.ok(match, `${name} is missing`);
+  return match[1]
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+};
+const pythonTuple = (source, name) => {
+  const match = new RegExp(
+    String.raw`${name}(?:: Final)? = \(\r?\n([\s\S]*?)\r?\n\)`,
+    "u",
+  ).exec(source);
+  assert.ok(match, `${name} is missing`);
+  return match[1]
+    .split(/\r?\n/u)
+    .map((line) => /^\s*"([^"]+)",\s*$/u.exec(line)?.[1])
+    .filter(Boolean);
+};
+
+
+test("release and rollback share the complete reviewed runtime inventories", () => {
+  const restorable = [
+    "app",
+    "runner-egress-gateway",
+    "mail-worker",
+    "reward-worker",
+    "regrade-worker",
+    "exam-finalization-worker",
+    "file-erasure-worker",
+    "practice-runner-recovery-worker",
+    "project-review-correction-worker",
+    "cloudflared",
+  ];
+  const managed = [
+    "app",
+    "cloudflared",
+    "exam-finalization-worker",
+    "file-erasure-worker",
+    "mail-worker",
+    "postgres",
+    "practice-runner-recovery-worker",
+    "project-review-correction-worker",
+    "regrade-worker",
+    "reward-worker",
+    "runner-egress-gateway",
+  ];
+  const internalStart = [
+    "app",
+    "mail-worker",
+    "reward-worker",
+    "regrade-worker",
+    "exam-finalization-worker",
+    "file-erasure-worker",
+    "practice-runner-recovery-worker",
+    "project-review-correction-worker",
+    "runner-egress-gateway",
+  ];
+
+  assert.deepEqual(
+    shellArray(release, "restorable_runtime_services"),
+    restorable,
+  );
+  assert.deepEqual(shellArray(rollback, "restorable_services"), restorable);
+  assert.deepEqual(shellArray(release, "managed_runtime_services"), managed);
+  assert.deepEqual(shellArray(rollback, "managed_runtime_services"), managed);
+  assert.deepEqual(
+    pythonTuple(recoveryEvidence, "PILOT_SERVICES"),
+    managed,
+  );
+  assert.deepEqual(
+    pythonTuple(recoveryEvidenceTest, "SERVICES"),
+    managed,
+  );
+  assert.deepEqual(shellArray(release, "previous_core"), internalStart);
+  assert.deepEqual(shellArray(rollback, "previous_core"), internalStart);
+  assert.match(
+    rollbackTest,
+    /expected_rollback_services=\([\s\S]*?\bfile-erasure-worker\b[\s\S]*?\)/u,
+    "rollback release-record fixture must require file-erasure-worker",
+  );
+});
+test("rollback authenticates PostgreSQL before mutation and uniformly rechecks it after restore", () => {
+  const compatibilityGate = rollback.indexOf(
+    'verify_host_operations_compatibility "$rollback_host_commit" "$rollback_host_tree"',
+  );
+  const postgresGate = rollback.indexOf("\nauthenticate_current_postgres_runtime\n");
+  const localImageInspection = rollback.indexOf(
+    'image_id="$(run_bounded "${docker_cli[@]}" image inspect',
+    postgresGate,
+  );
+  const coreStart = rollback.indexOf(
+    'run_bounded "${previous_compose[@]}" up -d --no-build',
+    postgresGate,
+  );
+  const postCoreRecheck = rollback.indexOf(
+    "\n  record_rollback_runtime_state",
+    coreStart,
+  );
+
+  assert.ok(compatibilityGate >= 0, "host compatibility gate is missing");
+  assert.ok(postgresGate > compatibilityGate, "PostgreSQL authentication must follow host compatibility");
+  assert.ok(localImageInspection > postgresGate, "PostgreSQL authentication must precede rollback image inspection");
+  assert.ok(coreStart > localImageInspection, "PostgreSQL authentication must precede rollback core mutation");
+  assert.ok(postCoreRecheck > coreStart, "restored runtime must be reinspected after core start");
+  assert.match(rollback, /configured_postgres_image="\$\(compose_postgres_image\)"/u);
+  assert.match(rollback, /managed-containers\.\$\{inventory_sha\}\.tsv/u);
+  assert.match(rollback, /inventory_sha_after.*inventory_sha_before/su);
+  assert.match(rollback, /active_sha_before.*rollback_finalization_active_sha/su);
+  assert.match(
+    rollback,
+    /inventory_path="\$record_real\/rollback-managed-containers\.tsv"[\s\S]*rollback_finalization_inventory_sha" == "\$inventory_sha/u,
+  );
+  assert.match(rollback, /record_rollback_runtime_state\(\)[\s\S]*\[a-z0-9\.\/_:-\]/u);
+  assert.match(rollback, /inspected_image" == "\$authenticated_postgres_image/su);
+  assert.match(
+    rollback,
+    /reviewed_images\[postgres\]="\$authenticated_postgres_image"[\s\S]*reviewed_identities\[postgres\]="\$authenticated_postgres_identity"/u,
+  );
+
+  const recordStart = rollback.indexOf("record_rollback_runtime_state() {");
+  const recordEnd = rollback.indexOf("\n}\n", recordStart) + 3;
+  const recordRuntime = rollback.slice(recordStart, recordEnd);
+  assert.doesNotMatch(recordRuntime, /service" == postgres/u);
+  assert.match(
+    recordRuntime,
+    /"\$image" == "\$\{reviewed_images\[\$service\]\}"[\s\S]*"\$identity" == "\$\{reviewed_identities\[\$service\]\}"/u,
+  );
+  assert.match(
+    rollbackTest,
+    /write_current_runtime_state "\$candidate_commit" "\$candidate_tree"/u,
+  );
+  assert.match(rollbackTest, /postgres:17-bookworm@sha256:/u);
+});
+test("host operations compatibility is semantic, versioned, provenance-split, and pre-mutation", () => {
+  const helperPath = "infra/ops/host-operations-compatibility.py";
+  for (const [label, source] of [
+    ["release", release],
+    ["rollback", rollback],
+  ]) {
+    assert.match(
+      source,
+      new RegExp(
+        String.raw`readonly host_operations_compatibility_helper="?\$repo_root/${helperPath}"?`,
+        "u",
+      ),
+      `${label} must use the trusted current compatibility helper`,
+    );
+    assert.match(source, /verify_host_operations_compatibility\(\) \{/u);
+    for (const argument of [
+      "--repo-root",
+      "--git-bin",
+      "--docker-bin",
+      "--host-commit",
+      "--host-tree",
+      "--application-commit",
+      "--application-tree",
+    ]) {
+      assert.match(source, new RegExp(argument, "u"));
+    }
+    for (const field of [
+      "SCHEMA_VERSION=2",
+      "APPLICATION_GIT_COMMIT",
+      "APPLICATION_GIT_TREE",
+      "HOST_OPERATIONS_GIT_COMMIT",
+      "HOST_OPERATIONS_GIT_TREE",
+      "HOST_OPERATIONS_CONTRACT_VERSION",
+      "HOST_OPERATIONS_CONTRACT_SHA256",
+    ]) {
+      assert.match(source, new RegExp(field, "u"));
+    }
+  }
+
+  const releaseGate = release.indexOf(
+    'verify_host_operations_compatibility "$release_commit" "$release_tree"',
+  );
+  const releasePull = release.indexOf(
+    'run_bounded "${docker_cli[@]}" pull "$image"',
+  );
+  const releaseStorageMutation = release.indexOf(
+    '"$prepare_postgres_script"',
+    release.indexOf('current_stage="prepare-postgres-storage"'),
+  );
+  assert.notEqual(releaseGate, -1, "release compatibility gate is missing");
+  assert.ok(
+    releaseGate < releasePull && releaseGate < releaseStorageMutation,
+    "release must bind host/application trees before pull or host storage mutation",
+  );
+
+  const rollbackGate = rollback.indexOf(
+    'verify_host_operations_compatibility "$rollback_host_commit" "$rollback_host_tree"',
+  );
+  const rollbackBoundaryGates = [
+    "verify_legacy_mail_outbox_contract_lineage",
+    "verify_dispatch_binding_rollback_contract",
+    "verify_guarded_delivery_rollback_contract",
+  ];
+  for (const boundaryGate of rollbackBoundaryGates) {
+    assert.ok(
+      rollback.lastIndexOf(boundaryGate) < rollbackGate,
+      `${boundaryGate} must diagnose forward-only boundaries before host compatibility`,
+    );
+  }
+
+  const rollbackImageInspect = rollback.indexOf(
+    'image_id="$(run_bounded "${docker_cli[@]}" image inspect',
+  );
+  const rollbackStart = rollback.indexOf(
+    'run_bounded "${previous_compose[@]}" up -d',
+  );
+  assert.notEqual(rollbackGate, -1, "rollback compatibility gate is missing");
+  assert.ok(
+    rollbackGate < rollbackImageInspect && rollbackGate < rollbackStart,
+    "rollback must bind host/application trees before image or container mutation",
+  );
+
+  for (const field of [
+    '"APPLICATION_GIT_COMMIT"',
+    '"APPLICATION_GIT_TREE"',
+    '"HOST_OPERATIONS_GIT_COMMIT"',
+    '"HOST_OPERATIONS_GIT_TREE"',
+    '"HOST_OPERATIONS_CONTRACT_VERSION"',
+    '"HOST_OPERATIONS_CONTRACT_SHA256"',
+  ]) {
+    assert.match(recoveryEvidence, new RegExp(field, "u"));
+  }
+  assert.match(recoveryEvidence, /values\["SCHEMA_VERSION"\] != "2"/u);
+  assert.match(
+    release,
+    /previous_release_id" != none[\s\S]+previous_runtime_compatible" == true[\s\S]+previous-runtime-host-operations-compatibility\.env/u,
+    "a rollback-capable release must attest even a legacy predecessor before mutation",
+  );
+  assert.match(
+    rollbackRunbook,
+    /one-time active-release schema-v2 transition[\s\S]+host-operations compatibility evidence/u,
+    "the fail-closed legacy predecessor transition must be documented",
+  );
+});
+
+test("rollback finalization is durable, idempotent, and resumable at every commit boundary", () => {
+  for (const contract of [
+    /load_rollback_finalization_intent\(\) \{/u,
+    /begin_rollback_finalization\(\) \{/u,
+    /record_rollback_execution_once\(\) \{/u,
+    /rollback-finalization\.env/u,
+    /FINALIZATION_ID_SHA256/u,
+    /RUNTIME_ACTIVE_SHA256/u,
+    /RUNTIME_INVENTORY_SHA256/u,
+  ]) {
+    assert.match(rollback, contract);
+  }
+
+  const begin = rollback.indexOf("begin_rollback_finalization");
+  const active = rollback.lastIndexOf("publish_rollback_runtime_state");
+  const current = rollback.lastIndexOf(
+    'write_release_pointer "$current_pointer"',
+  );
+  const latest = rollback.lastIndexOf(
+    'write_release_pointer "$latest_candidate_pointer"',
+  );
+  const audit = rollback.lastIndexOf("record_rollback_execution_once");
+  const clear = rollback.lastIndexOf("run_ingress_control quarantine-clear");
+  assert.ok(
+    begin !== -1 &&
+      begin < active &&
+      active < current &&
+      current < latest &&
+      latest < audit &&
+      audit < clear,
+    "rollback finalization boundaries must follow the durable intent in commit order",
+  );
+
+  for (const scenario of [
+    "finalization-active-fsync-failure",
+    "finalization-current-pointer-fsync-failure",
+    "finalization-latest-pointer-fsync-failure",
+    "finalization-audit-temp-fsync-failure",
+    "finalization-audit-fsync-failure",
+    "finalization-quarantine-clear-failure",
+  ]) {
+    assert.match(
+      rollbackTest,
+      new RegExp(`run_rollback ${scenario} --schema-backward-compatible`, "u"),
+      `${scenario} must have a behavioral resume proof`,
+    );
+  }
+  assert.match(rollbackTest, /assert_finalization_runtime_reverified "completed finalization replay"/u);
+  assert.match(rollbackTest, /did not rerun both rollback smoke phases in order/u);
+  assert.match(rollbackTest, /did not reinspect restored service/u);
+  assert.match(rollbackTest, /duplicated its rollback execution audit/u);
+  assert.equal(rollback.includes("\r"), false, "rollback production script contains CR bytes");
+  assert.equal(rollbackTest.includes("\r"), false, "rollback behavioral harness contains CR bytes");
+});
 
 test("0069 capability is one canonical checked-in regular Git blob", () => {
   assert.equal(

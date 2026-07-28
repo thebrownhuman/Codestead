@@ -25,6 +25,36 @@ const productionE2eHarnessPath = resolve(
   "backup-production-e2e.test.sh",
 );
 const productionE2eHarness = readFileSync(productionE2eHarnessPath, "utf8");
+const restoreDrillProducer = readFileSync(
+  resolve(repoRoot, "scripts", "backup", "restore-drill-isolated.sh"),
+  "utf8",
+);
+const restoreReportCommon = readFileSync(
+  resolve(repoRoot, "scripts", "backup", "common.sh"),
+  "utf8",
+);
+const restoreDrillChecker = readFileSync(
+  resolve(repoRoot, "scripts", "backup", "check-restore-drill.sh"),
+  "utf8",
+);
+const recoveryEvidenceVerifier = readFileSync(
+  resolve(repoRoot, "scripts", "backup", "verify-recovery-evidence.sh"),
+  "utf8",
+);
+const packageManifestPath = resolve(repoRoot, "package.json");
+let packageManifest;
+try {
+  packageManifest = JSON.parse(readFileSync(packageManifestPath, "utf8"));
+} catch (error) {
+  throw new Error("backup CI registration: package.json is not valid JSON", {
+    cause: error,
+  });
+}
+
+const restoreSmokePackageScript = "tsx scripts/verify-restored-backup.ts";
+const integrationPackageScript = "tsx scripts/run-integration-tests.ts";
+const integrationVitestPackageScript =
+  "vitest run --config vitest.integration.config.ts";
 
 class RegistrationError extends Error {}
 
@@ -487,15 +517,43 @@ function validateHarnessRestoreEntrypointContract(source) {
       "production E2E does not recover the produced credential probe",
     ],
     [
-      "--env CREDENTIAL_MASTER_KEY_FILE=/recovery/credential_master_key",
-      "production E2E does not use the recovery master key",
+      "--mount \"type=bind,src=$recovery_key,dst=/run/secrets/credential_master_key,readonly\"",
+      "production E2E does not bind the protected recovery master key to the reviewed path",
     ],
     [
-      "--import tsx /app/scripts/verify-restored-backup.ts",
+      "--env RESTORE_CREDENTIAL_MASTER_KEY_PATH=/run/secrets/credential_master_key",
+      "production E2E does not preserve the recovery master key for the restore verifier",
+    ],
+    [
+      "--mount \"type=bind,src=$restore_role_secret_root/database_ops_url,dst=/run/secrets/database_url,readonly\" \\\n    --mount \"type=bind,src=$recovery_key,dst=/run/secrets/credential_master_key,readonly\" \\\n    --env DATABASE_URL_FILE=/run/secrets/database_url",
+      "production E2E restore smoke does not authenticate through a protected role URL",
+    ],
+    [
+      "--remove-ledger-authority-before-bootstrap",
+      "production E2E does not make restore-only authority retries converge safely",
+    ],
+    [
+      "--env RESTORE_NO_ACL_RECONCILIATION=true",
+      "production E2E does not scope exact no-ACL reconciliation to the restored bootstrap",
+    ],
+    [
+      "node --import tsx /app/scripts/verify-restored-backup.ts --remove-ledger-authority-before-bootstrap\n       node /app/scripts/bootstrap-database-roles.mjs\n       exec node --import tsx /app/scripts/verify-restored-backup.ts --install-ledger-authority",
+      "production E2E does not bootstrap the restored role boundary",
+    ],
+    [
+      "--install-ledger-authority",
+      "production E2E does not install the restore-only ledger authority",
+    ],
+    [
+      "node /app/scripts/verify-database-role-boundaries.mjs \\\n      --require-application-objects \\\n    >/dev/null 2>&1 || fail \"restored database role boundary verification failed\"",
+      "production E2E does not run the full database role boundary verifier",
+    ],
+    [
+      "\"$operations_digest\" node --import tsx /app/scripts/verify-restored-backup.ts \\\n    >\"$smoke_output\" \\",
       "production E2E does not run the real database/app-data/credential restore smoke",
     ],
     [
-      '--network "container:$postgres_id" --read-only --cap-drop ALL',
+      '--network "container:$postgres_id" --read-only --cap-drop ALL \\\n    --security-opt no-new-privileges=true --pids-limit 128 --memory 512m --cpus 1 \\\n    --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m --user 0:0 --workdir /app \\\n    --mount "type=bind,src=$restore_root,dst=/restore,readonly"',
       "production restore smoke is not isolated to the disposable PostgreSQL namespace",
     ],
   ]) {
@@ -504,10 +562,155 @@ function validateHarnessRestoreEntrypointContract(source) {
   for (const forbidden of [
     'docker exec "$postgres_id" createdb',
     'docker exec -i "$postgres_id" pg_restore',
+    "RESTORE_DATABASE_URL=",
+    "CREDENTIAL_MASTER_KEY_FILE=/recovery",
   ]) {
     if (source.includes(forbidden)) {
       fail("production E2E still contains a manual restore bypass");
     }
+  }
+  const noAclAssignments = [
+    ...source.matchAll(/--env RESTORE_NO_ACL_RECONCILIATION=true/gu),
+  ];
+  if (noAclAssignments.length !== 1) {
+    fail("production E2E must scope no-ACL reconciliation to one restored bootstrap");
+  }
+  const restoreEntrypoint = source.indexOf(
+    'scripts/backup/restore.sh" "$archive"',
+  );
+  const restoredBootstrap = source.indexOf('"$resource_prefix-restore-role-bootstrap"');
+  const restoredBoundary = source.indexOf(
+    '"$resource_prefix-restore-role-boundary"',
+    restoredBootstrap,
+  );
+  if (restoreEntrypoint < 0 || restoredBootstrap <= restoreEntrypoint
+      || restoredBoundary <= restoredBootstrap
+      || noAclAssignments[0].index <= restoredBootstrap
+      || noAclAssignments[0].index >= restoredBoundary) {
+    fail("production E2E no-ACL mode is outside the restored bootstrap block");
+  }
+  if (source.slice(0, restoreEntrypoint).includes("RESTORE_NO_ACL_RECONCILIATION=true")) {
+    fail("production E2E source paths enable restore-only ACL mode");
+  }
+}
+
+function validatePackageScriptContracts(manifest) {
+  if (
+    manifest === null ||
+    typeof manifest !== "object" ||
+    Array.isArray(manifest) ||
+    manifest.scripts === null ||
+    typeof manifest.scripts !== "object" ||
+    Array.isArray(manifest.scripts)
+  ) {
+    fail("package.json scripts are unavailable");
+  }
+  if (manifest.scripts["backup:restore-smoke"] !== restoreSmokePackageScript) {
+    fail("backup:restore-smoke no longer names the reviewed restore verifier");
+  }
+  if (manifest.scripts["test:integration"] !== integrationPackageScript) {
+    fail("test:integration no longer names the hardened integration supervisor");
+  }
+  if (
+    manifest.scripts["test:integration:vitest"] !== integrationVitestPackageScript
+  ) {
+    fail("test:integration:vitest no longer names the reviewed integration config");
+  }
+}
+
+function validateHarnessReviewedRestoreFixtureContract(source) {
+  for (const [fragment, message] of [
+    [
+      "len(entries) != 70",
+      "production E2E does not require the exact 70-row reviewed ledger",
+    ],
+    [
+      'entries[-1].get("idx") != 69',
+      "production E2E does not require reviewed ledger tail index 69",
+    ],
+    [
+      'entries[-1].get("tag") != "0069_mail_outbox_guarded_delivery_authority"',
+      "production E2E does not require the reviewed 0069 ledger tail",
+    ],
+    [
+      "--env REQUIRE_COMPLETE_MIGRATION_LEDGER=false",
+      "production E2E omits the initial pre-migration role bootstrap",
+    ],
+    [
+      "--mount \"type=bind,src=$repo_root/drizzle,dst=/app/drizzle,readonly\"",
+      "production E2E does not mount the exact reviewed migration corpus",
+    ],
+    [
+      "node /app/scripts/migrate-production.mjs",
+      "production E2E does not execute the production migration authority",
+    ],
+    [
+      "--mount \"type=bind,src=$source_role_secret_root,dst=/run/secrets,readonly\" \\\n    --env POSTGRES_USER=learncoding --env POSTGRES_DB=learncoding \\\n    --env REQUIRE_COMPLETE_MIGRATION_LEDGER=true",
+      "production E2E omits the complete post-migration role bootstrap",
+    ],
+    [
+      "node /app/scripts/verify-database-role-boundaries.mjs \\\n      --require-application-objects \\\n    >/dev/null 2>&1 || fail \"source database role boundary verification failed\"",
+      "production E2E omits the full source application-object boundary verifier",
+    ],
+    [
+      "grep -Fxq 'migration_count=70'",
+      "production E2E does not attest all 70 reviewed migrations",
+    ],
+  ]) {
+    requireHarnessFragment(source, fragment, message);
+  }
+  for (const forbidden of [
+    "CREATE TABLE drizzle.__drizzle_migrations",
+    "INSERT INTO drizzle.__drizzle_migrations",
+    "CREATE TABLE public.email_outbox (",
+  ]) {
+    if (source.includes(forbidden)) {
+      fail("production E2E still fabricates a migration ledger over a synthetic schema");
+    }
+  }
+}
+
+function validateRestoreReportV2Contract() {
+  for (const [fragment, message] of [
+    ["version=2", "restore drill producer still emits a pre-v2 report"],
+    ["archive_sha256=$archive_sha256", "v2 report omits archive provenance"],
+    [
+      "reviewed_migration_ledger_sha256=$reviewed_migration_ledger_sha256",
+      "v2 report omits exact reviewed-ledger provenance",
+    ],
+    [
+      "restore_operations_image=$RESTORE_OPERATIONS_IMAGE",
+      "v2 report omits immutable operations-image provenance",
+    ],
+    [
+      "restore_postgres_version_num=$restore_database_version_num",
+      "v2 report omits restored PostgreSQL provenance",
+    ],
+    [
+      "source_release_git_commit=$source_release_git_commit",
+      "v2 report omits source release provenance",
+    ],
+    [
+      "restore_verifier_sha256=$restore_verifier_sha256",
+      "v2 report omits restore-verifier provenance",
+    ],
+  ]) {
+    requireHarnessFragment(restoreDrillProducer, fragment, message);
+  }
+  requireHarnessFragment(
+    restoreReportCommon,
+    "parse_restore_report_v2()",
+    "common backup library does not define the v2 report authority",
+  );
+  for (const [source, label] of [
+    [restoreDrillChecker, "restore reminder"],
+    [recoveryEvidenceVerifier, "recovery evidence verifier"],
+  ]) {
+    requireHarnessFragment(
+      source,
+      "parse_restore_report_v2",
+      `${label} does not reject old or malformed restore reports through the v2 authority`,
+    );
   }
 }
 
@@ -564,7 +767,7 @@ const requiredBackupRuns = [
   rootFixtureRun("infra/tests/recovery-kit.test.sh"),
   "bash infra/tests/restore-chronology.test.sh",
   "node infra/tests/restore-drill-contract.test.mjs",
-  "npm exec vitest run scripts/verify-restored-backup.test.ts",
+  "npm exec vitest run scripts/verify-restored-backup.test.ts scripts/verify-restored-backup-authority.test.ts",
   rootFixtureRun("infra/tests/recovery-evidence-verifier.test.sh"),
   "bash infra/tests/restore-drill-reminder.test.sh",
   "bash infra/tests/systemd-backup.test.sh",
@@ -647,6 +850,7 @@ const expectedApplicationRuns = [
   "python3 infra/tests/recovery-evidence-storage-health.test.py",
   "python3 infra/tests/recovery-evidence-atomic.test.py",
   "python3 infra/tests/recovery-evidence-collection.test.py",
+  "python3 infra/tests/host-operations-compatibility.test.py",
   "sudo bash infra/tests/power-evidence.test.sh",
   "sudo bash infra/tests/power-recovery-check.test.sh",
   "sudo bash infra/tests/systemd-recovery.test.sh",
@@ -2234,6 +2438,9 @@ validateHarnessCredentialProbeCleanupContract(productionE2eHarness);
 validateHarnessCleanupEvidenceContract(productionE2eHarness);
 validateHarnessEphemeralRuntimeContract(productionE2eHarness);
 validateHarnessRestoreEntrypointContract(productionE2eHarness);
+validatePackageScriptContracts(packageManifest);
+validateRestoreReportV2Contract();
+validateHarnessReviewedRestoreFixtureContract(productionE2eHarness);
 runHarnessAdversarialSelfTests(productionE2eHarness);
 
 console.log("backup-ci-registration-tests-ok");

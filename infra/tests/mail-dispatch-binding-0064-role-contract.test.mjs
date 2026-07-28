@@ -181,10 +181,22 @@ test("release and restore execute the production verifier after migration", () =
     "restore_one_shot database-role-bootstrap",
     restoreDump,
   );
+  const restoreNoAclReconciliation = restore.indexOf(
+    "RESTORE_NO_ACL_RECONCILIATION=true",
+  );
   const restoreVerifier = restore.indexOf(
     "restore_one_shot database-boundary-verifier",
   );
   assert.ok(restoreDump >= 0);
-  assert.ok(restoreReconciliation > restoreDump);
+  assert.ok(restoreNoAclReconciliation > restoreDump);
+  assert.ok(restoreReconciliation > restoreNoAclReconciliation);
   assert.ok(restoreVerifier > restoreReconciliation);
+  assert.equal(
+    (restore.match(/^RESTORE_NO_ACL_RECONCILIATION=true\s*\\$/gmu) ?? []).length,
+    1,
+  );
+  assert.doesNotMatch(
+    restore.slice(0, restoreDump),
+    /RESTORE_NO_ACL_RECONCILIATION=true/u,
+  );
 });

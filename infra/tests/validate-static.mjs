@@ -1809,6 +1809,40 @@ expect(
     ),
   "successful releases must publish immutable hash-addressed runtime records before the sole active manifest commit marker",
 );
+const canonicalManagedImageReferencePattern =
+  "[a-z0-9][a-z0-9./_:-]{0,255}@sha256:[0-9a-f]{64}";
+const canonicalManagedImageReference = new RegExp(
+  `^${canonicalManagedImageReferencePattern}$`,
+  "u",
+);
+const canonicalManagedImageDigest = "a".repeat(64);
+const validTaggedManagedImage =
+  `postgres:17-bookworm@sha256:${canonicalManagedImageDigest}`;
+const invalidManagedImages = [
+  "postgres:17-bookworm",
+  `postgres:17-bookworm@sha256:${"a".repeat(63)}`,
+  `postgres:17-bookworm@sha256:${"A".repeat(64)}`,
+  `postgres 17-bookworm@sha256:${canonicalManagedImageDigest}`,
+  `postgres${String.fromCharCode(1)}:17-bookworm@sha256:${canonicalManagedImageDigest}`,
+  `postgres@@sha256:${canonicalManagedImageDigest}`,
+];
+expect(
+  canonicalManagedImageReference.test(validTaggedManagedImage) &&
+    invalidManagedImages.every(
+      (candidate) => !canonicalManagedImageReference.test(candidate),
+    ) &&
+    releaseProduction.includes(
+      `[[ "$image" =~ ^${canonicalManagedImageReferencePattern}$ ]]`,
+    ) &&
+    recoveryEvidenceHelper.includes(
+      `IMAGE_REFERENCE_PATTERN: Final = re.compile(r"${canonicalManagedImageReferencePattern}")`,
+    ) &&
+    /configuration\.get\("Image"\) != record\.image_reference/.test(
+      recoveryEvidenceHelper,
+    ) &&
+    /item\.get\("Image"\) != record\.image_id/.test(recoveryEvidenceHelper),
+  "release publication and recovery evidence must accept tagged immutable images while rejecting mutable, malformed, whitespace/control, and identity-drift inputs",
+);
 if (recoveryEvidence && recoveryEvidenceHelper) {
   const combinedEvidenceSource = `${recoveryEvidence}\n${recoveryEvidenceHelper}`;
   expect(

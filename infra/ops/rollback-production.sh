@@ -279,6 +279,7 @@ readonly release_record_root="${RELEASE_RECORD_ROOT:-/var/lib/learncoding/releas
 readonly smoke_production_script="${SMOKE_PRODUCTION_SCRIPT:-$repo_root/infra/ops/smoke-production.sh}"
 readonly runtime_state_root="${RUNTIME_STATE_ROOT:-/etc/learncoding}"
 readonly release_tree_packager="$repo_root/infra/ops/package-release-tree.py"
+readonly host_operations_compatibility_helper="$repo_root/infra/ops/host-operations-compatibility.py"
 if [[ -n "$test_harness_root" ]]; then
   readonly ingress_control_script="$test_harness_root/repo/infra/ops/ingress-control.py"
   readonly -a ingress_control=("$python_bin" "$ingress_control_script" --test-harness-root "$test_harness_root")
@@ -351,6 +352,7 @@ for item in "$repo_root|repository root" "$compose_env|Compose environment" \
   "$ingress_control_script|ingress control helper" \
   "$runtime_state_root|runtime state root" \
   "$release_tree_packager|release tree packager" \
+  "$host_operations_compatibility_helper|host operations compatibility helper" \
   "$release_manifest|release manifest" \
   "$application_image_record_json|application image JSON record" \
   "$application_image_record_env|application image environment record" \
@@ -373,8 +375,11 @@ safe_path "$lock_parent" "release lock directory"
 [[ -f "$release_tree_packager" && -x "$release_tree_packager" && ! -L "$release_tree_packager" ]] || {
   fatal "release tree packager must be an executable non-symlink file"
 }
-[[ -f "$ingress_control_script" && -x "$ingress_control_script" && ! -L "$ingress_control_script" ]] || {
-  fatal "ingress control helper must be an executable non-symlink file"
+[[ -f "$host_operations_compatibility_helper" && -x "$host_operations_compatibility_helper" && ! -L "$host_operations_compatibility_helper" ]] || {
+  fatal "host operations compatibility helper must be an executable non-symlink file"
+}
+[[ -f "$ingress_control_script" && ! -L "$ingress_control_script" ]] || {
+  fatal "ingress control helper must be a regular non-symlink file"
 }
 for trusted_input in \
   "$repo_root|repository root" \
@@ -382,6 +387,7 @@ for trusted_input in \
   "$compose_file|Compose file" \
   "$smoke_production_script|production smoke" \
   "$release_tree_packager|release tree packager" \
+    "$host_operations_compatibility_helper|host operations compatibility helper" \
   "$ingress_control_script|ingress control helper" \
   "$docker_bin|Docker client" \
   "$sync_bin|sync"; do
@@ -411,6 +417,30 @@ compose_public_origin() {
   }
   printf '%s\n' "$origin"
 }
+
+compose_postgres_image() {
+  local line key value found=false image=""
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" != *$'\r'* ]] || fatal "Compose environment contains a carriage return"
+    [[ -n "$line" && "$line" != '#'* ]] || continue
+    [[ "$line" == *=* ]] || fatal "Compose environment contains a malformed line"
+    key="${line%%=*}"
+    value="${line#*=}"
+    if [[ "$key" == POSTGRES_IMAGE ]]; then
+      [[ "$found" == false ]] || fatal "Compose environment repeats POSTGRES_IMAGE"
+      found=true
+      image="$value"
+    fi
+  done <"$compose_env"
+  [[ "$found" == true ]] || fatal "Compose environment does not define POSTGRES_IMAGE"
+  [[ "$image" =~ ^[a-z0-9][a-z0-9./_:-]{0,255}@sha256:[0-9a-f]{64}$ ]] || {
+    fatal "POSTGRES_IMAGE must be a canonical digest reference"
+  }
+  printf '%s\n' "$image"
+}
+
+configured_postgres_image="$(compose_postgres_image)"
+readonly configured_postgres_image
 
 # Validate immutable, authenticated operator configuration before taking the
 # host transaction lock. Once the lock is held, durable ingress quarantine is
@@ -484,11 +514,42 @@ quarantine_tunnel_early() {
 }
 rollback_completed=false
 mutation_started=true
+rollback_evidence_temporary=""
+rollback_finalization_temporary=""
+rollback_pointer_temporary=""
+rollback_audit_temporary=""
+rollback_inventory_temporary=""
+rollback_resume_inventory_temporary=""
+rollback_resume_active_temporary=""
+rollback_application_temporary=""
+rollback_active_temporary=""
 on_early_exit() {
   local exit_code="$?"
+  local -a private_temporaries=()
   trap '' HUP INT TERM
   trap - EXIT
   if [[ "$rollback_completed" != true ]]; then
+    [[ -n "$rollback_evidence_temporary" ]] && private_temporaries+=("$rollback_evidence_temporary")
+    [[ -n "$rollback_finalization_temporary" ]] && private_temporaries+=("$rollback_finalization_temporary")
+    [[ -n "$rollback_pointer_temporary" ]] && private_temporaries+=("$rollback_pointer_temporary")
+    [[ -n "$rollback_audit_temporary" ]] && private_temporaries+=("$rollback_audit_temporary")
+    [[ -n "$rollback_resume_inventory_temporary" ]] && private_temporaries+=("$rollback_resume_inventory_temporary")
+    [[ -n "$rollback_resume_active_temporary" ]] && private_temporaries+=("$rollback_resume_active_temporary")
+    if (( ${#private_temporaries[@]} > 0 )); then
+      "$rm_bin" -f -- "${private_temporaries[@]}" || true
+      if [[ -n "${record_real:-}" && -d "${record_real:-}" ]]; then
+        "$sync_bin" -f -- "$record_real" || true
+      fi
+      if [[ -d "$release_record_root" ]]; then
+        "$sync_bin" -f -- "$release_record_root" || true
+      fi
+      rollback_evidence_temporary=""
+      rollback_finalization_temporary=""
+      rollback_pointer_temporary=""
+      rollback_audit_temporary=""
+      rollback_resume_inventory_temporary=""
+      rollback_resume_active_temporary=""
+    fi
     run_ingress_control_early quarantine-create || true
     quarantine_tunnel_early || quarantine_tunnel_early || true
   fi
@@ -528,6 +589,14 @@ case "$record_real" in
   *) fatal "release record is outside the configured release record root" ;;
 esac
 [[ -d "$record_real" && ! -L "$record_real" ]] || fatal "release record must be a real directory"
+record_owner_identity="$("$stat_bin" -Lc '%u:%g' -- "$record_real")"
+IFS=: read -r record_owner_uid record_owner_gid <<<"$record_owner_identity"
+[[ "$record_owner_uid" =~ ^[0-9]+$ && "$record_owner_gid" =~ ^[0-9]+$ ]] || {
+  fatal "release record owner identity is malformed"
+}
+rollback_finalization_file="$record_real/rollback-finalization.env"
+safe_path "$rollback_finalization_file" "rollback finalization intent"
+
 assert_trusted_not_writable "$record_root_real" "release record root"
 assert_trusted_not_writable "$record_real" "release record"
 
@@ -933,6 +1002,7 @@ readonly -a restorable_services=(
   reward-worker
   regrade-worker
   exam-finalization-worker
+  file-erasure-worker
   practice-runner-recovery-worker
   project-review-correction-worker
   cloudflared
@@ -941,6 +1011,7 @@ readonly -a managed_runtime_services=(
   app
   cloudflared
   exam-finalization-worker
+  file-erasure-worker
   mail-worker
   postgres
   practice-runner-recovery-worker
@@ -955,6 +1026,7 @@ readonly -a previous_core=(
   reward-worker
   regrade-worker
   exam-finalization-worker
+  file-erasure-worker
   practice-runner-recovery-worker
   project-review-correction-worker
   runner-egress-gateway
@@ -967,7 +1039,7 @@ while IFS=$'\t' read -r service image identity extra; do
   ((recorded_line_count += 1))
   [[ -n "$service" && -z "$extra" ]] || fatal "recorded runtime image evidence is malformed"
   case "$service" in
-    app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|practice-runner-recovery-worker|project-review-correction-worker|cloudflared|runner-egress-gateway) ;;
+    app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|file-erasure-worker|practice-runner-recovery-worker|project-review-correction-worker|cloudflared|runner-egress-gateway) ;;
     *) fatal "recorded runtime image evidence names an unexpected service" ;;
   esac
   [[ ! ${recorded_images[$service]+present} ]] || fatal "recorded runtime image evidence contains a duplicate service"
@@ -999,7 +1071,7 @@ while IFS=$'\t' read -r service image identity extra; do
   ((reviewed_line_count += 1))
   [[ -n "$service" && -z "$extra" ]] || fatal "previous deployed image evidence is malformed"
   case "$service" in
-    app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|practice-runner-recovery-worker|project-review-correction-worker|cloudflared|runner-egress-gateway) ;;
+    app|mail-worker|reward-worker|regrade-worker|exam-finalization-worker|file-erasure-worker|practice-runner-recovery-worker|project-review-correction-worker|cloudflared|runner-egress-gateway) ;;
     *) fatal "previous deployed image evidence names an unexpected service" ;;
   esac
   [[ ! ${reviewed_images[$service]+present} ]] || {
@@ -1061,6 +1133,13 @@ load_release_pointer() {
   [[ "$LOADED_GIT_COMMIT" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || fatal "$label has an invalid Git commit"
 }
 
+assert_private_record_file() {
+  local path="$1" label="$2" identity
+  [[ -f "$path" && ! -L "$path" ]] || fatal "$label must be a regular non-symlink file"
+  identity="$(lock_object_identity "$path")"
+  assert_lock_object_identity "$identity" "$label" "$record_owner_uid" "$record_owner_gid"
+}
+
 record_git_commit="$(<"$record_git_file")"
 [[ "$record_git_commit" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || fatal "release record Git evidence is invalid"
 record_git_tree="$(<"$record_tree_file")"
@@ -1097,22 +1176,124 @@ done <"$record_status_file"
 [[ "$record_status_id" == "$record_release_id" ]] || fatal "release status id does not match its record directory"
 [[ "$record_result" == completed || "$record_result" == failed ]] || fatal "release status result is not rollback-eligible"
 
+rollback_result="previous_runtime_restored"
+if [[ "$legacy_transition" == true ]]; then
+  rollback_result="previous_runtime_restored_legacy_gateway_retained"
+fi
+rollback_finalization_present=false
+rollback_finalization_id=""
+rollback_finalization_started_at=""
+rollback_finalization_host_commit=""
+rollback_finalization_host_tree=""
+rollback_finalization_active_sha=""
+rollback_finalization_inventory_sha=""
+
+compute_rollback_finalization_id() {
+  local output digest
+  output="$(
+    {
+      printf 'STARTED_AT_UTC=%s\n' "$rollback_finalization_started_at"
+      printf 'SOURCE_RELEASE_ID=%s\n' "$record_release_id"
+      printf 'SOURCE_GIT_COMMIT=%s\n' "$record_git_commit"
+      printf 'TARGET_RELEASE_ID=%s\n' "$previous_release_id"
+      printf 'TARGET_GIT_COMMIT=%s\n' "$previous_git_commit"
+      printf 'TARGET_GIT_TREE=%s\n' "$previous_git_tree"
+      printf 'HOST_OPERATIONS_GIT_COMMIT=%s\n' "$rollback_finalization_host_commit"
+      printf 'HOST_OPERATIONS_GIT_TREE=%s\n' "$rollback_finalization_host_tree"
+      printf 'RUNTIME_ACTIVE_SHA256=%s\n' "$rollback_finalization_active_sha"
+      printf 'RUNTIME_INVENTORY_SHA256=%s\n' "$rollback_finalization_inventory_sha"
+      printf 'APPLICATION_IMAGE_RECORD_SHA256=%s\n' "$previous_application_record_sha256"
+      printf 'RESULT=%s\n' "$rollback_result"
+    } | "$sha256sum_bin"
+  )"
+  digest="${output%% *}"
+  [[ "$digest" =~ ^[0-9a-f]{64}$ ]] || fatal "rollback finalization identity is malformed"
+  printf '%s\n' "$digest"
+}
+
+load_rollback_finalization_intent() {
+  local expected_id
+  local -a lines=() raw=()
+  [[ -e "$rollback_finalization_file" || -L "$rollback_finalization_file" ]] || return 0
+  assert_private_record_file "$rollback_finalization_file" "rollback finalization intent"
+  mapfile -d '' -t raw <"$rollback_finalization_file"
+  [[ "${#raw[@]}" == 1 \
+    && "${raw[0]}" == *$'\n' \
+    && "${raw[0]}" != *$'\r'* ]] || {
+    fatal "rollback finalization intent is not newline-terminated canonical text"
+  }
+  mapfile -t lines <"$rollback_finalization_file"
+  [[ "${#lines[@]}" == 14 \
+    && "${lines[0]:-}" == SCHEMA_VERSION=1 \
+    && "${lines[1]:-}" == FINALIZATION_ID_SHA256=* \
+    && "${lines[2]:-}" == STARTED_AT_UTC=* \
+    && "${lines[3]:-}" == SOURCE_RELEASE_ID=* \
+    && "${lines[4]:-}" == SOURCE_GIT_COMMIT=* \
+    && "${lines[5]:-}" == TARGET_RELEASE_ID=* \
+    && "${lines[6]:-}" == TARGET_GIT_COMMIT=* \
+    && "${lines[7]:-}" == TARGET_GIT_TREE=* \
+    && "${lines[8]:-}" == HOST_OPERATIONS_GIT_COMMIT=* \
+    && "${lines[9]:-}" == HOST_OPERATIONS_GIT_TREE=* \
+    && "${lines[10]:-}" == RUNTIME_ACTIVE_SHA256=* \
+    && "${lines[11]:-}" == RUNTIME_INVENTORY_SHA256=* \
+    && "${lines[12]:-}" == APPLICATION_IMAGE_RECORD_SHA256=* \
+    && "${lines[13]:-}" == RESULT=* ]] || fatal "rollback finalization intent is malformed"
+  rollback_finalization_id="${lines[1]#FINALIZATION_ID_SHA256=}"
+  rollback_finalization_started_at="${lines[2]#STARTED_AT_UTC=}"
+  rollback_finalization_host_commit="${lines[8]#HOST_OPERATIONS_GIT_COMMIT=}"
+  rollback_finalization_host_tree="${lines[9]#HOST_OPERATIONS_GIT_TREE=}"
+  rollback_finalization_active_sha="${lines[10]#RUNTIME_ACTIVE_SHA256=}"
+  rollback_finalization_inventory_sha="${lines[11]#RUNTIME_INVENTORY_SHA256=}"
+  [[ "$rollback_finalization_id" =~ ^[0-9a-f]{64}$ \
+    && "$rollback_finalization_started_at" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ \
+    && "${lines[3]}" == "SOURCE_RELEASE_ID=$record_release_id" \
+    && "${lines[4]}" == "SOURCE_GIT_COMMIT=$record_git_commit" \
+    && "${lines[5]}" == "TARGET_RELEASE_ID=$previous_release_id" \
+    && "${lines[6]}" == "TARGET_GIT_COMMIT=$previous_git_commit" \
+    && "${lines[7]}" == "TARGET_GIT_TREE=$previous_git_tree" \
+    && "$rollback_finalization_host_commit" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ \
+    && "$rollback_finalization_host_tree" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ \
+    && "$rollback_finalization_active_sha" =~ ^[0-9a-f]{64}$ \
+    && "$rollback_finalization_inventory_sha" =~ ^[0-9a-f]{64}$ \
+    && "${lines[12]}" == "APPLICATION_IMAGE_RECORD_SHA256=$previous_application_record_sha256" \
+    && "${lines[13]}" == "RESULT=$rollback_result" ]] || fatal "rollback finalization intent is not bound to this rollback"
+  expected_id="$(compute_rollback_finalization_id)"
+  [[ "$rollback_finalization_id" == "$expected_id" ]] || fatal "rollback finalization intent identity does not match"
+  rollback_finalization_present=true
+}
+
+load_rollback_finalization_intent
+
 latest_candidate_pointer="$release_record_root/latest-candidate.env"
 current_pointer="$release_record_root/current-release.env"
 load_release_pointer "$latest_candidate_pointer" "latest candidate pointer"
 latest_release_id="$LOADED_RELEASE_ID"
 latest_git_commit="$LOADED_GIT_COMMIT"
-[[ "$latest_release_id" == "$record_release_id" && "$latest_git_commit" == "$record_git_commit" ]] || {
-  fatal "release record is not the latest candidate"
-}
+if [[ "$rollback_finalization_present" == true ]]; then
+  [[ ( "$latest_release_id" == "$record_release_id" && "$latest_git_commit" == "$record_git_commit" ) \
+    || ( "$latest_release_id" == "$previous_release_id" && "$latest_git_commit" == "$previous_git_commit" ) ]] || {
+    fatal "latest candidate pointer does not match the rollback finalization source or target"
+  }
+else
+  [[ "$latest_release_id" == "$record_release_id" && "$latest_git_commit" == "$record_git_commit" ]] || {
+    fatal "release record is not the latest candidate"
+  }
+fi
 
 load_release_pointer "$current_pointer" "current release pointer"
 current_release_id="$LOADED_RELEASE_ID"
 current_git_commit="$LOADED_GIT_COMMIT"
 if [[ "$record_result" == completed ]]; then
-  [[ "$current_release_id" == "$record_release_id" && "$current_git_commit" == "$record_git_commit" ]] || {
-    fatal "completed rollback record is not the currently deployed release"
-  }
+  if [[ "$rollback_finalization_present" == true ]]; then
+    [[ ( "$current_release_id" == "$record_release_id" && "$current_git_commit" == "$record_git_commit" ) \
+      || ( "$current_release_id" == "$previous_release_id" && "$current_git_commit" == "$previous_git_commit" ) ]] || {
+      fatal "current release pointer does not match the rollback finalization source or target"
+    }
+  else
+    [[ "$current_release_id" == "$record_release_id" && "$current_git_commit" == "$record_git_commit" ]] || {
+      fatal "completed rollback record is not the currently deployed release"
+    }
+  fi
 else
   case "$record_stage" in
     postgres|migrate|database-role-reconciliation|platform-seed|admin-bootstrap|core-start|internal-readiness|tunnel-start|public-readiness|complete) ;;
@@ -1125,6 +1306,95 @@ fi
 
 run_bounded() {
   "$timeout_bin" --signal=TERM --kill-after=10s "${stage_timeout}s" "$@"
+}
+
+prepare_private_temporary() {
+  local path="$1" label="$2" parent="$3"
+  safe_path "$path" "$label"
+  if [[ -e "$path" || -L "$path" ]]; then
+    assert_private_record_file "$path" "$label"
+    "$rm_bin" -f -- "$path"
+    run_bounded "$sync_bin" -f -- "$parent"
+  fi
+}
+
+prepare_runtime_temporary() {
+  local path="$1" label="$2" identity uid gid mode links
+  safe_path "$path" "$label"
+  [[ -e "$path" || -L "$path" ]] || return 0
+  [[ -f "$path" && ! -L "$path" ]] || fatal "$label must be a regular non-symlink file"
+  identity="$("$stat_bin" -Lc '%u:%g:%a:%h' -- "$path")"
+  IFS=: read -r uid gid mode links <<<"$identity"
+  if [[ -z "$test_harness_root" ]]; then
+    [[ "$uid" == 0 && "$gid" == 0 ]] || fatal "$label must be owned by root:root"
+  else
+    [[ "$uid" == "$EUID" ]] || fatal "$label must be owned by the test caller"
+  fi
+  [[ "$mode" == 600 || "$mode" == 644 ]] || fatal "$label has an unsafe mode"
+  [[ "$links" == 1 ]] || fatal "$label must have exactly one hard link"
+  "$rm_bin" -f -- "$path"
+  run_bounded "$sync_bin" -f -- "$runtime_state_root"
+}
+
+readonly host_operations_contract_version_expected=host-operations-semantic-v1
+host_operations_contract_version=""
+host_operations_contract_sha256=""
+verify_host_operations_compatibility() {
+  local host_commit="$1" host_tree="$2" application_commit="$3" application_tree="$4"
+  local evidence_path="$5" output expected_output_sha
+  local -a lines=()
+  output="$(run_bounded "$python_bin" "$host_operations_compatibility_helper" \
+    --repo-root "$repo_root" \
+    --git-bin "$git_bin" \
+    --docker-bin "$docker_bin" \
+    --host-commit "$host_commit" \
+    --host-tree "$host_tree" \
+    --application-commit "$application_commit" \
+    --application-tree "$application_tree")" || {
+    fatal "rollback host operations are not semantically compatible with the application tree"
+  }
+  mapfile -t lines <<<"$output"
+  [[ "${#lines[@]}" == 8 \
+    && "${lines[0]:-}" == SCHEMA_VERSION=1 \
+    && "${lines[1]:-}" == "CONTRACT_VERSION=$host_operations_contract_version_expected" \
+    && "${lines[2]:-}" == "HOST_OPERATIONS_GIT_COMMIT=$host_commit" \
+    && "${lines[3]:-}" == "HOST_OPERATIONS_GIT_TREE=$host_tree" \
+    && "${lines[4]:-}" == "APPLICATION_GIT_COMMIT=$application_commit" \
+    && "${lines[5]:-}" == "APPLICATION_GIT_TREE=$application_tree" \
+    && "${lines[6]:-}" =~ ^HOST_OPERATIONS_CONTRACT_SHA256=[0-9a-f]{64}$ \
+    && "${lines[7]:-}" == RESULT=compatible ]] || {
+    fatal "rollback host operations compatibility evidence is malformed"
+  }
+  host_operations_contract_version="${lines[1]#CONTRACT_VERSION=}"
+  host_operations_contract_sha256="${lines[6]#HOST_OPERATIONS_CONTRACT_SHA256=}"
+  safe_path "$evidence_path" "rollback host operations compatibility evidence"
+  expected_output_sha="$(printf '%s\n' "$output" | "$sha256sum_bin")"
+  expected_output_sha="${expected_output_sha%% *}"
+  [[ "$expected_output_sha" =~ ^[0-9a-f]{64}$ ]] || {
+    fatal "rollback host operations compatibility evidence digest is malformed"
+  }
+  if [[ -e "$evidence_path" || -L "$evidence_path" ]]; then
+    assert_private_record_file "$evidence_path" "rollback host operations compatibility evidence"
+    [[ "$(file_sha256 "$evidence_path")" == "$expected_output_sha" ]] || {
+      fatal "existing rollback host operations compatibility evidence does not match this rollback"
+    }
+    run_bounded "$sync_bin" -f -- "$evidence_path"
+    run_bounded "$sync_bin" -f -- "$record_real"
+    return 0
+  fi
+  rollback_evidence_temporary="${evidence_path}.tmp"
+  prepare_private_temporary "$rollback_evidence_temporary" \
+    "rollback host operations compatibility evidence temporary" "$record_real"
+  printf '%s\n' "$output" >"$rollback_evidence_temporary"
+  "$chmod_bin" 0600 "$rollback_evidence_temporary"
+  run_bounded "$sync_bin" -f -- "$rollback_evidence_temporary"
+  [[ "$(file_sha256 "$rollback_evidence_temporary")" == "$expected_output_sha" ]] || {
+    fatal "rollback host operations compatibility evidence changed while being retained"
+  }
+  "$mv_bin" -- "$rollback_evidence_temporary" "$evidence_path"
+  run_bounded "$sync_bin" -f -- "$evidence_path"
+  run_bounded "$sync_bin" -f -- "$record_real"
+  rollback_evidence_temporary=""
 }
 
 git_commit_is_ancestor() {
@@ -1565,8 +1835,8 @@ verify_guarded_delivery_rollback_contract() {
   }
 }
 record_rollback_runtime_state() {
-  local inventory="$record_real/rollback-managed-containers.tsv"
-  local active="$record_real/rollback-active-release.env"
+  local inventory="${1:-$record_real/rollback-managed-containers.tsv}"
+  local active="${2:-$record_real/rollback-active-release.env}"
   local service container_output container_id candidate_container inspected inspected_service inspected_name image identity extra
   local managed_sha manifest_sha firewall_sha runtime_sha
   : >"$inventory"
@@ -1588,15 +1858,13 @@ record_rollback_runtime_state() {
     [[ "$inspected_service" == "$service" && "$inspected_name" == "/learncoding-$service-1" && -z "$extra" ]] || {
       fatal "restored managed container identity is invalid: $service"
     }
-    [[ "$image" =~ ^[a-z0-9][a-z0-9./_-]{0,255}@sha256:[0-9a-f]{64}$ ]] || {
+    [[ "$image" =~ ^[a-z0-9][a-z0-9./_:-]{0,255}@sha256:[0-9a-f]{64}$ ]] || {
       fatal "restored managed image is not a canonical digest: $service"
     }
     [[ "$identity" =~ ^sha256:[0-9a-f]{64}$ ]] || fatal "restored managed image identity is malformed: $service"
-    if [[ "$service" != postgres ]]; then
-      [[ "$image" == "${reviewed_images[$service]}" && "$identity" == "${reviewed_identities[$service]}" ]] || {
-        fatal "restored managed image does not match the previous completed release: $service"
-      }
-    fi
+    [[ "$image" == "${reviewed_images[$service]}" && "$identity" == "${reviewed_identities[$service]}" ]] || {
+      fatal "restored managed image does not match the authenticated rollback runtime: $service"
+    }
     printf '%s\t%s\t%s\t%s\n' "$service" "learncoding-$service-1" "$image" "$identity" >>"$inventory"
   done
   "$chmod_bin" 0600 "$inventory"
@@ -1607,9 +1875,13 @@ record_rollback_runtime_state() {
   firewall_sha="$(file_sha256 "$firewall_policy")"
   runtime_sha="$(file_sha256 "$runner_runtime_record")"
   {
-    printf 'SCHEMA_VERSION=1\n'
-    printf 'GIT_COMMIT=%s\n' "$previous_git_commit"
-    printf 'GIT_TREE=%s\n' "$previous_git_tree"
+    printf 'SCHEMA_VERSION=2\n'
+    printf 'APPLICATION_GIT_COMMIT=%s\n' "$previous_git_commit"
+    printf 'APPLICATION_GIT_TREE=%s\n' "$previous_git_tree"
+    printf 'HOST_OPERATIONS_GIT_COMMIT=%s\n' "$rollback_host_commit"
+    printf 'HOST_OPERATIONS_GIT_TREE=%s\n' "$rollback_host_tree"
+    printf 'HOST_OPERATIONS_CONTRACT_VERSION=%s\n' "$host_operations_contract_version"
+    printf 'HOST_OPERATIONS_CONTRACT_SHA256=%s\n' "$host_operations_contract_sha256"
     printf 'RELEASE_MANIFEST_SHA256=%s\n' "$manifest_sha"
     printf 'APPLICATION_IMAGE_RECORD_SHA256=%s\n' "$previous_application_record_sha256"
     printf 'COMPOSE_PROJECT=learncoding\n'
@@ -1623,6 +1895,64 @@ record_rollback_runtime_state() {
   "$chmod_bin" 0600 "$active"
   run_bounded "$sync_bin" -f -- "$active"
   run_bounded "$sync_bin" -f -- "$record_real"
+}
+
+verify_rollback_finalization_runtime_evidence() {
+  local active="${1:-$record_real/rollback-active-release.env}"
+  local inventory="${2:-$record_real/rollback-managed-containers.tsv}"
+  [[ "$rollback_finalization_present" == true ]] || fatal "rollback finalization intent is unavailable"
+  assert_private_record_file "$active" "retained rollback active release evidence"
+  assert_private_record_file "$inventory" "retained rollback managed inventory"
+  [[ "$rollback_finalization_host_commit" == "$rollback_host_commit" \
+    && "$rollback_finalization_host_tree" == "$rollback_host_tree" \
+    && "$(file_sha256 "$active")" == "$rollback_finalization_active_sha" \
+    && "$(file_sha256 "$inventory")" == "$rollback_finalization_inventory_sha" \
+    && "$(file_sha256 "$previous_application_record_file")" == "$previous_application_record_sha256" ]] || {
+    fatal "rollback finalization runtime evidence does not match its durable intent"
+  }
+}
+
+begin_rollback_finalization() {
+  local active="$record_real/rollback-active-release.env"
+  local inventory="$record_real/rollback-managed-containers.tsv"
+  [[ "$rollback_finalization_present" == false ]] || fatal "rollback finalization intent already exists"
+  assert_private_record_file "$active" "retained rollback active release evidence"
+  assert_private_record_file "$inventory" "retained rollback managed inventory"
+  rollback_finalization_started_at="$("$date_bin" -u +'%Y-%m-%dT%H:%M:%SZ')"
+  rollback_finalization_host_commit="$rollback_host_commit"
+  rollback_finalization_host_tree="$rollback_host_tree"
+  rollback_finalization_active_sha="$(file_sha256 "$active")"
+  rollback_finalization_inventory_sha="$(file_sha256 "$inventory")"
+  rollback_finalization_id="$(compute_rollback_finalization_id)"
+  rollback_finalization_temporary="${rollback_finalization_file}.tmp"
+  prepare_private_temporary "$rollback_finalization_temporary" \
+    "rollback finalization intent temporary" "$record_real"
+  {
+    printf 'SCHEMA_VERSION=1\n'
+    printf 'FINALIZATION_ID_SHA256=%s\n' "$rollback_finalization_id"
+    printf 'STARTED_AT_UTC=%s\n' "$rollback_finalization_started_at"
+    printf 'SOURCE_RELEASE_ID=%s\n' "$record_release_id"
+    printf 'SOURCE_GIT_COMMIT=%s\n' "$record_git_commit"
+    printf 'TARGET_RELEASE_ID=%s\n' "$previous_release_id"
+    printf 'TARGET_GIT_COMMIT=%s\n' "$previous_git_commit"
+    printf 'TARGET_GIT_TREE=%s\n' "$previous_git_tree"
+    printf 'HOST_OPERATIONS_GIT_COMMIT=%s\n' "$rollback_finalization_host_commit"
+    printf 'HOST_OPERATIONS_GIT_TREE=%s\n' "$rollback_finalization_host_tree"
+    printf 'RUNTIME_ACTIVE_SHA256=%s\n' "$rollback_finalization_active_sha"
+    printf 'RUNTIME_INVENTORY_SHA256=%s\n' "$rollback_finalization_inventory_sha"
+    printf 'APPLICATION_IMAGE_RECORD_SHA256=%s\n' "$previous_application_record_sha256"
+    printf 'RESULT=%s\n' "$rollback_result"
+  } >"$rollback_finalization_temporary"
+  "$chmod_bin" 0600 "$rollback_finalization_temporary"
+  run_bounded "$sync_bin" -f -- "$rollback_finalization_temporary"
+  assert_private_record_file "$rollback_finalization_temporary" "rollback finalization intent temporary"
+  "$mv_bin" -- "$rollback_finalization_temporary" "$rollback_finalization_file"
+  run_bounded "$sync_bin" -f -- "$rollback_finalization_file"
+  run_bounded "$sync_bin" -f -- "$record_real"
+  rollback_finalization_temporary=""
+  rollback_finalization_present=false
+  load_rollback_finalization_intent
+  verify_rollback_finalization_runtime_evidence
 }
 
 validate_runtime_state_target() {
@@ -1642,6 +1972,203 @@ validate_runtime_state_target() {
   [[ "$links" == 1 ]] || fatal "$label must have exactly one hard link"
 }
 
+authenticated_postgres_image=""
+authenticated_postgres_identity=""
+
+authenticate_current_postgres_runtime() {
+  local active_path="$active_release_state" active_label="current active release state"
+  local active_application_commit active_application_tree current_tree
+  local active_stat_before active_stat_after active_sha_before active_sha_after active_size
+  local inventory_sha inventory_path inventory_row_pattern inventory_label="current managed container inventory"
+  local inventory_stat_before inventory_stat_after inventory_sha_before inventory_sha_after inventory_size
+  local container_output container_id="" candidate_container inspected
+  local inspected_service inspected_name inspected_image inspected_identity
+  local service container image identity index
+  local -a active_raw=() active_lines=() inventory_raw=() inventory_lines=()
+
+  if [[ "$rollback_finalization_present" == true ]]; then
+    active_path="$record_real/rollback-active-release.env"
+    active_label="retained rollback active release evidence"
+    assert_private_record_file "$active_path" "$active_label"
+  else
+    [[ -f "$active_path" && ! -L "$active_path" ]] || {
+      fatal "$active_label must be a regular non-symlink file"
+    }
+    validate_runtime_state_target "$active_path" "$active_label"
+  fi
+  active_size="$($stat_bin -Lc '%s' -- "$active_path")"
+  [[ "$active_size" =~ ^[0-9]+$ ]] || fatal "$active_label size is malformed"
+  (( active_size > 0 && active_size <= 16384 )) || {
+    fatal "$active_label exceeds its safety bound"
+  }
+  active_stat_before="$($stat_bin -Lc '%d:%i:%u:%g:%a:%h:%s:%Y:%Z' -- "$active_path")"
+  active_sha_before="$(file_sha256 "$active_path")"
+  if [[ "$rollback_finalization_present" == true \
+    && "$active_sha_before" != "$rollback_finalization_active_sha" ]]; then
+    fatal "$active_label does not match the durable finalization intent"
+  fi
+  mapfile -d '' -t active_raw <"$active_path"
+  [[ "${#active_raw[@]}" == 1 \
+    && "${active_raw[0]}" == *$'\n' \
+    && "${active_raw[0]}" != *$'\r'* ]] || {
+    fatal "$active_label is not newline-terminated canonical text"
+  }
+  mapfile -t active_lines <"$active_path"
+  active_stat_after="$($stat_bin -Lc '%d:%i:%u:%g:%a:%h:%s:%Y:%Z' -- "$active_path")"
+  active_sha_after="$(file_sha256 "$active_path")"
+  [[ "$active_stat_after" == "$active_stat_before" \
+    && "$active_sha_after" == "$active_sha_before" ]] || {
+    fatal "$active_label changed while it was authenticated"
+  }
+  [[ "${#active_lines[@]}" == 16 \
+    && "${active_lines[0]:-}" == SCHEMA_VERSION=2 \
+    && "${active_lines[1]:-}" == APPLICATION_GIT_COMMIT=* \
+    && "${active_lines[2]:-}" == APPLICATION_GIT_TREE=* \
+    && "${active_lines[3]:-}" == HOST_OPERATIONS_GIT_COMMIT=* \
+    && "${active_lines[4]:-}" == HOST_OPERATIONS_GIT_TREE=* \
+    && "${active_lines[5]:-}" == "HOST_OPERATIONS_CONTRACT_VERSION=$host_operations_contract_version_expected" \
+    && "${active_lines[6]:-}" == HOST_OPERATIONS_CONTRACT_SHA256=* \
+    && "${active_lines[7]:-}" == RELEASE_MANIFEST_SHA256=* \
+    && "${active_lines[8]:-}" == APPLICATION_IMAGE_RECORD_SHA256=* \
+    && "${active_lines[9]:-}" == COMPOSE_PROJECT=learncoding \
+    && "${active_lines[10]:-}" == COMPOSE_WORKDIR=/opt/learncoding \
+    && "${active_lines[11]:-}" == "PUBLIC_ORIGIN=$public_origin" \
+    && "${active_lines[12]:-}" == MANAGED_INVENTORY_SHA256=* \
+    && "${active_lines[13]:-}" == FIREWALL_POLICY_SHA256=* \
+    && "${active_lines[14]:-}" == RUNNER_GUEST_RELEASE_SHA256=* \
+    && "${active_lines[15]:-}" == RUNNER_RUNTIME_IMAGES_SHA256=* ]] || {
+    fatal "$active_label is malformed or unsupported"
+  }
+  active_application_commit="${active_lines[1]#APPLICATION_GIT_COMMIT=}"
+  active_application_tree="${active_lines[2]#APPLICATION_GIT_TREE=}"
+  if [[ "$rollback_finalization_present" == true ]]; then
+    [[ ( "$active_application_commit" == "$record_git_commit" \
+        && "$active_application_tree" == "$record_git_tree" ) \
+      || ( "$active_application_commit" == "$previous_git_commit" \
+        && "$active_application_tree" == "$previous_git_tree" ) ]] || {
+      fatal "$active_label is not bound to the rollback source or target"
+    }
+  else
+    if [[ "$current_git_commit" == "$record_git_commit" ]]; then
+      current_tree="$record_git_tree"
+    elif [[ "$current_git_commit" == "$previous_git_commit" ]]; then
+      current_tree="$previous_git_tree"
+    else
+      fatal "current release pointer is not bound to authenticated rollback Git evidence"
+    fi
+    [[ "$active_application_commit" == "$current_git_commit" \
+      && "$active_application_tree" == "$current_tree" ]] || {
+      fatal "$active_label does not match the deployed pointer"
+    }
+  fi
+  [[ "${active_lines[3]#HOST_OPERATIONS_GIT_COMMIT=}" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ \
+    && "${active_lines[4]#HOST_OPERATIONS_GIT_TREE=}" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || {
+    fatal "$active_label contains malformed host operations Git evidence"
+  }
+  for index in 6 7 8 12 13 14 15; do
+    [[ "${active_lines[$index]#*=}" =~ ^[0-9a-f]{64}$ ]] || {
+      fatal "$active_label contains a malformed digest"
+    }
+  done
+
+  inventory_sha="${active_lines[12]#MANAGED_INVENTORY_SHA256=}"
+  inventory_path="$runtime_state_root/managed-containers.${inventory_sha}.tsv"
+  safe_path "$inventory_path" "$inventory_label"
+  if [[ -e "$inventory_path" || -L "$inventory_path" ]]; then
+    [[ -f "$inventory_path" && ! -L "$inventory_path" ]] || {
+      fatal "$inventory_label is unsafe"
+    }
+    validate_runtime_state_target "$inventory_path" "$inventory_label"
+  else
+    [[ "$rollback_finalization_present" == true ]] || {
+      fatal "$inventory_label is missing"
+    }
+    inventory_path="$record_real/rollback-managed-containers.tsv"
+    inventory_label="retained rollback managed inventory"
+    assert_private_record_file "$inventory_path" "$inventory_label"
+    [[ "$rollback_finalization_inventory_sha" == "$inventory_sha" ]] || {
+      fatal "$inventory_label is not bound to the retained active manifest"
+    }
+  fi
+  inventory_size="$($stat_bin -Lc '%s' -- "$inventory_path")"
+  [[ "$inventory_size" =~ ^[0-9]+$ ]] || {
+    fatal "$inventory_label size is malformed"
+  }
+  (( inventory_size > 0 && inventory_size <= 1048576 )) || {
+    fatal "$inventory_label exceeds its safety bound"
+  }
+  inventory_stat_before="$($stat_bin -Lc '%d:%i:%u:%g:%a:%h:%s:%Y:%Z' -- "$inventory_path")"
+  inventory_sha_before="$(file_sha256 "$inventory_path")"
+  [[ "$inventory_sha_before" == "$inventory_sha" ]] || {
+    fatal "$inventory_label does not match its content address"
+  }
+  mapfile -d '' -t inventory_raw <"$inventory_path"
+  [[ "${#inventory_raw[@]}" == 1 \
+    && "${inventory_raw[0]}" == *$'\n' \
+    && "${inventory_raw[0]}" != *$'\r'* ]] || {
+    fatal "$inventory_label has a partial or non-canonical tail"
+  }
+  mapfile -t inventory_lines <"$inventory_path"
+  inventory_stat_after="$($stat_bin -Lc '%d:%i:%u:%g:%a:%h:%s:%Y:%Z' -- "$inventory_path")"
+  inventory_sha_after="$(file_sha256 "$inventory_path")"
+  [[ "$inventory_stat_after" == "$inventory_stat_before" \
+    && "$inventory_sha_after" == "$inventory_sha_before" ]] || {
+    fatal "$inventory_label changed while it was authenticated"
+  }
+  [[ "${#inventory_lines[@]}" == "${#managed_runtime_services[@]}" ]] || {
+    fatal "current managed container inventory has unexpected coverage"
+  }
+  inventory_row_pattern='^([a-z0-9-]+)'$'\t''(learncoding-[a-z0-9-]+-1)'$'\t''([a-z0-9][a-z0-9./_:-]{0,255}@sha256:[0-9a-f]{64})'$'\t''(sha256:[0-9a-f]{64})$'
+  for index in "${!managed_runtime_services[@]}"; do
+    [[ "${inventory_lines[$index]}" =~ $inventory_row_pattern ]] || {
+      fatal "current managed container inventory contains a malformed row"
+    }
+    service="${BASH_REMATCH[1]}"
+    container="${BASH_REMATCH[2]}"
+    image="${BASH_REMATCH[3]}"
+    identity="${BASH_REMATCH[4]}"
+    [[ "$service" == "${managed_runtime_services[$index]}" \
+      && "$container" == "learncoding-$service-1" ]] || {
+      fatal "current managed container inventory is not canonical"
+    }
+    if [[ "$service" == postgres ]]; then
+      authenticated_postgres_image="$image"
+      authenticated_postgres_identity="$identity"
+    fi
+  done
+  [[ "$authenticated_postgres_image" == "$configured_postgres_image" \
+    && "$authenticated_postgres_identity" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+    fatal "current PostgreSQL inventory does not match configured POSTGRES_IMAGE"
+  }
+
+  container_output="$(run_bounded "${compose[@]}" ps -q postgres)" || {
+    fatal "unable to inspect the current PostgreSQL container"
+  }
+  while IFS= read -r candidate_container; do
+    [[ -n "$candidate_container" ]] || continue
+    [[ -z "$container_id" ]] || fatal "current PostgreSQL service has multiple containers"
+    [[ "$candidate_container" != *[[:space:]]* ]] || fatal "current PostgreSQL container identity is malformed"
+    container_id="$candidate_container"
+  done <<<"$container_output"
+  [[ -n "$container_id" ]] || fatal "current PostgreSQL service has no container"
+  inspected="$(run_bounded "${docker_cli[@]}" inspect \
+    --format '{{ index .Config.Labels "com.docker.compose.service" }}\t{{.Name}}\t{{.Config.Image}}\t{{.Image}}' \
+    "$container_id")" || fatal "unable to inspect current PostgreSQL identity"
+  IFS=$'\t' read -r inspected_service inspected_name inspected_image inspected_identity <<<"$inspected"
+  [[ "$inspected" == "$inspected_service"$'\t'"$inspected_name"$'\t'"$inspected_image"$'\t'"$inspected_identity" \
+    && "$inspected_service" == postgres \
+    && "$inspected_name" == /learncoding-postgres-1 \
+    && "$inspected_image" == "$authenticated_postgres_image" \
+    && "$inspected_identity" == "$authenticated_postgres_identity" ]] || {
+    fatal "live PostgreSQL image reference or identity does not match authenticated runtime state"
+  }
+  [[ ! ${reviewed_images[postgres]+present} \
+    && ! ${reviewed_identities[postgres]+present} ]] || {
+    fatal "PostgreSQL runtime authentication collided with retained image evidence"
+  }
+  reviewed_images[postgres]="$authenticated_postgres_image"
+  reviewed_identities[postgres]="$authenticated_postgres_identity"
+}
 publish_immutable_runtime_blob() {
   local source="$1" expected_sha="$2" target="$3" temporary="$4" label="$5" actual_sha
   [[ "$expected_sha" =~ ^[0-9a-f]{64}$ ]] || fatal "$label digest is malformed"
@@ -1655,7 +2182,7 @@ publish_immutable_runtime_blob() {
     run_bounded "$sync_bin" -f -- "$runtime_state_root"
     return 0
   fi
-  [[ ! -e "$temporary" && ! -L "$temporary" ]] || fatal "$label temporary already exists"
+  prepare_runtime_temporary "$temporary" "$label temporary"
   "$cat_bin" "$source" >"$temporary"
   "$chmod_bin" 0644 "$temporary"
   run_bounded "$sync_bin" -f -- "$temporary"
@@ -1672,17 +2199,22 @@ publish_rollback_runtime_state() {
   local inventory_source="$record_real/rollback-managed-containers.tsv"
   local application_source="$previous_application_record_file"
   local active_source="$record_real/rollback-active-release.env"
-  local inventory_sha application_sha inventory_target application_target
+  local inventory_sha application_sha active_sha inventory_target application_target
   inventory_sha="$(file_sha256 "$inventory_source")"
   application_sha="$(file_sha256 "$application_source")"
+  active_sha="$(file_sha256 "$active_source")"
   [[ "$application_sha" == "$previous_application_record_sha256" ]] || {
     fatal "previous application image record changed before runtime state publication"
   }
+  [[ "$inventory_sha" == "$rollback_finalization_inventory_sha" \
+    && "$active_sha" == "$rollback_finalization_active_sha" ]] || {
+    fatal "retained rollback runtime evidence changed after finalization intent"
+  }
   inventory_target="$runtime_state_root/managed-containers.${inventory_sha}.tsv"
   application_target="$runtime_state_root/application-images.${application_sha}.json"
-  rollback_inventory_temporary="$runtime_state_root/.managed-containers.${inventory_sha}.${record_release_id}.$$.tmp"
-  rollback_application_temporary="$runtime_state_root/.application-images.${application_sha}.${record_release_id}.$$.tmp"
-  rollback_active_temporary="$runtime_state_root/.active-release.${record_release_id}.$$.tmp"
+  rollback_inventory_temporary="$runtime_state_root/.managed-containers.${inventory_sha}.${record_release_id}.tmp"
+  rollback_application_temporary="$runtime_state_root/.application-images.${application_sha}.${record_release_id}.tmp"
+  rollback_active_temporary="$runtime_state_root/.active-release.${record_release_id}.tmp"
 
   publish_immutable_runtime_blob \
     "$inventory_source" "$inventory_sha" "$inventory_target" \
@@ -1696,9 +2228,18 @@ publish_rollback_runtime_state() {
   safe_path "$active_release_state" "active release state"
   safe_path "$rollback_active_temporary" "active release temporary"
   validate_runtime_state_target "$active_release_state" "existing active release state"
-  [[ ! -e "$rollback_active_temporary" && ! -L "$rollback_active_temporary" ]] || {
-    fatal "active release temporary already exists"
+  active_sha="$(file_sha256 "$active_source")"
+  [[ "$active_sha" == "$rollback_finalization_active_sha" ]] || {
+    fatal "rollback active release evidence changed after finalization intent"
   }
+  if [[ -e "$active_release_state" \
+    && "$(file_sha256 "$active_release_state")" == "$active_sha" ]]; then
+    run_bounded "$sync_bin" -f -- "$active_release_state"
+    run_bounded "$sync_bin" -f -- "$runtime_state_root"
+    rollback_active_temporary=""
+    return 0
+  fi
+  prepare_runtime_temporary "$rollback_active_temporary" "active release temporary"
   "$cat_bin" "$active_source" >"$rollback_active_temporary"
   "$chmod_bin" 0644 "$rollback_active_temporary"
   run_bounded "$sync_bin" -f -- "$rollback_active_temporary"
@@ -1710,10 +2251,23 @@ publish_rollback_runtime_state() {
 
 write_release_pointer() {
   local target="$1" release_id="$2" git_commit="$3" label="$4"
-  local temporary="$release_record_root/.${label}.$$.tmp"
+  local source_release_id="$5" source_git_commit="$6"
+  local temporary="$release_record_root/.${label}.${record_release_id}.tmp"
   safe_path "$target" "$label"
   safe_path "$temporary" "$label temporary"
-  [[ ! -e "$temporary" && ! -L "$temporary" ]] || fatal "$label temporary already exists"
+  assert_private_record_file "$target" "$label"
+  load_release_pointer "$target" "$label"
+  if [[ "$LOADED_RELEASE_ID" == "$release_id" && "$LOADED_GIT_COMMIT" == "$git_commit" ]]; then
+    run_bounded "$sync_bin" -f -- "$target"
+    run_bounded "$sync_bin" -f -- "$release_record_root"
+    return 0
+  fi
+  [[ "$LOADED_RELEASE_ID" == "$source_release_id" \
+    && "$LOADED_GIT_COMMIT" == "$source_git_commit" ]] || {
+    fatal "$label does not match the finalization source or target"
+  }
+  rollback_pointer_temporary="$temporary"
+  prepare_private_temporary "$temporary" "$label temporary" "$release_record_root"
   {
     printf 'release_id=%s\n' "$release_id"
     printf 'git_commit=%s\n' "$git_commit"
@@ -1723,6 +2277,82 @@ write_release_pointer() {
   "$mv_bin" -f -- "$temporary" "$target"
   run_bounded "$sync_bin" -f -- "$target"
   run_bounded "$sync_bin" -f -- "$release_record_root"
+  rollback_pointer_temporary=""
+}
+
+
+record_rollback_execution_once() {
+  local audit="$record_real/rollback-executions.tsv"
+  local line timestamp target_release result event_id matching=0 audit_size=0 expected_size
+  local expected_line temporary audit_row_pattern
+  local -a audit_raw=()
+  local -A seen_events=()
+  expected_line="${rollback_finalization_started_at}"$'\t'"${previous_release_id}"$'\t'"${rollback_result}"$'\t'"${rollback_finalization_id}"
+  expected_size="$(( ${#expected_line} + 1 ))"
+  audit_row_pattern="^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z)"$'\t'"([0-9]{8}T[0-9]{6}Z-[1-9][0-9]*)"$'\t'"([a-z0-9_]+)("$'\t'"([0-9a-f]{64}))?$"
+  safe_path "$audit" "rollback execution audit"
+  if [[ -e "$audit" || -L "$audit" ]]; then
+    assert_private_record_file "$audit" "rollback execution audit"
+    audit_size="$("$stat_bin" -Lc '%s' -- "$audit")"
+    [[ "$audit_size" =~ ^[0-9]+$ && "$audit_size" -le 1048576 ]] || {
+      fatal "rollback execution audit exceeds its safety bound"
+    }
+    if (( audit_size > 0 )); then
+      mapfile -d '' -t audit_raw <"$audit"
+      [[ "${#audit_raw[@]}" == 1 \
+        && "${audit_raw[0]}" == *$'\n' \
+        && "${audit_raw[0]}" != *$'\r'* ]] || {
+        fatal "rollback execution audit has a partial or non-canonical tail"
+      }
+    fi
+    while IFS= read -r line; do
+      [[ "$line" =~ $audit_row_pattern ]] || {
+        fatal "rollback execution audit contains a malformed row"
+      }
+      timestamp="${BASH_REMATCH[1]}"
+      target_release="${BASH_REMATCH[2]}"
+      result="${BASH_REMATCH[3]}"
+      event_id="${BASH_REMATCH[5]:-}"
+      if [[ -n "$event_id" ]]; then
+        [[ -z "${seen_events[$event_id]+present}" ]] || {
+          fatal "rollback execution audit duplicates a finalization event"
+        }
+        seen_events["$event_id"]=1
+      fi
+      if [[ "$event_id" == "$rollback_finalization_id" ]]; then
+        [[ "$timestamp" == "$rollback_finalization_started_at" \
+          && "$target_release" == "$previous_release_id" \
+          && "$result" == "$rollback_result" ]] || {
+          fatal "rollback execution audit conflicts with the finalization intent"
+        }
+        matching="$((matching + 1))"
+      fi
+    done <"$audit"
+    if (( matching == 1 )); then
+      run_bounded "$sync_bin" -f -- "$audit"
+      run_bounded "$sync_bin" -f -- "$record_real"
+      return 0
+    fi
+  fi
+  (( audit_size + expected_size <= 1048576 )) || {
+    fatal "rollback execution audit would exceed its safety bound"
+  }
+  temporary="$record_real/.rollback-executions.${rollback_finalization_id}.tmp"
+  rollback_audit_temporary="$temporary"
+  prepare_private_temporary "$temporary" "rollback execution audit temporary" "$record_real"
+  if [[ -e "$audit" ]]; then
+    "$cat_bin" "$audit" >"$temporary"
+  else
+    : >"$temporary"
+  fi
+  printf '%s\n' "$expected_line" >>"$temporary"
+  "$chmod_bin" 0600 "$temporary"
+  run_bounded "$sync_bin" -f -- "$temporary"
+  assert_private_record_file "$temporary" "rollback execution audit temporary"
+  "$mv_bin" -f -- "$temporary" "$audit"
+  run_bounded "$sync_bin" -f -- "$audit"
+  run_bounded "$sync_bin" -f -- "$record_real"
+  rollback_audit_temporary=""
 }
 
 rollback_host_commit="$(run_bounded "$git_bin" -C "$repo_root" rev-parse --verify HEAD 2>/dev/null || true)"
@@ -1744,6 +2374,13 @@ fi
 [[ -z "$rollback_git_dirty" ]] || {
   fatal "rollback checkout is dirty; reviewed bytes must match Git HEAD"
 }
+if [[ "$rollback_finalization_present" == true ]]; then
+  [[ "$rollback_host_commit" == "$rollback_finalization_host_commit" \
+    && "$rollback_host_tree" == "$rollback_finalization_host_tree" ]] || {
+    fatal "rollback host checkout does not match the durable finalization intent"
+  }
+  verify_rollback_finalization_runtime_evidence
+fi
 run_bounded "$python_bin" "$release_tree_packager" \
   --verify-source-manifest \
   --source "$repo_root" \
@@ -1755,7 +2392,6 @@ run_bounded "$python_bin" "$release_tree_packager" \
   --runner-runtime-env "$runner_runtime_record" >/dev/null || {
   fatal "release manifest does not describe the exact clean rollback checkout and canonical runtime overlays"
 }
-
 verify_legacy_mail_outbox_contract_lineage
 verify_dispatch_binding_rollback_contract
 verify_guarded_delivery_rollback_contract
@@ -1770,6 +2406,7 @@ readonly -a previous_compose=(
   -f "$override"
 )
 
+declare -A override_images=()
 mapfile -t override_lines <"$override"
 [[ "${override_lines[0]:-}" == "services:" ]] || fatal "rollback override is malformed"
 expected_line_count="$((1 + ${#restorable_services[@]} * 2))"
@@ -1786,6 +2423,20 @@ for index in "${!restorable_services[@]}"; do
   [[ "$image" == "${recorded_images[$service]}" ]] || {
     fatal "rollback override does not match the recorded runtime image"
   }
+  override_images["$service"]="$image"
+done
+
+verify_host_operations_compatibility "$rollback_host_commit" "$rollback_host_tree" \
+  "$previous_git_commit" "$previous_git_tree" \
+  "$record_real/rollback-host-operations-compatibility.env"
+[[ "$host_operations_contract_version" == "$host_operations_contract_version_expected" \
+  && "$host_operations_contract_sha256" =~ ^[0-9a-f]{64}$ ]] || {
+  fatal "rollback host operations compatibility evidence was not retained"
+}
+
+authenticate_current_postgres_runtime
+for service in "${restorable_services[@]}"; do
+  image="${override_images[$service]}"
   image_id="$(run_bounded "${docker_cli[@]}" image inspect --format '{{.Id}}' "$image")" || {
     fatal "rollback image is not present locally"
   }
@@ -1809,12 +2460,30 @@ run_ingress_control() {
 on_exit() {
   local exit_code="$?"
   local -a runtime_temporaries=()
+  local -a private_temporaries=()
   trap '' HUP INT TERM
   trap - EXIT
   if [[ "$rollback_completed" != true ]]; then
+    [[ -n "$rollback_evidence_temporary" ]] && private_temporaries+=("$rollback_evidence_temporary")
+    [[ -n "$rollback_finalization_temporary" ]] && private_temporaries+=("$rollback_finalization_temporary")
+    [[ -n "$rollback_pointer_temporary" ]] && private_temporaries+=("$rollback_pointer_temporary")
+    [[ -n "$rollback_audit_temporary" ]] && private_temporaries+=("$rollback_audit_temporary")
+    [[ -n "$rollback_resume_inventory_temporary" ]] && private_temporaries+=("$rollback_resume_inventory_temporary")
+    [[ -n "$rollback_resume_active_temporary" ]] && private_temporaries+=("$rollback_resume_active_temporary")
     [[ -n "$rollback_inventory_temporary" ]] && runtime_temporaries+=("$rollback_inventory_temporary")
     [[ -n "$rollback_application_temporary" ]] && runtime_temporaries+=("$rollback_application_temporary")
     [[ -n "$rollback_active_temporary" ]] && runtime_temporaries+=("$rollback_active_temporary")
+    if (( ${#private_temporaries[@]} > 0 )); then
+      "$rm_bin" -f -- "${private_temporaries[@]}" || true
+      run_bounded "$sync_bin" -f -- "$record_real" || true
+      run_bounded "$sync_bin" -f -- "$release_record_root" || true
+      rollback_evidence_temporary=""
+      rollback_finalization_temporary=""
+      rollback_pointer_temporary=""
+      rollback_audit_temporary=""
+      rollback_resume_inventory_temporary=""
+      rollback_resume_active_temporary=""
+    fi
     if (( ${#runtime_temporaries[@]} > 0 )); then
       "$rm_bin" -f -- "${runtime_temporaries[@]}" || true
       run_bounded "$sync_bin" -f -- "$runtime_state_root" || true
@@ -1849,19 +2518,37 @@ run_smoke_phase internal
 run_bounded "${previous_compose[@]}" up -d --no-deps --no-build --pull never cloudflared
 run_smoke_phase public
 
-record_rollback_runtime_state
-publish_rollback_runtime_state
-write_release_pointer "$current_pointer" "$previous_release_id" "$previous_git_commit" current-release
-write_release_pointer "$latest_candidate_pointer" "$previous_release_id" "$previous_git_commit" latest-candidate
-rollback_result="previous_runtime_restored"
-if [[ "$legacy_transition" == true ]]; then
-  rollback_result="previous_runtime_restored_legacy_gateway_retained"
+if [[ "$rollback_finalization_present" == false ]]; then
+  record_rollback_runtime_state
+  begin_rollback_finalization
+else
+  rollback_resume_inventory_temporary="$record_real/.rollback-managed-containers.${rollback_finalization_id}.tmp"
+  rollback_resume_active_temporary="$record_real/.rollback-active-release.${rollback_finalization_id}.tmp"
+  prepare_private_temporary "$rollback_resume_inventory_temporary" \
+    "rollback resume managed inventory temporary" "$record_real"
+  prepare_private_temporary "$rollback_resume_active_temporary" \
+    "rollback resume active release temporary" "$record_real"
+  record_rollback_runtime_state \
+    "$rollback_resume_inventory_temporary" "$rollback_resume_active_temporary"
+  verify_rollback_finalization_runtime_evidence \
+    "$rollback_resume_active_temporary" "$rollback_resume_inventory_temporary"
+  "$rm_bin" -f -- "$rollback_resume_inventory_temporary" "$rollback_resume_active_temporary"
+  run_bounded "$sync_bin" -f -- "$record_real"
+  rollback_resume_inventory_temporary=""
+  rollback_resume_active_temporary=""
 fi
-printf '%s\t%s\t%s\n' "$("$date_bin" -u +'%Y-%m-%dT%H:%M:%SZ')" \
-  "$previous_release_id" "$rollback_result" >>"$record_real/rollback-executions.tsv"
-run_bounded "$sync_bin" -f -- "$record_real/rollback-executions.tsv"
-run_bounded "$sync_bin" -f -- "$record_real"
+
+publish_rollback_runtime_state
+write_release_pointer "$current_pointer" "$previous_release_id" "$previous_git_commit" \
+  current-release "$record_release_id" "$record_git_commit"
+write_release_pointer "$latest_candidate_pointer" "$previous_release_id" "$previous_git_commit" \
+  latest-candidate "$record_release_id" "$record_git_commit"
+record_rollback_execution_once
 
 run_ingress_control quarantine-clear || fatal "unable to clear durable release quarantine"
+if [[ -n "$test_harness_root" \
+  && "${FAKE_SCENARIO:-}" == finalization-quarantine-clear-failure ]]; then
+  fatal "test fault after rollback quarantine clear"
+fi
 rollback_completed=true
 printf 'production runtime restored to release %s; schema was not reversed\n' "$previous_release_id"

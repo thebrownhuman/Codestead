@@ -1,8 +1,10 @@
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 
-import type { PoolClient } from "pg";
+import { sql } from "drizzle-orm";
+import pg, { type Pool as PgPool, type PoolClient } from "pg";
 import {
   afterAll,
   afterEach,
@@ -15,8 +17,14 @@ import {
 
 import { deleteLearnerAccount } from "@/lib/data-lifecycle/deletion";
 import { db, pool } from "@/lib/db/client";
-import { emailOutbox, user } from "@/lib/db/schema";
-import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
+import { accessRequest, invitation, user } from "@/lib/db/schema";
+import {
+  accountMailEventIdempotencyKey,
+} from "@/lib/notifications/idempotency-authority";
+import {
+  enqueueEmail,
+  enqueueEmailInTransaction,
+} from "@/lib/notifications/outbox";
 import {
   authorizeCommittedPreparedDispatch,
   captureMailDispatchApplicationOrigin,
@@ -33,6 +41,7 @@ import {
   inspectMailDispatchRuntime,
   type MailDispatchStartupPool,
 } from "@/lib/notifications/mail-dispatch-runtime-startup";
+import { MAIL_DISPATCH_RUNTIME_BOOTSTRAP } from "@/lib/notifications/mail-dispatch-runtime-policy";
 import {
   createMaterializedDispatch,
   materializedDispatchEnvelope,
@@ -48,7 +57,17 @@ import type {
   OutboxClaim,
   ProviderCallPermit,
 } from "@/lib/notifications/outbox-worker";
-import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
+import {
+  accessRequestAuthorityLockKey,
+  lockAccessRequestAuthority,
+  lockAccessRequestSourceAuthority,
+  userAuthorityLockKey,
+} from "@/lib/security/user-authority-lock";
+import { changeLearnerStorageQuota } from "@/lib/storage/admin-quota";
+import { DEFAULT_STORAGE_QUOTA_BYTES } from "@/lib/storage/policy";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
+
+const { Pool } = pg;
 
 const ADMIN_ID = "mail-race-admin";
 const LEARNER_ID = "mail-race-learner";
@@ -56,6 +75,16 @@ const LEARNER_PUBLIC_ID = "90000000-0000-4000-8000-000000000001";
 const LEARNER_EMAIL = "mail-race-learner@integration.invalid";
 const INTEGRATION_APPLICATION_URL = "http://localhost:3000";
 const INTEGRATION_MAIL_FROM = "Codestead <mail@codestead.test>";
+const ACCESS_REQUEST_ID = "96000000-0000-4000-8000-000000000001";
+const INVITATION_ID = "96000000-0000-4000-8000-000000000002";
+const POST_DELETE_ACCESS_REQUEST_ID =
+  "96000000-0000-4000-8000-000000000003";
+const ACCESS_INVITATION_TOKEN = "mail-race-access-invitation-token";
+const ACCESS_INVITATION_URL =
+  `${INTEGRATION_APPLICATION_URL}/activate?token=${ACCESS_INVITATION_TOKEN}`;
+const ACCESS_INVITATION_TOKEN_HASH = createHash("sha256")
+  .update(ACCESS_INVITATION_TOKEN)
+  .digest("hex");
 
 const ROW_IDS = [
   "91000000-0000-4000-8000-000000000001",
@@ -91,6 +120,8 @@ type DeletionReport = Awaited<ReturnType<typeof deleteLearnerAccount>>;
 type FaultInjectableDeletionDependencies =
   NonNullable<Parameters<typeof deleteLearnerAccount>[1]>
   & Readonly<{ acquireClient: () => Promise<PoolClient> }>;
+type ApplicationTransaction =
+  Parameters<Parameters<typeof db.transaction>[0]>[0];
 type QueryRows = Readonly<{
   rows: Record<string, unknown>[];
   rowCount?: number | null;
@@ -299,29 +330,37 @@ class InstrumentedClient implements OutboxPgClient {
 }
 
 class InstrumentedPool implements OutboxPgPool, MailDispatchStartupPool {
-  readonly options = Object.freeze({
-    max: pool.options.max,
-    connectionTimeoutMillis: pool.options.connectionTimeoutMillis,
-    idleTimeoutMillis: pool.options.idleTimeoutMillis,
-  });
+  readonly options: Readonly<{
+    max: number;
+    connectionTimeoutMillis: number;
+    idleTimeoutMillis: number;
+  }>;
 
   private nextClientOrdinal = 1;
   private commitOrdinal = 0;
   private commitFaultConsumed = false;
 
   constructor(
+    private readonly innerPool: PgPool,
     private readonly hooks: QueryHooks = {},
     private readonly commitFault: CommitFault | null = null,
     private readonly faultOnCommitOrdinal = 1,
-  ) {}
+  ) {
+    this.options = Object.freeze({
+      max: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolMaximumConnections,
+      connectionTimeoutMillis:
+        MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolAcquireTimeoutMs,
+      idleTimeoutMillis: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolIdleTimeoutMs,
+    });
+  }
 
   async query(text: string) {
-    const result = await pool.query(text);
+    const result = await this.innerPool.query(text);
     return { rows: result.rows as readonly unknown[] };
   }
 
   async connect() {
-    const inner = await pool.connect();
+    const inner = await this.innerPool.connect();
     const pid = (await inner.query<{ pid: number }>("select pg_backend_pid() pid")).rows[0]!.pid;
     const clientOrdinal = this.nextClientOrdinal;
     this.nextClientOrdinal += 1;
@@ -403,7 +442,19 @@ function faultInjectableDeletionDependencies(
   };
 }
 
-const liveOutboxPool = new InstrumentedPool();
+const workerPool = new Pool({
+  connectionString: process.env.DATABASE_WORKER_URL,
+  max: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolMaximumConnections,
+  connectionTimeoutMillis: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolAcquireTimeoutMs,
+  idleTimeoutMillis: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolIdleTimeoutMs,
+});
+const operationsPool = new Pool({
+  connectionString: process.env.DATABASE_OPS_URL,
+  max: 2,
+  connectionTimeoutMillis: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolAcquireTimeoutMs,
+  idleTimeoutMillis: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolIdleTimeoutMs,
+});
+const liveOutboxPool = new InstrumentedPool(workerPool);
 const outboxStores = new WeakMap<
   InstrumentedPool,
   Promise<PostgresOutboxStore>
@@ -426,9 +477,20 @@ async function store(outboxPool: InstrumentedPool = liveOutboxPool) {
   return await selected;
 }
 
-function requireDisposableDatabaseUrl(
-  name: "DATABASE_URL" | "DATABASE_OPS_URL",
-) {
+type DisposableDatabaseUrlName =
+  | "DATABASE_URL"
+  | "DATABASE_APP_URL"
+  | "DATABASE_WORKER_URL"
+  | "DATABASE_OPS_URL";
+
+const DISPOSABLE_DATABASE_ROLE = Object.freeze({
+  DATABASE_URL: "learncoding_app",
+  DATABASE_APP_URL: "learncoding_app",
+  DATABASE_WORKER_URL: "learncoding_worker",
+  DATABASE_OPS_URL: "learncoding_ops",
+} satisfies Record<DisposableDatabaseUrlName, string>);
+
+function requireDisposableDatabaseUrl(name: DisposableDatabaseUrlName) {
   const raw = process.env[name];
   let parsed: URL;
   try {
@@ -439,12 +501,16 @@ function requireDisposableDatabaseUrl(
   const port = Number(parsed.port);
   if (
     parsed.protocol !== "postgresql:"
+    || parsed.username !== DISPOSABLE_DATABASE_ROLE[name]
+    || parsed.password.length === 0
     || parsed.hostname !== "127.0.0.1"
     || parsed.pathname !== "/learncoding_integration"
     || !Number.isSafeInteger(port)
     || port < 1
     || port > 65_535
     || port === 5_432
+    || parsed.search !== ""
+    || parsed.hash !== ""
   ) {
     throw new Error(`${name} must select a non-5432 disposable loopback database.`);
   }
@@ -456,31 +522,25 @@ function assertDisposableDatabase() {
     throw new Error("Mail delivery race tests require the disposable learncoding_integration database.");
   }
   const application = requireDisposableDatabaseUrl("DATABASE_URL");
+  const explicitApplication =
+    requireDisposableDatabaseUrl("DATABASE_APP_URL");
+  const worker = requireDisposableDatabaseUrl("DATABASE_WORKER_URL");
   const operations = requireDisposableDatabaseUrl("DATABASE_OPS_URL");
-  if (
-    application.hostname !== operations.hostname
-    || application.port !== operations.port
-    || application.pathname !== operations.pathname
-  ) {
+  if (application.href !== explicitApplication.href) {
+    throw new Error("DATABASE_URL must be the exact disposable app-role URL.");
+  }
+  if ([worker, operations].some((candidate) =>
+    application.hostname !== candidate.hostname
+    || application.port !== candidate.port
+    || application.pathname !== candidate.pathname
+  )) {
     throw new Error("Mail delivery race roles must select one disposable database.");
   }
 }
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows
-    // 0067 intentionally makes this durable replay ledger append-only and
-    // non-truncatable. Every test uses unique event keys and asserts only its
-    // own key, so preserving prior authority is both required and safe.
-    .filter(({ table_name }) => table_name !== "email_outbox_idempotency_authority")
-    .map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`)
-    .join(", ");
-  await pool.query(`truncate table ${names} restart identity cascade`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 async function waitForAdvisoryWaiters(
@@ -507,33 +567,116 @@ async function waitForAdvisoryWaiters(
   throw new Error(`Expected ${expectedCount} operation(s) to wait on advisory lock held by PID ${blockerPid}.`);
 }
 
-async function seedOutboxRows(kind: "pending" | "expired-pre-provider", count = 2) {
-  const now = Date.now();
-  await db.insert(emailOutbox).values(
-    Array.from({ length: count }, (_unused, index) => ({
-      id: ROW_IDS[index]!,
-      userId: LEARNER_ID,
-      deliveryScopeKey: `a:${LEARNER_ID}`,
-      toEmail: LEARNER_EMAIL,
-      template: "credential-changed",
-      templateVersion: "1",
-      variables: { name: "Mail Race Learner" },
-      idempotencyKey: accountMailEventIdempotencyKey({
+async function waitForBlockedBackendBy(
+  blockerPid: number,
+  timeoutMs = 3_000,
+) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const blocked = await pool.query<{
+      pid: number;
+      query: string;
+      wait_event: string | null;
+      wait_event_type: string | null;
+    }>(`
+      select pid, query, wait_event, wait_event_type
+        from pg_catalog.pg_stat_activity activity
+       where $1::integer = any(pg_catalog.pg_blocking_pids(activity.pid))
+       order by pid
+    `, [blockerPid]);
+    if (blocked.rows.length > 0) return blocked.rows;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`Expected a backend blocked by PID ${blockerPid}.`);
+}
+
+async function seedOutboxRows(
+  kind: "pending" | "expired-pre-provider",
+  count = 2,
+) {
+  const application = await pool.connect();
+  try {
+    await application.query("BEGIN");
+    for (let index = 0; index < count; index += 1) {
+      const id = ROW_IDS[index]!;
+      const operationId = OPERATION_IDS[index]!;
+      const idempotencyKey = accountMailEventIdempotencyKey({
         eventId: `mail-race:${kind}:${index}`,
         template: "credential-changed",
         userId: LEARNER_ID,
-      }),
-      idempotencyAuthorityVersion: "event-v1-native",
-      operationId: OPERATION_IDS[index]!,
-      status: kind === "pending" ? "pending" as const : "sending" as const,
-      attemptCount: kind === "pending" ? 0 : 1,
-      claimToken: kind === "pending" ? null : STALE_TOKENS[index]!,
-      claimOwner: kind === "pending" ? null : `stale-worker-${index}`,
-      claimVersion: kind === "pending" ? 0 : 1,
-      leaseExpiresAt: kind === "pending" ? null : new Date(now - 120_000),
-      nextAttemptAt: new Date(now - 180_000 + index),
-    })),
-  );
+      });
+      const inserted = await application.query<{
+        idempotency_original_payload_sha256: string;
+      }>(`
+        INSERT INTO public.email_outbox (
+          id, operation_id, user_id, delivery_scope_key, to_email, template,
+          template_version, variables, idempotency_key,
+          idempotency_authority_version, status, next_attempt_at
+        ) VALUES (
+          $1::uuid, $2::uuid, $3::text, 'a:' || $3::text, $4::text,
+          'credential-changed', '1', $5::jsonb, $6::text,
+          'event-v1-native', 'pending', pg_catalog.transaction_timestamp()
+        )
+        RETURNING idempotency_original_payload_sha256
+      `, [
+        id,
+        operationId,
+        LEARNER_ID,
+        LEARNER_EMAIL,
+        JSON.stringify({ name: "Mail Race Learner" }),
+        idempotencyKey,
+      ]);
+      const originalPayloadSha256 =
+        inserted.rows[0]?.idempotency_original_payload_sha256;
+      expect(originalPayloadSha256).toEqual(
+        expect.stringMatching(/^[0-9a-f]{64}$/u),
+      );
+      await application.query(
+        `SELECT released.release_receipt_sha256
+           FROM public.release_email_outbox_delivery(
+             $1::uuid, $2::uuid, $3::text, $4::text, 'task7-v1'
+           ) AS released`,
+        [id, operationId, idempotencyKey, originalPayloadSha256],
+      );
+    }
+    await application.query("COMMIT");
+  } catch (error) {
+    await application.query("ROLLBACK");
+    throw error;
+  } finally {
+    application.release();
+  }
+
+  if (kind === "expired-pre-provider") {
+    const claim = await requireClaim(
+      STALE_TOKENS[0],
+      "stale-worker-0",
+      undefined,
+      16_000,
+    );
+    await waitForOutboxLeaseExpiry(claim.id);
+  }
+}
+
+async function waitForOutboxLeaseExpiry(
+  rowId: string,
+  graceMs = 0,
+  timeoutMs = 20_000,
+) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const result = await pool.query<{ expired: boolean }>(
+      `SELECT lease_expires_at
+                < pg_catalog.statement_timestamp()
+                  - ($2::integer * interval '1 millisecond') AS expired
+         FROM public.email_outbox
+        WHERE id = $1::uuid`,
+      [rowId, graceMs],
+    );
+    if (result.rows[0]?.expired === true) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error(`Outbox lease did not expire for ${rowId}.`);
 }
 
 function genuineBoundaryInput(
@@ -572,9 +715,10 @@ async function requireClaim(
   token: string,
   owner: string,
   selectedStore?: PostgresOutboxStore,
+  leaseMs = 60_000,
 ): Promise<OutboxClaim<EmailOutboxPayload>> {
   const activeStore = selectedStore ?? await store();
-  const claim = await activeStore.claimNext({ owner, token, leaseMs: 120_000 });
+  const claim = await activeStore.claimNext({ owner, token, leaseMs });
   expect(claim).not.toBeNull();
   if (!claim) throw new Error(`Expected ${owner} to claim one outbox row.`);
   return claim;
@@ -672,48 +816,30 @@ async function requireSentPersistenceUnknown(
   if (result.kind !== "persistence-unknown") {
     throw new Error("Expected guarded dispatch persistence uncertainty.");
   }
-  const expired = await pool.query(`
-    update email_outbox
-       set lease_expires_at = now() - interval '4 minutes'
-     where id = $1::uuid
-       and status = 'sending'
-       and provider_call_started is not null
-       and provider_message_id is null
-  `, [claim.id]);
-  expect(expired.rowCount).toBe(1);
+  await waitForOutboxLeaseExpiry(claim.id, 30_000, 150_000);
   return { claim, uncertainty: result.uncertainty };
 }
 async function expiredPermit() {
   await seedOutboxRows("pending", 1);
   const claim = await requireClaim(CLAIM_TOKENS[0], "provider-worker");
   const permit = await requirePermit(claim);
-  await pool.query(
-    `update email_outbox
-        set lease_expires_at = lease_expires_at - interval '4 minutes'
-      where id = $1::uuid`,
-    [claim.id],
-  );
+  await waitForOutboxLeaseExpiry(claim.id, 30_000, 150_000);
   return { claim, permit };
 }
 
 async function markUnresolvedQuarantined(rowId = ROW_IDS[0]) {
-  const result = await pool.query(`
-    update email_outbox
-       set status = 'quarantined',
-           attempt_count = 1,
-           claim_token = $2::uuid,
-           claim_owner = 'abandoned-provider-worker',
-           claim_version = 1,
-           lease_expires_at = null,
-           provider_call_started = now() - interval '2 minutes',
-           adapter = 'console',
-           provider_message_id = null,
-           quarantined_at = now(),
-           last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY',
-           updated_at = now()
-     where id = $1::uuid
-  `, [rowId, STALE_TOKENS[0]]);
-  expect(result.rowCount).toBe(1);
+  const activeStore = await store();
+  const claim = await requireClaim(
+    STALE_TOKENS[0],
+    "unresolved-provider-worker",
+    activeStore,
+  );
+  expect(claim.id).toBe(rowId);
+  const permit = await requirePermit(claim, activeStore);
+  await expect(activeStore.finishAfterProvider(permit, {
+    kind: "quarantined",
+    code: "PROVIDER_OUTCOME_UNKNOWN",
+  })).resolves.toEqual({ kind: "applied" });
 }
 
 async function outboxState() {
@@ -765,12 +891,63 @@ function zeroErasureDependencies(pause?: QueryPause) {
   };
 }
 
-function twoFinalizerDependencies(rendezvous: Rendezvous) {
-  return {
-    processFileErasures: async () => {
-      await rendezvous.arrive();
-      return ZERO_ERASURE_SUMMARY;
+async function applicationTransactionPid(tx: ApplicationTransaction) {
+  const result = await tx.execute<{ pid: number }>(
+    sql`select pg_catalog.pg_backend_pid()::integer as pid`,
+  );
+  const pid = Number(result.rows[0]?.pid);
+  if (!Number.isSafeInteger(pid) || pid < 1) {
+    throw new Error("Application transaction did not expose a backend PID.");
+  }
+  return pid;
+}
+
+async function persistApprovedAccessSystemMail(
+  tx: ApplicationTransaction,
+  sourceEmail = LEARNER_EMAIL,
+) {
+  const decidedAt = new Date();
+  await tx.insert(accessRequest).values({
+    id: ACCESS_REQUEST_ID,
+    email: sourceEmail,
+    name: "Mail Race Learner",
+    reason: "Exercise producer-before-deletion serialization.",
+    status: "approved",
+    adultConfirmedAt: decidedAt,
+    decidedBy: ADMIN_ID,
+    decisionReason: "Approved for the deterministic delivery race.",
+    decidedAt,
+  });
+  await tx.insert(invitation).values({
+    id: INVITATION_ID,
+    accessRequestId: ACCESS_REQUEST_ID,
+    email: sourceEmail,
+    tokenHash: ACCESS_INVITATION_TOKEN_HASH,
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1_000),
+    createdBy: ADMIN_ID,
+  });
+  await enqueueEmailInTransaction(tx, {
+    to: sourceEmail,
+    template: "invitation",
+    variables: {
+      name: "Mail Race Learner",
+      url: ACCESS_INVITATION_URL,
     },
+    systemProducer: "access-request-approved",
+    audienceId: ACCESS_REQUEST_ID,
+    sourceId: INVITATION_ID,
+    idempotencySeed: INVITATION_ID,
+  });
+}
+
+function deletionDependenciesWithHooks(
+  hooks: QueryHooks,
+): FaultInjectableDeletionDependencies {
+  const instrumented = new InstrumentedPool(pool, hooks);
+  return {
+    processFileErasures: async () => ZERO_ERASURE_SUMMARY,
+    acquireClient: async () =>
+      await instrumented.connect() as unknown as PoolClient,
   };
 }
 
@@ -815,12 +992,33 @@ async function runDeletionFinalizerRace(
   requestIds: readonly [string, string],
 ) {
   const finalizers = new Rendezvous(2);
-  const dependencies = twoFinalizerDependencies(finalizers);
-  const attempts = requestIds.map((requestId) =>
+  const firstAtCheckpoint = deferred();
+  let checkpointArrivals = 0;
+  const dependencies = {
+    processFileErasures: async () => {
+      checkpointArrivals += 1;
+      if (checkpointArrivals === 1) firstAtCheckpoint.resolve();
+      await finalizers.arrive();
+      return ZERO_ERASURE_SUMMARY;
+    },
+  };
+  const first = deleteLearnerAccount(
+    deletionInput(objectStorageRoot, requestIds[0]),
+    dependencies,
+  );
+  void first.catch(() => undefined);
+  await within(
+    firstAtCheckpoint.promise,
+    "first account-deletion finalizer at the durable checkpoint",
+    10_000,
+  );
+  const attempts = [
+    first,
     deleteLearnerAccount(
-      deletionInput(objectStorageRoot, requestId),
+      deletionInput(objectStorageRoot, requestIds[1]),
       dependencies,
-    ));
+    ),
+  ];
   const outcomes = Promise.allSettled(attempts);
   let blocker: Awaited<ReturnType<typeof holdFinalizerUserAuthorityGate>> | null =
     null;
@@ -869,18 +1067,21 @@ async function deletionPersistenceState(report: DeletionReport) {
     template: "account-deleted",
     userId: LEARNER_ID,
   });
-  const [notices, tombstones, runs, authorities] = await Promise.all([
+  const [notices, tombstones, runs] = await Promise.all([
     pool.query<{
       id: string;
       operation_id: string;
       run_id: string;
       tombstone_id: string;
       idempotency_key: string;
+      idempotency_authority_sha256: string;
+      idempotency_original_payload_sha256: string;
     }>(
       `select id::text, operation_id::text,
               variables ->> 'deletionRunId' as run_id,
               variables ->> 'tombstoneId' as tombstone_id,
-              idempotency_key
+              idempotency_key, idempotency_authority_sha256,
+              idempotency_original_payload_sha256
          from email_outbox
         where template = 'account-deleted' and user_id = $1
         order by id`,
@@ -910,25 +1111,35 @@ async function deletionPersistenceState(report: DeletionReport) {
         order by idempotency_key`,
       [LEARNER_ID],
     ),
-    pool.query<{
-      idempotency_sha256: string;
-      original_payload_sha256: string;
-    }>(
-      `select idempotency_sha256, original_payload_sha256
-         from email_outbox_idempotency_authority
-        where idempotency_sha256 = $1`,
-      [eventKey],
-    ),
   ]);
+  const coverage = notices.rows.length === 0
+    ? false
+    : (await operationsPool.query<{ covered: boolean }>(
+        `select public.email_outbox_idempotency_coverage_authority(
+           $1::uuid[]
+         ) as covered`,
+        [notices.rows.map((notice) => notice.id)],
+      )).rows[0]?.covered === true;
   return {
     eventKey,
-    notices: notices.rows,
+    notices: notices.rows.map((notice) => ({
+      id: notice.id,
+      operation_id: notice.operation_id,
+      run_id: notice.run_id,
+      tombstone_id: notice.tombstone_id,
+      idempotency_key: notice.idempotency_key,
+    })),
     tombstones: tombstones.rows,
     runs: runs.rows,
-    authorities: authorities.rows,
+    authorities: coverage
+      ? notices.rows.map((notice) => ({
+          idempotency_sha256: notice.idempotency_authority_sha256,
+          original_payload_sha256:
+            notice.idempotency_original_payload_sha256,
+        }))
+      : [],
   };
 }
-
 function expectSingleDurableDeletionNotice(
   report: DeletionReport,
   state: Awaited<ReturnType<typeof deletionPersistenceState>>,
@@ -963,9 +1174,29 @@ const previousDeletionKey = process.env.DELETION_TOMBSTONE_KEY;
 const previousApplicationUrl = process.env.APP_URL;
 let objectStorageRoot = "";
 
-beforeAll(() => {
+beforeAll(async () => {
   process.env.DELETION_TOMBSTONE_KEY = "mail-race-deletion-key-long-enough-for-integration";
   process.env.APP_URL = INTEGRATION_APPLICATION_URL;
+  assertDisposableDatabase();
+  const [applicationIdentity, workerIdentity] = await Promise.all([
+    pool.query<{ effective_role: string; session_role: string }>(
+      `SELECT current_user::text AS effective_role,
+              session_user::text AS session_role`,
+    ),
+    workerPool.query<{ effective_role: string; session_role: string }>(
+      `SELECT current_user::text AS effective_role,
+              session_user::text AS session_role`,
+    ),
+  ]);
+  expect(applicationIdentity.rows[0]).toEqual({
+    effective_role: "learncoding_app",
+    session_role: "learncoding_app",
+  });
+  expect(workerIdentity.rows[0]).toEqual({
+    effective_role: "learncoding_worker",
+    session_role: "learncoding_worker",
+  });
+  await store();
 });
 
 beforeEach(async () => {
@@ -986,6 +1217,7 @@ beforeEach(async () => {
       email: LEARNER_EMAIL,
       role: "learner",
       status: "active",
+      emailVerified: true,
     },
   ]);
 });
@@ -1002,14 +1234,14 @@ afterAll(async () => {
   else process.env.DELETION_TOMBSTONE_KEY = previousDeletionKey;
   if (previousApplicationUrl === undefined) delete process.env.APP_URL;
   else process.env.APP_URL = previousApplicationUrl;
-  await pool.end();
+  await Promise.all([operationsPool.end(), workerPool.end(), pool.end()]);
 });
 
 describe("real PostgreSQL mail delivery races", () => {
   it("revalidates a selected claim candidate at the CAS after a concurrent winner changes it", async () => {
     await seedOutboxRows("pending", 1);
     const candidatePause = new QueryPause();
-    const claimantStore = await store(new InstrumentedPool({
+    const claimantStore = await store(new InstrumentedPool(workerPool, {
       after: async (event) => {
         if (isCandidateSelect(event.sql)) await candidatePause.hold(event.pid);
       },
@@ -1021,30 +1253,27 @@ describe("real PostgreSQL mail delivery races", () => {
     });
     await within(candidatePause.reached, "stale claim candidate snapshot");
 
-    let mutationError: unknown = null;
-    let changedRows: number | null = null;
+    let winnerError: unknown = null;
+    let winner: OutboxClaim<EmailOutboxPayload> | null = null;
     try {
-      const changed = await pool.query(`
-        update email_outbox
-           set status = 'sending',
-               attempt_count = attempt_count + 1,
-               claim_token = $2::uuid,
-               claim_owner = 'concurrent-cas-winner',
-               claim_version = claim_version + 1,
-               lease_expires_at = now() + interval '2 minutes',
-               updated_at = now()
-         where id = $1::uuid and status = 'pending'
-      `, [ROW_IDS[0], STALE_TOKENS[0]]);
-      changedRows = changed.rowCount;
+      winner = await requireClaim(
+        STALE_TOKENS[0],
+        "concurrent-cas-winner",
+      );
     } catch (error) {
-      mutationError = error;
+      winnerError = error;
     } finally {
       candidatePause.release();
     }
     const claim = await within(claiming, "stale candidate CAS");
-    if (mutationError) throw mutationError;
+    if (winnerError) throw winnerError;
 
-    expect(changedRows).toBe(1);
+    expect(winner).toMatchObject({
+      id: ROW_IDS[0],
+      claimToken: STALE_TOKENS[0],
+      claimOwner: "concurrent-cas-winner",
+      claimVersion: 1,
+    });
     expect(claim).toBeNull();
     expect((await outboxState())[0]).toMatchObject({
       status: "sending",
@@ -1056,20 +1285,23 @@ describe("real PostgreSQL mail delivery races", () => {
     });
   });
 
-  it("treats a NULL sending lease as unresolved authority that blocks later scope work", async () => {
+  it("rejects a NULL sending lease before ambiguous scope authority can exist", async () => {
     await seedOutboxRows("pending", 2);
-    const ambiguous = await pool.query(`
-      update email_outbox
-         set status = 'sending',
-             attempt_count = 1,
-             claim_token = $2::uuid,
-             claim_owner = 'null-lease-worker',
-             claim_version = 1,
-             lease_expires_at = null,
-             updated_at = now()
-       where id = $1::uuid
-    `, [ROW_IDS[0], STALE_TOKENS[0]]);
-    expect(ambiguous.rowCount).toBe(1);
+    const genuineClaim = await requireClaim(
+      STALE_TOKENS[0],
+      "null-lease-worker",
+    );
+
+    await expect(workerPool.query(
+      `UPDATE public.email_outbox
+          SET lease_expires_at = NULL,
+              updated_at = pg_catalog.statement_timestamp()
+        WHERE id = $1::uuid`,
+      [genuineClaim.id],
+    )).rejects.toMatchObject({
+      code: "23514",
+      constraint: "email_outbox_delivery_hold_valid",
+    });
 
     await expect((await store()).claimNext({
       owner: "null-lease-follow-up",
@@ -1083,6 +1315,7 @@ describe("real PostgreSQL mail delivery races", () => {
         status: "sending",
         claim_token: STALE_TOKENS[0],
         claim_version: 1,
+        lease_is_active: true,
       }),
       expect.objectContaining({
         id: ROW_IDS[1],
@@ -1108,7 +1341,7 @@ describe("real PostgreSQL mail delivery races", () => {
         id: ROW_IDS[0],
         status: "quarantined",
         provider_message_id: null,
-        last_error_code: "ABANDONED_POST_PROVIDER_BOUNDARY",
+        last_error_code: "PROVIDER_OUTCOME_UNKNOWN",
       }),
       expect.objectContaining({
         id: ROW_IDS[1],
@@ -1142,7 +1375,7 @@ describe("real PostgreSQL mail delivery races", () => {
     expect((await outboxState())[0]).toMatchObject({
       status: "quarantined",
       provider_message_id: null,
-      last_error_code: "ABANDONED_POST_PROVIDER_BOUNDARY",
+      last_error_code: "PROVIDER_OUTCOME_UNKNOWN",
     });
   });
 
@@ -1182,7 +1415,7 @@ describe("real PostgreSQL mail delivery races", () => {
   ])("allows one of two %s and keeps the delivery scope single-active", async (_name, fixtureKind) => {
     await seedOutboxRows(fixtureKind);
     const race = new ClaimRaceCoordinator();
-    const racingStore = await store(new InstrumentedPool(race.hooks));
+    const racingStore = await store(new InstrumentedPool(workerPool, race.hooks));
     const first = racingStore.claimNext({
       owner: "racing-worker-one",
       token: CLAIM_TOKENS[0],
@@ -1213,14 +1446,14 @@ describe("real PostgreSQL mail delivery races", () => {
     const rows = await outboxState();
     expect(rows.filter((row) => row.status === "sending" && row.lease_is_active)).toHaveLength(1);
     expect(rows.reduce((total, row) => total + row.attempt_count, 0)).toBe(
-      fixtureKind === "pending" ? 1 : 3,
+      fixtureKind === "pending" ? 1 : 2,
     );
   });
 
   it("rolls back a provider boundary when its transaction does not commit", async () => {
     await seedOutboxRows("pending", 1);
     const claim = await requireClaim(CLAIM_TOKENS[0], "rollback-boundary-worker");
-    const rollbackStore = await store(new InstrumentedPool({}, "rollback-before-ack", 2));
+    const rollbackStore = await store(new InstrumentedPool(workerPool, {}, "rollback-before-ack", 2));
 
     await expect(beginProviderCall(claim, rollbackStore)).rejects.toThrow("Provider boundary commit result is unknown.");
 
@@ -1236,7 +1469,7 @@ describe("real PostgreSQL mail delivery races", () => {
   it("persists an unknown provider-boundary commit without reconstructing a permit", async () => {
     await seedOutboxRows("pending", 1);
     const claim = await requireClaim(CLAIM_TOKENS[0], "unknown-commit-worker");
-    const unknownCommitStore = await store(new InstrumentedPool({}, "commit-ack-lost", 2));
+    const unknownCommitStore = await store(new InstrumentedPool(workerPool, {}, "commit-ack-lost", 2));
 
     await expect(beginProviderCall(claim, unknownCommitStore)).rejects.toThrow("Provider boundary commit result is unknown.");
 
@@ -1288,7 +1521,7 @@ describe("real PostgreSQL mail delivery races", () => {
   it("lets a finalizer that owns the scope lock beat the abandoned-send sweeper", async () => {
     const finalizerPause = new QueryPause();
     let pauseRecovery = false;
-    const finalizerStore = await store(new InstrumentedPool({
+    const finalizerStore = await store(new InstrumentedPool(workerPool, {
       after: async (event) => {
         if (pauseRecovery && isBlockingAdvisoryLock(event.sql)) {
           await finalizerPause.hold(event.pid);
@@ -1326,10 +1559,11 @@ describe("real PostgreSQL mail delivery races", () => {
       last_error_code: null,
     });
     expect((await outboxState())[0]!.provider_message_id).not.toBeNull();
-  });
+  }, 180_000);
 
   it("preserves quarantine evidence when the sweeper owns the scope before a late finalizer", async () => {
     const finalizerStore = await store(new InstrumentedPool(
+      workerPool,
       {},
       "rollback-before-ack",
       4,
@@ -1339,7 +1573,7 @@ describe("real PostgreSQL mail delivery races", () => {
       "sweeper-first-worker",
     );
     const sweeperPause = new QueryPause();
-    const sweeperStore = await store(new InstrumentedPool({
+    const sweeperStore = await store(new InstrumentedPool(workerPool, {
       after: async (event, result) => {
         if (isTryAdvisoryLock(event.sql) && result.rows[0]?.locked === true) {
           await sweeperPause.hold(event.pid);
@@ -1378,7 +1612,7 @@ describe("real PostgreSQL mail delivery races", () => {
     expect((await outboxState())[0]!.provider_message_id).not.toBeNull();
     expect((await outboxState())[0]!.sent_at).not.toBeNull();
     expect((await outboxState())[0]!.quarantined_at).not.toBeNull();
-  });
+  }, 180_000);
 
   it("finalizes a definite rejection from the released sweeper successor without another provider call", async () => {
     const { claim, permit } = await expiredPermit();
@@ -1400,12 +1634,12 @@ describe("real PostgreSQL mail delivery races", () => {
       quarantined_at: null,
       last_error_code: "PROVIDER_DEFINITELY_REJECTED",
     });
-  });
+  }, 180_000);
   it("makes a committed provider boundary win when deletion queues behind its account lock", async () => {
     await seedOutboxRows("pending", 1);
     const claim = await requireClaim(CLAIM_TOKENS[0], "boundary-before-deletion-worker");
     const boundaryPause = new QueryPause();
-    const boundaryStore = await store(new InstrumentedPool({
+    const boundaryStore = await store(new InstrumentedPool(workerPool, {
       after: async (event) => {
         if (isBlockingAdvisoryLock(event.sql)) await boundaryPause.hold(event.pid);
       },
@@ -1471,6 +1705,401 @@ describe("real PostgreSQL mail delivery races", () => {
     expect(noticeClaim.id).toBe(notices[0]!.id);
     await expect(beginProviderCall(noticeClaim)).resolves.toMatchObject({ kind: "applied" });
   });
+
+  it("rejects an access decision after deletion status commits and before phase-two cleanup", async () => {
+    await db.insert(accessRequest).values({
+      id: ACCESS_REQUEST_ID,
+      email: LEARNER_EMAIL,
+      name: "Mail Race Learner",
+      reason: "Pending before the deletion status transition.",
+      adultConfirmedAt: new Date(),
+    });
+    const beforeFirstAccessLock = new QueryPause();
+    let accessLockAttempts = 0;
+    const deletion = deleteLearnerAccount(
+      deletionInput(objectStorageRoot, "95000000-0000-4000-8000-000000000029"),
+      deletionDependenciesWithHooks({
+        before: async (event) => {
+          if (
+            isBlockingAdvisoryLock(event.sql)
+            && event.values[0] === accessRequestAuthorityLockKey(LEARNER_EMAIL)
+          ) {
+            accessLockAttempts += 1;
+            if (accessLockAttempts === 1) {
+              await beforeFirstAccessLock.hold(event.pid);
+            }
+          }
+        },
+      }),
+    );
+    await within(
+      beforeFirstAccessLock.reached,
+      "phase-two access-request lock attempt",
+      10_000,
+    );
+    expect((await pool.query<{ status: string }>(
+      `select status::text from "user" where id = $1`,
+      [LEARNER_ID],
+    )).rows[0]?.status).toBe("deletion_pending");
+
+    const sourceAuthorized = await db.transaction(async (tx) => {
+      const allowed = await lockAccessRequestSourceAuthority(
+        tx,
+        LEARNER_EMAIL,
+      );
+      if (!allowed) return false;
+      const decidedAt = new Date();
+      await tx
+        .update(accessRequest)
+        .set({
+          status: "approved",
+          decidedBy: ADMIN_ID,
+          decisionReason: "This branch must be unreachable during deletion.",
+          decidedAt,
+        })
+        .where(sql`${accessRequest.id} = ${ACCESS_REQUEST_ID}::uuid`);
+      await tx.insert(invitation).values({
+        id: INVITATION_ID,
+        accessRequestId: ACCESS_REQUEST_ID,
+        email: LEARNER_EMAIL,
+        tokenHash: ACCESS_INVITATION_TOKEN_HASH,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1_000),
+        createdBy: ADMIN_ID,
+      });
+      await enqueueEmailInTransaction(tx, {
+        to: LEARNER_EMAIL,
+        template: "invitation",
+        variables: {
+          name: "Mail Race Learner",
+          url: ACCESS_INVITATION_URL,
+        },
+        systemProducer: "access-request-approved",
+        audienceId: ACCESS_REQUEST_ID,
+        sourceId: INVITATION_ID,
+        idempotencySeed: INVITATION_ID,
+      });
+      return true;
+    });
+    const prematureClaim = await (await store()).claimNext({
+      owner: "status-window-system-worker",
+      token: CLAIM_TOKENS[0],
+      leaseMs: 60_000,
+    });
+    const prematureBoundary = prematureClaim
+      ? await beginProviderCall(prematureClaim)
+      : null;
+
+    let assertionError: unknown = null;
+    try {
+      expect(sourceAuthorized).toBe(false);
+      expect(prematureClaim).toBeNull();
+      expect(prematureBoundary).toBeNull();
+    } catch (error) {
+      assertionError = error;
+    } finally {
+      beforeFirstAccessLock.release();
+    }
+    const deletionOutcome = await Promise.allSettled([deletion]);
+    if (assertionError) throw assertionError;
+    expect(deletionOutcome[0]?.status).toBe("fulfilled");
+    expect((await pool.query(
+      `select id from access_request where id = $1::uuid
+       union all select id from invitation where id = $2::uuid
+       union all select id from email_outbox
+         where variables ->> '_mailSourceId' = $2::text`,
+      [ACCESS_REQUEST_ID, INVITATION_ID],
+    )).rows).toHaveLength(0);
+  }, 30_000);
+
+  it("makes a committed access approval lose to deletion cleanup without an orphan mail source", async () => {
+    const producerReady = deferred();
+    const releaseProducer = deferred();
+    let producerPid: number | null = null;
+    const producer = db.transaction(async (tx) => {
+      const sourceAuthorized =
+        await lockAccessRequestSourceAuthority(tx, LEARNER_EMAIL);
+      if (!sourceAuthorized) {
+        throw new Error("Expected pre-deletion source authority.");
+      }
+      producerPid = await applicationTransactionPid(tx);
+      await persistApprovedAccessSystemMail(
+        tx,
+        `  ${LEARNER_EMAIL.toUpperCase()}  `,
+      );
+      producerReady.resolve();
+      await releaseProducer.promise;
+    });
+    const readyOrFailure = Promise.race([
+      producerReady.promise,
+      producer.then(() => {
+        throw new Error("Access producer committed before its test gate opened.");
+      }),
+    ]);
+    await within(readyOrFailure, "approved access producer", 10_000);
+
+    const deletion = deleteLearnerAccount(
+      deletionInput(objectStorageRoot, "95000000-0000-4000-8000-000000000030"),
+      zeroErasureDependencies(),
+    );
+    let waitError: unknown = null;
+    try {
+      const blocked = await waitForBlockedBackendBy(producerPid!, 10_000);
+      expect(blocked).toEqual([
+        expect.objectContaining({
+          wait_event_type: "Lock",
+          wait_event: "transactionid",
+          query: expect.stringContaining(`from "user" where id = $1 for update`),
+        }),
+      ]);
+      const exactLockProbe = await pool.query<{ acquired: boolean }>(
+        `select pg_catalog.pg_try_advisory_xact_lock(
+           pg_catalog.hashtext($1)::pg_catalog.int8
+         ) as acquired`,
+        [accessRequestAuthorityLockKey(LEARNER_EMAIL)],
+      );
+      expect(exactLockProbe.rows[0]?.acquired).toBe(false);
+    } catch (error) {
+      waitError = error;
+    } finally {
+      releaseProducer.resolve();
+    }
+    const [producerOutcome, deletionOutcome] = await Promise.allSettled([
+      producer,
+      deletion,
+    ]);
+    if (waitError) throw waitError;
+    expect(producerOutcome.status).toBe("fulfilled");
+    expect(deletionOutcome.status).toBe("fulfilled");
+    if (deletionOutcome.status !== "fulfilled") throw deletionOutcome.reason;
+
+    expect(deletionOutcome.value.deletedRows.accessRequests).toBeGreaterThanOrEqual(1);
+    expect(deletionOutcome.value.deletedRows.invitations).toBeGreaterThanOrEqual(1);
+    const residue = (await pool.query<{
+      access_requests: number;
+      invitations: number;
+      outbox_rows: number;
+    }>(`
+      select
+        (select count(*)::int from access_request where id = $1::uuid) access_requests,
+        (select count(*)::int from invitation where id = $2::uuid) invitations,
+        (select count(*)::int from email_outbox
+          where variables ->> '_mailSourceId' = $2::text) outbox_rows
+    `, [ACCESS_REQUEST_ID, INVITATION_ID])).rows[0];
+    expect(residue).toEqual({
+      access_requests: 0,
+      invitations: 0,
+      outbox_rows: 0,
+    });
+  }, 30_000);
+
+  it("lets a same-email access request begin only after final pseudonymization", async () => {
+    const finalAccessLock = new QueryPause();
+    let accessLockCount = 0;
+    const deletion = deleteLearnerAccount(
+      deletionInput(objectStorageRoot, "95000000-0000-4000-8000-000000000031"),
+      deletionDependenciesWithHooks({
+        after: async (event) => {
+          if (
+            isBlockingAdvisoryLock(event.sql)
+            && event.values[0] === accessRequestAuthorityLockKey(LEARNER_EMAIL)
+          ) {
+            accessLockCount += 1;
+            if (accessLockCount === 2) {
+              await finalAccessLock.hold(event.pid);
+            }
+          }
+        },
+      }),
+    );
+    await within(finalAccessLock.reached, "final access-request authority lock", 10_000);
+
+    const producerAttempted = deferred();
+    const producer = db.transaction(async (tx) => {
+      const pid = await applicationTransactionPid(tx);
+      producerAttempted.resolve();
+      const sourceAuthorized =
+        await lockAccessRequestSourceAuthority(tx, LEARNER_EMAIL);
+      if (!sourceAuthorized) {
+        throw new Error("Expected post-deletion source authority.");
+      }
+      await tx.insert(accessRequest).values({
+        id: POST_DELETE_ACCESS_REQUEST_ID,
+        email: LEARNER_EMAIL,
+        name: "New Mailbox Owner",
+        reason: "A genuinely new request after the prior account was erased.",
+        adultConfirmedAt: new Date(),
+      });
+      return pid;
+    });
+    await within(producerAttempted.promise, "post-deletion access producer", 10_000);
+
+    let waitError: unknown = null;
+    try {
+      await waitForAdvisoryWaiters(finalAccessLock.pid!, 1, 10_000);
+    } catch (error) {
+      waitError = error;
+    } finally {
+      finalAccessLock.release();
+    }
+    const [deletionOutcome, producerOutcome] = await Promise.allSettled([
+      deletion,
+      producer,
+    ]);
+    if (waitError) throw waitError;
+    expect(deletionOutcome.status).toBe("fulfilled");
+    expect(producerOutcome.status).toBe("fulfilled");
+
+    const postCommit = (await pool.query<{
+      user_status: string;
+      user_email: string;
+      request_status: string;
+      request_email: string;
+    }>(`
+      select deleted_user.status::text user_status,
+             deleted_user.email user_email,
+             fresh_request.status::text request_status,
+             fresh_request.email request_email
+        from "user" deleted_user
+        join access_request fresh_request on fresh_request.id = $2::uuid
+       where deleted_user.id = $1
+    `, [LEARNER_ID, POST_DELETE_ACCESS_REQUEST_ID])).rows[0];
+    expect(postCommit).toEqual({
+      user_status: "deleted",
+      user_email: expect.stringMatching(/^deleted\+.*@invalid[.]local$/u),
+      request_status: "pending",
+      request_email: LEARNER_EMAIL,
+    });
+  }, 30_000);
+
+  it("rejects delayed account mail while the final deletion transaction owns user authority", async () => {
+    const finalOutboxDelete = new QueryPause();
+    let outboxDeleteCount = 0;
+    const deletion = deleteLearnerAccount(
+      deletionInput(objectStorageRoot, "95000000-0000-4000-8000-000000000032"),
+      deletionDependenciesWithHooks({
+        after: async (event) => {
+          if (
+            event.sql.startsWith(
+              "delete from email_outbox where user_id = $1 or pg_catalog.lower(pg_catalog.btrim(to_email)) = pg_catalog.lower(pg_catalog.btrim($2))",
+            )
+          ) {
+            outboxDeleteCount += 1;
+            if (outboxDeleteCount === 2) {
+              await finalOutboxDelete.hold(event.pid);
+            }
+          }
+        },
+      }),
+    );
+    await within(finalOutboxDelete.reached, "final outbox deletion", 10_000);
+
+    let observed: unknown;
+    let attemptError: unknown = null;
+    try {
+      observed = await within(
+        enqueueEmail({
+          to: LEARNER_EMAIL,
+          template: "credential-changed",
+          variables: { name: "Mail Race Learner" },
+          userId: LEARNER_ID,
+          idempotencySeed: "delayed-after-final-outbox-delete",
+        }).catch((error: unknown) => error),
+        "delayed account-mail rejection",
+        5_000,
+      );
+    } catch (error) {
+      attemptError = error;
+    } finally {
+      finalOutboxDelete.release();
+    }
+    await deletion;
+    if (attemptError) throw attemptError;
+    expect(observed).toMatchObject({
+      name: "EmailOutboxPersistenceError",
+      code: "EMAIL_OUTBOX_PERSISTENCE_FAILED",
+    });
+    expect((await pool.query(
+      `select id from email_outbox
+        where user_id = $1 and template = 'credential-changed'`,
+      [LEARNER_ID],
+    )).rows).toHaveLength(0);
+  }, 30_000);
+
+  it("rejects a stale quota mutation after deletion wins user authority", async () => {
+    const blocker = await holdFinalizerUserAuthorityGate();
+    const deletion = deleteLearnerAccount(
+      deletionInput(objectStorageRoot, "95000000-0000-4000-8000-000000000034"),
+      zeroErasureDependencies(),
+    );
+    let quota: ReturnType<typeof changeLearnerStorageQuota> | null = null;
+    let waitError: unknown = null;
+    try {
+      await waitForAdvisoryWaiters(blocker.pid, 1, 10_000);
+      quota = changeLearnerStorageQuota({
+        learnerPublicId: LEARNER_PUBLIC_ID,
+        requestedBytes: DEFAULT_STORAGE_QUOTA_BYTES + 256 * 1024 ** 2,
+        expectedRowVersion: 0,
+        requestId: "95000000-0000-4000-8000-000000000035",
+        actorUserId: ADMIN_ID,
+        reason: "Prove quota authority cannot survive account deletion.",
+      });
+      await waitForAdvisoryWaiters(blocker.pid, 2, 10_000);
+    } catch (error) {
+      waitError = error;
+    } finally {
+      await blocker.release();
+    }
+    const [deletionOutcome, quotaOutcome] = await Promise.allSettled([
+      deletion,
+      quota ?? Promise.reject(waitError),
+    ]);
+    if (waitError) throw waitError;
+    expect(deletionOutcome.status).toBe("fulfilled");
+    expect(quotaOutcome.status).toBe("rejected");
+    if (quotaOutcome.status === "rejected") {
+      expect(quotaOutcome.reason).toMatchObject({ code: "LEARNER_NOT_FOUND" });
+    }
+    expect((await pool.query(`
+      select
+        (select count(*)::int from learner_profile where user_id = $1) profiles,
+        (select count(*)::int from notification
+          where user_id = $1 and type = 'storage-quota-changed') notices,
+        (select count(*)::int from storage_quota_change
+          where learner_user_id = $1) changes
+    `, [LEARNER_ID])).rows[0]).toEqual({
+      profiles: 0,
+      notices: 0,
+      changes: 0,
+    });
+  }, 30_000);
+
+  it("suppresses a released system row whose authoritative request source was removed", async () => {
+    await db.transaction(async (tx) => {
+      const sourceAuthorized =
+        await lockAccessRequestSourceAuthority(tx, LEARNER_EMAIL);
+      if (!sourceAuthorized) throw new Error("Expected source authority.");
+      await persistApprovedAccessSystemMail(tx);
+    });
+    await db.transaction(async (tx) => {
+      await lockAccessRequestAuthority(tx, LEARNER_EMAIL);
+      await tx.execute(sql`delete from invitation where id = ${INVITATION_ID}::uuid`);
+      await tx.execute(sql`delete from access_request where id = ${ACCESS_REQUEST_ID}::uuid`);
+    });
+
+    const claim = await requireClaim(
+      CLAIM_TOKENS[0],
+      "orphan-system-source-worker",
+    );
+    await expect(beginProviderCall(claim)).resolves.toEqual({
+      kind: "suppressed",
+      code: "SYSTEM_EMAIL_AUTHORITY_INVALID",
+    });
+    expect((await outboxState())[0]).toMatchObject({
+      status: "suppressed",
+      provider_call_started: null,
+      last_error_code: "SYSTEM_EMAIL_AUTHORITY_INVALID",
+    });
+  }, 30_000);
 
   it("commits one notice when two same-request finalizers queue on the user-authority lock", async () => {
     const requestId = "95000000-0000-4000-8000-000000000020";
@@ -1558,11 +2187,6 @@ describe("real PostgreSQL mail delivery races", () => {
         where template = 'account-deleted' and user_id = $1`,
       [LEARNER_ID],
     )).rows).toHaveLength(0);
-    expect((await pool.query(
-      `select idempotency_sha256 from email_outbox_idempotency_authority
-        where idempotency_sha256 = $1`,
-      [failedEventKey],
-    )).rows).toHaveLength(0);
 
     const retry = await deleteLearnerAccount(
       deletionInput(objectStorageRoot, requestId),
@@ -1571,6 +2195,7 @@ describe("real PostgreSQL mail delivery races", () => {
     expect(retry.runId).toBe(failedRun!.id);
     expect(retry.replayed).toBe(false);
     const state = await deletionPersistenceState(retry);
+    expect(state.eventKey).toBe(failedEventKey);
     expectSingleDurableDeletionNotice(retry, state);
     expect(state.runs).toEqual([{
       id: retry.runId,

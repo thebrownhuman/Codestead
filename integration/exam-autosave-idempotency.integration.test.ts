@@ -19,6 +19,10 @@ import {
   EXAM_POLICY_VERSION,
   type ExamFormSnapshot,
 } from "@/lib/exams/contracts";
+import { validatedDisposableOwnerDatabaseTarget } from
+  "../scripts/lib/disposable-integration-environment";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
+import { withValidatedOwnerFaultInjection } from "./support/with-validated-owner-fault-injection";
 
 const OWNER_ID = "exam-autosave-owner";
 const OTHER_ID = "exam-autosave-other";
@@ -41,13 +45,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 const form: ExamFormSnapshot = {
@@ -304,28 +302,34 @@ describe("exam autosave exact-once PostgreSQL contract", () => {
   });
 
   it("rolls back the response when receipt insertion fails inside the transaction", async () => {
-    await pool.query(`
-      create function integration_fail_exam_autosave_receipt()
-      returns trigger language plpgsql as $$
-      begin
-        raise exception 'integration receipt failure' using errcode = 'P0001';
-      end;
-      $$;
-      create trigger integration_fail_exam_autosave_receipt
-      before insert on exam_autosave_mutation
-      for each row execute function integration_fail_exam_autosave_receipt();
-    `);
     let failure: unknown;
-    try {
-      await save();
-    } catch (error) {
-      failure = error;
-    } finally {
-      await pool.query(`
-        drop trigger if exists integration_fail_exam_autosave_receipt on exam_autosave_mutation;
-        drop function if exists integration_fail_exam_autosave_receipt();
-      `);
-    }
+    await withValidatedOwnerFaultInjection({
+      databaseTarget: validatedDisposableOwnerDatabaseTarget(process.env),
+      context: "Exam-autosave",
+      installSql: [`
+        create function public.integration_fail_exam_autosave_receipt()
+        returns trigger language plpgsql as $$
+        begin
+          raise exception 'integration receipt failure' using errcode = 'P0001';
+        end;
+        $$
+      `, `
+        create trigger integration_fail_exam_autosave_receipt
+        before insert on public.exam_autosave_mutation
+        for each row execute function public.integration_fail_exam_autosave_receipt()
+      `],
+      cleanupSql: [
+        "drop trigger if exists integration_fail_exam_autosave_receipt on public.exam_autosave_mutation",
+        "drop function if exists public.integration_fail_exam_autosave_receipt()",
+      ],
+      run: async () => {
+        try {
+          await save();
+        } catch (error) {
+          failure = error;
+        }
+      },
+    });
 
     expect(failure).toBeInstanceOf(Error);
     expect(hasPostgresErrorCode(failure, "P0001")).toBe(true);

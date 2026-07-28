@@ -1,9 +1,9 @@
 import path from "node:path";
 import { access, mkdir, mkdtemp, readdir, rm, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
 
 import { and, eq, sql } from "drizzle-orm";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { NextRequest } from "next/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { hashPassword } from "better-auth/crypto";
@@ -122,8 +122,16 @@ import {
   decideAppeal,
   getAdminAppealDetail,
 } from "@/lib/appeals/admin-service";
+import { validatedDisposableOwnerDatabaseTarget } from
+  "../scripts/lib/disposable-integration-environment";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
+import { runValidatedIntegrationMigrations } from "./support/with-validated-owner-fault-injection";
 
-
+const WORKSPACE_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+const WORKSPACE_MIGRATIONS_FOLDER = path.resolve(WORKSPACE_ROOT, "drizzle");
 const USER_A = "integration-user-a";
 const USER_B = "integration-user-b";
 const COURSE_ID = "10000000-0000-4000-8000-000000000001";
@@ -248,16 +256,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name
-    FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const identifiers = result.rows
-    .map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`)
-    .join(", ");
-  await pool.query(`TRUNCATE TABLE ${identifiers} RESTART IDENTITY CASCADE`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 async function seedUsers(options: { quota?: number } = {}) {
@@ -779,7 +778,10 @@ afterAll(async () => {
 
 describe("PostgreSQL migration contract", () => {
   it("applies every migration and remains idempotent when rerun", async () => {
-    await migrate(db, { migrationsFolder: path.join(process.cwd(), "drizzle") });
+    const appliedMigrationCount = await runValidatedIntegrationMigrations({
+      databaseTarget: validatedDisposableOwnerDatabaseTarget(process.env),
+      migrationsFolder: WORKSPACE_MIGRATIONS_FOLDER,
+    });
 
     const tables = await pool.query<{ table_name: string }>(`
       SELECT table_name
@@ -801,15 +803,15 @@ describe("PostgreSQL migration contract", () => {
       "account_deletion_tombstone",
       "appeal_event",
     ]) {
-      expect(names.has(required), `missing migrated table ${required}`).toBe(true);
+      expect(
+        names.has(required),
+        `missing migrated table ${required}`,
+      ).toBe(true);
     }
 
-    const migrationRows = await pool.query<{ count: string }>(
-      `SELECT count(*)::text AS count FROM drizzle.__drizzle_migrations`,
-    );
-    const migrationFiles = (await readdir(path.join(process.cwd(), "drizzle")))
+    const migrationFiles = (await readdir(WORKSPACE_MIGRATIONS_FOLDER))
       .filter((name) => /^\d+_.+\.sql$/.test(name));
-    expect(Number(migrationRows.rows[0]?.count)).toBe(migrationFiles.length);
+    expect(appliedMigrationCount).toBe(migrationFiles.length);
 
     const indexes = await pool.query<{ indexname: string }>(`
       SELECT indexname FROM pg_indexes WHERE schemaname = 'public'
@@ -830,7 +832,10 @@ describe("PostgreSQL migration contract", () => {
       "appeal_open_attempt_unique",
       "appeal_event_request_unique",
     ]) {
-      expect(indexNames.has(required), `missing migrated index ${required}`).toBe(true);
+      expect(
+        indexNames.has(required),
+        `missing migrated index ${required}`,
+      ).toBe(true);
     }
 
     const constraints = await pool.query<{ conname: string }>(`
@@ -851,11 +856,13 @@ describe("PostgreSQL migration contract", () => {
       "appeal_evidence_hash_check",
       "appeal_event_reason_length",
     ]) {
-      expect(constraintNames.has(required), `missing migrated constraint ${required}`).toBe(true);
+      expect(
+        constraintNames.has(required),
+        `missing migrated constraint ${required}`,
+      ).toBe(true);
     }
   });
 });
-
 describe("email outbox replay transaction boundary", () => {
   it("rolls back a preceding Drizzle write on a sanitized durable replay conflict", async () => {
     await seedUsers();

@@ -18,7 +18,7 @@ done
 : "${RESTORE_OPERATIONS_IMAGE:?RESTORE_OPERATIONS_IMAGE is required for the drill}"
 : "${RESTORE_DRILL_COMPOSE_FILE:=$REPO_ROOT/infra/restore/restore-drill.compose.yaml}"
 : "${RESTORE_DRILL_WORK_ROOT:=/var/tmp}"
-readonly restore_postgres_image="postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394"
+readonly restore_postgres_image="$RESTORE_REPORT_POSTGRES_IMAGE"
 readonly restore_secrets_gid=2000
 readonly POSTGRES_SOCKET=/run/learncoding-postgres
 
@@ -112,6 +112,48 @@ readonly restore_postgres_uid="${postgres_identity[0]}"
 readonly restore_postgres_gid="${postgres_identity[1]}"
 unset postgres_identity
 
+verifier_release_git_commit="$(docker image inspect --format \
+  '{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
+  "$RESTORE_OPERATIONS_IMAGE")" \
+  || die "unable to inspect the immutable restore operations image release"
+[[ "$verifier_release_git_commit" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] \
+  || die "restore operations image release provenance is invalid"
+verifier_contract_provenance="$(
+  docker run --rm --pull never --network none --read-only --cap-drop ALL \
+    --security-opt no-new-privileges --pids-limit 64 --memory 128m --cpus 1 \
+    --user "$restore_postgres_uid:$restore_postgres_gid" \
+    --entrypoint node "$RESTORE_OPERATIONS_IMAGE" --input-type=module --eval '
+      import { createHash } from "node:crypto";
+      import { readFileSync } from "node:fs";
+      const reviewed = await import(
+        "file:///app/scripts/lib/reviewed-migration-ledger.mjs"
+      );
+      const tail = reviewed.REVIEWED_MIGRATION_LEDGER.at(-1);
+      const verifierSha256 = createHash("sha256")
+        .update(readFileSync("/app/scripts/verify-restored-backup.ts"))
+        .digest("hex");
+      process.stdout.write([
+        verifierSha256,
+        reviewed.REVIEWED_MIGRATION_LEDGER.length,
+        tail?.idx,
+        tail?.tag,
+        reviewed.REVIEWED_MIGRATION_LEDGER_SHA256,
+      ].join("|") + "\n");
+    '
+)" || die "restore verifier contract provenance inspection failed"
+IFS='|' read -r restore_verifier_sha256 reviewed_migration_count \
+  reviewed_migration_tail_idx reviewed_migration_tail_tag \
+  reviewed_migration_ledger_sha256 verifier_provenance_extra \
+  <<<"$verifier_contract_provenance"
+unset verifier_contract_provenance
+[[ -z "${verifier_provenance_extra:-}" \
+  && "$restore_verifier_sha256" =~ ^[0-9a-f]{64}$ \
+  && "$reviewed_migration_count" == "$RESTORE_REPORT_REVIEWED_MIGRATION_COUNT" \
+  && "$reviewed_migration_tail_idx" == "$RESTORE_REPORT_REVIEWED_MIGRATION_TAIL_IDX" \
+  && "$reviewed_migration_tail_tag" == "$RESTORE_REPORT_REVIEWED_MIGRATION_TAIL_TAG" \
+  && "$reviewed_migration_ledger_sha256" == "$RESTORE_REPORT_REVIEWED_MIGRATION_LEDGER_SHA256" ]] \
+  || die "restore verifier image does not contain the exact reviewed 0069 contract"
+
 restore_secret_root="$work/database-secrets"
 install -d -m 0750 -o 0 -g "$restore_secrets_gid" "$restore_secret_root"
 restore_postgres_password_file="$restore_secret_root/postgres_password"
@@ -160,7 +202,15 @@ write_restore_secret "$restore_database_backup_reporter_url_file" \
 unset restore_password restore_passwords restore_password_set restore_postgres_password
 
 archive_name=unknown
+archive_sha256=unknown
 snapshot_utc=unknown
+source_release_git_commit=unknown
+source_database_version=unknown
+migration_count=-1
+migration_last_id=-1
+migration_last_created_at=-1
+migration_state_sha256=unknown
+restore_database_version_num=-1
 database_schema_valid=false
 app_data_valid=false
 credential_recovery=false
@@ -217,10 +267,11 @@ write_report() {
   rm -f -- "$report_checksum"
   temporary="$(mktemp -- "$root/restore-reports/.restore-drill-report.XXXXXX")"
   cat >"$temporary" <<EOF
-version=1
+version=2
 result=$result
 source=offsite
 archive=$archive_name
+archive_sha256=$archive_sha256
 approval_utc=$approval_utc
 snapshot_utc=$snapshot_utc
 incident_utc=$incident_utc
@@ -236,6 +287,21 @@ rpo_seconds=$rpo_seconds
 rpo_within_24h=$rpo_within_24h
 rto_seconds=$rto_seconds
 rto_within_4h=$rto_within_4h
+source_release_git_commit=$source_release_git_commit
+verifier_release_git_commit=$verifier_release_git_commit
+source_database_version=$source_database_version
+migration_count=$migration_count
+migration_last_id=$migration_last_id
+migration_last_created_at=$migration_last_created_at
+migration_state_sha256=$migration_state_sha256
+reviewed_migration_count=$reviewed_migration_count
+reviewed_migration_tail_idx=$reviewed_migration_tail_idx
+reviewed_migration_tail_tag=$reviewed_migration_tail_tag
+reviewed_migration_ledger_sha256=$reviewed_migration_ledger_sha256
+restore_operations_image=$RESTORE_OPERATIONS_IMAGE
+restore_postgres_image=$restore_postgres_image
+restore_postgres_version_num=$restore_database_version_num
+restore_verifier_sha256=$restore_verifier_sha256
 EOF
   chmod 0600 "$temporary"
   sync -f "$temporary"
@@ -286,6 +352,10 @@ archive="$(BACKUP_LOCK_HELD=1 BACKUP_CONFIG_FILE="${BACKUP_CONFIG_FILE:-/etc/lea
 [[ "$archive" == "$download"/learncoding-full-*.tar.gz.age ]] \
   || die "offsite retrieval returned an invalid archive path"
 archive_name="$(basename "$archive")"
+archive_sha256="$(sha256sum "$archive" | awk '{print $1}')" \
+  || die "unable to hash the attested offsite archive"
+[[ "$archive_sha256" =~ ^[0-9a-f]{64}$ ]] \
+  || die "attested offsite archive hash is invalid"
 
 BACKUP_LOCK_HELD=1 BACKUP_CONFIG_FILE="${BACKUP_CONFIG_FILE:-/etc/learncoding/backup.env}" \
   bash "$SCRIPT_DIR/restore.sh" "$archive" --destination "$extracted" \
@@ -305,11 +375,40 @@ BACKUP_LOCK_HELD=1 BACKUP_CONFIG_FILE="${BACKUP_CONFIG_FILE:-/etc/learncoding/ba
   | grep -Fxq recovery_kit_valid=true \
   || die "credential recovery kit verification failed"
 
-snapshot_line="$(grep -E '^snapshot_utc=[0-9]{8}T[0-9]{6}Z$' "$extracted/MANIFEST.txt" || true)"
-[[ -n "$snapshot_line" && "$(grep -Ec '^snapshot_utc=' "$extracted/MANIFEST.txt")" -eq 1 ]] \
+manifest="$extracted/MANIFEST.txt"
+read_manifest_value() {
+  local key="$1" value
+  value="$(grep -E "^${key}=" "$manifest" || true)"
+  [[ -n "$value" && "$(grep -Ec "^${key}=" "$manifest")" -eq 1 ]] \
+    || return 1
+  printf '%s\n' "${value#*=}"
+}
+snapshot_utc="$(read_manifest_value snapshot_utc)" \
   || die "restored backup snapshot timestamp is invalid"
-snapshot_utc="${snapshot_line#snapshot_utc=}"
-_valid_compact_utc_timestamp "$snapshot_utc" || die "restored backup snapshot timestamp is invalid"
+source_release_git_commit="$(read_manifest_value git_commit)" \
+  || die "restored backup release provenance is invalid"
+source_database_version="$(read_manifest_value database_version)" \
+  || die "restored backup PostgreSQL provenance is invalid"
+migration_count="$(read_manifest_value migration_count)" \
+  || die "restored backup migration count is invalid"
+migration_last_id="$(read_manifest_value migration_last_id)" \
+  || die "restored backup migration tail id is invalid"
+migration_last_created_at="$(read_manifest_value migration_last_created_at)" \
+  || die "restored backup migration tail timestamp is invalid"
+migration_state_sha256="$(read_manifest_value migration_state_sha256)" \
+  || die "restored backup migration state provenance is invalid"
+_valid_compact_utc_timestamp "$snapshot_utc" \
+  || die "restored backup snapshot timestamp is invalid"
+[[ "$source_release_git_commit" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ \
+  && "$source_release_git_commit" == "$verifier_release_git_commit" ]] \
+  || die "restored backup and verifier image releases do not match"
+[[ "$source_database_version" =~ ^postgres[[:space:]]+\(PostgreSQL\)[[:space:]]+17([.][0-9]+)?([[:space:]][A-Za-z0-9._+\(\)/:=-]+)*$ ]] \
+  || die "restored backup PostgreSQL provenance is invalid"
+[[ "$migration_count" == "$RESTORE_REPORT_REVIEWED_MIGRATION_COUNT" \
+  && "$migration_last_id" =~ ^[0-9]{1,20}$ \
+  && "$migration_last_created_at" == "$RESTORE_REPORT_REVIEWED_MIGRATION_TAIL_CREATED_AT" \
+  && "$migration_state_sha256" =~ ^[0-9a-f]{64}$ ]] \
+  || die "restored backup migration provenance is not the reviewed 0069 ledger"
 preflight_ok=0
 preflight_metrics=""
 if preflight_metrics="$(bash "$SCRIPT_DIR/validate-restore-metrics.sh" preflight \
@@ -375,6 +474,7 @@ restore_compose exec -T postgres /bin/sh -ceu '
   exec pg_restore --host=/run/learncoding-postgres --username="$POSTGRES_USER" --dbname="$POSTGRES_DB" --role=learncoding_owner --exit-on-error --no-owner --no-acl
 ' <"$extracted/database.dump" >/dev/null
 REQUIRE_COMPLETE_MIGRATION_LEDGER=true \
+RESTORE_NO_ACL_RECONCILIATION=true \
   restore_one_shot database-role-bootstrap
 restore_one_shot database-boundary-verifier
 

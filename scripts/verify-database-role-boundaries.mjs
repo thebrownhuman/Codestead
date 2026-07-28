@@ -21,6 +21,7 @@ import {
   REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES,
   REVIEWED_REPLAY_AUTHORITY_RELATIONAL_CONTRACT,
   canonicalReviewedMailAuthorityCatalogPhase,
+  preserveDatabaseOperationAndCleanupFailures,
 } from "./bootstrap-database-roles.mjs";
 import { verifyBackupStatusMailAuthorityCatalogObjects } from "./verify-backup-status-mail-authority.mjs";
 
@@ -49,6 +50,9 @@ const RUNTIME_ROLES = new Set([
   "learncoding_worker",
   "learncoding_ops",
 ]);
+const RESTORED_NO_ACL_STRUCTURE = Symbol(
+  "restored-no-acl-mail-authority-structure",
+);
 
 export class DatabaseRoleBoundaryError extends Error {
   constructor(section = "unspecified") {
@@ -353,10 +357,18 @@ async function discoverApplicationObjects(client) {
   };
 }
 
-export async function verifyReviewedApplicationRoutines(
+async function verifyReviewedApplicationRoutinesInternal(
   client,
-  routines = REVIEWED_APPLICATION_FUNCTIONS,
+  routines,
+  verificationMode = undefined,
 ) {
+  if (
+    verificationMode !== undefined &&
+    verificationMode !== RESTORED_NO_ACL_STRUCTURE
+  )
+    fail("reviewed-routine-verification-mode");
+  const restoredNoAclStructure =
+    verificationMode === RESTORED_NO_ACL_STRUCTURE;
   await establishTrustedCatalogSearchPath(client);
   let verified = 0;
   for (const routine of routines) {
@@ -591,8 +603,12 @@ export async function verifyReviewedApplicationRoutines(
       binary_exact: true,
       sql_body_exact: true,
       definition_sha256_exact: true,
-      effective_execute_exact: true,
-      routine_direct_acl_exact: true,
+      ...(restoredNoAclStructure
+        ? {}
+        : {
+            effective_execute_exact: true,
+            routine_direct_acl_exact: true,
+          }),
     };
     const row = result.rows[0];
     if (result.rows.length !== 1 || !exactRow(row, expected)) {
@@ -606,6 +622,14 @@ export async function verifyReviewedApplicationRoutines(
   }
   return verified;
 }
+
+export async function verifyReviewedApplicationRoutines(
+  client,
+  routines = REVIEWED_APPLICATION_FUNCTIONS,
+) {
+  return verifyReviewedApplicationRoutinesInternal(client, routines);
+}
+
 export async function verifyReviewedApplicationTriggers(
   client,
   triggers = REVIEWED_APPLICATION_TRIGGERS,
@@ -702,14 +726,22 @@ export async function verifyReviewedApplicationTriggers(
   return verified;
 }
 
-export async function verifyMailReplayAuthorityTableContract(
+async function verifyMailReplayAuthorityTableContractInternal(
   client,
   {
     requiresGuardedDelivery = false,
     expectedAppInsertColumns,
     expectedWorkerUpdateColumns,
   } = {},
+  verificationMode = undefined,
 ) {
+  if (
+    verificationMode !== undefined &&
+    verificationMode !== RESTORED_NO_ACL_STRUCTURE
+  )
+    fail("mail-replay-authority-verification-mode");
+  const restoredNoAclStructure =
+    verificationMode === RESTORED_NO_ACL_STRUCTURE;
   const canonicalWorkerUpdateColumns = requiresGuardedDelivery
     ? MAIL_WORKER_OUTBOX_UPDATE_COLUMNS
     : MAIL_WORKER_OUTBOX_PRE_REQUEST_UPDATE_COLUMNS;
@@ -2245,9 +2277,13 @@ export async function verifyMailReplayAuthorityTableContract(
     authority_relation_rls_exact: true,
     authority_constraint_set_exact: true,
     authority_index_set_exact: true,
-    persistent_default_acl_exact: true,
+    ...(restoredNoAclStructure
+      ? {}
+      : { persistent_default_acl_exact: true }),
     persistent_relation_grant_options_exact: true,
-    persistent_column_acl_exact: true,
+    ...(restoredNoAclStructure
+      ? {}
+      : { persistent_column_acl_exact: true }),
     authority_primary_index_catalog_exact: true,
     authority_composite_index_catalog_exact: true,
     outbox_replay_lookup_index_catalog_exact: true,
@@ -2258,9 +2294,13 @@ export async function verifyMailReplayAuthorityTableContract(
     outbox_delivery_scope_exact: true,
     reviewed_trigger_set_exact: true,
     reviewed_routine_overloads_exact: true,
-    authority_direct_acl_exact: true,
-    authority_effective_acl_exact: true,
-    authority_column_acl_exact: true,
+    ...(restoredNoAclStructure
+      ? {}
+      : {
+          authority_direct_acl_exact: true,
+          authority_effective_acl_exact: true,
+          authority_column_acl_exact: true,
+        }),
     outbox_replay_lookup_index_exact: true,
     authority_composite_unique_exact: true,
     outbox_authority_foreign_key_exact: true,
@@ -2276,7 +2316,15 @@ export async function verifyMailReplayAuthorityTableContract(
   }
   return 1;
 }
-export async function verifyMailWorkerOutboxContract(
+
+export async function verifyMailReplayAuthorityTableContract(
+  client,
+  options = {},
+) {
+  return verifyMailReplayAuthorityTableContractInternal(client, options);
+}
+
+async function verifyMailWorkerOutboxContractInternal(
   client,
   {
     requiresDispatchBinding = true,
@@ -2285,7 +2333,15 @@ export async function verifyMailWorkerOutboxContract(
     requiresProviderRequest = false,
     requiresGuardedDelivery = false,
   } = {},
+  verificationMode = undefined,
 ) {
+  if (
+    verificationMode !== undefined &&
+    verificationMode !== RESTORED_NO_ACL_STRUCTURE
+  )
+    fail("mail-worker-outbox-verification-mode");
+  const restoredNoAclStructure =
+    verificationMode === RESTORED_NO_ACL_STRUCTURE;
   if (
     typeof requiresDispatchBinding !== "boolean" ||
     typeof requiresProviderEvidence !== "boolean" ||
@@ -2879,9 +2935,13 @@ export async function verifyMailWorkerOutboxContract(
     dispatch_constraint_exact: true,
     provider_evidence_constraint_exact: true,
     replay_authority_constraint_exact: true,
-    worker_table_direct_acl_exact: true,
-    worker_column_direct_acl_exact: true,
-    worker_effective_privileges_exact: true,
+    ...(restoredNoAclStructure
+      ? {}
+      : {
+          worker_table_direct_acl_exact: true,
+          worker_column_direct_acl_exact: true,
+          worker_effective_privileges_exact: true,
+        }),
   };
   const row = result.rows[0];
   if (result.rows.length !== 1 || !exactRow(row, expected)) {
@@ -2892,20 +2952,36 @@ export async function verifyMailWorkerOutboxContract(
     fail(`mail-worker-outbox-contract:${mismatches}`);
   }
   if (requiresReplayAuthority) {
-    await verifyMailReplayAuthorityTableContract(client, {
+    await verifyMailReplayAuthorityTableContractInternal(
+      client,
+      {
+        requiresGuardedDelivery,
+        expectedAppInsertColumns,
+        expectedWorkerUpdateColumns: expectedUpdateColumns,
+      },
+      verificationMode,
+    );
+  }
+  if (restoredNoAclStructure) {
+    await verifyMailGuardedDeliveryCatalogContract(
+      client,
       requiresGuardedDelivery,
+    );
+  } else {
+    await verifyMailGuardedDeliveryAclContract(client, {
       expectedAppInsertColumns,
+      expectedWorkerInsertColumns: expectedInsertColumns,
       expectedWorkerUpdateColumns: expectedUpdateColumns,
+      requiresGuardedDelivery,
     });
   }
-  await verifyMailGuardedDeliveryAclContract(client, {
-    expectedAppInsertColumns,
-    expectedWorkerInsertColumns: expectedInsertColumns,
-    expectedWorkerUpdateColumns: expectedUpdateColumns,
-    requiresGuardedDelivery,
-  });
   return 1;
 }
+
+export async function verifyMailWorkerOutboxContract(client, options = {}) {
+  return verifyMailWorkerOutboxContractInternal(client, options);
+}
+
 async function verifyMailGuardedDeliveryCatalogContract(
   client,
   requiresGuardedDelivery,
@@ -3734,6 +3810,61 @@ export async function verifyReviewedMailAuthorityObjectFootprint(
   return 1;
 }
 
+export async function verifyRestoredNoAclMailAuthorityStructure(
+  client,
+  phase,
+) {
+  const canonicalPhase = canonicalReviewedMailAuthorityCatalogPhase(phase);
+  const requiredBooleanKeys = [
+    "requiresWorkerContract",
+    "requiresProviderEvidence",
+    "requiresReplayAuthority",
+    "requiresGuardedDelivery",
+  ];
+  if (
+    canonicalPhase === null ||
+    !Object.isFrozen(canonicalPhase) ||
+    !Array.isArray(canonicalPhase.routines) ||
+    !Object.isFrozen(canonicalPhase.routines) ||
+    canonicalPhase.routines.some((routine) => !Object.isFrozen(routine)) ||
+    !Array.isArray(canonicalPhase.triggers) ||
+    !Object.isFrozen(canonicalPhase.triggers) ||
+    canonicalPhase.triggers.some((trigger) => !Object.isFrozen(trigger)) ||
+    requiredBooleanKeys.some(
+      (key) => typeof canonicalPhase[key] !== "boolean",
+    )
+  )
+    fail("restored-no-acl-mail-authority-phase");
+
+  await verifyReviewedMailAuthorityObjectFootprint(client, canonicalPhase);
+  const routinesVerified = await verifyReviewedApplicationRoutinesInternal(
+    client,
+    canonicalPhase.routines,
+    RESTORED_NO_ACL_STRUCTURE,
+  );
+  const triggersVerified = await verifyReviewedApplicationTriggers(
+    client,
+    canonicalPhase.triggers,
+  );
+  const workerContractsVerified = await verifyMailWorkerOutboxContractInternal(
+    client,
+    {
+      requiresDispatchBinding: canonicalPhase.requiresWorkerContract,
+      requiresProviderEvidence: canonicalPhase.requiresProviderEvidence,
+      requiresReplayAuthority: canonicalPhase.requiresReplayAuthority,
+      requiresProviderRequest: canonicalPhase.requiresGuardedDelivery,
+      requiresGuardedDelivery: canonicalPhase.requiresGuardedDelivery,
+    },
+    RESTORED_NO_ACL_STRUCTURE,
+  );
+  return {
+    routinesVerified,
+    triggersVerified,
+    workerContractsVerified,
+    totalVerified:
+      routinesVerified + triggersVerified + workerContractsVerified,
+  };
+}
 export async function verifyReviewedMailAuthorityCatalogContracts(
   client,
   phase,
@@ -4044,6 +4175,9 @@ export async function verifyDatabaseRoleBoundaries(options) {
   let rolesAuthenticated = 0;
   let positiveChecks = 0;
   let negativeChecks = 0;
+  let operationFailed = false;
+  let operationFailure;
+  let verificationResult;
   try {
     for (const [name] of ROLE_SPECS) {
       const role = parsed[name];
@@ -4092,35 +4226,41 @@ export async function verifyDatabaseRoleBoundaries(options) {
       positiveChecks += result.positiveChecks;
       negativeChecks += result.negativeChecks;
     }
-    return { rolesAuthenticated, positiveChecks, negativeChecks };
+    verificationResult = { rolesAuthenticated, positiveChecks, negativeChecks };
   } catch (error) {
-    if (error instanceof DatabaseRoleBoundaryError) {
-      throw error;
-    }
-    fail();
-  } finally {
-    let cleanupFailed = false;
-    if (lockAcquired) {
-      try {
-        await releaseAdministrationLock(lockClient);
-      } catch {
-        cleanupFailed = true;
-      }
-    }
-    for (const { client, pool } of [...resources.values()].reverse()) {
-      try {
-        client?.release(cleanupFailed || undefined);
-      } catch {
-        cleanupFailed = true;
-      }
-      try {
-        await bounded(() => pool.end());
-      } catch {
-        cleanupFailed = true;
-      }
-    }
-    if (cleanupFailed) fail();
+    operationFailed = true;
+    operationFailure = error;
   }
+
+  const cleanupFailures = [];
+  if (lockAcquired) {
+    try {
+      await releaseAdministrationLock(lockClient);
+    } catch (error) {
+      cleanupFailures.push(error);
+    }
+  }
+  for (const { client, pool } of [...resources.values()].reverse()) {
+    try {
+      client?.release(cleanupFailures.length > 0 ? true : undefined);
+    } catch (error) {
+      cleanupFailures.push(error);
+    }
+    try {
+      await bounded(() => pool.end());
+    } catch (error) {
+      cleanupFailures.push(error);
+    }
+  }
+
+  const outcome = preserveDatabaseOperationAndCleanupFailures({
+    operationFailed,
+    operationFailure,
+    cleanupFailures,
+    message: "database role boundary verification failed and cleanup was incomplete",
+  });
+  if (outcome.failed) throw outcome.failure;
+  return verificationResult;
 }
 
 function parseArguments(argv) {

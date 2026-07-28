@@ -17,6 +17,10 @@ import {
 } from "@/lib/runner/power-rehearsal-admin";
 import { holdRunnerDispatchForPowerRehearsal } from "@/lib/runner/power-rehearsal-hold";
 import { buildPracticeRunnerRequest, PRACTICE_LIMITS } from "@/lib/runner/practice-dispatch";
+import { validatedDisposableOwnerDatabaseTarget } from
+  "../scripts/lib/disposable-integration-environment";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
+import { withValidatedOwnerFaultInjection } from "./support/with-validated-owner-fault-injection";
 
 const ADMIN = "rehearsal-admin";
 const LEARNER_ONE = "rehearsal-learner-one";
@@ -35,13 +39,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(",");
-  await pool.query(`truncate table ${names} restart identity cascade`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 async function createHeldDispatch(input: {
@@ -396,35 +394,42 @@ describe("root-operated runner power rehearsal in PostgreSQL", () => {
   });
 
   it("rolls back arm if the immutable audit append fails", async () => {
-    await pool.query(`
-      create function integration_fail_rehearsal_audit()
-      returns trigger language plpgsql as $$
-      begin
-        if new.action = 'runner.power_rehearsal.arm' then
-          raise exception 'integration audit failure' using errcode = 'P0001';
-        end if;
-        return new;
-      end;
-      $$;
-      create trigger integration_fail_rehearsal_audit
-      before insert on audit_event for each row execute function integration_fail_rehearsal_audit();
-    `);
-    try {
-      await expect(armRunnerPowerRehearsal({
-        actorUserId: ADMIN,
-        eventId: EVENT,
-        learnerOneId: LEARNER_ONE,
-        learnerTwoId: LEARNER_TWO,
-        reason: REASON,
-        expiresInMinutes: 30,
-        now: NOW,
-      })).rejects.toBeInstanceOf(Error);
-      expect((await pool.query(`select count(*)::text count from runner_power_rehearsal_event`)).rows[0]?.count)
-        .toBe("0");
-    } finally {
-      await pool.query(`drop trigger if exists integration_fail_rehearsal_audit on audit_event`);
-      await pool.query(`drop function if exists integration_fail_rehearsal_audit()`);
-    }
+    await withValidatedOwnerFaultInjection({
+      databaseTarget: validatedDisposableOwnerDatabaseTarget(process.env),
+      context: "Power-rehearsal",
+      installSql: [`
+        create function public.integration_fail_rehearsal_audit()
+        returns trigger language plpgsql as $$
+        begin
+          if new.action = 'runner.power_rehearsal.arm' then
+            raise exception 'integration audit failure' using errcode = 'P0001';
+          end if;
+          return new;
+        end;
+        $$
+      `, `
+        create trigger integration_fail_rehearsal_audit
+        before insert on public.audit_event
+        for each row execute function public.integration_fail_rehearsal_audit()
+      `],
+      cleanupSql: [
+        "drop trigger if exists integration_fail_rehearsal_audit on public.audit_event",
+        "drop function if exists public.integration_fail_rehearsal_audit()",
+      ],
+      run: async () => {
+        await expect(armRunnerPowerRehearsal({
+          actorUserId: ADMIN,
+          eventId: EVENT,
+          learnerOneId: LEARNER_ONE,
+          learnerTwoId: LEARNER_TWO,
+          reason: REASON,
+          expiresInMinutes: 30,
+          now: NOW,
+        })).rejects.toBeInstanceOf(Error);
+        expect((await pool.query(`select count(*)::text count from runner_power_rehearsal_event`)).rows[0]?.count)
+          .toBe("0");
+      },
+    });
   });
 
   it("rejects a learner actor and an inactive target before event insertion", async () => {

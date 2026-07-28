@@ -23,7 +23,7 @@
       "file": "src/lib/battles/service.ts",
       "purpose": "scope-visible battles, participant-bound submissions, and reviewed immutable challenge sources",
       "anchors": 4,
-      "sourceSha256": "30115a809d74ded41f0aa56cfacdbd207e0931f8fb7b3f78de56214805a25015"
+      "sourceSha256": "16da0ef10d580e64e50d236480d3563f9e4b2f946b7285fed592cd80b249c966"
     },
     {
       "file": "src/lib/community/service.ts",
@@ -41,7 +41,7 @@
       "file": "src/lib/learning-service/drizzle-store.ts",
       "purpose": "learning sessions and attempts",
       "anchors": 4,
-      "sourceSha256": "0fbeffedb0fd055e1f3b73360d71e0c2c5726d8a1ac8fafb0e168066b8aa32f2"
+      "sourceSha256": "b25f8a798e54b0e714f1d4fb7b052804d5867089253aab344dac904f0a264a87"
     },
     {
       "file": "src/lib/daily-review/service.ts",
@@ -65,13 +65,13 @@
       "file": "src/lib/projects/revision-service.ts",
       "purpose": "learner-owned project revisions and file associations",
       "anchors": 4,
-      "sourceSha256": "de8da8181f80f05785c8faef6e311b026010cc6b7cfe45a398312b0aba1936e8"
+      "sourceSha256": "e5e1cb962fb094578c713a4748669896f2afbe036ef802529ef774fbb79972dd"
     },
     {
       "file": "src/lib/session-controls.ts",
       "purpose": "learner session revocation",
       "anchors": 1,
-      "sourceSha256": "93277961c05935cb917f4f4bd47da646a46aa49c9cdf42e20e7561143cb4b7d3"
+      "sourceSha256": "15b79351cbca7396936b8d659c191a8412e055f0f186976336dbea4a0aa85d1c"
     },
     {
       "file": "src/lib/certificates/service.ts",
@@ -135,7 +135,7 @@
       "admin": "allowed",
       "objectAuthorization": "public-input",
       "ownershipProof": "validated public request",
-      "operationSourceSha256": "cf9d1bca4efb12b05ab4e29a57c40995d298adf1173015eb4c819075f211c30c"
+      "operationSourceSha256": "4a9363e3b59b8d8797283a93ab1b67ee9a610eca544edaa0fc384d6a2fb0ec17"
     },
     {
       "operation": "POST /api/admin/access-requests/[id]/approve",
@@ -148,7 +148,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "2b462c21fd7788c6b992be2e202945e9ad2be9d73d1f171bf16fc0c0e5df5f90"
+      "operationSourceSha256": "e7c4ba8fa3166a1701d80b67e7eebe55bb834adf4075385d32d017311ee1d978"
     },
     {
       "operation": "POST /api/admin/access-requests/[id]/reject",
@@ -161,7 +161,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "a04dc2c3d0c6dc02da573ae667e6fcc50aab29b3b3b4fa26c6341c18f9cb77c6"
+      "operationSourceSha256": "6d85786498e49f6f6f6b1403887a1f1a034c1c65d8adc4a49421272a3d068667"
     },
     {
       "operation": "GET /api/admin/access-requests",
@@ -720,7 +720,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "cb616a78fb27503beff7eb5cffdd5b5f52dcb37580d08fb0a78aec663a66d0c5"
+      "operationSourceSha256": "49fdea0ec8bdbaee2e63a2ba745a24c3eb09a6784dd48da374fdcfc7de3c13d7"
     },
     {
       "operation": "GET /api/admin/learners/[learnerId]/sessions",
@@ -759,7 +759,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "f3cfcbc3cd1ad8e8d5c892efb9eb1a99155a9f4fd35da6583f6e4302e5258f89"
+      "operationSourceSha256": "083407fc4b55367a67717332e7284a6f6130041532811fc5eed5b022a3908146"
     },
     {
       "operation": "POST /api/admin/learning-requests/[id]/decision",
@@ -1214,7 +1214,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(providerCredential.userId, authz.session.user.id)",
-      "operationSourceSha256": "3a11020a7c61c562fd780a971e8c5fc1ea56ecce9b548834794236b977a07f1b"
+      "operationSourceSha256": "3e922eb9bb1e3b0378869b591a6168967f59f423cf55ae6d1997e47370e1756a"
     },
     {
       "operation": "PATCH /api/credentials/[id]",
@@ -1227,7 +1227,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "identifier bound by eq(providerCredential.userId, authz.session.user.id)",
-      "operationSourceSha256": "b998949f013d7ba365cab711b0a639f203dd54f2929f86a7deebc93c9f2d82ec"
+      "operationSourceSha256": "ae533d7188558613a69e2dd9ff6dbde2d9092a86cdd9167a03ce78cb4bdd8572"
     },
     {
       "operation": "GET /api/credentials",
@@ -1838,7 +1838,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "4f56c03bbe542bea5ec6928f00b9b8af73b0f32cc28822b1886a07b6ecf079be"
+      "operationSourceSha256": "e2b89eae4b3eae39234fd47232ab2556a53651ef33d064cd4894a6e0d873cb7f"
     },
     {
       "operation": "POST /api/onboarding/interests/preview",
@@ -2085,7 +2085,7 @@
       "admin": "allowed",
       "objectAuthorization": "session-user",
       "ownershipProof": "all user context is derived from authz.session.user.id",
-      "operationSourceSha256": "717766d722d1ecd0ede456423d4124a5b7b80058d519df990aeb408193266132"
+      "operationSourceSha256": "22ce4d5b0b82e899b0eb12fb16927a2ce3b48d33b57c1383b18d74bd6a6a5c81"
     },
     {
       "operation": "DELETE /api/sessions/[id]",
@@ -2140,7 +2140,7 @@
       "operationSourceSha256": "b88f55f3a91e588c90d93419fbf944eba9e0f64f9fd6a5ab3e2f9a003ce2ccd8"
     }
   ],
-  "generatedAt": "2026-07-22T11:06:55.802Z",
+  "generatedAt": "2026-07-27T21:59:36.024Z",
   "scope": "Complete static role/object-authorization source inventory. The endpoint sweep verifies guard invocation, while authz.test.ts verifies real guard decisions and runtime-authorization.integration.test.ts behaviorally covers a representative owner-bound route set. This report alone is not runtime cross-user proof, deployed proxy/browser evidence, or PostgreSQL RLS evidence.",
   "runtimeVerification": {
     "guardInvocationTest": "src/lib/security/__tests__/endpoint-auth-boundaries.test.ts",

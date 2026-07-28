@@ -439,8 +439,7 @@ async function selectTerminalEmailDeletionCandidates(
       )
       and coalesce(sent_at, updated_at) < $1
       order by coalesce(sent_at, updated_at) asc, id asc
-      limit $2
-      for update skip locked`,
+      limit $2`,
     [cutoff, limit],
   );
   return result.rows.map((row) => row.id);
@@ -477,8 +476,7 @@ async function selectConsoleEmailDeletionCandidates(
         )
         and coalesce(sent_at, updated_at) < $1
       order by coalesce(sent_at, updated_at) asc, id asc
-      limit $2
-      for update skip locked`,
+      limit $2`,
     [cutoff, limit],
   );
   return result.rows.map((row) => row.id);
@@ -1428,9 +1426,9 @@ export async function runRetention(input: {
           );
         } else {
           const deletedEmail = await client.query<IdRow>(
-            `delete from email_outbox where id in (
-               select id from email_outbox
-                where (
+            `delete from email_outbox
+              where id = any($2::uuid[])
+                and (
                   status in ('sent', 'suppressed', 'failed')
                   or (
                     status = 'quarantined'
@@ -1465,11 +1463,9 @@ export async function runRetention(input: {
                     )
                   )
                 )
-                and id = any($3::uuid[])
                 and coalesce(sent_at, updated_at) < $1
-                order by coalesce(sent_at, updated_at) asc, id asc limit $2
-             ) returning id`,
-            [cutoffs.terminalEmailDeliveryRecords, limit, terminalEmailCandidates],
+            returning id`,
+            [cutoffs.terminalEmailDeliveryRecords, terminalEmailCandidates],
           );
           categories.terminalEmailDeliveryRecords = category(
             emailEligible,
@@ -1495,39 +1491,36 @@ export async function runRetention(input: {
           );
         } else {
           const deletedNonExternalConsoleEmail = await client.query<IdRow>(
-            `delete from email_outbox where id in (
-               select id from email_outbox
-                where status = 'quarantined'
-                  and provider_call_started is not null
-                  and adapter = 'console'
-                  and provider_message_id is null
-                  and sent_at is null
-                  and quarantined_at is not null
-                  and quarantined_at < $1::timestamptz
-                  and claim_version >= 2
-                  and claim_token is null
-                  and claim_owner is null
-                  and lease_expires_at is null
-                  and last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'
-                  and dispatch_binding_version = 'console-json-v1'
-                  and dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'
-                  and (
-                    (
-                      user_id is not null
-                      and delivery_scope_key = 'a:' || user_id
-                    )
-                    or (
-                      user_id is null
-                      and delivery_scope_key = 's:' || operation_id::text
-                    )
+            `delete from email_outbox
+              where id = any($2::uuid[])
+                and status = 'quarantined'
+                and provider_call_started is not null
+                and adapter = 'console'
+                and provider_message_id is null
+                and sent_at is null
+                and quarantined_at is not null
+                and quarantined_at < $1::timestamptz
+                and claim_version >= 2
+                and claim_token is null
+                and claim_owner is null
+                and lease_expires_at is null
+                and last_error_code = 'ABANDONED_POST_PROVIDER_BOUNDARY'
+                and dispatch_binding_version = 'console-json-v1'
+                and dispatch_binding_sha256 ~ '^[0-9a-f]{64}$'
+                and (
+                  (
+                    user_id is not null
+                    and delivery_scope_key = 'a:' || user_id
                   )
-                  and id = any($3::uuid[])
-                  and coalesce(sent_at, updated_at) < $1
-                order by coalesce(sent_at, updated_at) asc, id asc limit $2
-             ) returning id`,
+                  or (
+                    user_id is null
+                    and delivery_scope_key = 's:' || operation_id::text
+                  )
+                )
+                and coalesce(sent_at, updated_at) < $1
+            returning id`,
             [
               cutoffs.nonExternalConsoleDeliveryQuarantines,
-              limit,
               consoleEmailCandidates,
             ],
           );

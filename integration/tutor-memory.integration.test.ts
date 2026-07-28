@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { loadTutorStructuredMemory, TUTOR_MEMORY_LIMITS } from "@/lib/ai/tutor-memory";
 import { pool } from "@/lib/db/client";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
 
 const LEARNER = "tutor-memory-learner";
 const OTHER = "tutor-memory-other";
@@ -25,11 +26,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'`);
-  const names = tables.rows.map((row) => `"${row.table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 function envelope(itemVariantId: string, tags: string[]) {
@@ -102,18 +99,66 @@ async function seed() {
       [id, userId, enrollmentId, CONCEPT, evidenceType, sourceId, validity, NOW],
     );
   }
-  await pool.query(
-    `insert into email_outbox
-      (id,user_id,delivery_scope_key,to_email,template,template_version,variables,idempotency_key,idempotency_authority_version,status,created_at,updated_at)
-     values
-      ('67000000-0000-4000-8000-000000000001',$1,'a:' || $1,'asha-memory@integration.invalid','weekly-summary','1',
-       '{"summary":"Older summary"}'::jsonb,'b04c397be415650a1bf513e37c4dfa64bd98b80dbaa2c538851b55ccab80ba66','event-v1-native','sent',$3::timestamptz - interval '1 day',$3::timestamptz - interval '1 day'),
-      ('67000000-0000-4000-8000-000000000002',$1,'a:' || $1,'asha-memory@integration.invalid','weekly-summary','1',
-       $4::jsonb,'c52cdc5a21700cf40ffd1934f8da7a564b216a2c6e1563b144df5803410e048c','event-v1-native','sent',$3::timestamptz,$3::timestamptz),
-      ('67000000-0000-4000-8000-000000000003',$2,'a:' || $2,'other-memory@integration.invalid','weekly-summary','1',
-       '{"summary":"OTHER-SUMMARY-SENTINEL"}'::jsonb,'53a3d96d2de01a41a5e87bd1ecba4ece9c78c29bd6595d343707516dd10329d1','event-v1-native','sent',$3::timestamptz,$3::timestamptz)`,
-    [LEARNER, OTHER, NOW, JSON.stringify({ summary: `Latest owner summary. token: ${FAKE_OPENAI_KEY}` })],
-  );
+  const outboxClient = await pool.connect();
+  const outboxRows = [
+    {
+      id: "67000000-0000-4000-8000-000000000001",
+      operationId: "67100000-0000-4000-8000-000000000001",
+      userId: LEARNER,
+      recipient: "asha-memory@integration.invalid",
+      variables: JSON.stringify({ summary: "Older summary" }),
+      authoritySha256: "b04c397be415650a1bf513e37c4dfa64bd98b80dbaa2c538851b55ccab80ba66",
+    },
+    {
+      id: "67000000-0000-4000-8000-000000000002",
+      operationId: "67100000-0000-4000-8000-000000000002",
+      userId: LEARNER,
+      recipient: "asha-memory@integration.invalid",
+      variables: JSON.stringify({ summary: `Latest owner summary. token: ${FAKE_OPENAI_KEY}` }),
+      authoritySha256: "c52cdc5a21700cf40ffd1934f8da7a564b216a2c6e1563b144df5803410e048c",
+    },
+    {
+      id: "67000000-0000-4000-8000-000000000003",
+      operationId: "67100000-0000-4000-8000-000000000003",
+      userId: OTHER,
+      recipient: "other-memory@integration.invalid",
+      variables: JSON.stringify({ summary: "OTHER-SUMMARY-SENTINEL" }),
+      authoritySha256: "53a3d96d2de01a41a5e87bd1ecba4ece9c78c29bd6595d343707516dd10329d1",
+    },
+  ] as const;
+  try {
+    await outboxClient.query("begin");
+    for (const row of outboxRows) {
+      await outboxClient.query(
+        `insert into email_outbox
+          (id,operation_id,user_id,delivery_scope_key,to_email,template,template_version,variables,
+           idempotency_key,idempotency_authority_version,status)
+         values ($1::uuid,$2::uuid,$3,'a:' || $3,$4,'weekly-summary','1',$5::jsonb,$6,'event-v1-native','pending')`,
+        [row.id, row.operationId, row.userId, row.recipient, row.variables, row.authoritySha256],
+      );
+      await outboxClient.query(
+        `select released.release_receipt_sha256
+           from public.release_email_outbox_delivery(
+             $1::uuid,
+             $2::uuid,
+             $3,
+             (
+               select outbox.idempotency_original_payload_sha256
+                 from public.email_outbox as outbox
+                where outbox.id = $1::uuid
+             ),
+             'task7-v1'
+           ) as released`,
+        [row.id, row.operationId, row.authoritySha256],
+      );
+    }
+    await outboxClient.query("commit");
+  } catch (error) {
+    await outboxClient.query("rollback");
+    throw error;
+  } finally {
+    outboxClient.release();
+  }
   await pool.query(
     `insert into chat_thread (id,user_id,title,status,created_at,updated_at)
      values ($1,$4,'Active memory','active',$6,$6),($2,$4,'Archived memory','archived',$6,$6),

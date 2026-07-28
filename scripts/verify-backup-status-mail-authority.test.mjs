@@ -12,6 +12,7 @@ import {
   BackupStatusMailAuthorityContractError,
   verifyBackupStatusMailAuthorityCatalogObjects,
   verifyBackupStatusMailAuthorityObjects,
+  verifyRestoredBackupStatusMailAuthorityStructuralObjects,
 } from "./verify-backup-status-mail-authority.mjs";
 
 const restrictedRoles = Object.freeze([
@@ -474,6 +475,151 @@ test("fails closed for every missing or altered manifest component", async () =>
       BackupStatusMailAuthorityContractError,
     );
   }
+});
+
+test("strict verification rejects every relation and routine ACL-only tamper", async () => {
+  const aclOnlyTampers = [
+    ...["ledger", "guard"].flatMap((prefix) =>
+      [
+        "effective_table_acl_exact",
+        "effective_column_acl_exact",
+        "direct_acl_exact",
+      ].map((check) => `${prefix}:${check}`),
+    ),
+    ...BACKUP_STATUS_AUTHORITY_ROUTINES.flatMap(({ signature }) =>
+      ["effective_execute_exact", "direct_acl_exact"].map(
+        (check) => `routine:${signature}:${check}`,
+      ),
+    ),
+  ];
+
+  for (const tamper of aclOnlyTampers) {
+    await assert.rejects(
+      verifyBackupStatusMailAuthorityObjects(
+        exactClient(tamper),
+        restrictedRoles,
+        BACKUP_STATUS_AUTHORITY_0065_CONTRACT,
+      ),
+      BackupStatusMailAuthorityContractError,
+      tamper,
+    );
+  }
+});
+
+test("restored structural verification accepts only relation and routine ACL drift", async () => {
+  const aclOnlyTampers = [
+    ...["ledger", "guard"].flatMap((prefix) =>
+      [
+        "effective_table_acl_exact",
+        "effective_column_acl_exact",
+        "direct_acl_exact",
+      ].map((check) => `${prefix}:${check}`),
+    ),
+    ...BACKUP_STATUS_AUTHORITY_ROUTINES.flatMap(({ signature }) =>
+      ["effective_execute_exact", "direct_acl_exact"].map(
+        (check) => `routine:${signature}:${check}`,
+      ),
+    ),
+  ];
+
+  for (const tamper of aclOnlyTampers) {
+    assert.equal(
+      await verifyRestoredBackupStatusMailAuthorityStructuralObjects(
+        exactClient(tamper),
+        restrictedRoles,
+        BACKUP_STATUS_AUTHORITY_0065_CONTRACT,
+      ),
+      7,
+      tamper,
+    );
+  }
+});
+
+test("restored structural verification rejects every non-ACL contract tamper", async () => {
+  const routine = BACKUP_STATUS_AUTHORITY_ROUTINES[1].signature;
+  const relationChecks = [
+    "owner_exact",
+    "relation_kind_exact",
+    "persistence_exact",
+    "access_method_exact",
+    "replica_identity_exact",
+    "reloptions_exact",
+    "tablespace_exact",
+    "row_security_exact",
+    "forced_row_security_exact",
+    "columns_exact",
+    "column_definitions_exact",
+    "constraints_exact",
+    "indexes_exact",
+  ];
+  const routineChecks = [
+    "body_sha256_exact",
+    "definition_sha256_exact",
+    "owner_exact",
+    "language_exact",
+    "routine_kind_exact",
+    "security_definer_exact",
+    "configuration_exact",
+    "volatility_exact",
+    "strict_exact",
+    "parallel_exact",
+    "leakproof_exact",
+    "argument_names_exact",
+    "argument_modes_exact",
+    "argument_types_exact",
+    "input_argument_count_exact",
+    "argument_defaults_exact",
+    "return_type_exact",
+    "returns_set_exact",
+    "variadic_exact",
+    "cost_exact",
+    "rows_exact",
+    "support_exact",
+    "transform_types_exact",
+    "binary_exact",
+    "sql_body_exact",
+  ];
+  const tampers = [
+    "trusted-search-path",
+    ...["ledger", "guard"].flatMap((prefix) =>
+      relationChecks.map((check) => `${prefix}:${check}`),
+    ),
+    `missing:${routine}`,
+    ...routineChecks.map((check) => `routine:${routine}:${check}`),
+    "guard-state",
+    "triggers",
+  ];
+
+  for (const tamper of tampers) {
+    await assert.rejects(
+      verifyRestoredBackupStatusMailAuthorityStructuralObjects(
+        exactClient(tamper),
+        restrictedRoles,
+        BACKUP_STATUS_AUTHORITY_0065_CONTRACT,
+      ),
+      BackupStatusMailAuthorityContractError,
+      tamper,
+    );
+  }
+});
+
+test("restored structural verification uses a dedicated private mode token", () => {
+  const verifier = verifyRestoredBackupStatusMailAuthorityStructuralObjects;
+  assert.equal(typeof verifier, "function");
+  assert.equal(verifier.length, 3);
+
+  const source = readFileSync(
+    new URL("./verify-backup-status-mail-authority.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    source,
+    /const RESTORED_NO_ACL_STRUCTURAL_MODE = Symbol\(/u,
+  );
+  assert.doesNotMatch(
+    source,
+    /export function verifyRestoredBackupStatusMailAuthorityStructuralObjects\([^)]*(?:skip|ignore)[A-Z_]acl/iu,
+  );
 });
 
 test("selects the widened 0067 contract without changing frozen 0065 bytes", async () => {

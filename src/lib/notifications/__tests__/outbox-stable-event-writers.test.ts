@@ -117,22 +117,20 @@ describe("production email stable-event writer inventory", () => {
     expect(centralOutbox).not.toContain("db.execute(queuedEmailInsert");
   });
 
-  it("keeps every latest-schema integration fixture on event-v1-native with a 64-hex event identity", () => {
+  it("keeps every latest-schema integration fixture on a stable event identity and guarded release", () => {
     const fixtures = [
       {
         path: "integration/retention-ops-session.integration.test.ts",
-        statements: 2,
-        rows: 2,
-        keys: [
-          "c45ece643fc7971d22c4d34daca51b48127b160a4c7e630f99a11b308cade070",
-          "61a368ed9b4997ce82b5a85e059afa6658c9dd9cb5b6a1a85eb46820dddb4f84",
+        statements: 1,
+        keyEvidence: [
+          'fixtureIdempotencyKey("unresolved")',
+          'fixtureIdempotencyKey("terminal")',
         ],
       },
       {
         path: "integration/mentor-evidence.integration.test.ts",
         statements: 1,
-        rows: 2,
-        keys: [
+        keyEvidence: [
           "9a955329a8dc2d275b5f70db905671a72580d182ac755d4546fd6582abde1d81",
           "bf3e26ef3157fa8bb551f16079174440a617fce2a2d3f8f4468b9deec7469977",
         ],
@@ -140,8 +138,7 @@ describe("production email stable-event writer inventory", () => {
       {
         path: "integration/tutor-memory.integration.test.ts",
         statements: 1,
-        rows: 3,
-        keys: [
+        keyEvidence: [
           "b04c397be415650a1bf513e37c4dfa64bd98b80dbaa2c538851b55ccab80ba66",
           "c52cdc5a21700cf40ffd1934f8da7a564b216a2c6e1563b144df5803410e048c",
           "53a3d96d2de01a41a5e87bd1ecba4ece9c78c29bd6595d343707516dd10329d1",
@@ -162,9 +159,14 @@ describe("production email stable-event writer inventory", () => {
         fixture.path,
       ).toHaveLength(fixture.statements);
       expect(fixtureSource.match(/'event-v1-native'/gu), fixture.path)
-        .toHaveLength(fixture.rows);
-      for (const key of fixture.keys) {
-        expect(fixtureSource, fixture.path).toContain(`'${key}'`);
+        .toHaveLength(fixture.statements);
+      expect(
+        fixtureSource.match(/\brelease_email_outbox_delivery\s*\(/gu),
+        fixture.path,
+      ).toHaveLength(fixture.statements);
+      expect(fixtureSource, fixture.path).toContain("'pending'");
+      for (const evidence of fixture.keyEvidence) {
+        expect(fixtureSource, fixture.path).toContain(evidence);
       }
     }
 

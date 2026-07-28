@@ -382,7 +382,7 @@ test("0067 adds canonical UUIDv4 backup identities without rewriting 0065", () =
 
 test("the shared writer targets exactly the worker-granted insert columns", () => {
   const statement = outboxRuntime.match(
-    /INSERT INTO public[.]email_outbox\s*[(]([\s\S]*?)[)]\s*VALUES/u,
+    /INSERT INTO public[.]email_outbox\s*[(]([\s\S]*?)[)]\s*SELECT/u,
   );
   assert.ok(statement, "the central explicit outbox INSERT is missing");
   const targetColumns = statement[1].split(",").map((column) => column.trim());
@@ -640,7 +640,7 @@ test("0067 trigger and constraint manifests freeze the live PG17/PG18 catalogs",
       validated: true,
       normalizedExpressionSha256ByPostgresMajor: {
         17: "2cc426fbe12df9a29707bbad22a3addf50fa483f0ad8f4c76c778ad25bf6748e",
-        18: "3f32ee19567df8889a129cc1e2e95af9f70a8e4e5878c7f7930ec396259ceefc",
+        18: "2cc426fbe12df9a29707bbad22a3addf50fa483f0ad8f4c76c778ad25bf6748e",
       },
       columns: [
         "idempotency_authority_sha256",

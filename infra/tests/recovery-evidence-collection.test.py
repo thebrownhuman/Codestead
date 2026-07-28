@@ -23,8 +23,11 @@ HEX_A = "a" * 64
 HEX_C = "c" * 64
 HEX_D = "d" * 64
 HEX_E = "e" * 64
-GIT = "1" * 40
-GIT_TREE = "2" * 40
+APPLICATION_GIT = "1" * 40
+APPLICATION_GIT_TREE = "2" * 40
+HOST_OPERATIONS_GIT = "3" * 40
+HOST_OPERATIONS_GIT_TREE = "4" * 40
+HOST_OPERATIONS_CONTRACT_SHA256 = "5" * 64
 SERVICES = helper.PILOT_SERVICES
 
 
@@ -66,9 +69,13 @@ def active_release(
     inventory_bytes: bytes, firewall_bytes: bytes, release_manifest: bytes, application_record: bytes
 ) -> bytes:
     return (
-        "SCHEMA_VERSION=1\n"
-        f"GIT_COMMIT={GIT}\n"
-        f"GIT_TREE={GIT_TREE}\n"
+        "SCHEMA_VERSION=2\n"
+        f"APPLICATION_GIT_COMMIT={APPLICATION_GIT}\n"
+        f"APPLICATION_GIT_TREE={APPLICATION_GIT_TREE}\n"
+        f"HOST_OPERATIONS_GIT_COMMIT={HOST_OPERATIONS_GIT}\n"
+        f"HOST_OPERATIONS_GIT_TREE={HOST_OPERATIONS_GIT_TREE}\n"
+        "HOST_OPERATIONS_CONTRACT_VERSION=host-operations-semantic-v1\n"
+        f"HOST_OPERATIONS_CONTRACT_SHA256={HOST_OPERATIONS_CONTRACT_SHA256}\n"
         f"RELEASE_MANIFEST_SHA256={hashlib.sha256(release_manifest).hexdigest()}\n"
         f"APPLICATION_IMAGE_RECORD_SHA256={hashlib.sha256(application_record).hexdigest()}\n"
         "COMPOSE_PROJECT=learncoding\n"
@@ -322,14 +329,23 @@ class CollectionTests(unittest.TestCase):
             ),
         )
         self.assertEqual(value["collectionElapsedSeconds"], 66)
-        self.assertEqual(value["release"]["gitCommit"], GIT)
-        self.assertEqual(value["release"]["gitTree"], GIT_TREE)
+        self.assertEqual(value["release"]["applicationGitCommit"], APPLICATION_GIT)
+        self.assertEqual(value["release"]["applicationGitTree"], APPLICATION_GIT_TREE)
+        self.assertEqual(value["release"]["hostOperationsGitCommit"], HOST_OPERATIONS_GIT)
+        self.assertEqual(value["release"]["hostOperationsGitTree"], HOST_OPERATIONS_GIT_TREE)
+        self.assertEqual(
+            value["release"]["hostOperationsContractVersion"], "host-operations-semantic-v1"
+        )
+        self.assertEqual(
+            value["release"]["hostOperationsContractSha256"], HOST_OPERATIONS_CONTRACT_SHA256
+        )
         self.assertEqual(
             value["release"]["applicationImageRecordSha256"], hashlib.sha256(host.application_record).hexdigest()
         )
         self.assertEqual(value["release"]["publicOrigin"], "https://pilot.example.test")
         self.assertIn("runner-egress-gateway", helper.PILOT_SERVICES)
-        self.assertEqual(len(value["containers"]), 10)
+        self.assertIn("file-erasure-worker", helper.PILOT_SERVICES)
+        self.assertEqual(len(value["containers"]), 11)
         self.assertTrue(value["runner"]["representativeJobPassed"])
         self.assertEqual(value["runner"]["guestReleaseSha256"], HEX_D)
         self.assertEqual(value["runner"]["runtimeImagesSha256"], HEX_E)

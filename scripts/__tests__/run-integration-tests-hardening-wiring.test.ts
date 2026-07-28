@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
@@ -19,6 +20,7 @@ describe("integration runner hardening wiring", () => {
     expect(source).toContain("buildDisposableIntegrationChildLaunch");
     expect(source).toContain("createIntegrationOutputSanitizer");
     expect(source).toContain("createIntegrationFailureReporter");
+    expect(source).toContain("withDisposableIntegrationReset");
     expect(source).toContain("taskHomeDirectory");
     expect(source).toContain("postgresMajor");
     expect(source).not.toContain("sanitizedIntegrationEnvironment");
@@ -46,8 +48,94 @@ describe("integration runner hardening wiring", () => {
     );
     expect(source).toContain('failureReporter.enter("postgres-readiness")');
     expect(source).toContain("failureReporter.enter(phase)");
+    expect(source).toContain('failureReporter.enter("reset-capability-install")');
     expect(source).toContain('failureReporter.enter("application-tests")');
+    expect(source).toContain('failureReporter.enter("reset-capability-teardown")');
+    expect(source).toContain("(primaryState) => {");
+    expect(source).toContain('if (primaryState.status === "fulfilled")');
+    expect(source).not.toContain("primaryFailure === undefined");
+    expect(source).not.toContain(
+      '() => failureReporter.enter("reset-capability-teardown")',
+    );
     expect(source).toContain('failureReporter.enter("harness-cleanup")');
+
+    const releaseCyclesIndex = source.indexOf(
+      "await runDisposableIntegrationReleaseCycles",
+    );
+    const resetLifecycleIndex = source.indexOf(
+      "await withDisposableIntegrationReset",
+    );
+    const resetInstallPhaseIndex = source.indexOf(
+      'failureReporter.enter("reset-capability-install")',
+    );
+    const applicationTestsIndex = source.indexOf(
+      'failureReporter.enter("application-tests")',
+    );
+    const resetTeardownIndex = source.indexOf(
+      'failureReporter.enter("reset-capability-teardown")',
+    );
+    expect(resetInstallPhaseIndex).toBeGreaterThan(releaseCyclesIndex);
+    expect(resetLifecycleIndex).toBeGreaterThan(resetInstallPhaseIndex);
+    expect(applicationTestsIndex).toBeGreaterThan(resetLifecycleIndex);
+    expect(resetTeardownIndex).toBeGreaterThan(applicationTestsIndex);
+    expect(source).toContain(`
+    const resetInstallerPool = new Pool({
+      connectionString: databaseUrl,
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 5_000,
+      max: 1,
+      query_timeout: 30_000,
+      statement_timeout: 30_000,
+      lock_timeout: 5_000,
+      idle_in_transaction_session_timeout: 30_000,
+      allowExitOnIdle: true,
+    });`);
+    const resetPoolIndex = source.indexOf("const resetInstallerPool");
+    expect(resetLifecycleIndex).toBeGreaterThan(resetPoolIndex);
+    const resetLifecycleSource = await readFile(
+      path.resolve(
+        process.cwd(),
+        "scripts/lib/disposable-integration-reset.ts",
+      ),
+      "utf8",
+    );
+    expect(resetLifecycleSource).toContain(
+      "uninstallDisposableIntegrationReset,",
+    );
+    expect(resetLifecycleSource).toContain("client.release(true)");
+    expect(resetLifecycleSource).not.toContain("Promise.race");
+    expect(resetLifecycleSource).not.toContain("void closeOperation");
+    expect(resetLifecycleSource).toContain("await pool.end()");
+    expect(resetLifecycleSource).toContain(
+      "DROP SCHEMA codestead_disposable_test RESTRICT",
+    );
+    expect(resetLifecycleSource).toContain("AS contract_absent");
+
+    const resetIntegrationSource = await readFile(
+      path.resolve(
+        process.cwd(),
+        "integration/disposable-integration-reset.integration.test.ts",
+      ),
+      "utf8",
+    );
+    expect(resetIntegrationSource).not.toContain("DATABASE_OWNER_URL");
+    expect(resetIntegrationSource).not.toContain(
+      "FROM drizzle.__drizzle_migrations",
+    );
+    expect(resetIntegrationSource).toContain(
+      "readValidatedIntegrationMigrationJournal",
+    );
+    expect(resetIntegrationSource).toContain("fileURLToPath(import.meta.url)");
+    expect(resetIntegrationSource).not.toContain("process.cwd()");
+    expect(resetIntegrationSource).toContain("closePool(pool)");
+    expect(resetIntegrationSource).toContain("pg_catalog.pg_stat_activity");
+    expect(resetIntegrationSource).not.toMatch(/setTimeout\(resolve, 100\)/u);
+    expect(resetIntegrationSource).toContain(
+      "blocker.release(destroyBlocker)",
+    );
+    expect(resetIntegrationSource).toContain(
+      '"reset concurrency proof and cleanup failed"',
+    );
 
     const harnessIndex = source.indexOf(
       "await runWithDisposableIntegrationHarness",
@@ -60,6 +148,30 @@ describe("integration runner hardening wiring", () => {
       "scripts/database-role-boundaries.test.mjs",
     );
     expect(roleBoundaryIndex).toBeGreaterThan(harnessCallbackIndex);
+  });
+
+  it("keeps the reset journal proof anchored when cwd is unrelated", async () => {
+    const originalCwd = process.cwd();
+    const workspaceRoot = path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../..",
+    );
+    try {
+      process.chdir(path.parse(originalCwd).root);
+      const source = await readFile(
+        path.resolve(
+          workspaceRoot,
+          "integration/disposable-integration-reset.integration.test.ts",
+        ),
+        "utf8",
+      );
+      expect(source).toContain("fileURLToPath(import.meta.url)");
+      expect(source).toContain("WORKSPACE_MIGRATIONS_FOLDER");
+      expect(source).toContain("readValidatedIntegrationMigrationJournal");
+      expect(source).not.toContain("process.cwd()");
+    } finally {
+      process.chdir(originalCwd);
+    }
   });
 
   it("has no direct password environment or name-targeted Docker cleanup path", async () => {

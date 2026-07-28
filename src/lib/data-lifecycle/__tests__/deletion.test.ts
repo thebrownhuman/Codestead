@@ -159,7 +159,8 @@ describe("account deletion tombstone identity", () => {
     const directGuard = source.indexOf("if (insertedRelease)");
     const issuer = source.indexOf("public.release_email_outbox_delivery");
     const verifier = source.indexOf(
-      "public.verify_email_outbox_delivery_release",
+      "verifyAndLockEmailOutboxDeliveryRelease(client, persistedIdentity)",
+      issuer,
     );
     const issuerOccurrences = source.match(
       /public\.release_email_outbox_delivery/gu,
@@ -176,5 +177,30 @@ describe("account deletion tombstone identity", () => {
       "insertedRelease.operation_id",
     );
     expect(verifier).toBeGreaterThan(issuer);
+  });
+  it("uses the reviewed release verifier without granting app mutation or owner-pool authority", () => {
+    const source = readFileSync(
+      path.join(process.cwd(), "src/lib/data-lifecycle/deletion.ts"),
+      "utf8",
+    );
+    const helperStart = source.indexOf(
+      "async function verifyAndLockEmailOutboxDeliveryRelease",
+    );
+    const helperEnd = source.indexOf("type DeletionNoticeOutboxRow", helperStart);
+    const helper = source.slice(helperStart, helperEnd);
+
+    expect(helperStart).toBeGreaterThan(-1);
+    expect(helperEnd).toBeGreaterThan(helperStart);
+    expect(helper).toContain("public.verify_email_outbox_delivery_release");
+    expect(helper).toContain('row.status === "pending"');
+    expect(helper).toContain('row.status === "sending"');
+    expect(helper).toContain('row.status === "quarantined"');
+    expect(helper).toContain('row.status === "sent"');
+    expect(helper).toContain("verifiedOutboxIds");
+    expect(helper).not.toMatch(/\bfor update\b/iu);
+    expect(helper).not.toMatch(/\bupdate\s+(?:public\.)?email_outbox\b/iu);
+    expect(source).not.toContain("DATABASE_OWNER_URL");
+    expect(source).not.toContain("learncoding_owner");
+    expect(source).not.toContain("new Pool(");
   });
 });

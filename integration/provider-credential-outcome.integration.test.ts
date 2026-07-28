@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { recordProviderCredentialOutcome } from "@/lib/ai/provider-credential-outcome";
 import { pool } from "@/lib/db/client";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
 
 const USER = "provider-outcome-learner";
 const CREDENTIAL = "71000000-0000-4000-8000-000000000001";
@@ -17,11 +18,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'`);
-  const names = tables.rows.map((row) => `"${row.table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 async function row() {

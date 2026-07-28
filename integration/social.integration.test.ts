@@ -12,6 +12,7 @@ import {
   updateCohortProfile,
   withdrawCohortProfileForConsent,
 } from "@/lib/social/profile-service";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
 
 const NOW = new Date("2026-07-12T12:00:00.000Z");
 const USER_A = "social-learner-a";
@@ -32,11 +33,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'`);
-  const names = tables.rows.map((row) => `"${row.table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 async function seedPeopleAndSelections() {

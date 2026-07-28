@@ -466,3 +466,58 @@ Agents may parallelize isolated worktrees, but one coordinator must own integrat
 4. Independently review commit `e07899d...`; if accepted, integrate it into `main`, run its focused checks, and then repeat for CSRF, exam, retention, and backup. Do not merge all five blindly.
 5. Preserve the RED database/mail/rollback diffs and resume implementation from their reports. Do not replace their tests with weaker assertions.
 6. Update this handoff after every accepted integration and keep unsupported production claims blocked.
+
+## Superseding Task 8 checkpoint — 2026-07-28
+
+This section supersedes older Task 8 status statements above. The working branch is
+`main`; its pre-checkpoint base is `cb91a86cc1a2`. Docker and the pre-existing
+Windows PostgreSQL service/port 5432 were not started, stopped, or modified.
+
+Task 8's repository-scoped CI/roles/capabilities/restore/rollback core is complete
+in the current commit candidate:
+
+- restore bootstrap now pins one target session and one maintenance session,
+  proves same-instance authority with an unguessable `pg_stat_activity`
+  application-name nonce, restores the previous marker, and preserves cleanup
+  failures after acknowledged re-enable;
+- PostgreSQL advisory locks were explicitly rejected for the cross-database
+  identity proof because they are database-scoped;
+- the host-operations compatibility digest binds non-secret environment values
+  while redacting secret contents and failing closed on malformed or unresolved
+  entries;
+- restore failure diagnostics are bounded and redact URLs and named secret
+  values;
+- production release and rollback simulations both finish with their exact
+  success markers.
+
+Verified evidence for this candidate:
+
+- native disposable PostgreSQL 17.10 restore-role proof: PASS;
+- native disposable PostgreSQL 18.1 restore-role proof: PASS;
+- database least-privilege behavior: 47/47;
+- database role-boundary suite: 76/76;
+- restore role-boundary harness: 45/45;
+- host-operations compatibility: 12/12;
+- migration role contracts: 0064 4/4, 0066 5/5, 0067 41/41, 0068 4/4,
+  and 0069 5/5;
+- full root-owned release simulation: `release-production-tests-ok`;
+- full root-owned rollback simulation: `rollback-production-tests-ok`;
+- full repository lint, TypeScript typecheck, and production build: PASS;
+- tracked/unignored commit-candidate secret scan: 2,834 files, zero findings;
+- `git diff --check`: PASS (line-ending normalization warnings only).
+
+Explicitly deferred, not silently green:
+
+- P3-2 broad `learncoding_app`/`learncoding_ops` CRUD remains open. It is
+  deferred for the user's local/few-user scope, is not technical completion,
+  and must be narrowed or accepted against an exact SHA before any production
+  or learner-facing deployment;
+- signal-cleanup race hardening, Windows DACL proof, and an outer lifecycle
+  deadline for the disposable restore harness remain Task 10 defense-in-depth
+  work;
+- live Gmail, NUC, Cloudflare, Google Drive, reboot, and supervised power-cut
+  evidence still requires the real services/hardware and remains unproven.
+
+After this checkpoint is pushed, the next repository task is Task 9's complete
+live concurrency/deletion race execution, followed by Task 10's clean-checkout
+release matrix and repair of any final failures.

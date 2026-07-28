@@ -311,14 +311,53 @@ describe("0067 Task 5 delivery hold contract", () => {
     );
     expect(normalized0067).toContain("on delete restrict");
 
-    expect(normalizedDeletion).toMatch(
-      /from email_outbox where user_id = \$1 or lower\(to_email\) = lower\(\$2\) order by id for update/u,
+    const authorityStart = deletion.indexOf(
+      "async function verifyAndLockEmailOutboxDeliveryRelease",
+    );
+    const authorityEnd = deletion.indexOf(
+      "type DeletionNoticeOutboxRow",
+      authorityStart,
+    );
+    const normalizedDeletionAuthority = normalize(
+      deletion.slice(authorityStart, authorityEnd),
+    );
+    const lockStart = normalizedDeletionAuthority.indexOf(
+      "async function lockdeletionoutboxrows",
+    );
+    const lockBody = normalizedDeletionAuthority.slice(lockStart);
+    const initialScan = lockBody.indexOf(
+      "const initial = await readdeletionoutboxauthorityrows(client, input)",
+    );
+    const verifierLock = lockBody.indexOf(
+      "await verifyandlockemailoutboxdeliveryrelease(client, row)",
+    );
+    const stableScan = lockBody.indexOf(
+      "const stable = await readdeletionoutboxauthorityrows(client, input)",
+    );
+
+    expect(authorityStart).toBeGreaterThan(-1);
+    expect(authorityEnd).toBeGreaterThan(authorityStart);
+    expect(normalizedDeletionAuthority).toContain(
+      "from public.verify_email_outbox_delivery_release( $1::uuid, $2::uuid, $3::text, $4::text, $5::text ) as verified",
+    );
+    expect(normalizedDeletionAuthority).toContain(
+      "from email_outbox where user_id = $1 or pg_catalog.lower(pg_catalog.btrim(to_email)) = pg_catalog.lower(pg_catalog.btrim($2)) order by id",
+    );
+    expect(normalizedDeletionAuthority).toContain(
+      "if (row.status === \"quarantined\") { return row.provider_call_started !== null && row.provider_message_id === null ? \"blocked\" : \"safe\"; }",
+    );
+    expect(initialScan).toBeGreaterThan(-1);
+    expect(verifierLock).toBeGreaterThan(initialScan);
+    expect(stableScan).toBeGreaterThan(verifierLock);
+    expect(lockBody).toContain(
+      "disposition === \"provider_start_capable\" && !verifiedoutboxids.has(row.id)",
+    );
+    expect(normalizedDeletionAuthority).not.toContain("for update");
+    expect(normalizedDeletionAuthority).not.toMatch(
+      /\bupdate (?:public\.)?email_outbox\b/u,
     );
     expect(normalizedDeletion).toContain(
-      "row.status === \"quarantined\" && row.provider_call_started !== null && row.provider_message_id === null",
-    );
-    expect(normalizedDeletion).toContain(
-      "\"delete from email_outbox where user_id = $1 or lower(to_email) = lower($2)\"",
+      "\"delete from email_outbox where user_id = $1 or pg_catalog.lower(pg_catalog.btrim(to_email)) = pg_catalog.lower(pg_catalog.btrim($2))\"",
     );
     expect(normalizedRetention).toContain(
       "from public.redact_quarantined_email_outbox_authority_v2(",

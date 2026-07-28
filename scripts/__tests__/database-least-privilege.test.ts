@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 type DatabaseRoleModule = {
   DATABASE_ADMIN_LOCK_NAME: string;
+  parseDatabaseRoleBootstrapBooleanSetting: (
+    value: string | undefined,
+    label: string,
+  ) => boolean;
   REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES: ReadonlyArray<{
     readonly index: number;
   }>;
@@ -9,7 +13,7 @@ type DatabaseRoleModule = {
     signature: string;
     owner: string;
     securityDefiner: boolean;
-    configuration: readonly string[];
+    configuration: readonly string[] | null;
     allowedRoles: readonly string[];
     bodySha256: string;
     language: string;
@@ -101,6 +105,76 @@ type DatabaseRoleModule = {
     destroyClient?: boolean;
     timeoutMs?: number;
   }) => Promise<void>;
+  cleanupRestoredNoAclMaintenanceResources: (input: {
+    client?: {
+      query: (
+        sql: string,
+        parameters?: unknown[],
+      ) => Promise<{ rows: Array<{ released?: boolean }> }>;
+      release: (destroy?: boolean) => void;
+    };
+    pool: { end: () => Promise<void> };
+    databaseReenabled: boolean;
+    operationFailed: boolean;
+    timeoutMs?: number;
+  }) => Promise<unknown[]>;
+  validateRestoredNoAclMaintenanceIdentity: (
+    target: Record<string, unknown>,
+    maintenance: Record<string, unknown>,
+    expectedUser: string,
+  ) => void;
+  proveRestoredNoAclMaintenanceSameInstance: (
+    targetClient: {
+      query: (
+        sql: string,
+        parameters?: unknown[],
+      ) => Promise<{ rows: Array<Record<string, unknown>> }>;
+    },
+    maintenanceClient: {
+      query: (
+        sql: string,
+        parameters?: unknown[],
+      ) => Promise<{ rows: Array<Record<string, unknown>> }>;
+    },
+    nonce?: string,
+  ) => Promise<void>;
+  reenableRestoredNoAclDatabase: (
+    maintenancePool: {
+      query: (
+        sql: string,
+        parameters?: unknown[],
+      ) => Promise<{ rows: Array<Record<string, unknown>> }>;
+    },
+    postgresDatabase: string,
+    targetBackendPid: number,
+  ) => Promise<void>;
+
+  runDatabaseRoleBootstrap: (input: {
+    postgresUser: string;
+    postgresDatabase: string;
+    databaseBootstrapUrl: string;
+    databaseAppUrl: string;
+    databaseMigratorUrl: string;
+    databaseWorkerUrl: string;
+    databaseOpsUrl: string;
+    databaseBackupReporterUrl: string;
+    cleanupTimeoutMs?: number;
+    requireCompleteMigrationLedger?: boolean;
+    bootstrapMode?: "strict" | "restored-no-acl";
+    verifyAppliedMigrationLedger?: () => Promise<void>;
+    beforeCommit?: () => Promise<void>;
+    restoreMaintenancePool?: {
+      connect: () => Promise<{
+        query: (
+          sql: string,
+          parameters?: unknown[],
+        ) => Promise<{ rows: Array<Record<string, unknown>> }>;
+        release: (destroy?: boolean) => void;
+      }>;
+      end: () => Promise<void>;
+    };
+    pool: { connect: () => Promise<never>; end: () => Promise<void> };
+  }) => Promise<unknown>;
 };
 
 async function loadDatabaseRoleModule(): Promise<DatabaseRoleModule | null> {
@@ -129,6 +203,40 @@ const urls = {
     "postgresql://learncoding_backup_reporter:backup-reporter-Fake-F-000000000000@postgres:5432/learncoding",
 };
 
+async function captureRejection(operation: () => Promise<unknown>) {
+  try {
+    await operation();
+    return { rejected: false as const, reason: undefined };
+  } catch (reason) {
+    return { rejected: true as const, reason };
+  }
+}
+
+const NO_TEST_FAILURE = Symbol("no-test-failure");
+
+async function runBootstrapCheckoutFailure(
+  databaseRoleBootstrap: DatabaseRoleModule,
+  primaryFailure: unknown,
+  cleanupFailure: unknown = NO_TEST_FAILURE,
+) {
+  const pool = {
+    connect: vi.fn(async (): Promise<never> => {
+      throw primaryFailure;
+    }),
+    end: vi.fn(async () => {
+      if (cleanupFailure !== NO_TEST_FAILURE) throw cleanupFailure;
+    }),
+  };
+  const outcome = await captureRejection(() =>
+    databaseRoleBootstrap.runDatabaseRoleBootstrap({
+      ...urls,
+      cleanupTimeoutMs: 50,
+      pool,
+    }),
+  );
+  return { outcome, pool };
+}
+
 describe("database least-privilege bootstrap", () => {
   it("uses one shared database-administration advisory lock", async () => {
     const databaseRoleBootstrap = await loadDatabaseRoleModule();
@@ -137,6 +245,608 @@ describe("database least-privilege bootstrap", () => {
     expect(databaseRoleBootstrap?.DATABASE_ADMIN_LOCK_NAME).toBe(
       "codestead:database-administration:v1",
     );
+  });
+
+  it("accepts only exact boolean CLI settings for restore authority", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+    const parse =
+      databaseRoleBootstrap!.parseDatabaseRoleBootstrapBooleanSetting;
+    expect(parse(undefined, "RESTORE_NO_ACL_RECONCILIATION")).toBe(false);
+    expect(parse("true", "RESTORE_NO_ACL_RECONCILIATION")).toBe(true);
+    expect(parse("false", "RESTORE_NO_ACL_RECONCILIATION")).toBe(false);
+    for (const invalid of ["TRUE", "False", " true", "1", ""]) {
+      expect(() =>
+        parse(invalid, "RESTORE_NO_ACL_RECONCILIATION"),
+      ).toThrowError("RESTORE_NO_ACL_RECONCILIATION must be true or false");
+    }
+  });
+
+  it("rejects no-ACL restore reconciliation without a complete ledger before checkout", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+    const pool = {
+      connect: vi.fn(async (): Promise<never> => {
+        throw new Error("restore-mode validation must precede checkout");
+      }),
+      end: vi.fn(async () => undefined),
+    };
+
+    const outcome = await captureRejection(() =>
+      databaseRoleBootstrap!.runDatabaseRoleBootstrap({
+        ...urls,
+        pool,
+        requireCompleteMigrationLedger: false,
+        bootstrapMode: "restored-no-acl",
+      }),
+    );
+
+    expect(outcome.rejected).toBe(true);
+    expect(outcome.reason).toBeInstanceOf(Error);
+    expect((outcome.reason as Error).message).toBe(
+      "restored-no-acl bootstrap requires a complete migration ledger",
+    );
+    expect(pool.connect).not.toHaveBeenCalled();
+    expect(pool.end).not.toHaveBeenCalled();
+  });
+
+  it("rejects unsafe restored-no-ACL capabilities before URL parsing or checkout", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+    const scenarios = [
+      {
+        input: {
+          verifyAppliedMigrationLedger: async () => undefined,
+        },
+        message:
+          "restored-no-acl bootstrap does not allow a custom migration ledger verifier",
+      },
+      {
+        input: {
+          beforeCommit: async () => undefined,
+        },
+        message: "restored-no-acl bootstrap does not allow beforeCommit",
+      },
+      {
+        input: {
+          postgresDatabase: "learncoding",
+        },
+        message: "restored-no-acl bootstrap database name is invalid",
+      },
+    ];
+
+    for (const scenario of scenarios) {
+      const pool = {
+        connect: vi.fn(async (): Promise<never> => {
+          throw new Error("restore-mode validation must precede checkout");
+        }),
+        end: vi.fn(async () => undefined),
+      };
+      const outcome = await captureRejection(() =>
+        databaseRoleBootstrap!.runDatabaseRoleBootstrap({
+          ...urls,
+          ...scenario.input,
+          postgresDatabase:
+            scenario.input.postgresDatabase ?? "learncoding_restore_target",
+          pool,
+          requireCompleteMigrationLedger: true,
+          bootstrapMode: "restored-no-acl",
+        }),
+      );
+      expect(outcome.rejected).toBe(true);
+      expect((outcome.reason as Error).message).toBe(scenario.message);
+      expect(pool.connect).not.toHaveBeenCalled();
+      expect(pool.end).not.toHaveBeenCalled();
+    }
+  });
+
+  it("requires custom restored target and maintenance pools as a pair", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+    const pool = {
+      query: vi.fn(async (): Promise<never> => {
+        throw new Error("paired-pool validation must precede query");
+      }),
+      connect: vi.fn(async (): Promise<never> => {
+        throw new Error("paired-pool validation must precede checkout");
+      }),
+      end: vi.fn(async () => undefined),
+    };
+    const outcome = await captureRejection(() =>
+      databaseRoleBootstrap!.runDatabaseRoleBootstrap({
+        ...urls,
+        bootstrapMode: "restored-no-acl",
+        pool,
+        postgresDatabase: "learncoding_restore_target",
+        requireCompleteMigrationLedger: true,
+      }),
+    );
+    expect((outcome.reason as Error).message).toBe(
+      "restored-no-acl bootstrap requires paired target and maintenance pools",
+    );
+    expect(pool.connect).not.toHaveBeenCalled();
+    expect(pool.end).not.toHaveBeenCalled();
+
+    const samePoolOutcome = await captureRejection(() =>
+      databaseRoleBootstrap!.runDatabaseRoleBootstrap({
+        ...urls,
+        bootstrapMode: "restored-no-acl",
+        pool,
+        postgresDatabase: "learncoding_restore_target",
+        requireCompleteMigrationLedger: true,
+        restoreMaintenancePool: pool,
+      }),
+    );
+    expect((samePoolOutcome.reason as Error).message).toBe(
+      "restored-no-acl target and maintenance pools must be distinct",
+    );
+    expect(pool.connect).not.toHaveBeenCalled();
+  });
+  it("accepts only a distinct same-cluster postgres maintenance authority", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+    const target = {
+      backend_pid: 101,
+      cluster_system_identifier: "72623859790382856",
+      current_database: "learncoding_restore_target",
+      current_user: "learncoding_restore",
+      rolsuper: true,
+      server_address: "127.0.0.1",
+      server_port: 55432,
+    };
+    const maintenance = {
+      ...target,
+      backend_pid: 202,
+      current_database: "postgres",
+    };
+
+    expect(() =>
+      databaseRoleBootstrap!.validateRestoredNoAclMaintenanceIdentity(
+        target,
+        maintenance,
+        "learncoding_restore",
+      ),
+    ).not.toThrow();
+
+    for (const invalidMaintenance of [
+      { ...maintenance, backend_pid: target.backend_pid },
+      { ...maintenance, cluster_system_identifier: "other-cluster" },
+      { ...maintenance, current_database: "learncoding_restore_target" },
+      { ...maintenance, current_user: "postgres" },
+      { ...maintenance, rolsuper: false },
+      { ...maintenance, server_address: "127.0.0.2" },
+      { ...maintenance, server_port: 55433 },
+    ]) {
+      expect(() =>
+        databaseRoleBootstrap!.validateRestoredNoAclMaintenanceIdentity(
+          target,
+          invalidMaintenance,
+          "learncoding_restore",
+        ),
+      ).toThrowError(
+        "restored-no-acl maintenance authority verification failed",
+      );
+    }
+  });
+
+  it("proves the pinned maintenance session belongs to the target instance", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+    const nonce = "a".repeat(64);
+    const marker = `codestead-restore-v1:${nonce.slice(0, 40)}`;
+    const targetClient = {
+      query: vi.fn(async (_sql: string, _parameters?: unknown[]) => {
+        void _sql;
+        void _parameters;
+        if (targetClient.query.mock.calls.length === 1) {
+          return {
+            rows: [
+              {
+                application_name: marker,
+                backend_pid: 101,
+                database_name: "learncoding_restore_target",
+                previous_application_name: "restore-before-proof",
+                user_name: "learncoding_restore",
+              },
+            ],
+          };
+        }
+        return { rows: [{ application_name: "restore-before-proof" }] };
+      }),
+    };
+    const maintenanceClient = {
+      query: vi.fn(async (_sql: string, _parameters?: unknown[]) => {
+        void _sql;
+        void _parameters;
+        return {
+          rows: [
+            {
+              application_name: marker,
+              database_name: "learncoding_restore_target",
+              user_name: "learncoding_restore",
+            },
+          ],
+        };
+      }),
+    };
+
+    await expect(
+      databaseRoleBootstrap!.proveRestoredNoAclMaintenanceSameInstance(
+        targetClient,
+        maintenanceClient,
+        nonce,
+      ),
+    ).resolves.toBeUndefined();
+    expect(targetClient.query).toHaveBeenCalledTimes(2);
+    expect(targetClient.query.mock.calls[0]?.[0]).toContain(
+      "set_config('application_name'",
+    );
+    expect(targetClient.query.mock.calls[0]?.[1]).toEqual([marker]);
+    expect(targetClient.query.mock.calls[1]?.[1]).toEqual([
+      "restore-before-proof",
+    ]);
+    expect(maintenanceClient.query).toHaveBeenCalledOnce();
+    expect(maintenanceClient.query.mock.calls[0]?.[0]).toContain(
+      "pg_stat_activity",
+    );
+    expect(maintenanceClient.query.mock.calls[0]?.[1]?.[0]).toBe(101);
+  });
+
+  it("rejects a cloned foreign instance and restores the target marker", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+    const nonce = "b".repeat(64);
+    const marker = `codestead-restore-v1:${nonce.slice(0, 40)}`;
+    const targetClient = {
+      query: vi.fn(async (_sql: string, _parameters?: unknown[]) => {
+        void _sql;
+        void _parameters;
+        if (targetClient.query.mock.calls.length === 1) {
+          return {
+            rows: [
+              {
+                application_name: marker,
+                backend_pid: 202,
+                database_name: "learncoding_restore_target",
+                previous_application_name: "restore-before-proof",
+                user_name: "learncoding_restore",
+              },
+            ],
+          };
+        }
+        return { rows: [{ application_name: "restore-before-proof" }] };
+      }),
+    };
+    const maintenanceClient = {
+      query: vi.fn(async () => ({
+        rows: [
+          {
+            application_name: "codestead-restore-v1:foreign",
+            database_name: "learncoding_restore_target",
+            user_name: "learncoding_restore",
+          },
+        ],
+      })),
+    };
+
+    await expect(
+      databaseRoleBootstrap!.proveRestoredNoAclMaintenanceSameInstance(
+        targetClient,
+        maintenanceClient,
+        nonce,
+      ),
+    ).rejects.toThrowError(
+      "restored-no-acl maintenance instance verification failed",
+    );
+    expect(targetClient.query).toHaveBeenCalledTimes(2);
+    expect(maintenanceClient.query).toHaveBeenCalledOnce();
+    expect(targetClient.query.mock.calls.at(-1)?.[0]).toContain(
+      "set_config('application_name'",
+    );
+    expect(targetClient.query.mock.calls.at(-1)?.[1]).toEqual([
+      "restore-before-proof",
+    ]);
+  });
+
+  it("makes acknowledged database re-enable the final fallible database action", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+    const queries: string[] = [];
+    const maintenancePool = {
+      query: vi.fn(async (sql: string) => {
+        queries.push(sql);
+        if (sql.includes("select database.datallowconn")) {
+          return {
+            rows: [{ allow_connections: false, other_sessions: 0 }],
+          };
+        }
+        if (sql.includes("with allow_connections true")) {
+          return { rows: [] };
+        }
+        throw new Error("unexpected maintenance query after re-enable");
+      }),
+    };
+
+    await expect(
+      databaseRoleBootstrap!.reenableRestoredNoAclDatabase(
+        maintenancePool,
+        "learncoding_restore_target",
+        101,
+      ),
+    ).resolves.toBeUndefined();
+    expect(queries).toHaveLength(2);
+    expect(queries.at(-1)).toContain("with allow_connections true");
+  });
+
+  it("re-quarantines an uncertain database re-enable before rejecting", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+    const primary = new Error("simulated re-enable acknowledgement loss");
+    const queries: string[] = [];
+    let stateReads = 0;
+    const maintenancePool = {
+      query: vi.fn(async (sql: string) => {
+        queries.push(sql);
+        if (sql.includes("select database.datallowconn")) {
+          stateReads += 1;
+          return {
+            rows: [{ allow_connections: false, other_sessions: 0 }],
+          };
+        }
+        if (sql.includes("with allow_connections true")) {
+          throw primary;
+        }
+        if (
+          sql.includes("with allow_connections false") ||
+          sql.includes("pg_terminate_backend") ||
+          sql.includes("pg_stat_clear_snapshot")
+        ) {
+          return { rows: [] };
+        }
+        throw new Error("unexpected re-quarantine query");
+      }),
+    };
+
+    await expect(
+      databaseRoleBootstrap!.reenableRestoredNoAclDatabase(
+        maintenancePool,
+        "learncoding_restore_target",
+        101,
+      ),
+    ).rejects.toBe(primary);
+    expect(stateReads).toBe(2);
+    const reenable = queries.findIndex((query) =>
+      query.includes("with allow_connections true"),
+    );
+    const requarantine = queries.findIndex((query) =>
+      query.includes("with allow_connections false"),
+    );
+    expect(reenable).toBeGreaterThanOrEqual(0);
+    expect(requarantine).toBeGreaterThan(reenable);
+  });
+
+  it("bypasses only strict pre-repair ACL checks for restored no-ACL reconciliation", async () => {
+    const [{ readFile }, { join }] = await Promise.all([
+      import("node:fs/promises"),
+      import("node:path"),
+    ]);
+    const source = await readFile(
+      join(process.cwd(), "scripts", "bootstrap-database-roles.mjs"),
+      "utf8",
+    );
+    const applyStart = source.indexOf(
+      "async function applyDatabaseRolePrivilegeReconciliation(",
+    );
+    const restoredStart = source.indexOf(
+      "async function reconcileRestoredNoAclDatabaseRolePrivileges(",
+      applyStart,
+    );
+    const restoredEnd = source.indexOf(
+      "\nfunction databaseRoleBootstrapInvariantError(",
+      restoredStart,
+    );
+    const apply = source.slice(applyStart, restoredStart);
+    const restored = source.slice(restoredStart, restoredEnd);
+    expect(applyStart).toBeGreaterThanOrEqual(0);
+    expect(restoredStart).toBeGreaterThan(applyStart);
+    expect(restoredEnd).toBeGreaterThan(restoredStart);
+    expect(apply).toMatch(/verifyPreRepairContracts\s*=\s*true/u);
+    expect(apply).toContain("verifyAndRepairReviewedPhaseRoutinePrivileges(");
+    expect(apply).toContain(
+      "verifyAndRepairReviewedBaselineRewardRoutinePrivileges(",
+    );
+    expect(apply).toContain(
+      "verifyPostMigrationReviewedContractsBeforeReconciliation(",
+    );
+    expect(restored).toContain("verifyPreRepairContracts: false");
+    expect(restored).not.toContain(
+      "verifyAndRepairReviewedPhaseRoutinePrivileges(",
+    );
+    expect(restored).not.toContain(
+      "verifyAndRepairReviewedBaselineRewardRoutinePrivileges(",
+    );
+
+    const bootstrapStart = source.indexOf(
+      "export async function runDatabaseRoleBootstrap(options) {",
+    );
+    const bootstrapEnd = source.indexOf(
+      "\nasync function main()",
+      bootstrapStart,
+    );
+    const bootstrap = source.slice(bootstrapStart, bootstrapEnd);
+    const preRepairBranchStart = bootstrap.indexOf(
+      "let reviewedPhase = await resolveReviewedMailAuthorityCatalogPhase(",
+    );
+    const preRepairBranchEnd = bootstrap.indexOf(
+      "await createAndResetRoles(",
+      preRepairBranchStart,
+    );
+    const preRepairBranch = bootstrap.slice(
+      preRepairBranchStart,
+      preRepairBranchEnd,
+    );
+    expect(preRepairBranch).toContain("} else {");
+    expect(preRepairBranch).toContain(
+      "verifyAndRepairReviewedPhaseRoutinePrivileges(",
+    );
+    expect(preRepairBranch).toContain(
+      "verifyAndRepairReviewedBaselineRewardRoutinePrivileges(",
+    );
+    expect(preRepairBranch).toContain(
+      "verifyPostMigrationReviewedContractsBeforeReconciliation(",
+    );
+    expect(preRepairBranch).toContain(
+      "verifyBackupStatusAuthorityBeforeRepair(",
+    );
+    const restoredReconciliation = bootstrap.indexOf(
+      "reconcileRestoredNoAclDatabaseRolePrivileges(",
+    );
+    const strictReconciliation = bootstrap.indexOf(
+      "reconcileDatabaseRolePrivileges(",
+    );
+    const beforeCommit = bootstrap.indexOf("if (options.beforeCommit)");
+    const postRepairReviewed = bootstrap.lastIndexOf(
+      "verifyPostMigrationReviewedContractsBeforeReconciliation(",
+      beforeCommit,
+    );
+    const postRepairBackup = bootstrap.indexOf(
+      "verifyBackupStatusAuthorityAfterRepair(",
+      postRepairReviewed,
+    );
+    const postRepairState = bootstrap.indexOf(
+      "verifyDatabaseRoleBootstrapState(",
+      postRepairBackup,
+    );
+    expect(restoredReconciliation).toBeGreaterThanOrEqual(0);
+    expect(strictReconciliation).toBeGreaterThanOrEqual(0);
+    expect(postRepairReviewed).toBeGreaterThan(restoredReconciliation);
+    expect(postRepairReviewed).toBeGreaterThan(strictReconciliation);
+    expect(postRepairBackup).toBeGreaterThan(postRepairReviewed);
+    expect(postRepairState).toBeGreaterThan(postRepairBackup);
+  });
+
+  it("quarantines a restored database through structural and strict reconciliation", async () => {
+    const [{ readFile }, { join }] = await Promise.all([
+      import("node:fs/promises"),
+      import("node:path"),
+    ]);
+    const source = await readFile(
+      join(process.cwd(), "scripts", "bootstrap-database-roles.mjs"),
+      "utf8",
+    );
+    const start = source.indexOf(
+      "export async function runDatabaseRoleBootstrap",
+    );
+    const end = source.indexOf("\nasync function main()", start);
+    const bootstrap = source.slice(start, end);
+    const quarantineStart = source.indexOf(
+      "async function restoredNoAclDatabaseConnectionState(",
+    );
+    const quarantineEnd = source.indexOf(
+      "\nasync function verifyRestoredNoAclStructureBeforeReconciliation(",
+      quarantineStart,
+    );
+    const quarantine = source.slice(quarantineStart, quarantineEnd);
+    const positions = {
+      lock: bootstrap.indexOf("await acquireAdministrationLock("),
+      quarantine: bootstrap.indexOf("await quarantineRestoredNoAclDatabase("),
+      cleanup: bootstrap.indexOf(
+        "const cleanupFailures = await collectDatabaseBootstrapCleanupFailures(",
+      ),
+      begin: bootstrap.indexOf('await client.query("begin")'),
+      structure: bootstrap.indexOf(
+        "await verifyRestoredNoAclStructureBeforeReconciliation(",
+      ),
+      reconcile: bootstrap.indexOf(
+        "await reconcileRestoredNoAclDatabaseRolePrivileges(",
+      ),
+      commit: bootstrap.indexOf('await client.query("commit")'),
+      committedLedger: bootstrap.lastIndexOf(
+        "await verifyAppliedMigrationLedger(",
+      ),
+      reenable: bootstrap.indexOf("await reenableRestoredNoAclDatabase("),
+    };
+    expect(Object.values(positions).every((position) => position >= 0)).toBe(
+      true,
+    );
+    expect(positions.lock).toBeLessThan(positions.quarantine);
+    expect(positions.quarantine).toBeLessThan(positions.begin);
+    expect(positions.begin).toBeLessThan(positions.structure);
+    expect(positions.structure).toBeLessThan(positions.reconcile);
+    expect(positions.reconcile).toBeLessThan(positions.commit);
+    expect(positions.commit).toBeLessThan(positions.committedLedger);
+    expect(positions.committedLedger).toBeLessThan(positions.cleanup);
+    expect(positions.cleanup).toBeLessThan(positions.reenable);
+    expect(bootstrap).toContain("restoreMaintenancePool");
+    expect(bootstrap).toContain(
+      "restoreMaintenanceClient = await restoreMaintenancePool.connect()",
+    );
+    expect(bootstrap).toContain(
+      "const maintenanceIdentity = await restoreMaintenanceClient.query(",
+    );
+    expect(bootstrap).toContain(
+      "await proveRestoredNoAclMaintenanceSameInstance(",
+    );
+    expect(bootstrap).toMatch(
+      /await quarantineRestoredNoAclDatabase\(\s*restoreMaintenanceClient,/u,
+    );
+    expect(bootstrap).toMatch(
+      /await reenableRestoredNoAclDatabase\(\s*restoreMaintenanceClient,/u,
+    );
+    expect(bootstrap).not.toContain("restoreMaintenancePool.query(");
+    expect(bootstrap).toMatch(
+      /client:\s*restoreMaintenanceClient,\s*pool:\s*restoreMaintenancePool,/u,
+    );
+    expect(bootstrap).toContain(
+      "cleanupFailures.push(...maintenanceCleanupFailures)",
+    );
+    expect(bootstrap).toContain("identityRow.backend_pid");
+    expect(quarantine).toContain("activity.pid <> $2");
+    expect(quarantine).not.toContain(
+      "database.datname = pg_catalog.current_database()",
+    );
+    expect(
+      bootstrap.match(/await reenableRestoredNoAclDatabase\(/gu),
+    ).toHaveLength(1);
+  });
+
+  it("closes a restored database before boundedly draining every other backend", async () => {
+    const [{ readFile }, { join }] = await Promise.all([
+      import("node:fs/promises"),
+      import("node:path"),
+    ]);
+    const source = await readFile(
+      join(process.cwd(), "scripts", "bootstrap-database-roles.mjs"),
+      "utf8",
+    );
+    const start = source.indexOf(
+      "async function quarantineRestoredNoAclDatabase(",
+    );
+    const end = source.indexOf(
+      "\nasync function forceRestoredNoAclDatabaseQuarantine(",
+      start,
+    );
+    const quarantine = source.slice(start, end);
+    const disable = quarantine.indexOf("with allow_connections false");
+    const terminate = quarantine.indexOf("pg_terminate_backend(");
+    const poll = quarantine.indexOf(
+      "restoredNoAclDatabaseConnectionState(",
+      terminate,
+    );
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    expect(disable).toBeGreaterThanOrEqual(0);
+    expect(terminate).toBeGreaterThan(disable);
+    expect(poll).toBeGreaterThan(terminate);
+    expect(quarantine).toContain("MAX_SESSION_DRAIN_MS");
+    expect(quarantine).toContain("SESSION_DRAIN_POLL_MS");
+    expect(quarantine).toContain("pg_stat_clear_snapshot()");
+    expect(quarantine).toMatch(
+      /activity\.datid\s*=\s*\(\s*select database\.oid[\s\S]*database\.datname\s*=\s*\$1[\s\S]*activity\.pid\s*<>\s*\$2/u,
+    );
+    expect(quarantine).toContain("maintenancePool.query(");
+    expect(quarantine).not.toContain("before.other_sessions !== 0");
   });
 
   it("reconciles the exact reviewed mail-authority routines after the blanket revoke", async () => {
@@ -161,6 +871,22 @@ describe("database least-privilege bootstrap", () => {
         }),
       ),
     ).toEqual([
+      {
+        signature:
+          "public.enqueue_reward_jobs_for_attempt_v1(uuid,text,timestamp with time zone)",
+        owner: "learncoding_owner",
+        securityDefiner: false,
+        configuration: null,
+        allowedRoles: ["learncoding_app", "learncoding_worker"],
+      },
+      {
+        signature:
+          "public.enqueue_reward_jobs_for_mastery_scope_v1(uuid,text,timestamp with time zone)",
+        owner: "learncoding_owner",
+        securityDefiner: false,
+        configuration: null,
+        allowedRoles: ["learncoding_app", "learncoding_worker"],
+      },
       {
         signature:
           "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
@@ -301,7 +1027,13 @@ describe("database least-privilege bootstrap", () => {
       "public.email_outbox_original_payload_sha256(text,text,text,text,jsonb)",
       "public.email_outbox_event_sha256(text,text,text)",
     ]);
-    expect(routines[0]).toMatchObject({
+    expect(
+      routines.find(
+        ({ signature }) =>
+          signature ===
+          "public.redact_unresolved_email_outbox_authority(timestamp with time zone,integer)",
+      ),
+    ).toMatchObject({
       argumentNames: [
         "cutoff_at",
         "batch_limit",
@@ -341,9 +1073,18 @@ describe("database least-privilege bootstrap", () => {
     expect(reviewedGrant).toContain(
       "grant execute on function public.email_outbox_idempotency_coverage_authority(uuid[]) to learncoding_ops",
     );
-    expect(reviewedGrant).not.toMatch(
-      /to\s+(public|learncoding_app|learncoding_migrator)\b/iu,
-    );
+    for (const signature of [
+      "public.enqueue_reward_jobs_for_attempt_v1(uuid,text,timestamp with time zone)",
+      "public.enqueue_reward_jobs_for_mastery_scope_v1(uuid,text,timestamp with time zone)",
+    ]) {
+      expect(reviewedGrant).toContain(
+        `grant execute on function ${signature} to learncoding_app`,
+      );
+      expect(reviewedGrant).toContain(
+        `grant execute on function ${signature} to learncoding_worker`,
+      );
+    }
+    expect(reviewedGrant).not.toMatch(/to\s+(public|learncoding_migrator)\b/iu);
 
     const source = await import("node:fs/promises").then(({ readFile }) =>
       readFile("scripts/bootstrap-database-roles.mjs", "utf8"),
@@ -388,9 +1129,9 @@ describe("database least-privilege bootstrap", () => {
     const orchestratorIndex = source.indexOf(
       "await runDisposableIntegrationReleaseCycles({",
     );
-    const testIndex = source.indexOf(
-      'await runNpm([\n      "run",\n      "test:integration:vitest"',
-    );
+    const applicationTestMatch =
+      /await runNpm\(\[\s*"run",\s*"test:integration:vitest"/u.exec(source);
+    const testIndex = applicationTestMatch?.index ?? -1;
 
     expect(source).toContain("runDatabaseRoleBootstrap");
     expect(source).toContain("verifyDatabaseRoleBoundaries");
@@ -423,6 +1164,8 @@ describe("database least-privilege bootstrap", () => {
     );
     expect(source).not.toContain("env: process.env");
     expect(source).toContain("ownerAssumingDatabaseUrl(roleUrls.migrator)");
+    expect(source).toContain("databaseOwnerUrl: ownerDatabaseUrl");
+    expect(source).toContain("databaseAppUrl: roleUrls.app");
     expect(source).toContain("client.release();\n    await pool.end();");
     expect(source).not.toContain("journal_count !== 63");
     expect(source).not.toContain("`POSTGRES_PASSWORD=${password}`");
@@ -455,6 +1198,13 @@ describe("database least-privilege bootstrap", () => {
       ({ readFile }) =>
         readFile(
           "integration/retention-ops-session.integration.test.ts",
+          "utf8",
+        ),
+    );
+    const ownerHelperSource = await import("node:fs/promises").then(
+      ({ readFile }) =>
+        readFile(
+          "integration/support/with-validated-owner-fault-injection.ts",
           "utf8",
         ),
     );
@@ -492,8 +1242,37 @@ describe("database least-privilege bootstrap", () => {
     expect(opsProofSource).toMatch(
       /const report = await runRetention\(\{[\s\S]*?\}, integrationRetentionDependencies\);/u,
     );
-    expect(opsProofSource).toMatch(
-      /const report = await retention[.]runRetention\(\{[\s\S]*?\}, \{[\s\S]*?acquireClient: \(\) => opsPool[.]connect\(\),[\s\S]*?processFileErasures:/u,
+    const ownerWrapperStart = opsProofSource.indexOf(
+      "const report = await withValidatedOwnerFaultInjection({",
+    );
+    const ownerWrapperEnd = opsProofSource.indexOf(
+      "\n\n          expect(checkpointObserved).toBe(true);",
+      ownerWrapperStart,
+    );
+    expect(ownerWrapperStart).toBeGreaterThanOrEqual(0);
+    expect(ownerWrapperEnd).toBeGreaterThan(ownerWrapperStart);
+    const ownerWrapper = opsProofSource.slice(
+      ownerWrapperStart,
+      ownerWrapperEnd,
+    );
+    expect(ownerWrapper).toContain('context: "Retention-redaction"');
+    expect(ownerWrapper).toMatch(
+      /installSql: \[[\s\S]*?cleanupSql: \[[\s\S]*?run: \(\) => retention[.]runRetention\(\{/u,
+    );
+    expect(ownerWrapper).toContain("databaseTarget: databaseOwnerTarget");
+    expect(ownerWrapper).toContain("acquireClient: () => opsPool.connect()");
+    expect(ownerWrapper).toContain("processFileErasures: async (");
+    expect([
+      ...opsProofSource.matchAll(/withValidatedOwnerFaultInjection\(/gu),
+    ]).toHaveLength(1);
+    expect(opsProofSource).not.toContain("DATABASE_OWNER_URL");
+    expect(opsProofSource).not.toContain("learncoding_owner");
+    expect(opsProofSource).not.toContain("learncoding_migrator");
+    expect(ownerHelperSource).toContain(
+      'identity.rows[0]?.session_user !== "learncoding_migrator"',
+    );
+    expect(ownerHelperSource).toContain(
+      'identity.rows[0]?.current_user !== "learncoding_owner"',
     );
     expect(opsProofSource).toMatch(
       /const opsPool = new PgPool\(\{[\s\S]*?connectionString: databaseOpsUrl,[\s\S]*?\}\);/u,
@@ -506,8 +1285,7 @@ describe("database least-privilege bootstrap", () => {
     expect(opsProofSource).toContain("select current_user, session_user");
     expect(opsProofSource).toContain("runWithValidatedRetentionOpsEnvironment");
     expect(opsProofSource).toContain("current_database()");
-    expect(opsProofSource).toContain('current_user: "learncoding_owner"');
-    expect(opsProofSource).toContain('session_user: "learncoding_migrator"');
+
     expect(opsProofSource).toContain('current_user: "learncoding_ops"');
     expect(opsProofSource).toContain('session_user: "learncoding_ops"');
   });
@@ -903,6 +1681,223 @@ describe("database least-privilege bootstrap", () => {
     ).rejects.toMatchObject({ name: "DatabaseBootstrapCleanupTimeoutError" });
 
     expect(client.release).toHaveBeenCalledOnce();
+    expect(pool.end).toHaveBeenCalledOnce();
+  });
+
+  it("surfaces every maintenance cleanup failure after acknowledged re-enable", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+    const releaseFailure = new Error("maintenance client release failed");
+    const poolFailure = new Error("maintenance pool shutdown failed");
+    const client = {
+      query: vi.fn(async (): Promise<never> => {
+        throw new Error("no database query is allowed after re-enable");
+      }),
+      release: vi.fn(() => {
+        throw releaseFailure;
+      }),
+    };
+    const pool = {
+      end: vi.fn(async () => {
+        throw poolFailure;
+      }),
+    };
+
+    const outcome = await captureRejection(() =>
+      databaseRoleBootstrap!.cleanupRestoredNoAclMaintenanceResources({
+        client,
+        pool,
+        databaseReenabled: true,
+        operationFailed: false,
+        timeoutMs: 50,
+      }),
+    );
+
+    expect(outcome.rejected).toBe(true);
+    expect(outcome.reason).toBeInstanceOf(AggregateError);
+    expect((outcome.reason as AggregateError).errors).toEqual([
+      releaseFailure,
+      poolFailure,
+    ]);
+    expect(outcome.reason).toMatchObject({
+      cleanupIncomplete: true,
+      databaseEnabled: true,
+    });
+    expect(client.query).not.toHaveBeenCalled();
+    expect(client.release).toHaveBeenCalledWith(undefined);
+    expect(pool.end).toHaveBeenCalledOnce();
+  });
+
+  it("preserves the exact bootstrap rejection when cleanup succeeds", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+
+    for (const primaryFailure of [
+      new Error("bootstrap primary Error"),
+      "bootstrap-primary-primitive",
+      undefined,
+    ]) {
+      const { outcome, pool } = await runBootstrapCheckoutFailure(
+        databaseRoleBootstrap!,
+        primaryFailure,
+      );
+      expect(outcome.rejected).toBe(true);
+      expect(outcome.reason).toBe(primaryFailure);
+      expect(pool.end).toHaveBeenCalledOnce();
+    }
+  });
+
+  it("keeps a mutable primary Error outward and attaches its cleanup failures", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+    const originalCause = new Error("original bootstrap cause");
+    const primaryFailure = new Error("bootstrap primary");
+    Object.defineProperty(primaryFailure, "cause", {
+      value: originalCause,
+      configurable: true,
+      writable: true,
+    });
+    const cleanupFailure = new Error("bootstrap pool cleanup");
+
+    const { outcome } = await runBootstrapCheckoutFailure(
+      databaseRoleBootstrap!,
+      primaryFailure,
+      cleanupFailure,
+    );
+
+    expect(outcome.rejected).toBe(true);
+    expect(outcome.reason).toBe(primaryFailure);
+    const cleanupCause = (primaryFailure as Error & { cause?: unknown }).cause;
+    expect(cleanupCause).toBeInstanceOf(AggregateError);
+    expect((cleanupCause as AggregateError).errors).toEqual([cleanupFailure]);
+    expect((cleanupCause as AggregateError & { cause?: unknown }).cause).toBe(
+      originalCause,
+    );
+  });
+
+  it("aggregates falsey and non-Error primaries with cleanup failures", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+
+    for (const primaryFailure of [
+      false,
+      "bootstrap-primary-primitive",
+      undefined,
+    ]) {
+      const cleanupFailure = new Error("bootstrap pool cleanup");
+      const { outcome } = await runBootstrapCheckoutFailure(
+        databaseRoleBootstrap!,
+        primaryFailure,
+        cleanupFailure,
+      );
+      expect(outcome.rejected).toBe(true);
+      expect(outcome.reason).toBeInstanceOf(AggregateError);
+      expect((outcome.reason as AggregateError).errors).toEqual([
+        primaryFailure,
+        cleanupFailure,
+      ]);
+      expect(
+        (outcome.reason as AggregateError & { cause?: unknown }).cause,
+      ).toBe(primaryFailure);
+    }
+  });
+
+  it("does not mutate a frozen primary Error or its existing cause", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+    const originalCause = Object.freeze(new Error("frozen original cause"));
+    const primaryFailure = Object.freeze(
+      new Error("frozen bootstrap primary", { cause: originalCause }),
+    );
+    const cleanupFailure = new Error("bootstrap pool cleanup");
+
+    const { outcome } = await runBootstrapCheckoutFailure(
+      databaseRoleBootstrap!,
+      primaryFailure,
+      cleanupFailure,
+    );
+
+    expect(outcome.rejected).toBe(true);
+    expect(outcome.reason).toBeInstanceOf(AggregateError);
+    expect((outcome.reason as AggregateError).errors).toEqual([
+      primaryFailure,
+      cleanupFailure,
+    ]);
+    expect((outcome.reason as AggregateError & { cause?: unknown }).cause).toBe(
+      primaryFailure,
+    );
+    expect(primaryFailure.cause).toBe(originalCause);
+  });
+
+  it("rejects with an exact sole falsey or primitive cleanup failure", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+
+    for (const cleanupFailure of [undefined, false, "cleanup-primitive"]) {
+      const client = {
+        query: vi.fn(async () => ({ rows: [{ released: true }] })),
+        release: vi.fn(() => {
+          throw cleanupFailure;
+        }),
+      };
+      const pool = { end: vi.fn(async () => undefined) };
+      const outcome = await captureRejection(() =>
+        databaseRoleBootstrap!.cleanupDatabaseBootstrapResources({
+          client,
+          pool,
+          transactionOpen: false,
+          lockAcquired: false,
+          timeoutMs: 50,
+        }),
+      );
+
+      expect(outcome.rejected).toBe(true);
+      expect(outcome.reason).toBe(cleanupFailure);
+      expect(pool.end).toHaveBeenCalledOnce();
+    }
+  });
+
+  it("retains every bootstrap cleanup failure in execution order", async () => {
+    const databaseRoleBootstrap = await loadDatabaseRoleModule();
+    expect(databaseRoleBootstrap).not.toBeNull();
+    const rollbackFailure = undefined;
+    const releaseFailure = "release-cleanup-primitive";
+    const poolFailure = new Error("pool cleanup failure");
+    const client = {
+      query: vi.fn(async () => {
+        throw rollbackFailure;
+      }),
+      release: vi.fn(() => {
+        throw releaseFailure;
+      }),
+    };
+    const pool = {
+      end: vi.fn(async () => {
+        throw poolFailure;
+      }),
+    };
+
+    const outcome = await captureRejection(() =>
+      databaseRoleBootstrap!.cleanupDatabaseBootstrapResources({
+        client,
+        pool,
+        transactionOpen: true,
+        lockAcquired: true,
+        timeoutMs: 50,
+      }),
+    );
+
+    expect(outcome.rejected).toBe(true);
+    expect(outcome.reason).toBeInstanceOf(AggregateError);
+    expect((outcome.reason as AggregateError).errors).toEqual([
+      rollbackFailure,
+      releaseFailure,
+      poolFailure,
+    ]);
+    expect((outcome.reason as AggregateError & { cause?: unknown }).cause).toBe(
+      rollbackFailure,
+    );
+    expect(client.release).toHaveBeenCalledWith(true);
     expect(pool.end).toHaveBeenCalledOnce();
   });
 

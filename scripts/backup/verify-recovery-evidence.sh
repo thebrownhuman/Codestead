@@ -315,34 +315,20 @@ read -r restore_expected_hash restore_expected_name restore_checksum_extra <"$re
   && "$(sha256sum "$restore_report" | awk '{print $1}')" == "$restore_expected_hash" ]] \
   || die "restore drill report checksum verification failed"
 
-mapfile -t restore_lines <"$restore_report"
-[[ ${#restore_lines[@]} -eq 19 \
-  && "${restore_lines[0]}" == version=1 \
-  && "${restore_lines[1]}" == result=pass \
-  && "${restore_lines[2]}" == source=offsite \
-  && "${restore_lines[3]}" =~ ^archive=(learncoding-full-[0-9]{8}T[0-9]{6}Z\.tar\.gz\.age)$ \
-  && "${restore_lines[4]}" =~ ^approval_utc=([0-9]{8}T[0-9]{6}Z)$ \
-  && "${restore_lines[5]}" =~ ^snapshot_utc=([0-9]{8}T[0-9]{6}Z)$ \
-  && "${restore_lines[6]}" =~ ^incident_utc=([0-9]{8}T[0-9]{6}Z)$ \
-  && "${restore_lines[7]}" =~ ^recorded_utc=([0-9]{8}T[0-9]{6}Z)$ \
-  && "${restore_lines[8]}" == chronology_valid=true \
-  && "${restore_lines[9]}" == database_schema_valid=true \
-  && "${restore_lines[10]}" =~ ^public_table_count=([1-9][0-9]*)$ \
-  && "${restore_lines[11]}" == app_data_valid=true \
-  && "${restore_lines[12]}" == credential_recovery=true \
-  && "${restore_lines[13]}" == live_database_modified=false \
-  && "${restore_lines[14]}" == cleanup_complete=true \
-  && "${restore_lines[15]}" =~ ^rpo_seconds=([0-9]+)$ \
-  && "${restore_lines[16]}" == rpo_within_24h=true \
-  && "${restore_lines[17]}" =~ ^rto_seconds=([0-9]+)$ \
-  && "${restore_lines[18]}" == rto_within_4h=true ]] \
-  || die "latest restore drill report is malformed or not passing"
-restore_approval="${restore_lines[4]#approval_utc=}"
-restore_snapshot="${restore_lines[5]#snapshot_utc=}"
-restore_incident="${restore_lines[6]#incident_utc=}"
-restore_recorded="${restore_lines[7]#recorded_utc=}"
-restore_rpo="${restore_lines[15]#rpo_seconds=}"
-restore_rto="${restore_lines[17]#rto_seconds=}"
+restore_lines=()
+parse_restore_report_v2 "$restore_report" restore_lines \
+  || die "latest restore drill report is malformed, obsolete, mismatched, or not passing"
+restore_archive="${restore_lines[3]#archive=}"
+restore_archive_sha256="${restore_lines[4]#archive_sha256=}"
+restore_approval="${restore_lines[5]#approval_utc=}"
+restore_snapshot="${restore_lines[6]#snapshot_utc=}"
+restore_incident="${restore_lines[7]#incident_utc=}"
+restore_recorded="${restore_lines[8]#recorded_utc=}"
+restore_rpo="${restore_lines[16]#rpo_seconds=}"
+restore_rto="${restore_lines[18]#rto_seconds=}"
+[[ "$restore_archive" == "$pointer_archive" \
+  && "$restore_archive_sha256" == "$pointer_sha" ]] \
+  || die "restore drill report conflicts with the attested offsite recovery point"
 [[ "$restore_name" == "restore-drill-$restore_approval.txt" ]] \
   || die "restore drill report name conflicts with its approval timestamp"
 restore_approval_epoch="$(date -u -d \

@@ -307,15 +307,28 @@ describe("0064 email outbox dispatch binding", () => {
       "0064 dispatch binding on production-pinned PostgreSQL 17",
     );
     expect(pinnedIntegration).toContain("DATABASE_WORKER_URL");
-    expect(pinnedIntegration).toContain("DATABASE_OPS_URL");
+    expect(pinnedIntegration).toContain("DATABASE_APP_URL");
+    expect(pinnedIntegration).toContain("DATABASE_OWNER_URL");
+    expect(pinnedIntegration).toContain("MAIL_DISPATCH_RUNTIME_BOOTSTRAP");
     expect(pinnedIntegration).toContain(
-      "const setupClient = await owner.connect();",
+      "await resetDisposableIntegrationDatabase(application);",
     );
+    expect(pinnedIntegration).toContain(
+      "const setupClient = await application.connect();",
+    );
+    expect(pinnedIntegration).toContain(
+      "public.release_email_outbox_delivery(",
+    );
+    expect(pinnedIntegration).toContain("outboxStore.claimNext({");
     expect(pinnedIntegration).toContain(
       'function_name: "enforce_email_outbox_dispatch_binding",',
     );
+    expect(pinnedIntegration).toContain("rejects forged quarantine aging");
     expect(pinnedIntegration).toContain(
-      "SELECT disposition, eligible::text, transitioned::text",
+      ").rejects.toMatchObject({ code: \"23514\" });",
+    );
+    expect(pinnedIntegration).toContain(
+      "expect(afterForgery.rows).toEqual(beforeForgery.rows);",
     );
     expect(postgresImageAuthority).toContain(
       "postgres:17-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193",
@@ -339,6 +352,64 @@ describe("0064 email outbox dispatch binding", () => {
     expect(harness).toContain("migration_replay:pass");
   });
 
+  it("keeps aged 0068 redaction preservation in the registered final-0069 runtime harness", () => {
+    const packageManifest = JSON.parse(
+      readFileSync(resolve(repositoryRoot, "package.json"), "utf8"),
+    ) as { scripts: Record<string, string> };
+    const ci = readFileSync(
+      resolve(repositoryRoot, ".github", "workflows", "ci.yml"),
+      "utf8",
+    );
+    const guardedHarness = readFileSync(
+      resolve(
+        repositoryRoot,
+        "infra",
+        "tests",
+        "mail-guarded-delivery-0069-harness.test.mjs",
+      ),
+      "utf8",
+    );
+    const guardedRuntime = readFileSync(
+      resolve(
+        repositoryRoot,
+        "infra",
+        "tests",
+        "mail-guarded-delivery-0069-runtime.impl.ts",
+      ),
+      "utf8",
+    );
+
+    expect(
+      packageManifest.scripts[
+        "test:mail-guarded-delivery-0069:registration"
+      ],
+    ).toContain("mail-guarded-delivery-0069-harness.test.mjs");
+    expect(packageManifest.scripts["test:mail-guarded-delivery-0069:pg17"]).toBe(
+      "node infra/tests/mail-guarded-delivery-0069.integration.mjs",
+    );
+    expect(packageManifest.scripts["test:mail-guarded-delivery-0069:pg18"]).toBe(
+      "node infra/tests/mail-guarded-delivery-0069.integration.mjs",
+    );
+    for (const marker of [
+      "test:mail-guarded-delivery-0069:registration",
+      "test:mail-guarded-delivery-0069:pg17",
+      "test:mail-guarded-delivery-0069:pg18",
+    ]) {
+      expect(ci).toContain(marker);
+    }
+    for (const marker of [
+      "proveGmailRedactionReconciliation",
+      "redact_quarantined_email_outbox_authority_v2",
+      "redactionPreservedEvidence",
+    ]) {
+      expect(guardedHarness).toContain(marker);
+    }
+    expect(guardedRuntime).toContain(
+      "const preservedBeforeRedaction = redactionPreservedEvidence(",
+    );
+    expect(guardedRuntime).toContain("redactionPreservedEvidence(redacted)");
+    expect(guardedRuntime).toContain("redacted.dispatch_binding_sha256");
+  });
   it("verifies every staged migration directory and its applied prefix exactly", () => {
     const harness = readFileSync(harnessPath, "utf8");
 

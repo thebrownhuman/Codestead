@@ -367,6 +367,7 @@ readonly prepare_postgres_script="${PREPARE_POSTGRES_SCRIPT:-$repo_root/infra/op
 readonly prepare_object_script="${PREPARE_OBJECT_SCRIPT:-$repo_root/infra/ops/prepare-object-storage.mjs}"
 readonly runtime_state_root="${RUNTIME_STATE_ROOT:-/etc/learncoding}"
 readonly release_tree_packager="$repo_root/infra/ops/package-release-tree.py"
+readonly host_operations_compatibility_helper="$repo_root/infra/ops/host-operations-compatibility.py"
 if [[ -n "$test_harness_root" ]]; then
   readonly ingress_control_script="$test_harness_root/repo/infra/ops/ingress-control.py"
   readonly -a ingress_control=("$python_bin" "$ingress_control_script" --test-harness-root "$test_harness_root")
@@ -426,6 +427,7 @@ for path_and_label in \
   "$prepare_postgres_script|PostgreSQL storage preparer" \
   "$prepare_object_script|object storage preparer" \
   "$release_tree_packager|release tree packager" \
+  "$host_operations_compatibility_helper|host operations compatibility helper" \
   "$ingress_control_script|ingress control helper" \
   "$runtime_state_root|runtime state root" \
   "$application_image_record_json|application image JSON record" \
@@ -456,8 +458,11 @@ done
 [[ -f "$release_tree_packager" && -x "$release_tree_packager" && ! -L "$release_tree_packager" ]] || {
   fatal "release tree packager must be an executable non-symlink file: $release_tree_packager"
 }
-[[ -f "$ingress_control_script" && -x "$ingress_control_script" && ! -L "$ingress_control_script" ]] || {
-  fatal "ingress control helper must be an executable non-symlink file: $ingress_control_script"
+[[ -f "$host_operations_compatibility_helper" && -x "$host_operations_compatibility_helper" && ! -L "$host_operations_compatibility_helper" ]] || {
+  fatal "host operations compatibility helper must be an executable non-symlink file: $host_operations_compatibility_helper"
+}
+[[ -f "$ingress_control_script" && ! -L "$ingress_control_script" ]] || {
+  fatal "ingress control helper must be a regular non-symlink file: $ingress_control_script"
 }
 [[ -d "$runtime_state_root" && ! -L "$runtime_state_root" ]] || {
   fatal "runtime state root must be a pre-created real directory: $runtime_state_root"
@@ -488,6 +493,7 @@ if [[ -z "$test_harness_root" ]]; then
   assert_root_owned_not_writable "$prepare_postgres_script" "PostgreSQL storage preparer"
   assert_root_owned_not_writable "$prepare_object_script" "object storage preparer"
   assert_root_owned_not_writable "$release_tree_packager" "release tree packager"
+  assert_root_owned_not_writable "$host_operations_compatibility_helper" "host operations compatibility helper"
   assert_root_owned_not_writable "$ingress_control_script" "ingress control helper"
   assert_root_owned_not_writable "$application_image_record_json" "application image JSON record"
   assert_root_owned_not_writable "$application_image_record_env" "application image environment record"
@@ -621,6 +627,7 @@ previous_runtime_available=false
 runtime_state_commit_visible=false
 previous_release_id="none"
 previous_git_commit="none"
+previous_git_tree="none"
 previous_mail_outbox_phase="legacy-v0"
 previous_outbox_worker_mode="legacy-direct-v1"
 previous_outbox_retention_authority="legacy-direct-v1"
@@ -644,10 +651,18 @@ previous_runtime_compatible=false
 forward_only_migration=none
 current_pointer="$release_record_root/current-release.env"
 latest_candidate_pointer="$release_record_root/latest-candidate.env"
+current_pointer_recovery_intent="$release_record_root/current-release.recovery.env"
 release_pointer_temporary=""
+current_pointer_recovery_temporary=""
+current_pointer_recovery_visible=false
+current_pointer_finalization_started=false
 runtime_inventory_temporary=""
 runtime_active_temporary=""
 release_tree=""
+readonly host_operations_contract_version_expected=host-operations-semantic-v1
+host_operations_contract_version=""
+host_operations_contract_sha256=""
+host_operations_compatibility_verified=false
 runtime_application_temporary=""
 application_image_record_sha256=""
 application_image_record_sha256_before_validation=""
@@ -662,6 +677,168 @@ sync_path() {
 sync_evidence_file() {
   sync_path "$1"
   sync_path "$record_dir"
+}
+
+current_pointer_names_release() {
+  local expected_release_id="$1" expected_git_commit="$2"
+  local -a pointer_lines=()
+  [[ -f "$current_pointer" && ! -L "$current_pointer" ]] || return 1
+  mapfile -t pointer_lines <"$current_pointer" || return 1
+  [[ "${#pointer_lines[@]}" == 2 \
+    && "${pointer_lines[0]}" == "release_id=$expected_release_id" \
+    && "${pointer_lines[1]}" == "git_commit=$expected_git_commit" ]]
+}
+
+validate_recovery_owned_file() {
+  local path="$1" label="$2" expected_mode="$3"
+  local identity uid gid mode links
+  assert_safe_path "$path" "$label"
+  [[ -f "$path" && ! -L "$path" ]] || {
+    fatal "$label must be a regular non-symlink file"
+  }
+  identity="$(path_identity "$path")"
+  IFS=: read -r uid gid mode <<<"$identity"
+  if [[ -z "$test_harness_root" ]]; then
+    [[ "$uid" == 0 && "$gid" == 0 ]] || fatal "$label must be owned by root:root"
+  else
+    [[ "$uid" == "$EUID" ]] || fatal "$label must be owned by the test caller"
+  fi
+  [[ "$mode" == "$expected_mode" ]] || fatal "$label must have mode 0$expected_mode"
+  links="$($stat_bin -Lc '%h' -- "$path")"
+  [[ "$links" == 1 ]] || fatal "$label must have exactly one hard link"
+}
+
+validate_recovery_record_directory() {
+  local path="$1" identity uid gid mode
+  assert_safe_path "$path" "pending release record"
+  [[ -d "$path" && ! -L "$path" ]] || {
+    fatal "pending current release does not name a retained release record"
+  }
+  identity="$(path_identity "$path")"
+  IFS=: read -r uid gid mode <<<"$identity"
+  if [[ -z "$test_harness_root" ]]; then
+    [[ "$uid" == 0 && "$gid" == 0 ]] || fatal "pending release record must be owned by root:root"
+  else
+    [[ "$uid" == "$EUID" ]] || fatal "pending release record must be owned by the test caller"
+  fi
+  [[ "$mode" == 700 ]] || fatal "pending release record must have mode 0700"
+}
+
+RECOVERY_FILE_CONTENT=""
+load_exact_recovery_content() {
+  local path="$1" label="$2"
+  RECOVERY_FILE_CONTENT=""
+  if IFS= read -r -d '' RECOVERY_FILE_CONTENT <"$path"; then
+    fatal "$label must not contain a NUL byte"
+  fi
+  [[ "$RECOVERY_FILE_CONTENT" == *$'\n' ]] || fatal "$label must end with exactly formatted lines"
+}
+
+resume_current_pointer_finalization() {
+  local intent_release_id intent_git_commit intent_git_tree pending_record
+  local status_path commit_path tree_path candidate_active
+  local runtime_active_content candidate_active_content pending_public_origin
+  local -a intent_lines=() pointer_lines=() active_lines=()
+  [[ ! -L "$current_pointer_recovery_intent" ]] || {
+    fatal "current release recovery intent must not be a symlink"
+  }
+  [[ -e "$current_pointer_recovery_intent" ]] || return 0
+  validate_recovery_owned_file \
+    "$current_pointer_recovery_intent" "current release recovery intent" 600
+  load_exact_recovery_content "$current_pointer_recovery_intent" "current release recovery intent"
+  mapfile -t intent_lines <"$current_pointer_recovery_intent"
+  [[ "${#intent_lines[@]}" == 3 && "${intent_lines[0]}" == schema_version=1 \
+    && "${intent_lines[1]}" == release_id=* \
+    && "${intent_lines[2]}" == git_commit=* ]] || {
+    fatal "current release recovery intent has an invalid exact format"
+  }
+  intent_release_id="${intent_lines[1]#release_id=}"
+  intent_git_commit="${intent_lines[2]#git_commit=}"
+  [[ "$intent_release_id" =~ ^[0-9]{8}T[0-9]{6}Z-[1-9][0-9]*$ ]] || {
+    fatal "current release recovery intent contains an invalid release id"
+  }
+  [[ "$intent_git_commit" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || {
+    fatal "current release recovery intent contains an invalid Git commit"
+  }
+  [[ "$RECOVERY_FILE_CONTENT" == \
+    "schema_version=1"$'\n'"release_id=$intent_release_id"$'\n'"git_commit=$intent_git_commit"$'\n' ]] || {
+    fatal "current release recovery intent has an invalid exact format"
+  }
+
+  validate_recovery_owned_file "$current_pointer" "current release pointer" 600
+  mapfile -t pointer_lines <"$current_pointer"
+  [[ "${#pointer_lines[@]}" == 2 \
+    && "${pointer_lines[0]}" == "release_id=$intent_release_id" \
+    && "${pointer_lines[1]}" == "git_commit=$intent_git_commit" ]] || {
+    fatal "current release recovery intent does not match the visible pointer"
+  }
+
+  pending_record="$release_record_root/$intent_release_id"
+  validate_recovery_record_directory "$pending_record"
+  status_path="$pending_record/status.env"
+  commit_path="$pending_record/git-commit.txt"
+  tree_path="$pending_record/git-tree.txt"
+  candidate_active="$pending_record/active-release.env"
+  validate_recovery_owned_file "$status_path" "pending release status" 600
+  validate_recovery_owned_file "$commit_path" "pending release Git evidence" 600
+  validate_recovery_owned_file "$tree_path" "pending release Git tree evidence" 600
+  validate_recovery_owned_file "$candidate_active" "pending release active manifest" 600
+  load_exact_recovery_content "$commit_path" "pending release Git evidence"
+  [[ "$RECOVERY_FILE_CONTENT" == "$intent_git_commit"$'\n' ]] || {
+    fatal "pending release Git evidence does not match recovery intent"
+  }
+  load_exact_recovery_content "$tree_path" "pending release Git tree evidence"
+  intent_git_tree="${RECOVERY_FILE_CONTENT%$'\n'}"
+  [[ "$intent_git_tree" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || {
+    fatal "pending release Git tree evidence is invalid"
+  }
+  [[ "$RECOVERY_FILE_CONTENT" == "$intent_git_tree"$'\n' ]] || {
+    fatal "pending release Git tree evidence is not canonical"
+  }
+  load_exact_recovery_content "$status_path" "pending release status"
+  [[ "$RECOVERY_FILE_CONTENT" == \
+    "release_id=$intent_release_id"$'\n'"result=completed"$'\n'"stage=complete"$'\n'"exit_code=0"$'\n'"schema_rollback=not_attempted"$'\n' ]] || {
+    fatal "pending current release status is not exactly completed"
+  }
+  load_exact_recovery_content "$candidate_active" "pending release active manifest"
+  candidate_active_content="$RECOVERY_FILE_CONTENT"
+  mapfile -t active_lines <"$candidate_active"
+  [[ "${#active_lines[@]}" == 16 \
+    && "${active_lines[0]}" == SCHEMA_VERSION=2 \
+    && "${active_lines[1]}" == "APPLICATION_GIT_COMMIT=$intent_git_commit" \
+    && "${active_lines[2]}" == "APPLICATION_GIT_TREE=$intent_git_tree" \
+    && "${active_lines[3]}" == "HOST_OPERATIONS_GIT_COMMIT=$intent_git_commit" \
+    && "${active_lines[4]}" == "HOST_OPERATIONS_GIT_TREE=$intent_git_tree" \
+    && "${active_lines[5]}" == \
+      "HOST_OPERATIONS_CONTRACT_VERSION=$host_operations_contract_version_expected" \
+    && "${active_lines[6]}" =~ ^HOST_OPERATIONS_CONTRACT_SHA256=[0-9a-f]{64}$ \
+    && "${active_lines[7]}" =~ ^RELEASE_MANIFEST_SHA256=[0-9a-f]{64}$ \
+    && "${active_lines[8]}" =~ ^APPLICATION_IMAGE_RECORD_SHA256=[0-9a-f]{64}$ \
+    && "${active_lines[9]}" == COMPOSE_PROJECT=learncoding \
+    && "${active_lines[10]}" == COMPOSE_WORKDIR=/opt/learncoding \
+    && "${active_lines[11]}" == PUBLIC_ORIGIN=* \
+    && "${active_lines[12]}" =~ ^MANAGED_INVENTORY_SHA256=[0-9a-f]{64}$ \
+    && "${active_lines[13]}" =~ ^FIREWALL_POLICY_SHA256=[0-9a-f]{64}$ \
+    && "${active_lines[14]}" =~ ^RUNNER_GUEST_RELEASE_SHA256=[0-9a-f]{64}$ \
+    && "${active_lines[15]}" =~ ^RUNNER_RUNTIME_IMAGES_SHA256=[0-9a-f]{64}$ ]] || {
+    fatal "pending release active manifest does not match recovery intent"
+  }
+  pending_public_origin="${active_lines[11]#PUBLIC_ORIGIN=}"
+  [[ "$pending_public_origin" =~ ^https://[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$ \
+    && ! "$pending_public_origin" =~ ^https://([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || {
+    fatal "pending release active manifest contains an invalid public origin"
+  }
+  validate_recovery_owned_file "$active_release_state" "active release state" 644
+  load_exact_recovery_content "$active_release_state" "active release state"
+  runtime_active_content="$RECOVERY_FILE_CONTENT"
+  [[ "$runtime_active_content" == "$candidate_active_content" ]] || {
+    fatal "active runtime state does not match the pending release manifest"
+  }
+
+  sync_path "$current_pointer"
+  sync_path "$release_record_root"
+  "$rm_bin" -- "$current_pointer_recovery_intent"
+  sync_path "$release_record_root"
 }
 
 write_status() {
@@ -753,15 +930,25 @@ load_previous_release_pointer() {
   [[ "$("$cat_bin" "$previous_record/git-commit.txt")" == "$pointer_commit" ]] || {
     fatal "current release pointer Git evidence does not match"
   }
+  local previous_tree_file="$previous_record/git-tree.txt"
+  validate_recovery_owned_file "$previous_tree_file" "previous release Git tree evidence" 600
+  previous_git_tree="$(<"$previous_tree_file")"
+  [[ "$previous_git_tree" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]] || {
+    fatal "previous release Git tree evidence is invalid"
+  }
   previous_release_id="$pointer_release"
   previous_git_commit="$pointer_commit"
 }
 
 on_exit() {
-  local exit_code="$?"
+  local exit_code="$?" preserve_completed_pointer=false
   local -a runtime_temporaries=()
   trap '' HUP INT TERM
   trap - EXIT
+  if [[ "$current_pointer_finalization_started" == true ]] \
+    && current_pointer_names_release "$release_id" "$release_commit"; then
+    preserve_completed_pointer=true
+  fi
   if [[ "$release_completed" != true && "$release_quarantine_active" == true ]]; then
     run_ingress_control quarantine-create || true
   fi
@@ -770,6 +957,18 @@ on_exit() {
       "$rm_bin" -f -- "$release_pointer_temporary" || true
       sync_path "$release_record_root" || true
       release_pointer_temporary=""
+    fi
+    if [[ -n "$current_pointer_recovery_temporary" ]]; then
+      "$rm_bin" -f -- "$current_pointer_recovery_temporary" || true
+      sync_path "$release_record_root" || true
+      current_pointer_recovery_temporary=""
+    fi
+    if [[ "$current_pointer_recovery_visible" == true \
+      && "$preserve_completed_pointer" != true ]]; then
+      "$rm_bin" -f -- "$current_pointer_recovery_intent" || true
+      sync_path "$release_record_root" || true
+      current_pointer_recovery_visible=false
+      current_pointer_finalization_started=false
     fi
     [[ -n "$runtime_inventory_temporary" ]] && runtime_temporaries+=("$runtime_inventory_temporary")
     [[ -n "$runtime_application_temporary" ]] && runtime_temporaries+=("$runtime_application_temporary")
@@ -786,8 +985,12 @@ on_exit() {
       current_stage="fail-closed-quarantine"
       if quarantine_tunnel || quarantine_tunnel; then
         record_event "tunnel_stopped_after_candidate_failure" || true
-        if [[ "$schema_backward_compatible" == true && "$previous_runtime_available" == true ]]; then
-          if [[ "$runtime_state_commit_visible" == true ]]; then
+        if [[ "$preserve_completed_pointer" == true ]]; then
+          record_event "current_pointer_finalization_pending" || true
+        elif [[ "$schema_backward_compatible" == true && "$previous_runtime_available" == true ]]; then
+          if [[ "$host_operations_compatibility_verified" != true ]]; then
+            record_event "automatic_restore_skipped_before_host_operations_compatibility" || true
+          elif [[ "$runtime_state_commit_visible" == true ]]; then
             record_event "automatic_restore_skipped_after_runtime_state_commit" || true
           else
             restore_previous_runtime || true
@@ -802,9 +1005,13 @@ on_exit() {
       fi
       current_stage="$failed_stage"
     fi
-    write_status failed "$exit_code" || true
-    record_event failed || true
-    echo "fatal: production release failed at stage $current_stage; evidence retained at $record_dir" >&2
+    if [[ "$preserve_completed_pointer" == true ]]; then
+      echo "fatal: current release pointer finalization is pending; evidence retained at $record_dir" >&2
+    else
+      write_status failed "$exit_code" || true
+      record_event failed || true
+      echo "fatal: production release failed at stage $current_stage; evidence retained at $record_dir" >&2
+    fi
   fi
   exit "$exit_code"
 }
@@ -813,6 +1020,7 @@ trap 'trap "" HUP INT TERM; exit 129' HUP
 trap 'trap "" HUP INT TERM; exit 130' INT
 trap 'trap "" HUP INT TERM; exit 143' TERM
 
+resume_current_pointer_finalization
 load_previous_release_pointer
 
 printf '%s\n' "$previous_git_commit" >"$record_dir/previous-git-commit.txt"
@@ -883,6 +1091,43 @@ EOF
 run_bounded() {
   "$timeout_bin" --signal=TERM --kill-after=10s "${stage_timeout}s" "$@"
 }
+verify_host_operations_compatibility() {
+  local host_commit="$1" host_tree="$2" application_commit="$3" application_tree="$4"
+  local evidence_path="$5" output
+  local -a lines=()
+  output="$(run_bounded "$python_bin" "$host_operations_compatibility_helper" \
+    --repo-root "$repo_root" \
+    --git-bin "$git_bin" \
+    --docker-bin "$docker_bin" \
+    --host-commit "$host_commit" \
+    --host-tree "$host_tree" \
+    --application-commit "$application_commit" \
+    --application-tree "$application_tree")" || {
+    fatal "host operations are not semantically compatible with the application tree"
+  }
+  mapfile -t lines <<<"$output"
+  [[ "${#lines[@]}" == 8 \
+    && "${lines[0]:-}" == SCHEMA_VERSION=1 \
+    && "${lines[1]:-}" == "CONTRACT_VERSION=$host_operations_contract_version_expected" \
+    && "${lines[2]:-}" == "HOST_OPERATIONS_GIT_COMMIT=$host_commit" \
+    && "${lines[3]:-}" == "HOST_OPERATIONS_GIT_TREE=$host_tree" \
+    && "${lines[4]:-}" == "APPLICATION_GIT_COMMIT=$application_commit" \
+    && "${lines[5]:-}" == "APPLICATION_GIT_TREE=$application_tree" \
+    && "${lines[6]:-}" =~ ^HOST_OPERATIONS_CONTRACT_SHA256=[0-9a-f]{64}$ \
+    && "${lines[7]:-}" == RESULT=compatible ]] || {
+    fatal "host operations compatibility evidence is malformed"
+  }
+  host_operations_contract_version="${lines[1]#CONTRACT_VERSION=}"
+  host_operations_contract_sha256="${lines[6]#HOST_OPERATIONS_CONTRACT_SHA256=}"
+  assert_safe_path "$evidence_path" "host operations compatibility evidence"
+  [[ ! -e "$evidence_path" && ! -L "$evidence_path" ]] || {
+    fatal "host operations compatibility evidence already exists"
+  }
+  printf '%s\n' "$output" >"$evidence_path"
+  "$chmod_bin" 0600 "$evidence_path"
+  sync_evidence_file "$evidence_path"
+}
+
 
 run_local_evidence_git() {
   run_bounded "$env_bin" GIT_GRAFT_FILE=/dev/null GIT_NO_LAZY_FETCH=1 \
@@ -2253,7 +2498,7 @@ record_managed_runtime_state() {
     [[ "$inspected_service" == "$service" && "$inspected_name" == "/learncoding-$service-1" && -z "$extra" ]] || {
       fatal "managed container identity does not match the fixed Compose project: $service"
     }
-    [[ "$image" =~ ^[a-z0-9][a-z0-9./_-]{0,255}@sha256:[0-9a-f]{64}$ ]] || {
+    [[ "$image" =~ ^[a-z0-9][a-z0-9./_:-]{0,255}@sha256:[0-9a-f]{64}$ ]] || {
       fatal "managed container image is not a canonical digest: $service"
     }
     [[ "$identity" =~ ^sha256:[0-9a-f]{64}$ ]] || fatal "managed image identity is malformed: $service"
@@ -2281,9 +2526,13 @@ record_managed_runtime_state() {
     fatal "verified application image record changed before runtime state publication"
   }
   {
-    printf 'SCHEMA_VERSION=1\n'
-    printf 'GIT_COMMIT=%s\n' "$release_commit"
-    printf 'GIT_TREE=%s\n' "$release_tree"
+    printf 'SCHEMA_VERSION=2\n'
+    printf 'APPLICATION_GIT_COMMIT=%s\n' "$release_commit"
+    printf 'APPLICATION_GIT_TREE=%s\n' "$release_tree"
+    printf 'HOST_OPERATIONS_GIT_COMMIT=%s\n' "$release_commit"
+    printf 'HOST_OPERATIONS_GIT_TREE=%s\n' "$release_tree"
+    printf 'HOST_OPERATIONS_CONTRACT_VERSION=%s\n' "$host_operations_contract_version"
+    printf 'HOST_OPERATIONS_CONTRACT_SHA256=%s\n' "$host_operations_contract_sha256"
     printf 'RELEASE_MANIFEST_SHA256=%s\n' "$manifest_sha"
     printf 'APPLICATION_IMAGE_RECORD_SHA256=%s\n' "$application_image_record_sha256"
     printf 'COMPOSE_PROJECT=learncoding\n'
@@ -2408,6 +2657,7 @@ restore_previous_runtime() {
     reward-worker
     regrade-worker
     exam-finalization-worker
+    file-erasure-worker
     practice-runner-recovery-worker
     project-review-correction-worker
     runner-egress-gateway
@@ -2436,6 +2686,8 @@ restore_previous_runtime() {
 update_release_pointer() {
   local target="$1" label="$2" pointer_release_id="$3" pointer_git_commit="$4"
   local temporary="$release_record_root/.${label}.${release_id}.tmp"
+  local recovery_temporary="$release_record_root/.current-release.recovery.${release_id}.tmp"
+  local finalizes_current=false
   release_pointer_temporary="$temporary"
   assert_safe_path "$target" "$label"
   assert_safe_path "$temporary" "$label temporary"
@@ -2448,10 +2700,44 @@ update_release_pointer() {
   } >"$temporary"
   "$chmod_bin" 0600 "$temporary"
   sync_path "$temporary"
+
+  if [[ "$target" == "$current_pointer" && "$label" == current-release ]]; then
+    finalizes_current=true
+    assert_safe_path "$current_pointer_recovery_intent" "current release recovery intent"
+    assert_safe_path "$recovery_temporary" "current release recovery temporary"
+    [[ ! -e "$current_pointer_recovery_intent" \
+      && ! -L "$current_pointer_recovery_intent" ]] || {
+      fatal "current release recovery intent already exists"
+    }
+    [[ ! -e "$recovery_temporary" && ! -L "$recovery_temporary" ]] || {
+      fatal "current release recovery temporary already exists"
+    }
+    current_pointer_recovery_temporary="$recovery_temporary"
+    {
+      printf 'schema_version=1\n'
+      printf 'release_id=%s\n' "$pointer_release_id"
+      printf 'git_commit=%s\n' "$pointer_git_commit"
+    } >"$recovery_temporary"
+    "$chmod_bin" 0600 "$recovery_temporary"
+    sync_path "$recovery_temporary"
+    current_pointer_recovery_visible=true
+    "$mv_bin" -f -- "$recovery_temporary" "$current_pointer_recovery_intent"
+    current_pointer_recovery_temporary=""
+    sync_path "$current_pointer_recovery_intent"
+    sync_path "$release_record_root"
+    current_pointer_finalization_started=true
+  fi
+
   "$mv_bin" -f -- "$temporary" "$target"
+  release_pointer_temporary=""
   sync_path "$target"
   sync_path "$release_record_root"
-  release_pointer_temporary=""
+  if [[ "$finalizes_current" == true ]]; then
+    "$rm_bin" -- "$current_pointer_recovery_intent"
+    sync_path "$release_record_root"
+    current_pointer_recovery_visible=false
+    current_pointer_finalization_started=false
+  fi
 }
 
 
@@ -2470,6 +2756,21 @@ run_bounded "$python_bin" "$release_tree_packager" \
 printf '%s\n' "$release_commit" >"$record_dir/git-commit.txt"
 sync_evidence_file "$record_dir/git-commit.txt"
 printf '%s\n' "$release_tree" >"$record_dir/git-tree.txt"
+verify_host_operations_compatibility "$release_commit" "$release_tree" \
+  "$release_commit" "$release_tree" \
+  "$record_dir/host-operations-compatibility.env"
+if [[ "$previous_release_id" != none \
+  && "$previous_runtime_compatible" == true ]]; then
+  verify_host_operations_compatibility "$release_commit" "$release_tree" \
+    "$previous_git_commit" "$previous_git_tree" \
+    "$record_dir/previous-runtime-host-operations-compatibility.env"
+fi
+[[ "$host_operations_contract_version" == "$host_operations_contract_version_expected" \
+  && "$host_operations_contract_sha256" =~ ^[0-9a-f]{64}$ ]] || {
+  fatal "host operations compatibility evidence was not retained"
+}
+host_operations_compatibility_verified=true
+
 sync_evidence_file "$record_dir/git-tree.txt"
 
 current_stage="inventory"

@@ -334,6 +334,9 @@ test("restore reconstructs owner and ACL topology and smokes restricted roles", 
     "restore_one_shot database-role-bootstrap",
     firstBootstrap + 1,
   );
+  const noAclReconciliation = restore.indexOf(
+    "RESTORE_NO_ACL_RECONCILIATION=true",
+  );
   const verifier = restore.indexOf(
     "restore_one_shot database-boundary-verifier",
   );
@@ -348,7 +351,24 @@ test("restore reconstructs owner and ACL topology and smokes restricted roles", 
   assert.match(restore, /pg_catalog\.current_setting\('server_version_num'\)/u);
   assert.ok(restoreVersion >= 0 && restoreVersion < firstBootstrap);
   assert.ok(firstBootstrap < restoreDatabase);
-  assert.ok(restoreDatabase < secondBootstrap && secondBootstrap < verifier);
+  assert.ok(restoreDatabase < noAclReconciliation);
+  assert.ok(noAclReconciliation < secondBootstrap && secondBootstrap < verifier);
+  assert.equal(
+    (restore.match(/^RESTORE_NO_ACL_RECONCILIATION=true\s*\\$/gmu) ?? []).length,
+    1,
+  );
+  assert.match(
+    restore,
+    /REQUIRE_COMPLETE_MIGRATION_LEDGER=true\s*\\\s*\n\s*RESTORE_NO_ACL_RECONCILIATION=true\s*\\\s*\n\s*restore_one_shot database-role-bootstrap/u,
+  );
+  assert.doesNotMatch(
+    restore.slice(firstBootstrap - 120, restoreDatabase),
+    /RESTORE_NO_ACL_RECONCILIATION=true/u,
+  );
+  assert.match(
+    restoreCompose,
+    /RESTORE_NO_ACL_RECONCILIATION:\s*\$\{RESTORE_NO_ACL_RECONCILIATION:-false\}/u,
+  );
   assert.match(restoreCompose, /\/run\/learncoding-postgres/u);
   assert.match(restoreCompose, /cap_drop:\s*\r?\n\s+- ALL/u);
 });

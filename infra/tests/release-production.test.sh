@@ -36,6 +36,11 @@ fail() {
   echo "FAIL: $*" >&2
   exit 1
 }
+release_test_selector="${RELEASE_PRODUCTION_TEST_SELECTOR:-${1:-full}}"
+case "$release_test_selector" in
+  full|release-pointer-resume) ;;
+  *) fail "unknown release production test selector: $release_test_selector" ;;
+esac
 [[ "$EUID" == 0 ]] || fail "release and rollback behavioral tests require root"
 chmod 0700 "$work"
 [[ ! -L "$work" && -d "$work" ]] || fail "test temporary root is not a real directory"
@@ -128,11 +133,20 @@ grep -Fq "never authorizes rollback across \`0062_mail_outbox_retention_redactio
   fail "deployment guide overstates the schema compatibility flag across 0062"
 }
 
-mkdir -p "$work/bin" "$work/data" "$work/repo/infra/ops" "$work/repo/infra/runner-vm" \
-  "$work/run" "$work/secrets"
+mkdir -p "$work/bin" "$work/data" "$work/repo/infra/env" "$work/repo/infra/ops" \
+  "$work/repo/infra/runner-vm" "$work/run" "$work/secrets"
+
 touch "$work/run/learncoding-backup.lock"
 chmod 0600 "$work/run/learncoding-backup.lock"
-touch "$work/repo/compose.yaml" "$work/compose.env"
+cat >"$work/repo/compose.yaml" <<'EOF'
+services:
+  app:
+    image: ${APP_RUNTIME_IMAGE}
+    command: ["node", "server.js"]
+EOF
+cat >"$work/repo/infra/env/compose.env.example" <<'EOF'
+APP_RUNTIME_IMAGE=registry.example.test/codestead/runtime@sha256:1111111111111111111111111111111111111111111111111111111111111111
+EOF
 cat >"$work/compose.env" <<EOF
 APP_URL=https://pilot.example.test
 POSTGRES_IMAGE=registry.example.test/postgres@sha256:1111111111111111111111111111111111111111111111111111111111111111
@@ -146,8 +160,17 @@ EOF
 printf '%s\n' 'reviewed host firewall fixture' >"$work/repo/infra/runner-vm/host-runner.nft"
 cp "$repo_root/infra/ops/package-release-tree.py" "$work/repo/infra/ops/package-release-tree.py"
 cp "$ingress_control_script" "$work/repo/infra/ops/ingress-control.py"
-chmod 0755 "$work/repo/infra/ops/package-release-tree.py"
-chmod 0755 "$work/repo/infra/ops/ingress-control.py"
+cp "$repo_root/infra/ops/host-operations-compatibility.py" "$work/repo/infra/ops/host-operations-compatibility.py"
+cp "$repo_root/infra/ops/prepare-object-storage.mjs" "$work/repo/infra/ops/prepare-object-storage.mjs"
+cp "$repo_root/infra/ops/prepare-postgres-control-socket.sh" "$work/repo/infra/ops/prepare-postgres-control-socket.sh"
+cp "$repo_root/infra/ops/smoke-production.sh" "$work/repo/infra/ops/smoke-production.sh"
+cp "$repo_root/infra/ops/validate-runtime.sh" "$work/repo/infra/ops/validate-runtime.sh"
+chmod 0755 "$work/repo/infra/ops/package-release-tree.py" \
+  "$work/repo/infra/ops/host-operations-compatibility.py" \
+  "$work/repo/infra/ops/prepare-postgres-control-socket.sh" \
+  "$work/repo/infra/ops/smoke-production.sh" "$work/repo/infra/ops/validate-runtime.sh"
+chmod 0644 "$work/repo/infra/ops/ingress-control.py" \
+  "$work/repo/infra/ops/prepare-object-storage.mjs"
 cat >"$work/repo/.gitignore" <<'EOF'
 /RELEASE.SHA256SUMS
 /dist
@@ -159,7 +182,7 @@ git -C "$work/repo" config user.name 'Codestead release test'
 git -C "$work/repo" config user.email 'release-test@codestead.invalid'
 git -C "$work/repo" config core.autocrlf false
 git -C "$work/repo" remote add origin https://github.com/example/codestead
-git -C "$work/repo" add .gitignore compose.yaml infra/ops/package-release-tree.py infra/ops/ingress-control.py infra/runner-vm/host-runner.nft
+git -C "$work/repo" add .gitignore compose.yaml infra
 git -C "$work/repo" commit -qm 'fixture release commit'
 
 declare -a source_git
@@ -237,6 +260,7 @@ git -C "$work/repo" cat-file -e \
   "${dispatch_binding_source_commit}^{commit}" 2>/dev/null || {
   fail "the real post-0064 source commit was not imported"
 }
+if [[ "$release_test_selector" == full ]]; then
 dispatch_binding_real_repo="$work/dispatch-binding-real-repo"
 mkdir -p "$dispatch_binding_real_repo"
 git -C "$dispatch_binding_real_repo" init -q
@@ -255,6 +279,31 @@ git -C "$dispatch_binding_real_repo" checkout --quiet --detach \
 }
 git -C "$dispatch_binding_real_repo" config core.filemode true
 git -C "$dispatch_binding_real_repo" remote remove source
+git -C "$dispatch_binding_real_repo" config user.name 'Codestead release test'
+git -C "$dispatch_binding_real_repo" config user.email 'release-test@codestead.invalid'
+cp "$repo_root/infra/ops/host-operations-compatibility.py" \
+  "$dispatch_binding_real_repo/infra/ops/host-operations-compatibility.py"
+chmod 0755 "$dispatch_binding_real_repo/infra/ops/host-operations-compatibility.py"
+git -C "$dispatch_binding_real_repo" add infra/ops/host-operations-compatibility.py
+git -C "$dispatch_binding_real_repo" commit -qm \
+  'fixture adds versioned host operations compatibility helper'
+dispatch_binding_source_commit="$(git -C "$dispatch_binding_real_repo" rev-parse --verify HEAD)"
+dispatch_binding_source_tree="$(
+  git -C "$dispatch_binding_real_repo" rev-parse --verify "${dispatch_binding_source_commit}^{tree}"
+)"
+dispatch_binding_helper_blob="$(
+  git -C "$dispatch_binding_real_repo" hash-object -- \
+    "$dispatch_binding_real_repo/infra/ops/host-operations-compatibility.py"
+)"
+dispatch_binding_helper_entry="$(
+  git -C "$dispatch_binding_real_repo" ls-tree "$dispatch_binding_source_tree" -- \
+    infra/ops/host-operations-compatibility.py
+)"
+[[ "$dispatch_binding_helper_entry" == "100755 blob $dispatch_binding_helper_blob"$'\t''infra/ops/host-operations-compatibility.py' ]] || {
+  fail "the derived real-tree fixture did not bind the executable compatibility helper"
+}
+fi
+
 
 
 release_fixture_generation=0
@@ -281,6 +330,22 @@ authority_error() {
 
 [[ "${1:-}" == --host && "${2:-}" == unix:///var/run/docker.sock ]] || authority_error
 shift 2
+if [[ "${1:-}" == compose && "$#" == 12 \
+  && "${2:-}" == --env-file && -f "${3:-}" && ! -L "${3:-}" \
+  && "${4:-}" == -f && -f "${5:-}" && ! -L "${5:-}" \
+  && "${6:-}" == --profile && "${7:-}" == "*" \
+  && "${8:-}" == config \
+  && "${9:-}" == --no-path-resolution \
+  && "${10:-}" == --no-env-resolution \
+  && "${11:-}" == --format && "${12:-}" == json ]]; then
+  command=server.js
+  if grep -Fq 'host-operations-command-drift' "$5"; then
+    command=unsafe.js
+  fi
+  printf '%s\n' "{\"services\":{\"app\":{\"command\":[\"node\",\"$command\"],\"environment\":{\"DATABASE_URL_FILE\":\"redacted\"},\"image\":\"registry.example.test/codestead/runtime@sha256:1111111111111111111111111111111111111111111111111111111111111111\"},\"postgres\":{\"environment\":{},\"image\":\"postgres@sha256:2222222222222222222222222222222222222222222222222222222222222222\",\"networks\":{\"data\":null}}},\"networks\":{\"data\":{\"internal\":true}},\"volumes\":{},\"secrets\":{},\"configs\":{}}"
+  exit 0
+fi
+
 if [[ "${1:-}" == compose ]]; then
   [[ "${2:-}" == --project-name && "${3:-}" == learncoding ]] || authority_error
   shift 3
@@ -359,8 +424,12 @@ if [[ "${1:-}" == "inspect" && "${2:-}" == "--format" && "$#" == 4 \
     image_digit="$((digit + 10))"
   fi
   [[ "${FAKE_SCENARIO:-}" != "publication-base" && "${FAKE_SCENARIO:-}" != "runtime-state-active-fsync-failure" ]] || identity_digit=6
-  printf '%s\t/learncoding-%s-1\tregistry.example.test/codestead/image%s@sha256:%064d\tsha256:%064d\n' \
-    "$service" "$service" "$image_digit" "$image_digit" "$identity_digit"
+  image_tag=""
+  if [[ "${FAKE_SCENARIO:-}" == "tagged-digest-success" && "$image_digit" == 1 ]]; then
+    image_tag=:bookworm
+  fi
+  printf '%s\t/learncoding-%s-1\tregistry.example.test/codestead/image%s%s@sha256:%064d\tsha256:%064d\n' \
+    "$service" "$service" "$image_digit" "$image_tag" "$image_digit" "$identity_digit"
   exit 0
 fi
 
@@ -414,8 +483,12 @@ if [[ "${1:-}" == "inspect" && "${2:-}" == "--format" && "$#" == 4 ]]; then
       image_digit="$((digit + 10))"
     fi
     [[ "${FAKE_SCENARIO:-}" != "publication-base" && "${FAKE_SCENARIO:-}" != "runtime-state-active-fsync-failure" ]] || identity_digit=6
-    printf '%s\tregistry.example.test/codestead/image%s@sha256:%064d\tsha256:%064d\n' \
-      "$service" "$image_digit" "$image_digit" "$identity_digit"
+    image_tag=""
+    if [[ "${FAKE_SCENARIO:-}" == "tagged-digest-success" && "$image_digit" == 1 ]]; then
+      image_tag=:bookworm
+    fi
+    printf '%s\tregistry.example.test/codestead/image%s%s@sha256:%064d\tsha256:%064d\n' \
+      "$service" "$image_digit" "$image_tag" "$image_digit" "$identity_digit"
     exit 0
   fi
   if [[ "$4" == "old-app-container" && "${FAKE_SCENARIO:-}" != restorable-* \
@@ -450,6 +523,11 @@ if [[ "$#" == 4 && "$1" == "--profile" && "$2" == "operations" && "$3" == "confi
     printf '%s\n' 'registry.example.test/codestead/runtime:mutable'
   elif [[ "${FAKE_SCENARIO:-}" == "uppercase-image" ]]; then
     printf '%s\n' 'registry.example.test/codestead/runtime@sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+  elif [[ "${FAKE_SCENARIO:-}" == "tagged-digest-success" ]]; then
+    printf 'registry.example.test/codestead/image1:bookworm@sha256:%064d\n' 1
+    for digit in 2 3 4 5 6 7 8; do
+      printf 'registry.example.test/codestead/image%s@sha256:%064d\n' "$digit" "$digit"
+    done
   elif [[ "${FAKE_SCENARIO:-}" == "publication-base" ]]; then
     for digit in 1 2 3 4 5 6 7 8; do
       image_digit="$((digit + 10))"
@@ -487,7 +565,9 @@ if [[ "$#" == 2 && "$1" == "ps" && "$2" == "-q" ]]; then
     || "${FAKE_SCENARIO:-}" == "mail-backup-lock-busy" \
     || "${FAKE_SCENARIO:-}" == "runtime-state-active-fsync-failure" \
     || "${FAKE_SCENARIO:-}" == "post-active-target-fsync-failure" \
-    || "${FAKE_SCENARIO:-}" == "post-active-pointer-fsync-failure" ]]; then
+    || "${FAKE_SCENARIO:-}" == "post-active-pointer-fsync-failure" \
+    || "${FAKE_SCENARIO:-}" == "post-current-pointer-target-fsync-failure" \
+    || "${FAKE_SCENARIO:-}" == "post-current-pointer-directory-fsync-failure" ]]; then
     for service in app mail-worker reward-worker regrade-worker exam-finalization-worker \
       file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared runner-egress-gateway; do
       printf 'old-deployed-%s-container\n' "$service"
@@ -688,6 +768,18 @@ if [[ "${FAKE_SCENARIO:-}" == "post-active-pointer-fsync-failure" \
   && "$*" == "-f -- $RELEASE_RECORD_ROOT/".current-release.*.tmp ]]; then
   exit 64
 fi
+if [[ "${FAKE_SCENARIO:-}" == "post-current-pointer-target-fsync-failure" \
+  && "$*" == "-f -- $RELEASE_RECORD_ROOT/current-release.env" ]]; then
+  exit 65
+fi
+if [[ "${FAKE_SCENARIO:-}" == "post-current-pointer-directory-fsync-failure" ]]; then
+  if [[ "$*" == "-f -- $RELEASE_RECORD_ROOT/current-release.env" ]]; then
+    : >"$FAKE_POINTER_SYNC_MARKER"
+  elif [[ "$*" == "-f -- $RELEASE_RECORD_ROOT" \
+    && -f "$FAKE_POINTER_SYNC_MARKER" ]]; then
+    exit 66
+  fi
+fi
 exit 0
 EOF
 chmod 0755 "$work/bin/sync"
@@ -867,6 +959,7 @@ run_release() {
     FAKE_VALIDATE_IMAGE_LOG="$case_dir/validate-image.log" \
     FAKE_SMOKE_LOG="$case_dir/smoke.log" \
     FAKE_SYNC_LOG="$case_dir/sync.log" \
+    FAKE_POINTER_SYNC_MARKER="$case_dir/current-pointer-synced" \
     FAKE_DATE_MARKER="$case_dir/date.log" \
     FAKE_GIT_MARKER="$case_dir/git.log" \
     FAKE_TRACE_LOG="$case_dir/trace.log" \
@@ -942,6 +1035,241 @@ assert_immutable_flags() {
     [[ "$line" == *$'\t--pull\tnever'* ]] || fail "release mutation omitted --pull never: $line"
   done < <(grep -E $'compose\t.*\t(up|run)\t' "$log")
 }
+
+if [[ "$release_test_selector" == release-pointer-resume ]]; then
+  pointer_resume_records="$work/pointer-resume-records"
+  pointer_resume_runtime_state="$work/pointer-resume-runtime-state"
+  pointer_resume_candidate_commit="$(git -C "$work/repo" rev-parse --verify HEAD)"
+
+  RUN_RECORD_ROOT="$pointer_resume_records" \
+    RUN_RUNTIME_STATE_ROOT="$pointer_resume_runtime_state" \
+    run_release post-current-pointer-target-fsync-failure
+  unset RUN_RECORD_ROOT RUN_RUNTIME_STATE_ROOT
+  [[ "$RELEASE_STATUS" != 0 ]] || fail "post-rename current-pointer fsync failure was reported as success"
+  [[ -f "$pointer_resume_records/current-release.env" ]] || {
+    cat "$RELEASE_CASE_DIR/stderr" >&2
+    cat "$RELEASE_CASE_DIR/sync.log" >&2
+    fail "post-rename current-pointer fsync failure did not expose a visible pointer"
+  }
+  pointer_resume_candidate_id="$(
+    sed -n 's/^release_id=//p' "$pointer_resume_records/current-release.env"
+  )"
+  [[ -n "$pointer_resume_candidate_id" ]] || {
+    fail "post-rename current-pointer fsync failure did not expose the candidate pointer"
+  }
+  grep -Fxq "git_commit=$pointer_resume_candidate_commit" \
+    "$pointer_resume_records/current-release.env" || {
+    cat "$pointer_resume_records/current-release.env" >&2
+    cat "$RELEASE_CASE_DIR/stderr" >&2
+    cat "$RELEASE_CASE_DIR/sync.log" >&2
+    fail "post-rename current-pointer fsync failure exposed the wrong candidate commit"
+  }
+  pointer_resume_candidate_record="$pointer_resume_records/$pointer_resume_candidate_id"
+  grep -Fxq 'result=completed' "$pointer_resume_candidate_record/status.env" || {
+    fail "post-rename current-pointer fsync failure rewrote the completed candidate as failed"
+  }
+  [[ -f "$pointer_resume_records/current-release.recovery.env" \
+    && ! -L "$pointer_resume_records/current-release.recovery.env" ]] || {
+    fail "post-rename current-pointer fsync failure did not retain a recovery intent"
+  }
+  [[ -f "$work/control/release-quarantine" ]] || {
+    fail "post-rename current-pointer fsync failure did not retain durable quarantine"
+  }
+  if grep -Fq 'previous-runtime.override.yaml' "$RELEASE_CASE_DIR/docker.log"; then
+    fail "post-rename current-pointer fsync failure restored behind the committed active manifest"
+  fi
+  pointer_failure_intent_temporary_line="$(
+    grep -n -m1 -F -- '/.current-release.recovery.' "$RELEASE_CASE_DIR/sync.log" \
+      | cut -d: -f1
+  )"
+  pointer_failure_intent_line="$(
+    grep -n -m1 -Fx -- "-f -- $pointer_resume_records/current-release.recovery.env" \
+      "$RELEASE_CASE_DIR/sync.log" | cut -d: -f1
+  )"
+  pointer_failure_target_line="$(
+    grep -n -m1 -Fx -- "-f -- $pointer_resume_records/current-release.env" \
+      "$RELEASE_CASE_DIR/sync.log" | cut -d: -f1
+  )"
+  pointer_failure_root_line="$(
+    awk -v expected="-f -- $pointer_resume_records" \
+      -v after="$pointer_failure_intent_line" -v before="$pointer_failure_target_line" \
+      '$0 == expected && NR > after && NR < before { print NR; exit }' \
+      "$RELEASE_CASE_DIR/sync.log"
+  )"
+  [[ "$pointer_failure_intent_temporary_line" =~ ^[0-9]+$ \
+    && "$pointer_failure_intent_line" =~ ^[0-9]+$ \
+    && "$pointer_failure_root_line" =~ ^[0-9]+$ \
+    && "$pointer_failure_target_line" =~ ^[0-9]+$ \
+    && "$pointer_failure_intent_temporary_line" -lt "$pointer_failure_intent_line" \
+    && "$pointer_failure_intent_line" -lt "$pointer_failure_root_line" \
+    && "$pointer_failure_root_line" -lt "$pointer_failure_target_line" ]] || {
+    fail "current-pointer recovery intent was not durable before pointer replacement"
+  }
+  echo "ok - post-rename current-pointer fsync failure is resumable"
+
+  pointer_candidate_active="$pointer_resume_candidate_record/active-release.env"
+  pointer_runtime_active="$pointer_resume_runtime_state/active-release.env"
+  cp "$pointer_candidate_active" "$work/pointer-candidate-active.env"
+  cp "$pointer_runtime_active" "$work/pointer-runtime-active.env"
+  sed -i 's/^COMPOSE_PROJECT=learncoding$/COMPOSE_PROJECT=hostile/' \
+    "$pointer_candidate_active" "$pointer_runtime_active"
+  RUN_RECORD_ROOT="$pointer_resume_records" \
+    RUN_RUNTIME_STATE_ROOT="$pointer_resume_runtime_state" \
+    run_release hostile-active-manifest-recovery
+  unset RUN_RECORD_ROOT RUN_RUNTIME_STATE_ROOT
+  [[ "$RELEASE_STATUS" != 0 ]] || {
+    fail "malformed canonical active manifests were accepted during pointer recovery"
+  }
+  assert_only_early_quarantine \
+    "$RELEASE_CASE_DIR/docker.log" "malformed canonical active-manifest recovery"
+  [[ -f "$pointer_resume_records/current-release.recovery.env" ]] || {
+    fail "malformed canonical active-manifest recovery deleted the recovery intent"
+  }
+  cp "$work/pointer-candidate-active.env" "$pointer_candidate_active"
+  cp "$work/pointer-runtime-active.env" "$pointer_runtime_active"
+
+  RUN_RECORD_ROOT="$pointer_resume_records" \
+    RUN_RUNTIME_STATE_ROOT="$pointer_resume_runtime_state" \
+    run_release pointer-second
+  unset RUN_RECORD_ROOT RUN_RUNTIME_STATE_ROOT
+  [[ "$RELEASE_STATUS" == 0 ]] || {
+    cat "$RELEASE_CASE_DIR/stderr" >&2
+    fail "normal restart did not repair the pending current-pointer finalization"
+  }
+  [[ ! -e "$pointer_resume_records/current-release.recovery.env" \
+    && ! -L "$pointer_resume_records/current-release.recovery.env" ]] || {
+    fail "normal restart did not remove the current-pointer recovery intent"
+  }
+  pointer_resume_next_id="$(
+    sed -n 's/^release_id=//p' "$pointer_resume_records/current-release.env"
+  )"
+  [[ "$(cat "$pointer_resume_records/$pointer_resume_next_id/previous-release-id.txt")" \
+    == "$pointer_resume_candidate_id" ]] || {
+    fail "normal restart did not accept the repaired current release pointer"
+  }
+  [[ ! -e "$work/control/release-quarantine" ]] || {
+    fail "normal release did not clear quarantine after repairing the pointer"
+  }
+  if find "$pointer_resume_records" -mindepth 1 -maxdepth 1 \
+      -name '.current-release.recovery.*.tmp' -print -quit | grep -q .; then
+    fail "normal release left a current-pointer recovery temporary"
+  fi
+  pointer_repair_target_line="$(
+    grep -n -m1 -Fx -- "-f -- $pointer_resume_records/current-release.env" \
+      "$RELEASE_CASE_DIR/sync.log" | cut -d: -f1
+  )"
+  mapfile -t pointer_repair_root_lines < <(
+    grep -n -Fx -- "-f -- $pointer_resume_records" "$RELEASE_CASE_DIR/sync.log" \
+      | cut -d: -f1
+  )
+  [[ "$pointer_repair_target_line" =~ ^[0-9]+$ \
+    && "${#pointer_repair_root_lines[@]}" -ge 2 \
+    && "${pointer_repair_root_lines[0]}" -gt "$pointer_repair_target_line" \
+    && "${pointer_repair_root_lines[1]}" -gt "${pointer_repair_root_lines[0]}" ]] || {
+    fail "current-pointer recovery did not fsync before and after intent removal"
+  }
+  echo "ok - a normal restart durably repairs and accepts the pending current pointer"
+
+  RUN_RECORD_ROOT="$pointer_resume_records" \
+    RUN_RUNTIME_STATE_ROOT="$pointer_resume_runtime_state" \
+    run_release post-current-pointer-directory-fsync-failure
+  unset RUN_RECORD_ROOT RUN_RUNTIME_STATE_ROOT
+  [[ "$RELEASE_STATUS" != 0 ]] || fail "post-rename release-record-directory fsync failure was reported as success"
+  pointer_directory_candidate_id="$(
+    sed -n 's/^release_id=//p' "$pointer_resume_records/current-release.env"
+  )"
+  pointer_directory_candidate_record="$pointer_resume_records/$pointer_directory_candidate_id"
+  grep -Fxq 'result=completed' "$pointer_directory_candidate_record/status.env" || {
+    fail "release-record-directory fsync failure rewrote the completed candidate as failed"
+  }
+  [[ -f "$pointer_resume_records/current-release.recovery.env" ]] || {
+    fail "release-record-directory fsync failure did not retain a recovery intent"
+  }
+  if grep -Fq 'previous-runtime.override.yaml' "$RELEASE_CASE_DIR/docker.log"; then
+    fail "release-record-directory fsync failure restored behind the committed active manifest"
+  fi
+  [[ -f "$work/control/release-quarantine" ]] || {
+    fail "release-record-directory fsync failure did not retain durable quarantine"
+  }
+
+  RUN_RECORD_ROOT="$pointer_resume_records" \
+    RUN_RUNTIME_STATE_ROOT="$pointer_resume_runtime_state" \
+    run_release pointer-second
+  unset RUN_RECORD_ROOT RUN_RUNTIME_STATE_ROOT
+  [[ "$RELEASE_STATUS" == 0 ]] || {
+    cat "$RELEASE_CASE_DIR/stderr" >&2
+    fail "normal restart did not repair the directory-fsync finalization failure"
+  }
+  pointer_after_directory_repair="$(
+    sed -n 's/^release_id=//p' "$pointer_resume_records/current-release.env"
+  )"
+  [[ "$(cat "$pointer_resume_records/$pointer_after_directory_repair/previous-release-id.txt")" \
+    == "$pointer_directory_candidate_id" ]] || {
+    fail "directory-fsync recovery did not accept the repaired pointer"
+  }
+  [[ ! -e "$pointer_resume_records/current-release.recovery.env" ]] || {
+    fail "directory-fsync recovery did not remove the recovery intent"
+  }
+  echo "ok - release-record-directory fsync failure is resumable"
+
+  cp "$pointer_resume_records/current-release.env" "$work/pre-rename-pointer.env"
+  RUN_RECORD_ROOT="$pointer_resume_records" \
+    RUN_RUNTIME_STATE_ROOT="$pointer_resume_runtime_state" \
+    run_release post-active-pointer-fsync-failure
+  unset RUN_RECORD_ROOT RUN_RUNTIME_STATE_ROOT
+  [[ "$RELEASE_STATUS" != 0 ]] || fail "pre-rename pointer temporary fsync failure was reported as success"
+  cmp -s "$pointer_resume_records/current-release.env" "$work/pre-rename-pointer.env" || {
+    fail "pre-rename pointer temporary fsync failure changed the old pointer"
+  }
+  [[ ! -e "$pointer_resume_records/current-release.recovery.env" ]] || {
+    fail "pre-rename pointer temporary fsync failure retained a recovery intent"
+  }
+  echo "ok - pre-rename pointer temporary failure preserves the old pointer without recovery state"
+
+  hostile_pointer_id="$(sed -n 's/^release_id=//p' "$pointer_resume_records/current-release.env")"
+  hostile_pointer_commit="$(sed -n 's/^git_commit=//p' "$pointer_resume_records/current-release.env")"
+  printf '%s\n' 'schema_version=1' "release_id=$hostile_pointer_id" 'unknown_field=hostile' \
+    >"$pointer_resume_records/current-release.recovery.env"
+  chmod 0600 "$pointer_resume_records/current-release.recovery.env"
+  RUN_RECORD_ROOT="$pointer_resume_records" RUN_RUNTIME_STATE_ROOT="$pointer_resume_runtime_state" \
+    run_release hostile-malformed-recovery
+  unset RUN_RECORD_ROOT RUN_RUNTIME_STATE_ROOT
+  [[ "$RELEASE_STATUS" != 0 ]] || fail "malformed current-pointer recovery intent was accepted"
+  assert_only_early_quarantine "$RELEASE_CASE_DIR/docker.log" "malformed current-pointer recovery intent"
+  [[ -f "$pointer_resume_records/current-release.recovery.env" \
+    && ! -L "$pointer_resume_records/current-release.recovery.env" ]] || {
+    fail "release deleted a malformed current-pointer recovery intent"
+  }
+  rm -f "$pointer_resume_records/current-release.recovery.env"
+
+  printf 'schema_version=1\nrelease_id=%s\ngit_commit=%040d\n' \
+    "$hostile_pointer_id" 0 >"$pointer_resume_records/current-release.recovery.env"
+  chmod 0600 "$pointer_resume_records/current-release.recovery.env"
+  RUN_RECORD_ROOT="$pointer_resume_records" RUN_RUNTIME_STATE_ROOT="$pointer_resume_runtime_state" \
+    run_release hostile-mismatched-recovery
+  unset RUN_RECORD_ROOT RUN_RUNTIME_STATE_ROOT
+  [[ "$RELEASE_STATUS" != 0 ]] || fail "mismatched current-pointer recovery intent was accepted"
+  assert_only_early_quarantine "$RELEASE_CASE_DIR/docker.log" "mismatched current-pointer recovery intent"
+  [[ -f "$pointer_resume_records/current-release.recovery.env" \
+    && ! -L "$pointer_resume_records/current-release.recovery.env" ]] || {
+    fail "release deleted a mismatched current-pointer recovery intent"
+  }
+  rm -f "$pointer_resume_records/current-release.recovery.env"
+
+  ln -s current-release.env "$pointer_resume_records/current-release.recovery.env"
+  RUN_RECORD_ROOT="$pointer_resume_records" RUN_RUNTIME_STATE_ROOT="$pointer_resume_runtime_state" \
+    run_release hostile-symlink-recovery
+  unset RUN_RECORD_ROOT RUN_RUNTIME_STATE_ROOT
+  [[ "$RELEASE_STATUS" != 0 ]] || fail "symlinked current-pointer recovery intent was accepted"
+  assert_only_early_quarantine "$RELEASE_CASE_DIR/docker.log" "symlinked current-pointer recovery intent"
+  [[ -L "$pointer_resume_records/current-release.recovery.env" ]] || {
+    fail "release deleted a hostile symlink recovery intent"
+  }
+  rm -f "$pointer_resume_records/current-release.recovery.env"
+  [[ "$hostile_pointer_commit" =~ ^[0-9a-f]{40}$ ]] || fail "hostile intent fixture commit was invalid"
+  echo "ok - malformed, mismatched, and symlink recovery intents fail closed"
+  exit 0
+fi
 
 dispatch_binding_preflight_head="$(git -C "$work/repo" rev-parse --verify HEAD)"
 dispatch_binding_real_package="$work/dispatch-binding-real-package"
@@ -1040,6 +1368,21 @@ git -C "$guarded_delivery_missing_repo" config user.email \
   'guarded-delivery-release@codestead.invalid'
 git -C "$guarded_delivery_missing_repo" checkout --quiet \
   "$guarded_delivery_boundary_commit"
+cp "$repo_root/infra/ops/host-operations-compatibility.py" \
+  "$guarded_delivery_missing_repo/infra/ops/host-operations-compatibility.py"
+chmod 0755 "$guarded_delivery_missing_repo/infra/ops/host-operations-compatibility.py"
+git -C "$guarded_delivery_missing_repo" add infra/ops/host-operations-compatibility.py
+git -C "$guarded_delivery_missing_repo" commit -qm \
+  'fixture adds versioned host operations compatibility helper'
+guarded_delivery_helper_blob="$(
+  git -C "$guarded_delivery_missing_repo" hash-object -- \
+    "$guarded_delivery_missing_repo/infra/ops/host-operations-compatibility.py"
+)"
+[[ "$(git -C "$guarded_delivery_missing_repo" ls-tree HEAD -- \
+  infra/ops/host-operations-compatibility.py)" == \
+  "100755 blob $guarded_delivery_helper_blob"$'\t''infra/ops/host-operations-compatibility.py' ]] || {
+  fail "historical 0069 fixture did not bind the executable compatibility helper"
+}
 [[ -z "$(git -C "$guarded_delivery_missing_repo" status --porcelain=v1 --untracked-files=all)" ]] || {
   fail "0069 missing-capability fixture is not an exact clean Git tree"
 }
@@ -1508,7 +1851,8 @@ grep -Fxq "git_commit=$expected_commit" "$RELEASE_CASE_DIR/records/latest-candid
 }
 for durable in status.env stages.tsv rollback.txt git-commit.txt previous-git-commit.txt previous-release-id.txt \
   git-tree.txt application-image-record.json application-image-record-sha256.txt candidate-images.txt \
-  candidate-image-identities.tsv deployed-service-images.tsv previous-running-images.tsv image-acquisitions.tsv; do
+  host-operations-compatibility.env candidate-image-identities.tsv deployed-service-images.tsv \
+  previous-running-images.tsv image-acquisitions.tsv; do
   grep -Fq -- "$record/$durable" "$RELEASE_CASE_DIR/sync.log" || {
     fail "release evidence was not fsynced: $durable"
   }
@@ -1555,10 +1899,17 @@ managed_sha="$(sha256sum "$managed_state" | cut -d' ' -f1)"
 manifest_sha="$(sha256sum "$work/repo/RELEASE.SHA256SUMS" | cut -d' ' -f1)"
 firewall_sha="$(sha256sum "$work/repo/infra/runner-vm/host-runner.nft" | cut -d' ' -f1)"
 runtime_sha="$(sha256sum "$work/repo/services/runner/dist/runtime-images.env" | cut -d' ' -f1)"
+host_operations_sha="$(sed -n 's/^HOST_OPERATIONS_CONTRACT_SHA256=//p' "$record/host-operations-compatibility.env")"
+[[ "$host_operations_sha" =~ ^[0-9a-f]{64}$ ]] || fail "host operations compatibility digest is missing or malformed"
+
 expected_active="$(printf '%s\n' \
-  'SCHEMA_VERSION=1' \
-  "GIT_COMMIT=$expected_commit" \
-  "GIT_TREE=$expected_tree" \
+  'SCHEMA_VERSION=2' \
+  "APPLICATION_GIT_COMMIT=$expected_commit" \
+  "APPLICATION_GIT_TREE=$expected_tree" \
+  "HOST_OPERATIONS_GIT_COMMIT=$expected_commit" \
+  "HOST_OPERATIONS_GIT_TREE=$expected_tree" \
+  'HOST_OPERATIONS_CONTRACT_VERSION=host-operations-semantic-v1' \
+  "HOST_OPERATIONS_CONTRACT_SHA256=$host_operations_sha" \
   "RELEASE_MANIFEST_SHA256=$manifest_sha" \
   "APPLICATION_IMAGE_RECORD_SHA256=$expected_application_sha" \
   'COMPOSE_PROJECT=learncoding' \
@@ -1654,6 +2005,23 @@ done
 assert_immutable_flags "$log"
 assert_no_secret "$RELEASE_CASE_DIR"
 echo "ok - explicit release orders pinned existing images and records rollback evidence"
+
+run_release tagged-digest-success
+[[ "$RELEASE_STATUS" == 0 ]] || {
+  cat "$RELEASE_CASE_DIR/stderr" >&2
+  fail "release rejected a tagged canonical digest reference"
+}
+tagged_record="$(only_record_dir "$RELEASE_CASE_DIR/records")"
+tagged_reference="registry.example.test/codestead/image1:bookworm@sha256:$(printf '%064d' 1)"
+grep -Fxq $'app\t'"$tagged_reference"$'\t'"sha256:$(printf '%064d' 9)" \
+  "$tagged_record/deployed-service-images.tsv" || {
+  fail "deployed release evidence omitted the tagged canonical digest"
+}
+grep -Fxq $'postgres\tlearncoding-postgres-1\t'"$tagged_reference"$'\t'"sha256:$(printf '%064d' 9)" \
+  "$tagged_record/managed-containers.tsv" || {
+  fail "managed runtime evidence omitted the tagged canonical digest"
+}
+echo "ok - release accepts and records tagged canonical digest references"
 
 rm -f "$work/slow.ready" "$work/slow.release"
 (
@@ -2042,7 +2410,7 @@ assert_postcommit_boundary() {
   if cmp -s "$runtime_state/active-release.env" "$active_before"; then
     fail "$suffix post-commit failure did not retain the visible candidate commit marker"
   fi
-  grep -Fxq "GIT_COMMIT=$candidate_commit" "$runtime_state/active-release.env" || {
+  grep -Fxq "APPLICATION_GIT_COMMIT=$candidate_commit" "$runtime_state/active-release.env" || {
     fail "$suffix post-commit active manifest does not bind the candidate"
   }
   local candidate_release_id candidate_record active_managed_sha active_application_sha
@@ -2103,10 +2471,14 @@ echo "ok - prior runtime restore requires explicit schema compatibility and rema
 legacy_records="$work/legacy-gateway-records"
 legacy_previous_id="20260718T000000Z-1"
 legacy_previous_commit="1111111111111111111111111111111111111111"
+legacy_previous_tree="2222222222222222222222222222222222222222"
 legacy_previous_record="$legacy_records/$legacy_previous_id"
 mkdir -p "$legacy_previous_record"
 printf '%s\n' 'result=completed' >"$legacy_previous_record/status.env"
 printf '%s\n' "$legacy_previous_commit" >"$legacy_previous_record/git-commit.txt"
+printf '%s\n' "$legacy_previous_tree" >"$legacy_previous_record/git-tree.txt"
+chmod 0600 "$legacy_previous_record/status.env" \
+  "$legacy_previous_record/git-commit.txt" "$legacy_previous_record/git-tree.txt"
 {
   for service in app mail-worker reward-worker regrade-worker exam-finalization-worker \
     file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do

@@ -13,6 +13,7 @@ import {
 } from "@/lib/notifications/revocable-source-authority";
 import { setInactivityPause } from "@/lib/notifications/preferences";
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
 
 const ADMIN = "inactivity-admin";
 const LEARNER = "inactivity-learner";
@@ -33,11 +34,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'`);
-  const names = tables.rows.map((row) => `"${row.table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 async function seedLearner(input: {

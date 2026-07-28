@@ -462,6 +462,21 @@ function fail(component) {
   throw new BackupStatusMailAuthorityContractError(component);
 }
 
+const STRICT_ACL_MODE = Symbol("strict-acl");
+const RESTORED_NO_ACL_STRUCTURAL_MODE = Symbol(
+  "restored-no-acl-structural",
+);
+
+function exactChecksForMode(structuralChecks, aclChecks, mode) {
+  if (mode === STRICT_ACL_MODE) {
+    return [...structuralChecks, ...aclChecks];
+  }
+  if (mode === RESTORED_NO_ACL_STRUCTURAL_MODE) {
+    return structuralChecks;
+  }
+  fail("verification-mode");
+}
+
 function canonicalBackupStatusAuthorityContract(contract) {
   const canonical = CANONICAL_BACKUP_STATUS_AUTHORITY_CONTRACTS.get(
     contract?.phase,
@@ -483,9 +498,14 @@ function exactTrueRow(row, keys) {
   return row !== undefined && keys.every((key) => row[key] === true);
 }
 
-async function verifyRestrictedRelation(client, relation, restrictedRoles) {
+async function verifyRestrictedRelation(
+  client,
+  relation,
+  restrictedRoles,
+  verificationMode,
+) {
   const expectedColumns = relation.columns.map(({ name }) => name);
-  const exactKeys = [
+  const structuralChecks = [
     "owner_exact",
     "relation_kind_exact",
     "persistence_exact",
@@ -499,10 +519,17 @@ async function verifyRestrictedRelation(client, relation, restrictedRoles) {
     "column_definitions_exact",
     "constraints_exact",
     "indexes_exact",
+  ];
+  const aclChecks = [
     "effective_table_acl_exact",
     "effective_column_acl_exact",
     "direct_acl_exact",
   ];
+  const exactKeys = exactChecksForMode(
+    structuralChecks,
+    aclChecks,
+    verificationMode,
+  );
   const result = await client.query(
     `
     with target as (
@@ -837,7 +864,12 @@ async function verifyRestrictedRelation(client, relation, restrictedRoles) {
   }
 }
 
-async function verifyRoutine(client, routine, restrictedRoles) {
+async function verifyRoutine(
+  client,
+  routine,
+  restrictedRoles,
+  verificationMode,
+) {
   const result = await client.query(
     `
     select pg_catalog.encode(
@@ -1028,7 +1060,7 @@ async function verifyRoutine(client, routine, restrictedRoles) {
       routine.definitionSha256,
     ],
   );
-  const routineChecks = [
+  const structuralChecks = [
     "body_sha256_exact",
     "definition_sha256_exact",
     "owner_exact",
@@ -1054,9 +1086,13 @@ async function verifyRoutine(client, routine, restrictedRoles) {
     "transform_types_exact",
     "binary_exact",
     "sql_body_exact",
-    "effective_execute_exact",
-    "direct_acl_exact",
   ];
+  const aclChecks = ["effective_execute_exact", "direct_acl_exact"];
+  const routineChecks = exactChecksForMode(
+    structuralChecks,
+    aclChecks,
+    verificationMode,
+  );
   if (
     result.rows.length !== 1 ||
     !exactTrueRow(result.rows[0], routineChecks)
@@ -1264,6 +1300,7 @@ async function verifyBackupStatusMailAuthorityObjectsInternal(
   restrictedRoles,
   contract,
   requireGuardState,
+  verificationMode,
 ) {
   const canonicalContract = canonicalBackupStatusAuthorityContract(contract);
   if (
@@ -1284,10 +1321,15 @@ async function verifyBackupStatusMailAuthorityObjectsInternal(
     fail("trusted_search_path");
   }
   for (const relation of canonicalContract.relations) {
-    await verifyRestrictedRelation(client, relation, restrictedRoles);
+    await verifyRestrictedRelation(
+      client,
+      relation,
+      restrictedRoles,
+      verificationMode,
+    );
   }
   for (const routine of canonicalContract.routines) {
-    await verifyRoutine(client, routine, restrictedRoles);
+    await verifyRoutine(client, routine, restrictedRoles, verificationMode);
   }
   await verifyTriggers(client, canonicalContract, { requireGuardState });
   return (
@@ -1305,6 +1347,7 @@ export function verifyBackupStatusMailAuthorityCatalogObjects(
     restrictedRoles,
     contract,
     false,
+    STRICT_ACL_MODE,
   );
 }
 
@@ -1318,5 +1361,20 @@ export function verifyBackupStatusMailAuthorityObjects(
     restrictedRoles,
     contract,
     true,
+    STRICT_ACL_MODE,
+  );
+}
+
+export function verifyRestoredBackupStatusMailAuthorityStructuralObjects(
+  client,
+  restrictedRoles,
+  contract,
+) {
+  return verifyBackupStatusMailAuthorityObjectsInternal(
+    client,
+    restrictedRoles,
+    contract,
+    true,
+    RESTORED_NO_ACL_STRUCTURAL_MODE,
   );
 }

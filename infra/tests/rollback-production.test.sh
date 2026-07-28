@@ -13,6 +13,11 @@ fail() {
   echo "FAIL: $*" >&2
   exit 1
 }
+rollback_test_slice="${ROLLBACK_TEST_SLICE:-all}"
+case "$rollback_test_slice" in
+  all|v1-pre-0062|finalization-active|finalization-audit|finalization-audit-resume|postgres-preflight|postgres-postcore) ;;
+  *) fail "unknown rollback test slice: $rollback_test_slice" ;;
+esac
 [[ "$EUID" == 0 ]] || fail "release and rollback behavioral tests require root"
 chmod 0700 "$work"
 [[ ! -L "$work" && -d "$work" ]] || fail "test temporary root is not a real directory"
@@ -46,16 +51,35 @@ mapfile -t source_safe_directories < <(
   fail "source Git configuration does not contain only the exact repository"
 }
 
-mkdir -p "$work/bin" "$work/repo/infra/ops" "$work/repo/infra/runner-vm" \
+mkdir -p "$work/bin" "$work/repo/infra/env" "$work/repo/infra/ops" "$work/repo/infra/runner-vm" \
   "$work/runtime-state" "$work/records/20260719T000000Z-1" "$work/records/20260719T000000Z-2"
 chmod 0750 "$work/runtime-state"
-touch "$work/repo/compose.yaml" "$work/compose.env"
-printf '%s\n' 'APP_URL=https://pilot.example.test' >"$work/compose.env"
+cat >"$work/repo/compose.yaml" <<'EOF'
+services:
+  app:
+    image: ${APP_RUNTIME_IMAGE}
+    command: ["node", "server.js"]
+EOF
+cat >"$work/repo/infra/env/compose.env.example" <<'EOF'
+APP_RUNTIME_IMAGE=registry.example.test/codestead/runtime@sha256:1111111111111111111111111111111111111111111111111111111111111111
+EOF
+printf '%s\n' \
+  'APP_URL=https://pilot.example.test' \
+  "POSTGRES_IMAGE=registry.example.test/codestead/postgres:17-bookworm@sha256:$(printf '%064d' 6)" >"$work/compose.env"
 printf '%s\n' 'reviewed host firewall fixture' >"$work/repo/infra/runner-vm/host-runner.nft"
 cp "$repo_root/infra/ops/package-release-tree.py" "$work/repo/infra/ops/package-release-tree.py"
 cp "$ingress_control_script" "$work/repo/infra/ops/ingress-control.py"
-chmod 0755 "$work/repo/infra/ops/package-release-tree.py"
-chmod 0755 "$work/repo/infra/ops/ingress-control.py"
+cp "$repo_root/infra/ops/host-operations-compatibility.py" "$work/repo/infra/ops/host-operations-compatibility.py"
+cp "$repo_root/infra/ops/prepare-object-storage.mjs" "$work/repo/infra/ops/prepare-object-storage.mjs"
+cp "$repo_root/infra/ops/prepare-postgres-control-socket.sh" "$work/repo/infra/ops/prepare-postgres-control-socket.sh"
+cp "$repo_root/infra/ops/smoke-production.sh" "$work/repo/infra/ops/smoke-production.sh"
+cp "$repo_root/infra/ops/validate-runtime.sh" "$work/repo/infra/ops/validate-runtime.sh"
+chmod 0755 "$work/repo/infra/ops/package-release-tree.py" \
+  "$work/repo/infra/ops/host-operations-compatibility.py" \
+  "$work/repo/infra/ops/prepare-postgres-control-socket.sh" \
+  "$work/repo/infra/ops/smoke-production.sh" "$work/repo/infra/ops/validate-runtime.sh"
+chmod 0644 "$work/repo/infra/ops/ingress-control.py" \
+  "$work/repo/infra/ops/prepare-object-storage.mjs"
 cat >"$work/repo/.gitignore" <<'EOF'
 /RELEASE.SHA256SUMS
 /dist
@@ -66,7 +90,7 @@ git -C "$work/repo" config user.name 'Codestead rollback test'
 git -C "$work/repo" config user.email 'rollback-test@codestead.invalid'
 git -C "$work/repo" config core.autocrlf false
 git -C "$work/repo" remote add origin https://github.com/example/codestead
-git -C "$work/repo" add .gitignore compose.yaml infra/ops/package-release-tree.py infra/ops/ingress-control.py infra/runner-vm/host-runner.nft
+git -C "$work/repo" add .gitignore compose.yaml infra
 git -C "$work/repo" commit -qm 'fixture rollback checkout'
 retention_boundary_commit=18b2366db1347d7328d1ae85d7ee285c0fae4e5d
 retention_boundary_tree=2fd3e0b2c4fe6bceb3a70755e2b4b951ada0fbed
@@ -414,6 +438,44 @@ guarded_delivery_exact_source_commit="$(
     | git -C "$work/repo" commit-tree "$guarded_delivery_exact_tree" \
       -p "$guarded_delivery_exact_target_commit"
 )"
+host_operations_index="$work/host-operations.index"
+GIT_INDEX_FILE="$host_operations_index" \
+  git -C "$work/repo" read-tree "$guarded_delivery_exact_tree"
+for host_operations_path in \
+    compose.yaml \
+    infra/env/compose.env.example \
+    infra/ops/ingress-control.py \
+    infra/ops/package-release-tree.py \
+    infra/ops/prepare-object-storage.mjs \
+    infra/ops/prepare-postgres-control-socket.sh \
+    infra/ops/smoke-production.sh \
+    infra/ops/validate-runtime.sh \
+    infra/runner-vm/host-runner.nft; do
+  host_operations_entry="$(git -C "$work/repo" ls-tree HEAD -- "$host_operations_path")"
+  IFS=$' \t' read -r host_operations_mode host_operations_type host_operations_object \
+    host_operations_entry_path host_operations_extra <<<"$host_operations_entry"
+  [[ "$host_operations_type" == blob \
+    && "$host_operations_entry_path" == "$host_operations_path" \
+    && -z "$host_operations_extra" ]] || fail "host operations fixture path is not one exact blob: $host_operations_path"
+  GIT_INDEX_FILE="$host_operations_index" \
+    git -C "$work/repo" update-index --add --cacheinfo \
+      "$host_operations_mode" "$host_operations_object" "$host_operations_path"
+done
+host_operations_compatible_tree="$(
+  GIT_NO_LAZY_FETCH=1 GIT_INDEX_FILE="$host_operations_index" \
+    git -C "$work/repo" write-tree --missing-ok
+)"
+rm -f -- "$host_operations_index"
+host_operations_compatible_target_commit="$(
+  printf '%s\n' 'fixture exact 0069 host-compatible rollback target' \
+    | git -C "$work/repo" commit-tree "$host_operations_compatible_tree" \
+      -p "$guarded_delivery_boundary_commit"
+)"
+host_operations_compatible_source_commit="$(
+  printf '%s\n' 'fixture exact 0069 host-compatible rollback source' \
+    | git -C "$work/repo" commit-tree "$host_operations_compatible_tree" \
+      -p "$host_operations_compatible_target_commit"
+)"
 guarded_delivery_stale_source_commit="$(
   printf '%s\n' 'fixture 0069 rollback source with stale guarded migration' \
     | git -C "$work/repo" commit-tree "$guarded_delivery_stale_migration_tree" \
@@ -618,6 +680,53 @@ cp "$work/repo/RELEASE.SHA256SUMS" "$work/valid-release-manifest"
   --destination "$work/dispatch-binding-real-release-package" \
   >/dev/null || fail "unable to generate canonical real post-0064 rollback fixture"
 
+write_current_runtime_state() {
+  local application_commit="$1" application_tree="$2"
+  local inventory_source="$work/current-managed-containers.tsv"
+  local inventory_sha inventory_target host_commit host_tree
+  local host_contract_sha="${3:-}"
+  if [[ -z "$host_contract_sha" ]]; then
+    host_contract_sha="$(printf '%064d' 4)"
+  fi
+  [[ "$host_contract_sha" =~ ^[0-9a-f]{64}$ ]] || fail "runtime fixture host contract digest is malformed"
+  {
+    for service in app cloudflared exam-finalization-worker file-erasure-worker mail-worker; do
+      printf '%s\t%s\tregistry.example.test/codestead/previous-%s@sha256:%064d\tsha256:%064d\n' \
+        "$service" "learncoding-$service-1" "$service" 7 8
+    done
+    printf 'postgres\tlearncoding-postgres-1\tregistry.example.test/codestead/postgres:17-bookworm@sha256:%064d\tsha256:%064d\n' 6 6
+    for service in practice-runner-recovery-worker project-review-correction-worker regrade-worker reward-worker runner-egress-gateway; do
+      printf '%s\t%s\tregistry.example.test/codestead/previous-%s@sha256:%064d\tsha256:%064d\n' \
+        "$service" "learncoding-$service-1" "$service" 7 8
+    done
+  } >"$inventory_source"
+  inventory_sha="$(sha256sum "$inventory_source" | cut -d' ' -f1)"
+  inventory_target="$work/runtime-state/managed-containers.${inventory_sha}.tsv"
+  cp "$inventory_source" "$inventory_target"
+  chmod 0644 "$inventory_target"
+  host_commit="$(git -C "$work/repo" rev-parse --verify HEAD)"
+  host_tree="$(git -C "$work/repo" rev-parse --verify 'HEAD^{tree}')"
+  {
+    printf '%s\n' \
+      'SCHEMA_VERSION=2' \
+      "APPLICATION_GIT_COMMIT=$application_commit" \
+      "APPLICATION_GIT_TREE=$application_tree" \
+      "HOST_OPERATIONS_GIT_COMMIT=$host_commit" \
+      "HOST_OPERATIONS_GIT_TREE=$host_tree" \
+      'HOST_OPERATIONS_CONTRACT_VERSION=host-operations-semantic-v1' \
+      "HOST_OPERATIONS_CONTRACT_SHA256=$host_contract_sha" \
+      "RELEASE_MANIFEST_SHA256=$(sha256sum "$work/repo/RELEASE.SHA256SUMS" | cut -d' ' -f1)" \
+      "APPLICATION_IMAGE_RECORD_SHA256=$previous_application_sha" \
+      'COMPOSE_PROJECT=learncoding' \
+      'COMPOSE_WORKDIR=/opt/learncoding' \
+      'PUBLIC_ORIGIN=https://pilot.example.test' \
+      "MANAGED_INVENTORY_SHA256=$inventory_sha" \
+      "FIREWALL_POLICY_SHA256=$(sha256sum "$work/repo/infra/runner-vm/host-runner.nft" | cut -d' ' -f1)" \
+      "RUNNER_GUEST_RELEASE_SHA256=$(sha256sum "$work/repo/RELEASE.SHA256SUMS" | cut -d' ' -f1)" \
+      "RUNNER_RUNTIME_IMAGES_SHA256=$(sha256sum "$work/repo/services/runner/dist/runtime-images.env" | cut -d' ' -f1)"
+  } >"$work/runtime-state/active-release.env"
+  chmod 0644 "$work/runtime-state/active-release.env"
+}
 previous_commit="$dispatch_binding_pre_boundary_target_commit"
 candidate_commit="$dispatch_binding_pre_boundary_source_commit"
 previous_tree="$dispatch_binding_pre_boundary_target_tree"
@@ -645,26 +754,28 @@ chmod 0600 "$work/records/current-release.env" "$work/records/latest-candidate.e
 {
   printf 'services:\n'
   for service in app runner-egress-gateway mail-worker reward-worker regrade-worker \
-    exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
+    exam-finalization-worker file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
     printf '  %s:\n' "$service"
     printf '    image: "registry.example.test/codestead/previous-%s@sha256:%064d"\n' "$service" 7
   done
 } >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
 {
   for service in app runner-egress-gateway mail-worker reward-worker regrade-worker \
-    exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
+    exam-finalization-worker file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
     printf '%s\tregistry.example.test/codestead/previous-%s@sha256:%064d\tsha256:%064d\n' \
       "$service" "$service" 7 8
   done
 } >"$work/records/20260719T000000Z-2/previous-running-images.tsv"
 {
   for service in app runner-egress-gateway mail-worker reward-worker regrade-worker \
-    exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
+    exam-finalization-worker file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
     printf '%s\tregistry.example.test/codestead/previous-%s@sha256:%064d\tsha256:%064d\n' \
       "$service" "$service" 7 8
   done
 } >"$work/records/20260719T000000Z-1/deployed-service-images.tsv"
 chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+
+write_current_runtime_state "$previous_commit" "$previous_tree"
 
 cat >"$work/bin/docker" <<'EOF'
 #!/usr/bin/env bash
@@ -677,6 +788,22 @@ authority_error() {
 
 [[ "${1:-}" == --host && "${2:-}" == unix:///var/run/docker.sock ]] || authority_error
 shift 2
+if [[ "${1:-}" == compose && "$#" == 12 \
+  && "${2:-}" == --env-file && -f "${3:-}" && ! -L "${3:-}" \
+  && "${4:-}" == -f && -f "${5:-}" && ! -L "${5:-}" \
+  && "${6:-}" == --profile && "${7:-}" == "*" \
+  && "${8:-}" == config \
+  && "${9:-}" == --no-path-resolution \
+  && "${10:-}" == --no-env-resolution \
+  && "${11:-}" == --format && "${12:-}" == json ]]; then
+  command=server.js
+  if grep -Fq 'host-operations-command-drift' "$5"; then
+    command=unsafe.js
+  fi
+  printf '%s\n' "{\"services\":{\"app\":{\"command\":[\"node\",\"$command\"],\"environment\":{\"DATABASE_URL_FILE\":\"redacted\"},\"image\":\"registry.example.test/codestead/runtime@sha256:1111111111111111111111111111111111111111111111111111111111111111\"},\"postgres\":{\"environment\":{},\"image\":\"postgres@sha256:2222222222222222222222222222222222222222222222222222222222222222\",\"networks\":{\"data\":null}}},\"networks\":{\"data\":{\"internal\":true}},\"volumes\":{},\"secrets\":{},\"configs\":{}}"
+  exit 0
+fi
+
 if [[ "${1:-}" == compose ]]; then
   [[ "${2:-}" == --project-name && "${3:-}" == learncoding ]] || authority_error
   shift 3
@@ -708,7 +835,7 @@ if [[ "${1:-}" == "inspect" && "${2:-}" == "--format" && "$#" == 4 \
   service="${4#restored-}"
   service="${service%-container}"
   case "$service" in
-    app|cloudflared|exam-finalization-worker|mail-worker|practice-runner-recovery-worker|project-review-correction-worker|regrade-worker|reward-worker|runner-egress-gateway)
+    app|cloudflared|exam-finalization-worker|file-erasure-worker|mail-worker|practice-runner-recovery-worker|project-review-correction-worker|regrade-worker|reward-worker|runner-egress-gateway)
       if [[ "${FAKE_SCENARIO:-}" == legacy-gateway-transition && "$service" == runner-egress-gateway ]]; then
         printf '%s\t/learncoding-%s-1\tregistry.example.test/codestead/gateway@sha256:%064d\tsha256:%064d\n' \
           "$service" "$service" 9 8
@@ -718,7 +845,21 @@ if [[ "${1:-}" == "inspect" && "${2:-}" == "--format" && "$#" == 4 \
       fi
       ;;
     postgres)
-      printf 'postgres\t/learncoding-postgres-1\tregistry.example.test/codestead/postgres@sha256:%064d\tsha256:%064d\n' 6 6
+      postgres_reference_digit=6
+      postgres_identity_digit=6
+      case "${FAKE_SCENARIO:-}" in
+        postgres-live-reference-drift)
+          postgres_reference_digit=5
+          ;;
+        postgres-live-identity-drift)
+          postgres_identity_digit=5
+          ;;
+        postgres-post-core-identity-drift)
+          [[ ! -e "$FAKE_CORE_MARKER" ]] || postgres_identity_digit=5
+          ;;
+      esac
+      printf 'postgres\t/learncoding-postgres-1\tregistry.example.test/codestead/postgres:17-bookworm@sha256:%064d\tsha256:%064d\n' \
+        "$postgres_reference_digit" "$postgres_identity_digit"
       ;;
     *) exit 64 ;;
   esac
@@ -782,6 +923,13 @@ if [[ "$1" == "stop" && "$2" == "--timeout" && "$3" == "30" && "$4" == "cloudfla
 fi
 if [[ "$1" == "up" ]]; then
   [[ " $* " == *" --no-build "* && " $* " == *" --pull never "* ]] || exit 64
+  case "$*" in
+    'up -d --no-build --pull never --remove-orphans app mail-worker reward-worker regrade-worker exam-finalization-worker file-erasure-worker practice-runner-recovery-worker project-review-correction-worker runner-egress-gateway')
+      printf '%s\n' core-started >"$FAKE_CORE_MARKER"
+      ;;
+    'up -d --no-deps --no-build --pull never cloudflared') ;;
+    *) exit 64 ;;
+  esac
   exit 0
 fi
 exit 64
@@ -792,11 +940,23 @@ cat >"$work/bin/sync" <<'EOF'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 printf '%s\n' "$*" >>"$FAKE_SYNC_LOG"
-if [[ "${FAKE_SCENARIO:-}" == "runtime-state-active-fsync-failure" ]]; then
-  case "$*" in
-    *"/.active-release."*".tmp") exit 62 ;;
-  esac
-fi
+case "${FAKE_SCENARIO:-}|$*" in
+  finalization-active-fsync-failure\|*"/.active-release."*".tmp")
+    exit 62
+    ;;
+  finalization-current-pointer-fsync-failure\|*"/records/current-release.env")
+    exit 63
+    ;;
+  finalization-latest-pointer-fsync-failure\|*"/records/latest-candidate.env")
+    exit 64
+    ;;
+  finalization-audit-temp-fsync-failure\|*"/.rollback-executions."*".tmp")
+    exit 65
+    ;;
+  finalization-audit-fsync-failure\|*"/rollback-executions.tsv")
+    exit 66
+    ;;
+esac
 EOF
 chmod 0755 "$work/bin/sync"
 
@@ -850,6 +1010,7 @@ run_rollback() {
   : >"$case_dir/sync.log"
   : >"$case_dir/stdout"
   : >"$case_dir/stderr"
+  rm -f -- "$case_dir/core-started"
   printf '0\n' >"$case_dir/quarantine-stop.count"
   if [[ "${RUN_LOCK_PRECREATE:-true}" == true && ! -e "$lock_file" && ! -L "$lock_file" ]]; then
     : >"$lock_file"
@@ -870,6 +1031,7 @@ run_rollback() {
     FAKE_SCENARIO="$scenario" \
     FAKE_LOCK_SWAP_PATH="${RUN_LOCK_SWAP_PATH:-}" \
     FAKE_QUARANTINE_STOP_COUNT="$case_dir/quarantine-stop.count" \
+    FAKE_CORE_MARKER="$case_dir/core-started" \
     FAKE_CONTROL_ROOT="$work" \
     EXPECTED_COMPOSE_ENV="$work/compose.env" \
     EXPECTED_COMPOSE_FILE="$run_repo_root/compose.yaml" \
@@ -895,6 +1057,7 @@ set_rollback_git_evidence() {
     >"$work/records/current-release.env"
   printf '%s\n' 'release_id=20260719T000000Z-2' "git_commit=$source_commit" \
     >"$work/records/latest-candidate.env"
+  write_current_runtime_state "$target_commit" "$target_tree"
 }
 
 assert_only_quarantine_stops() {
@@ -919,14 +1082,403 @@ assert_only_quarantine_stops() {
   (( stop_count >= 1 )) || fail "$label omitted tunnel quarantine"
 }
 
-printf '%s\n' 'APP_URL=https://127.0.0.1' >"$work/compose.env"
+assert_finalization_runtime_reverified() {
+  local label="$1" service
+  local expected_core expected_tunnel
+  printf -v expected_core 'compose\t--env-file\t%s\t-f\t%s\t-f\t%s\tup\t-d\t--no-build\t--pull\tnever\t--remove-orphans\tapp\tmail-worker\treward-worker\tregrade-worker\texam-finalization-worker\tfile-erasure-worker\tpractice-runner-recovery-worker\tproject-review-correction-worker\trunner-egress-gateway' \
+    "$work/compose.env" "$ROLLBACK_REPO_ROOT_USED/compose.yaml" \
+    "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+  printf -v expected_tunnel 'compose\t--env-file\t%s\t-f\t%s\t-f\t%s\tup\t-d\t--no-deps\t--no-build\t--pull\tnever\tcloudflared' \
+    "$work/compose.env" "$ROLLBACK_REPO_ROOT_USED/compose.yaml" \
+    "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
+
+  [[ "$(cat "$ROLLBACK_CASE/smoke.log")" == $'--phase internal --startup-wait 3\n--phase public --startup-wait 3' ]] || {
+    fail "$label did not rerun both rollback smoke phases in order"
+  }
+  grep -Fxq "$expected_core" "$ROLLBACK_CASE/docker.log" || {
+    fail "$label did not rerun the exact immutable rollback core"
+  }
+  grep -Fxq "$expected_tunnel" "$ROLLBACK_CASE/docker.log" || {
+    fail "$label did not rerun the exact immutable rollback tunnel"
+  }
+  for service in app cloudflared exam-finalization-worker file-erasure-worker mail-worker postgres \
+    practice-runner-recovery-worker project-review-correction-worker regrade-worker reward-worker \
+    runner-egress-gateway; do
+    grep -Fq $'\tps\t-q\t'"$service" "$ROLLBACK_CASE/docker.log" || {
+      fail "$label did not reinspect restored service $service"
+    }
+    grep -Fq $'\t'"restored-$service-container" "$ROLLBACK_CASE/docker.log" || {
+      fail "$label did not bind restored container identity for $service"
+    }
+  done
+}
+
+if [[ "$rollback_test_slice" == finalization-active \
+  || "$rollback_test_slice" == finalization-audit \
+  || "$rollback_test_slice" == finalization-audit-resume \
+  || "$rollback_test_slice" == postgres-preflight || "$rollback_test_slice" == postgres-postcore ]]; then
+  mail_contract_path="$work/records/20260719T000000Z-2/mail-outbox-contract.env"
+  set_rollback_git_evidence \
+    "$host_operations_compatible_source_commit" "$host_operations_compatible_tree" \
+    "$host_operations_compatible_target_commit" "$host_operations_compatible_tree"
+  candidate_commit="$host_operations_compatible_source_commit"
+  candidate_tree="$host_operations_compatible_tree"
+  previous_commit="$host_operations_compatible_target_commit"
+  previous_tree="$host_operations_compatible_tree"
+  cat >"$mail_contract_path" <<EOF
+SCHEMA_VERSION=4
+MAIL_OUTBOX_PHASE=dual-write-v1
+OUTBOX_WORKER_MODE=fenced-postgres-v1
+OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability
+DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract
+GUARDED_DELIVERY_RUNTIME=$guarded_delivery_runtime_capability
+DELIVERY_RELEASE_AUTHORITY=$delivery_release_authority_contract
+GUARDED_DELIVERY_PRIVILEGE=$guarded_delivery_privilege_contract
+STORE_CUTOVER=false
+PREVIOUS_MAIL_OUTBOX_PHASE=dual-write-v1
+PREVIOUS_OUTBOX_WORKER_MODE=fenced-postgres-v1
+PREVIOUS_OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
+PREVIOUS_DISPATCH_BINDING_RUNTIME=$dispatch_binding_runtime_capability
+PREVIOUS_DISPATCH_BINDING_PRIVILEGE=$dispatch_binding_privilege_contract
+PREVIOUS_GUARDED_DELIVERY_RUNTIME=$guarded_delivery_runtime_capability
+PREVIOUS_DELIVERY_RELEASE_AUTHORITY=$delivery_release_authority_contract
+PREVIOUS_GUARDED_DELIVERY_PRIVILEGE=$guarded_delivery_privilege_contract
+PREVIOUS_RUNTIME_COMPATIBLE=true
+FORWARD_ONLY_MIGRATION=none
+EOF
+  chmod 0600 "$mail_contract_path"
+  printf '%s\n' \
+    'release_id=20260719T000000Z-2' \
+    'result=completed' \
+    'stage=complete' \
+    'exit_code=0' \
+    'schema_rollback=not_attempted' >"$work/records/20260719T000000Z-2/status.env"
+  printf '%s\n' 'release_id=20260719T000000Z-2' "git_commit=$candidate_commit" \
+    >"$work/records/current-release.env"
+  printf '%s\n' 'release_id=20260719T000000Z-2' "git_commit=$candidate_commit" \
+    >"$work/records/latest-candidate.env"
+  chmod 0600 "$work/records/current-release.env" "$work/records/latest-candidate.env"
+  write_current_runtime_state "$candidate_commit" "$candidate_tree"
+  cp "$work/runtime-state/active-release.env" "$work/finalization-active-before.env"
+
+  if [[ "$rollback_test_slice" == finalization-audit-resume ]]; then
+    resume_host_commit="$(git -C "$work/repo" rev-parse --verify HEAD)"
+    resume_host_tree="$(git -C "$work/repo" rev-parse --verify 'HEAD^{tree}')"
+    resume_contract_output="$(
+      /usr/bin/python3 "$work/repo/infra/ops/host-operations-compatibility.py" \
+        --repo-root "$work/repo" \
+        --git-bin "$(command -v git)" \
+        --docker-bin "$work/bin/docker" \
+        --host-commit "$resume_host_commit" \
+        --host-tree "$resume_host_tree" \
+        --application-commit "$previous_commit" \
+        --application-tree "$previous_tree"
+    )" || fail "unable to derive exact audit-resume host compatibility"
+    resume_contract_sha="$(
+      sed -n 's/^HOST_OPERATIONS_CONTRACT_SHA256=//p' <<<"$resume_contract_output"
+    )"
+    [[ "$resume_contract_sha" =~ ^[0-9a-f]{64}$ ]] || {
+      fail "audit-resume host compatibility digest is malformed"
+    }
+    resume_compatibility_evidence="$work/records/20260719T000000Z-2/rollback-host-operations-compatibility.env"
+    printf '%s\n' "$resume_contract_output" >"$resume_compatibility_evidence"
+    chmod 0600 "$resume_compatibility_evidence"
+    resume_compatibility_sha="$(sha256sum "$resume_compatibility_evidence" | cut -d' ' -f1)"
+    write_current_runtime_state "$previous_commit" "$previous_tree" "$resume_contract_sha"
+    resume_inventory_sha="$(
+      sed -n 's/^MANAGED_INVENTORY_SHA256=//p' "$work/runtime-state/active-release.env"
+    )"
+    resume_inventory_source="$work/runtime-state/managed-containers.${resume_inventory_sha}.tsv"
+    resume_inventory_record="$work/records/20260719T000000Z-2/rollback-managed-containers.tsv"
+    resume_active_record="$work/records/20260719T000000Z-2/rollback-active-release.env"
+    cp "$resume_inventory_source" "$resume_inventory_record"
+    cp "$work/runtime-state/active-release.env" "$resume_active_record"
+    chmod 0600 "$resume_inventory_record" "$resume_active_record"
+    resume_application_blob="$work/runtime-state/application-images.${previous_application_sha}.json"
+    cp "$work/records/20260719T000000Z-1/application-image-record.json" "$resume_application_blob"
+    chmod 0644 "$resume_application_blob"
+    printf '%s\n' 'release_id=20260719T000000Z-1' "git_commit=$previous_commit" \
+      >"$work/records/current-release.env"
+    printf '%s\n' 'release_id=20260719T000000Z-1' "git_commit=$previous_commit" \
+      >"$work/records/latest-candidate.env"
+    chmod 0600 "$work/records/current-release.env" "$work/records/latest-candidate.env"
+    resume_started_at=2026-07-28T00:00:00Z
+    resume_active_sha="$(sha256sum "$resume_active_record" | cut -d' ' -f1)"
+    resume_inventory_record_sha="$(sha256sum "$resume_inventory_record" | cut -d' ' -f1)"
+    resume_finalization_id="$(
+      {
+        printf 'STARTED_AT_UTC=%s\n' "$resume_started_at"
+        printf 'SOURCE_RELEASE_ID=20260719T000000Z-2\n'
+        printf 'SOURCE_GIT_COMMIT=%s\n' "$candidate_commit"
+        printf 'TARGET_RELEASE_ID=20260719T000000Z-1\n'
+        printf 'TARGET_GIT_COMMIT=%s\n' "$previous_commit"
+        printf 'TARGET_GIT_TREE=%s\n' "$previous_tree"
+        printf 'HOST_OPERATIONS_GIT_COMMIT=%s\n' "$resume_host_commit"
+        printf 'HOST_OPERATIONS_GIT_TREE=%s\n' "$resume_host_tree"
+        printf 'RUNTIME_ACTIVE_SHA256=%s\n' "$resume_active_sha"
+        printf 'RUNTIME_INVENTORY_SHA256=%s\n' "$resume_inventory_record_sha"
+        printf 'APPLICATION_IMAGE_RECORD_SHA256=%s\n' "$previous_application_sha"
+        printf 'RESULT=previous_runtime_restored\n'
+      } | sha256sum | cut -d' ' -f1
+    )"
+    resume_finalization_intent="$work/records/20260719T000000Z-2/rollback-finalization.env"
+    {
+      printf 'SCHEMA_VERSION=1\n'
+      printf 'FINALIZATION_ID_SHA256=%s\n' "$resume_finalization_id"
+      printf 'STARTED_AT_UTC=%s\n' "$resume_started_at"
+      printf 'SOURCE_RELEASE_ID=20260719T000000Z-2\n'
+      printf 'SOURCE_GIT_COMMIT=%s\n' "$candidate_commit"
+      printf 'TARGET_RELEASE_ID=20260719T000000Z-1\n'
+      printf 'TARGET_GIT_COMMIT=%s\n' "$previous_commit"
+      printf 'TARGET_GIT_TREE=%s\n' "$previous_tree"
+      printf 'HOST_OPERATIONS_GIT_COMMIT=%s\n' "$resume_host_commit"
+      printf 'HOST_OPERATIONS_GIT_TREE=%s\n' "$resume_host_tree"
+      printf 'RUNTIME_ACTIVE_SHA256=%s\n' "$resume_active_sha"
+      printf 'RUNTIME_INVENTORY_SHA256=%s\n' "$resume_inventory_record_sha"
+      printf 'APPLICATION_IMAGE_RECORD_SHA256=%s\n' "$previous_application_sha"
+      printf 'RESULT=previous_runtime_restored\n'
+    } >"$resume_finalization_intent"
+    resume_audit="$work/records/20260719T000000Z-2/rollback-executions.tsv"
+    printf '%s\t%s\t%s\t%s\n' "$resume_started_at" 20260719T000000Z-1 \
+      previous_runtime_restored "$resume_finalization_id" >"$resume_audit"
+    chmod 0600 "$resume_finalization_intent" "$resume_audit"
+    resume_intent_sha="$(sha256sum "$resume_finalization_intent" | cut -d' ' -f1)"
+
+    run_rollback success --schema-backward-compatible
+    [[ "$ROLLBACK_STATUS" == 0 ]] || {
+      cat "$ROLLBACK_CASE/stderr" >&2
+      fail "preseeded audit finalization did not resume"
+    }
+    assert_finalization_runtime_reverified "preseeded audit finalization resume"
+    [[ ! -e "$work/control/release-quarantine" ]] || {
+      fail "preseeded audit finalization resume did not clear quarantine"
+    }
+    [[ "$(grep -Fc $'\t'"$resume_finalization_id" "$resume_audit")" == 1 ]] || {
+      fail "preseeded audit finalization resume duplicated its event"
+    }
+    [[ "$(sha256sum "$resume_finalization_intent" | cut -d' ' -f1)" == "$resume_intent_sha" ]] || {
+      fail "preseeded audit finalization resume rewrote its durable intent"
+    }
+    [[ "$(sha256sum "$resume_compatibility_evidence" | cut -d' ' -f1)" == "$resume_compatibility_sha" ]] || {
+      fail "preseeded audit finalization resume rewrote compatibility evidence"
+    }
+    echo "rollback-production-finalization-audit-resume-tests-ok"
+    exit 0
+  fi
+  if [[ "$rollback_test_slice" == finalization-audit ]]; then
+    run_rollback finalization-audit-fsync-failure --schema-backward-compatible
+    [[ "$ROLLBACK_STATUS" != 0 ]] || fail "focused audit slice ignored target fsync failure"
+    assert_finalization_runtime_reverified "focused audit target fsync failure"
+    [[ -f "$work/control/release-quarantine" && ! -L "$work/control/release-quarantine" \
+      && "$(cat "$work/control/release-quarantine")" == codestead-release-quarantine-v1 ]] || {
+      fail "focused audit target fsync failure did not preserve durable quarantine"
+    }
+    [[ "$(grep -Fc $'stop\t--timeout\t30\tcloudflared' "$ROLLBACK_CASE/docker.log")" -ge 2 ]] || {
+      fail "focused audit target fsync failure did not re-quarantine ingress"
+    }
+    audit_finalization_intent="$work/records/20260719T000000Z-2/rollback-finalization.env"
+    audit_execution_log="$work/records/20260719T000000Z-2/rollback-executions.tsv"
+    [[ -f "$audit_finalization_intent" && -f "$audit_execution_log" ]] || {
+      fail "focused audit target fsync failure did not retain commit evidence"
+    }
+    audit_finalization_id="$(sed -n 's/^FINALIZATION_ID_SHA256=//p' "$audit_finalization_intent")"
+    [[ "$audit_finalization_id" =~ ^[0-9a-f]{64}$ \
+      && "$(grep -Fc $'\t'"$audit_finalization_id" "$audit_execution_log")" == 1 ]] || {
+      fail "focused audit target fsync failure did not retain exactly one bound event"
+    }
+    grep -Fxq 'release_id=20260719T000000Z-1' "$work/records/current-release.env" || {
+      fail "focused audit target fsync failure lost the committed current pointer"
+    }
+    grep -Fxq 'release_id=20260719T000000Z-1' "$work/records/latest-candidate.env" || {
+      fail "focused audit target fsync failure lost the committed candidate pointer"
+    }
+    grep -Fxq "APPLICATION_GIT_COMMIT=$previous_commit" "$work/runtime-state/active-release.env" || {
+      fail "focused audit target fsync failure lost committed active state"
+    }
+    if find "$work/runtime-state" "$work/records/20260719T000000Z-2" \
+        -maxdepth 1 -name '.*.tmp' -print -quit | grep -q .; then
+      fail "focused audit target fsync failure left a temporary file"
+    fi
+
+    echo "rollback-production-finalization-audit-tests-ok"
+    exit 0
+  fi
+  if [[ "$rollback_test_slice" == postgres-preflight ]]; then
+    cp "$work/records/current-release.env" "$work/postgres-preflight-current-before.env"
+    cp "$work/records/latest-candidate.env" "$work/postgres-preflight-latest-before.env"
+    for scenario in postgres-live-reference-drift postgres-live-identity-drift; do
+      run_rollback "$scenario" --schema-backward-compatible
+      [[ "$ROLLBACK_STATUS" != 0 ]] || fail "$scenario unexpectedly completed rollback"
+      grep -Fq 'live PostgreSQL image reference or identity does not match authenticated runtime state' \
+        "$ROLLBACK_CASE/stderr" || fail "$scenario rejection was not explicit"
+      grep -Fq $'\tps\t-q\tpostgres' "$ROLLBACK_CASE/docker.log" || {
+        fail "$scenario did not inspect the live PostgreSQL service"
+      }
+      grep -Fq $'inspect\t--format\t{{ index .Config.Labels "com.docker.compose.service" }}\\t{{.Name}}\\t{{.Config.Image}}\\t{{.Image}}\trestored-postgres-container' \
+        "$ROLLBACK_CASE/docker.log" || fail "$scenario did not bind the live PostgreSQL container"
+      [[ ! -e "$ROLLBACK_CASE/core-started" ]] || fail "$scenario reached rollback core mutation"
+      [[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "$scenario reached smoke"
+      if grep -Eq $'(^|\t)(up|image\tinspect)(\t|$)' "$ROLLBACK_CASE/docker.log"; then
+        fail "$scenario reached rollback image or core work"
+      fi
+      cmp -s "$work/records/current-release.env" "$work/postgres-preflight-current-before.env" || {
+        fail "$scenario changed the current pointer"
+      }
+      cmp -s "$work/records/latest-candidate.env" "$work/postgres-preflight-latest-before.env" || {
+        fail "$scenario changed the latest pointer"
+      }
+      cmp -s "$work/runtime-state/active-release.env" "$work/finalization-active-before.env" || {
+        fail "$scenario changed active runtime state"
+      }
+      [[ ! -e "$work/records/20260719T000000Z-2/rollback-finalization.env" ]] || {
+        fail "$scenario reached rollback finalization"
+      }
+    done
+    echo "rollback-production-postgres-preflight-tests-ok"
+    exit 0
+  fi
+
+  if [[ "$rollback_test_slice" == postgres-postcore ]]; then
+    cp "$work/records/current-release.env" "$work/postgres-postcore-current-before.env"
+    cp "$work/records/latest-candidate.env" "$work/postgres-postcore-latest-before.env"
+    run_rollback postgres-post-core-identity-drift --schema-backward-compatible
+    [[ "$ROLLBACK_STATUS" != 0 ]] || fail "post-core PostgreSQL identity drift completed rollback"
+    [[ -f "$ROLLBACK_CASE/core-started" ]] || fail "post-core PostgreSQL drift did not reach core start"
+    [[ "$(cat "$ROLLBACK_CASE/smoke.log")" == $'--phase internal --startup-wait 3\n--phase public --startup-wait 3' ]] || {
+      fail "post-core PostgreSQL drift did not complete both smoke phases"
+    }
+    [[ "$(grep -Fc $'\trestored-postgres-container' "$ROLLBACK_CASE/docker.log")" -ge 2 ]] || {
+      fail "post-core PostgreSQL drift did not run both live identity inspections"
+    }
+    grep -Fq 'restored managed image does not match the authenticated rollback runtime: postgres' \
+      "$ROLLBACK_CASE/stderr" || fail "post-core PostgreSQL drift rejection was not explicit"
+    [[ ! -e "$work/records/20260719T000000Z-2/rollback-finalization.env" ]] || {
+      fail "post-core PostgreSQL drift reached finalization intent publication"
+    }
+    cmp -s "$work/records/current-release.env" "$work/postgres-postcore-current-before.env" || {
+      fail "post-core PostgreSQL drift changed the current pointer"
+    }
+    cmp -s "$work/records/latest-candidate.env" "$work/postgres-postcore-latest-before.env" || {
+      fail "post-core PostgreSQL drift changed the latest pointer"
+    }
+    cmp -s "$work/runtime-state/active-release.env" "$work/finalization-active-before.env" || {
+      fail "post-core PostgreSQL drift changed active runtime state"
+    }
+    [[ -f "$work/control/release-quarantine" && ! -L "$work/control/release-quarantine" \
+      && "$(cat "$work/control/release-quarantine")" == codestead-release-quarantine-v1 ]] || {
+      fail "post-core PostgreSQL drift did not preserve durable quarantine"
+    }
+    run_rollback success --schema-backward-compatible
+    [[ "$ROLLBACK_STATUS" == 0 ]] || {
+      cat "$ROLLBACK_CASE/stderr" >&2
+      fail "post-core PostgreSQL drift did not recover on an exact-identity rerun"
+    }
+    assert_finalization_runtime_reverified "post-core PostgreSQL drift recovery"
+    [[ ! -e "$work/control/release-quarantine" ]] || {
+      fail "post-core PostgreSQL drift recovery did not clear durable quarantine"
+    }
+    grep -Fxq 'release_id=20260719T000000Z-1' "$work/records/current-release.env" || {
+      fail "post-core PostgreSQL drift recovery did not publish the target current pointer"
+    }
+    grep -Fxq "git_commit=$previous_commit" "$work/records/current-release.env" || {
+      fail "post-core PostgreSQL drift recovery current pointer has the wrong Git commit"
+    }
+    grep -Fxq 'release_id=20260719T000000Z-1' "$work/records/latest-candidate.env" || {
+      fail "post-core PostgreSQL drift recovery did not consume the candidate pointer"
+    }
+    grep -Fxq "APPLICATION_GIT_COMMIT=$previous_commit" "$work/runtime-state/active-release.env" || {
+      fail "post-core PostgreSQL drift recovery did not publish target active state"
+    }
+    [[ -f "$work/records/20260719T000000Z-2/rollback-finalization.env" \
+      && -f "$work/records/20260719T000000Z-2/rollback-executions.tsv" ]] || {
+      fail "post-core PostgreSQL drift recovery did not retain finalization evidence"
+    }
+    echo "rollback-production-postgres-postcore-tests-ok"
+    exit 0
+  fi
+  run_rollback finalization-active-fsync-failure --schema-backward-compatible
+  [[ "$ROLLBACK_STATUS" != 0 ]] || fail "focused finalization slice ignored active-state fsync failure"
+  assert_finalization_runtime_reverified "focused active-state fsync failure"
+  [[ -f "$work/control/release-quarantine" && ! -L "$work/control/release-quarantine" \
+    && "$(cat "$work/control/release-quarantine")" == codestead-release-quarantine-v1 ]] || {
+    fail "focused active-state fsync failure did not preserve durable quarantine"
+  }
+  [[ "$(grep -Fc $'stop\t--timeout\t30\tcloudflared' "$ROLLBACK_CASE/docker.log")" -ge 2 ]] || {
+    fail "focused active-state fsync failure did not re-quarantine ingress"
+  }
+  [[ -f "$work/records/20260719T000000Z-2/rollback-finalization.env" ]] || {
+    fail "focused active-state fsync failure did not retain finalization intent"
+  }
+  cmp -s "$work/runtime-state/active-release.env" "$work/finalization-active-before.env" || {
+    fail "focused active-state fsync failure changed the pre-commit active manifest"
+  }
+  if find "$work/runtime-state" "$work/records/20260719T000000Z-2" \
+      -maxdepth 1 -name '.*.tmp' -print -quit | grep -q .; then
+    fail "focused active-state fsync failure left a temporary file"
+  fi
+  focused_finalization_intent="$work/records/20260719T000000Z-2/rollback-finalization.env"
+  focused_finalization_sha="$(sha256sum "$focused_finalization_intent" | cut -d' ' -f1)"
+  focused_finalization_id="$(sed -n 's/^FINALIZATION_ID_SHA256=//p' "$focused_finalization_intent")"
+  [[ "$focused_finalization_id" =~ ^[0-9a-f]{64}$ ]] || {
+    fail "focused active-state fsync failure retained a malformed finalization identity"
+  }
+  focused_inventory_sha="$(
+    sed -n 's/^MANAGED_INVENTORY_SHA256=//p' \
+      "$work/records/20260719T000000Z-2/rollback-active-release.env"
+  )"
+  focused_inventory_path="$work/runtime-state/managed-containers.${focused_inventory_sha}.tsv"
+  [[ -f "$focused_inventory_path" ]] || fail "focused finalization inventory setup is missing"
+  rm -f -- "$focused_inventory_path"
+  [[ ! -e "$focused_inventory_path" && ! -L "$focused_inventory_path" ]] || {
+    fail "focused finalization did not model a pre-publication inventory crash"
+  }
+  run_rollback success --schema-backward-compatible
+  [[ "$ROLLBACK_STATUS" == 0 ]] || {
+    cat "$ROLLBACK_CASE/stderr" >&2
+    fail "focused active-state finalization did not resume"
+  }
+  assert_finalization_runtime_reverified "focused active-state finalization resume"
+  [[ -f "$focused_inventory_path" && ! -L "$focused_inventory_path" \
+    && "$(sha256sum "$focused_inventory_path" | cut -d' ' -f1)" == "$focused_inventory_sha" ]] || {
+    fail "focused finalization resume did not republish its retained content-addressed inventory"
+  }
+  [[ ! -e "$work/control/release-quarantine" ]] || {
+    fail "focused active-state finalization resume did not clear quarantine"
+  }
+  grep -Fxq 'release_id=20260719T000000Z-1' "$work/records/current-release.env" || {
+    fail "focused active-state finalization resume did not publish the target pointer"
+  }
+  grep -Fxq "git_commit=$previous_commit" "$work/records/current-release.env" || {
+    fail "focused active-state finalization resume published the wrong target commit"
+  }
+  grep -Fxq 'release_id=20260719T000000Z-1' "$work/records/latest-candidate.env" || {
+    fail "focused active-state finalization resume did not consume the candidate"
+  }
+  grep -Fxq "APPLICATION_GIT_COMMIT=$previous_commit" "$work/runtime-state/active-release.env" || {
+    fail "focused active-state finalization resume did not publish target active state"
+  }
+  [[ "$(grep -Fc $'\t'"$focused_finalization_id" "$work/records/20260719T000000Z-2/rollback-executions.tsv")" == 1 ]] || {
+    fail "focused active-state finalization resume did not publish one idempotent audit event"
+  }
+  [[ "$(sha256sum "$focused_finalization_intent" | cut -d' ' -f1)" == "$focused_finalization_sha" ]] || {
+    fail "focused active-state finalization resume rewrote its durable intent"
+  }
+  echo "rollback-production-finalization-active-tests-ok"
+  exit 0
+fi
+printf '%s\n' \
+  'APP_URL=https://127.0.0.1' \
+  "POSTGRES_IMAGE=registry.example.test/codestead/postgres:17-bookworm@sha256:$(printf '%064d' 6)" >"$work/compose.env"
 run_rollback ipv4-public-origin --schema-backward-compatible
 [[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback accepted an IPv4 APP_URL as a public origin"
 [[ ! -s "$ROLLBACK_CASE/docker.log" ]] || fail "invalid IPv4 APP_URL reached Docker"
 grep -Fq 'canonical lowercase public HTTPS origin' "$ROLLBACK_CASE/stderr" || {
   fail "invalid IPv4 APP_URL rejection was not explicit"
 }
-printf '%s\n' 'APP_URL=https://pilot.example.test' >"$work/compose.env"
+printf '%s\n' \
+  'APP_URL=https://pilot.example.test' \
+  "POSTGRES_IMAGE=registry.example.test/codestead/postgres:17-bookworm@sha256:$(printf '%064d' 6)" >"$work/compose.env"
 echo "ok - rollback rejects an IPv4 APP_URL before Docker"
 mail_contract_path="$work/records/20260719T000000Z-2/mail-outbox-contract.env"
 set_rollback_git_evidence \
@@ -949,6 +1501,7 @@ assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "v1 contract 0062 rollb
 [[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "v1 contract 0062 refusal reached smoke"
 [[ ! -s "$ROLLBACK_CASE/stdout" ]] || fail "v1 contract 0062 refusal wrote stdout"
 grep -Fq '0062_mail_outbox_retention_redaction' "$ROLLBACK_CASE/stderr" || {
+  cat "$ROLLBACK_CASE/stderr" >&2
   fail "v1 contract 0062 refusal did not name the boundary"
 }
 grep -Fq 'SCHEMA_VERSION=1' "$ROLLBACK_CASE/stderr" || {
@@ -983,6 +1536,7 @@ assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "wholly pre-0062 v1 exc
 [[ ! -s "$ROLLBACK_CASE/smoke.log" ]] || fail "wholly pre-0062 v1 exception reached smoke"
 [[ ! -s "$ROLLBACK_CASE/stdout" ]] || fail "wholly pre-0062 v1 exception wrote stdout"
 grep -Fq 'rollback override is malformed' "$ROLLBACK_CASE/stderr" || {
+  cat "$ROLLBACK_CASE/stderr" >&2
   fail "exact wholly pre-0062 evidence did not pass the v1 contract gate"
 }
 if grep -Eq 'SCHEMA_VERSION=1 mail outbox contract evidence is insufficient|migration lineage' \
@@ -996,6 +1550,10 @@ cmp -s "$work/records/latest-candidate.env" "$work/v1-pre-retention-candidate-be
   fail "wholly pre-0062 v1 exception changed the candidate pointer"
 }
 echo "ok - rollback keeps the v1 contract gate strictly at 0062"
+if [[ "$rollback_test_slice" == v1-pre-0062 ]]; then
+  echo "rollback-production-v1-pre-0062-tests-ok"
+  exit 0
+fi
 
 set_rollback_git_evidence \
   "$retention_boundary_commit" "$retention_boundary_tree" \
@@ -1405,9 +1963,9 @@ chmod 0600 "$mail_contract_path"
 cp "$work/records/20260719T000000Z-2/previous-runtime.override.yaml" \
   "$work/dispatch-binding-compatible-valid.override.yaml"
 printf '%s\n' 'not-services:' >"$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
-RUN_REPO_ROOT="$dispatch_binding_real_repo" RUN_STAGE_TIMEOUT=30 \
+RUN_STAGE_TIMEOUT=30 \
   run_rollback dispatch-binding-compatible-fenced --schema-backward-compatible
-unset RUN_REPO_ROOT RUN_STAGE_TIMEOUT
+unset RUN_STAGE_TIMEOUT
 mv "$work/dispatch-binding-compatible-valid.override.yaml" \
   "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
 chmod 0600 "$work/records/20260719T000000Z-2/previous-runtime.override.yaml"
@@ -1706,6 +2264,16 @@ grep -Fq 'mail store cutover is forward-only' "$ROLLBACK_CASE/stderr" || {
 }
 rm -f "$work/records/20260719T000000Z-2/mail-outbox-contract.env"
 echo "ok - rollback refuses the pre-cutover artifact across mail store cutover"
+set_rollback_git_evidence \
+  "$host_operations_compatible_source_commit" "$host_operations_compatible_tree" \
+  "$host_operations_compatible_target_commit" "$host_operations_compatible_tree"
+candidate_commit="$host_operations_compatible_source_commit"
+candidate_tree="$host_operations_compatible_tree"
+previous_commit="$host_operations_compatible_target_commit"
+previous_tree="$host_operations_compatible_tree"
+write_guarded_delivery_rollback_contract
+echo "ok - bounded exact-tree evidence enables only semantically compatible host/application rollback"
+
 
 authority_environment=(
   DOCKER_HOST
@@ -1842,24 +2410,19 @@ run_rollback repeated-signal-early-cleanup --schema-backward-compatible
 }
 assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "repeated early rollback cleanup signals"
 
-cat >"$mail_contract_path" <<'EOF'
-SCHEMA_VERSION=2
-MAIL_OUTBOX_PHASE=dual-write-v1
-OUTBOX_WORKER_MODE=fenced-postgres-v1
-OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
-STORE_CUTOVER=false
-PREVIOUS_MAIL_OUTBOX_PHASE=dual-write-v1
-PREVIOUS_OUTBOX_WORKER_MODE=fenced-postgres-v1
-PREVIOUS_OUTBOX_RETENTION_AUTHORITY=ops-owner-security-definer-v1
-PREVIOUS_RUNTIME_COMPATIBLE=true
-FORWARD_ONLY_MIGRATION=none
-EOF
-chmod 0600 "$mail_contract_path"
+write_guarded_delivery_rollback_contract
 
 run_rollback repeated-signal-late-cleanup --schema-backward-compatible
-[[ "$ROLLBACK_STATUS" == 51 ]] || fail "repeated late rollback signals did not preserve the smoke failure status"
+if [[ "$ROLLBACK_STATUS" != 51 ]]; then
+  cat "$ROLLBACK_CASE/stderr" >&2
+  fail "repeated late rollback signals did not preserve the smoke failure status (status $ROLLBACK_STATUS)"
+fi
 [[ "$(cat "$ROLLBACK_CASE/quarantine-stop.count")" -ge 3 ]] || {
   fail "repeated late rollback signals aborted the bounded quarantine retry"
+}
+[[ -f "$work/control/release-quarantine" && ! -L "$work/control/release-quarantine" \
+  && "$(cat "$work/control/release-quarantine")" == codestead-release-quarantine-v1 ]] || {
+  fail "repeated late rollback signals did not restore an authentic durable quarantine"
 }
 
 echo "ok - rollback rejects unsafe lock object types, links, ownership, and mode"
@@ -1978,32 +2541,70 @@ printf '%s\n' 'release_id=20260719T000000Z-2' "git_commit=$candidate_commit" \
 
 echo "ok - rollback rejects a stale release record before mutation"
 
+assert_finalization_failure_closed() {
+  local label="$1"
+  [[ -f "$work/control/release-quarantine" && ! -L "$work/control/release-quarantine" \
+    && "$(cat "$work/control/release-quarantine")" == codestead-release-quarantine-v1 ]] || {
+    fail "$label did not preserve an authentic durable quarantine"
+  }
+  [[ "$(grep -Fc $'stop\t--timeout\t30\tcloudflared' "$ROLLBACK_CASE/docker.log")" -ge 2 ]] || {
+    fail "$label did not stop public ingress again during cleanup"
+  }
+  if find "$work/runtime-state" -mindepth 1 -maxdepth 1 -name '.*.tmp' -print -quit | grep -q .; then
+    fail "$label left a runtime-state temporary"
+  fi
+  if find "$work/records/20260719T000000Z-2" -mindepth 1 -maxdepth 1 -name '.*.tmp' -print -quit | grep -q .; then
+    fail "$label left a private finalization temporary"
+  fi
+}
+
+printf '%s\n' \
+  'release_id=20260719T000000Z-2' \
+  'result=completed' \
+  'stage=complete' \
+  'exit_code=0' \
+  'schema_rollback=not_attempted' >"$work/records/20260719T000000Z-2/status.env"
+printf '%s\n' 'release_id=20260719T000000Z-2' "git_commit=$candidate_commit" \
+  >"$work/records/current-release.env"
+printf '%s\n' 'release_id=20260719T000000Z-2' "git_commit=$candidate_commit" \
+  >"$work/records/latest-candidate.env"
+chmod 0600 "$work/records/current-release.env" "$work/records/latest-candidate.env"
+write_current_runtime_state "$candidate_commit" "$candidate_tree"
 cp "$work/records/current-release.env" "$work/rollback-pointer-before.env"
 cp "$work/records/latest-candidate.env" "$work/rollback-candidate-before.env"
-run_rollback runtime-state-active-fsync-failure --schema-backward-compatible
+cp "$work/runtime-state/active-release.env" "$work/rollback-active-before.env"
+
+run_rollback finalization-active-fsync-failure --schema-backward-compatible
 [[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback ignored active runtime state fsync failure"
-[[ -f "$work/control/release-quarantine" ]] || fail "failed rollback did not leave durable quarantine"
+assert_finalization_runtime_reverified "active runtime state fsync failure"
+assert_finalization_failure_closed "active runtime state fsync failure"
+finalization_intent="$work/records/20260719T000000Z-2/rollback-finalization.env"
+[[ -f "$finalization_intent" && ! -L "$finalization_intent" \
+  && "$(stat -c '%a:%h' "$finalization_intent")" == 600:1 ]] || {
+  fail "active state failure did not retain one private durable finalization intent"
+}
 cmp -s "$work/records/current-release.env" "$work/rollback-pointer-before.env" || {
-  fail "rollback runtime state failure advanced the deployed pointer"
+  fail "active state failure advanced the deployed pointer"
 }
 cmp -s "$work/records/latest-candidate.env" "$work/rollback-candidate-before.env" || {
-  fail "rollback runtime state failure consumed the candidate pointer"
+  fail "active state failure consumed the candidate pointer"
 }
-[[ ! -e "$work/runtime-state/active-release.env" ]] || {
-  fail "rollback runtime state failure published an uncommitted active manifest"
+cmp -s "$work/runtime-state/active-release.env" "$work/rollback-active-before.env" || {
+  fail "active state fsync failure changed the pre-commit active manifest"
 }
-[[ "$(grep -Fc $'stop\t--timeout\t30\tcloudflared' "$ROLLBACK_CASE/docker.log")" -ge 2 ]] || {
-  fail "rollback runtime state failure did not re-quarantine the tunnel"
-}
-if find "$work/runtime-state" -mindepth 1 -maxdepth 1 -name '.*.tmp' -print -quit | grep -q .; then
-  fail "rollback runtime state failure left a temporary publication artifact"
-fi
-echo "ok - rollback runtime state publication failure preserves the prior commit point"
+compatibility_evidence="$work/records/20260719T000000Z-2/rollback-host-operations-compatibility.env"
+compatibility_evidence_sha="$(sha256sum "$compatibility_evidence" | cut -d' ' -f1)"
 rollback_application_blob="$work/runtime-state/application-images.${previous_application_sha}.json"
-[[ -f "$rollback_application_blob" ]] || fail "failed rollback did not durably publish its pre-commit application record"
+[[ -f "$rollback_application_blob" ]] || {
+  fail "failed rollback did not durably publish its pre-commit application record"
+}
+echo "ok - rollback active-state finalization failure preserves its durable resume point"
+
 printf '%s\n' 'corrupted content-addressed rollback record' >"$rollback_application_blob"
 run_rollback preexisting-runtime-state-corruption --schema-backward-compatible
 [[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback overwrote a corrupted existing content-addressed record"
+assert_finalization_runtime_reverified "content-address collision resume"
+assert_finalization_failure_closed "content-address collision resume"
 grep -Fq 'does not match its content address' "$ROLLBACK_CASE/stderr" || {
   fail "rollback content-address collision rejection was not explicit"
 }
@@ -2013,11 +2614,68 @@ cmp -s "$work/records/current-release.env" "$work/rollback-pointer-before.env" |
 cmp -s "$work/records/latest-candidate.env" "$work/rollback-candidate-before.env" || {
   fail "corrupted rollback content record consumed the candidate pointer"
 }
-[[ ! -e "$work/runtime-state/active-release.env" ]] || fail "corrupted rollback content record published an active manifest"
+cmp -s "$work/runtime-state/active-release.env" "$work/rollback-active-before.env" || {
+  fail "corrupted rollback content record changed the pre-commit active manifest"
+}
 cat "$work/records/20260719T000000Z-1/application-image-record.json" >"$rollback_application_blob"
 chmod 0644 "$rollback_application_blob"
-echo "ok - rollback rejects a corrupted pre-existing content-addressed record"
+echo "ok - rollback rejects a corrupted pre-existing content-addressed record during resume"
 
+run_rollback finalization-current-pointer-fsync-failure --schema-backward-compatible
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback ignored current pointer target fsync failure"
+assert_finalization_runtime_reverified "current pointer fsync failure"
+assert_finalization_failure_closed "current pointer fsync failure"
+grep -Fxq 'release_id=20260719T000000Z-1' "$work/records/current-release.env" || {
+  fail "current pointer fsync failure did not expose the post-rename target state"
+}
+cmp -s "$work/records/latest-candidate.env" "$work/rollback-candidate-before.env" || {
+  fail "current pointer fsync failure advanced the later candidate pointer"
+}
+[[ -f "$work/runtime-state/active-release.env" ]] || {
+  fail "current pointer fsync failure lost the already-published active manifest"
+}
+
+run_rollback finalization-latest-pointer-fsync-failure --schema-backward-compatible
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback ignored latest pointer target fsync failure"
+assert_finalization_runtime_reverified "latest pointer fsync failure"
+assert_finalization_failure_closed "latest pointer fsync failure"
+grep -Fxq 'release_id=20260719T000000Z-1' "$work/records/current-release.env" || {
+  fail "latest pointer resume regressed the deployed pointer"
+}
+grep -Fxq 'release_id=20260719T000000Z-1' "$work/records/latest-candidate.env" || {
+  fail "latest pointer fsync failure did not expose the post-rename target state"
+}
+[[ ! -e "$work/records/20260719T000000Z-2/rollback-executions.tsv" ]] || {
+  fail "pointer fsync failure reached rollback audit publication"
+}
+
+run_rollback finalization-audit-temp-fsync-failure --schema-backward-compatible
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback ignored audit temporary fsync failure"
+assert_finalization_runtime_reverified "audit temporary fsync failure"
+assert_finalization_failure_closed "audit temporary fsync failure"
+[[ ! -e "$work/records/20260719T000000Z-2/rollback-executions.tsv" ]] || {
+  fail "audit temporary fsync failure published an uncommitted audit"
+}
+
+run_rollback finalization-audit-fsync-failure --schema-backward-compatible
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback ignored audit target fsync failure"
+assert_finalization_runtime_reverified "audit target fsync failure"
+assert_finalization_failure_closed "audit target fsync failure"
+rollback_audit="$work/records/20260719T000000Z-2/rollback-executions.tsv"
+finalization_id="$(sed -n 's/^FINALIZATION_ID_SHA256=//p' "$finalization_intent")"
+[[ "$finalization_id" =~ ^[0-9a-f]{64}$ \
+  && "$(grep -Fc $'\t'"$finalization_id" "$rollback_audit")" == 1 ]] || {
+  fail "post-rename audit fsync failure did not retain exactly one deterministic event"
+}
+
+run_rollback finalization-quarantine-clear-failure --schema-backward-compatible
+[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback ignored the post-clear finalization fault"
+assert_finalization_runtime_reverified "post-clear finalization fault"
+assert_finalization_failure_closed "post-clear finalization fault"
+[[ "$(grep -Fc $'\t'"$finalization_id" "$rollback_audit")" == 1 ]] || {
+  fail "post-clear finalization resume duplicated its rollback execution audit"
+}
+echo "ok - rollback finalization failures are durable and resumable at every commit boundary"
 
 run_rollback success --schema-backward-compatible
 [[ "$ROLLBACK_STATUS" == 0 ]] || {
@@ -2025,6 +2683,7 @@ run_rollback success --schema-backward-compatible
   cat "$ROLLBACK_CASE/docker.log" >&2
   fail "valid rollback failed"
 }
+assert_finalization_runtime_reverified "successful finalization resume"
 [[ ! -e "$work/control/release-quarantine" ]] || fail "successful rollback did not clear quarantine exactly once"
 [[ "$(cat "$ROLLBACK_CASE/smoke.log")" == $'--phase internal --startup-wait 3\n--phase public --startup-wait 3' ]] || {
   fail "rollback did not smoke internal before public"
@@ -2070,7 +2729,7 @@ cmp -s "$active_state" "$work/records/20260719T000000Z-2/rollback-active-release
 }
 mapfile -t rollback_services < <(cut -f1 "$managed_state")
 expected_rollback_services=(
-  app cloudflared exam-finalization-worker mail-worker postgres
+  app cloudflared exam-finalization-worker file-erasure-worker mail-worker postgres
   practice-runner-recovery-worker project-review-correction-worker regrade-worker reward-worker runner-egress-gateway
 )
 [[ "${rollback_services[*]}" == "${expected_rollback_services[*]}" ]] || fail "rollback inventory coverage is invalid"
@@ -2083,8 +2742,18 @@ managed_sha="$(sha256sum "$managed_state" | cut -d' ' -f1)"
 manifest_sha="$(sha256sum "$work/repo/RELEASE.SHA256SUMS" | cut -d' ' -f1)"
 firewall_sha="$(sha256sum "$work/repo/infra/runner-vm/host-runner.nft" | cut -d' ' -f1)"
 runtime_sha="$(sha256sum "$work/repo/services/runner/dist/runtime-images.env" | cut -d' ' -f1)"
+rollback_host_commit="$(git -C "$work/repo" rev-parse --verify HEAD)"
+rollback_host_tree="$(git -C "$work/repo" rev-parse --verify 'HEAD^{tree}')"
+host_operations_sha="$(sed -n 's/^HOST_OPERATIONS_CONTRACT_SHA256=//p' "$work/records/20260719T000000Z-2/rollback-host-operations-compatibility.env")"
+[[ "$host_operations_sha" =~ ^[0-9a-f]{64}$ ]] || fail "rollback host operations digest is missing or malformed"
+
 expected_active="$(printf '%s\n' \
-  'SCHEMA_VERSION=1' "GIT_COMMIT=$previous_commit" "GIT_TREE=$previous_tree" \
+  'SCHEMA_VERSION=2' \
+  "APPLICATION_GIT_COMMIT=$previous_commit" "APPLICATION_GIT_TREE=$previous_tree" \
+  "HOST_OPERATIONS_GIT_COMMIT=$rollback_host_commit" \
+  "HOST_OPERATIONS_GIT_TREE=$rollback_host_tree" \
+  'HOST_OPERATIONS_CONTRACT_VERSION=host-operations-semantic-v1' \
+  "HOST_OPERATIONS_CONTRACT_SHA256=$host_operations_sha" \
   "RELEASE_MANIFEST_SHA256=$manifest_sha" \
   "APPLICATION_IMAGE_RECORD_SHA256=$previous_application_sha" \
   'COMPOSE_PROJECT=learncoding' 'COMPOSE_WORKDIR=/opt/learncoding' \
@@ -2095,13 +2764,28 @@ expected_active="$(printf '%s\n' \
 grep -Fq -- "$managed_state" "$ROLLBACK_CASE/sync.log" || fail "rollback inventory was not fsynced"
 grep -Fq -- "$application_state" "$ROLLBACK_CASE/sync.log" || fail "rollback application image record was not fsynced"
 grep -Fq -- "$active_state" "$ROLLBACK_CASE/sync.log" || fail "rollback active state was not fsynced"
+grep -Fq -- "$work/records/20260719T000000Z-2/rollback-host-operations-compatibility.env" \
+  "$ROLLBACK_CASE/sync.log" || fail "rollback compatibility evidence was not fsynced"
+[[ "$(grep -Fc $'\t'"$finalization_id" "$rollback_audit")" == 1 ]] || {
+  fail "successful finalization duplicated its deterministic rollback audit"
+}
+[[ "$(sha256sum "$compatibility_evidence" | cut -d' ' -f1)" == "$compatibility_evidence_sha" ]] || {
+  fail "finalization resume rewrote different compatibility evidence"
+}
 echo "ok - paste-ready rollback restores only exact local images and advances the pointer"
 
 run_rollback repeated-stale-record --schema-backward-compatible
-[[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback accepted an already-restored stale release record"
-assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "already-restored stale release record"
-echo "ok - successful rollback consumes the candidate state exactly once"
+[[ "$ROLLBACK_STATUS" == 0 ]] || fail "rollback did not idempotently replay a completed finalization"
+assert_finalization_runtime_reverified "completed finalization replay"
+[[ ! -e "$work/control/release-quarantine" ]] || fail "completed finalization replay remained quarantined"
+[[ "$(grep -Fc $'\t'"$finalization_id" "$rollback_audit")" == 1 ]] || {
+  fail "completed finalization replay duplicated its rollback execution audit"
+}
+echo "ok - completed rollback finalization is an exact idempotent replay"
 
+rm -f -- "$finalization_intent" "$rollback_audit" \
+  "$work/records/20260719T000000Z-2/rollback-active-release.env" \
+  "$work/records/20260719T000000Z-2/rollback-managed-containers.tsv"
 printf '%s\n' \
   'release_id=20260719T000000Z-2' \
   'result=completed' \
@@ -2112,6 +2796,7 @@ printf '%s\n' 'release_id=20260719T000000Z-2' "git_commit=$candidate_commit" \
   >"$work/records/current-release.env"
 printf '%s\n' 'release_id=20260719T000000Z-2' "git_commit=$candidate_commit" \
   >"$work/records/latest-candidate.env"
+write_current_runtime_state "$candidate_commit" "$candidate_tree"
 run_rollback public-failure --schema-backward-compatible
 [[ "$ROLLBACK_STATUS" != 0 ]] || fail "rollback accepted failed public smoke"
 [[ -f "$work/control/release-quarantine" ]] || fail "failed public smoke did not recreate durable quarantine"
@@ -2148,6 +2833,11 @@ assert_only_quarantine_stops "$ROLLBACK_CASE/docker.log" "tampered rollback imag
 mv "$work/previous-running-images.good.tsv" "$work/records/20260719T000000Z-2/previous-running-images.tsv"
 echo "ok - rollback binds override references to recorded and local image identities"
 
+rm -f -- \
+  "$work/records/20260719T000000Z-2/rollback-finalization.env" \
+  "$work/records/20260719T000000Z-2/rollback-executions.tsv" \
+  "$work/records/20260719T000000Z-2/rollback-active-release.env" \
+  "$work/records/20260719T000000Z-2/rollback-managed-containers.tsv"
 printf '%s\n' \
   'release_id=20260719T000000Z-2' \
   'result=failed' \
@@ -2158,6 +2848,7 @@ printf '%s\n' 'release_id=20260719T000000Z-1' "git_commit=$previous_commit" \
   >"$work/records/current-release.env"
 printf '%s\n' 'release_id=20260719T000000Z-2' "git_commit=$candidate_commit" \
   >"$work/records/latest-candidate.env"
+write_current_runtime_state "$previous_commit" "$previous_tree"
 grep -v '^runner-egress-gateway' "$work/records/20260719T000000Z-2/previous-running-images.tsv" \
   >"$work/legacy-previous-running-images.tsv"
 mv "$work/legacy-previous-running-images.tsv" \
@@ -2169,7 +2860,7 @@ mv "$work/legacy-deployed-service-images.tsv" \
 {
   printf 'services:\n'
   for service in app runner-egress-gateway mail-worker reward-worker regrade-worker \
-    exam-finalization-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
+    exam-finalization-worker file-erasure-worker practice-runner-recovery-worker project-review-correction-worker cloudflared; do
     printf '  %s:\n' "$service"
     if [[ "$service" == runner-egress-gateway ]]; then
       printf '    image: "registry.example.test/codestead/gateway@sha256:%064d"\n' 9

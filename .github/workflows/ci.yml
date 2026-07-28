@@ -98,6 +98,7 @@ jobs:
       - run: python3 infra/tests/recovery-evidence-storage-health.test.py
       - run: python3 infra/tests/recovery-evidence-atomic.test.py
       - run: python3 infra/tests/recovery-evidence-collection.test.py
+      - run: python3 infra/tests/host-operations-compatibility.test.py
       - run: sudo bash infra/tests/power-evidence.test.sh
       - run: sudo bash infra/tests/power-recovery-check.test.sh
       - run: sudo bash infra/tests/systemd-recovery.test.sh
@@ -300,7 +301,7 @@ jobs:
       - run: sudo env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LC_ALL=C bash infra/tests/recovery-kit.test.sh
       - run: bash infra/tests/restore-chronology.test.sh
       - run: node infra/tests/restore-drill-contract.test.mjs
-      - run: npm exec vitest run scripts/verify-restored-backup.test.ts
+      - run: npm exec vitest run scripts/verify-restored-backup.test.ts scripts/verify-restored-backup-authority.test.ts
       - run: sudo env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LC_ALL=C bash infra/tests/recovery-evidence-verifier.test.sh
       - run: bash infra/tests/restore-drill-reminder.test.sh
       - run: bash infra/tests/systemd-backup.test.sh
@@ -378,7 +379,7 @@ jobs:
 
   postgres-integration:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -397,6 +398,7 @@ jobs:
       - run: npm run test:mail-durable-replay-0067:registration
       - run: npm run test:mail-retention-redaction-0068:registration
       - run: npm run test:mail-guarded-delivery-0069:registration
+      - run: npm run test:restore-drill-role-boundary:registration
       - run: npm run test:mail-dispatch-binding-0064:roles
       - run: npm run test:mail-provider-correlation-0066:roles
       - run: npm run test:mail-durable-replay-0067:roles
@@ -438,6 +440,7 @@ jobs:
       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-durable-replay-0067:pg17
       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-retention-redaction-0068:pg17
       - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:mail-guarded-delivery-0069:pg17
+      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run test:restore-drill-role-boundary:pg17
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-delivery-scope-0059
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-payload-immutability-0060
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-retention-redaction-0063
@@ -447,6 +450,7 @@ jobs:
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-durable-replay-0067:pg18
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-retention-redaction-0068:pg18
       - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:mail-guarded-delivery-0069:pg18
+      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run test:restore-drill-role-boundary:pg18
 
   curriculum-runtime:
     runs-on: ubuntu-24.04

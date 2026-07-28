@@ -16,6 +16,10 @@ import {
   planRevision,
   user,
 } from "@/lib/db/schema";
+import { validatedDisposableOwnerDatabaseTarget } from
+  "../scripts/lib/disposable-integration-environment";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
+import { withValidatedOwnerFaultInjection } from "./support/with-validated-owner-fault-injection";
 
 const ADMIN_ID = "plan-integration-admin";
 const LEARNER_ID = "plan-integration-learner";
@@ -54,13 +58,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 async function seedPlan() {
@@ -105,9 +103,11 @@ describe("real PostgreSQL administrator plan revisions", () => {
       action: "updated" as const,
       idempotencySeed: "83000000-0000-4000-8000-000000000020",
     };
-    try {
-      await pool.query(`
-        create function fail_plan_change_notification() returns trigger
+    await withValidatedOwnerFaultInjection({
+      databaseTarget: validatedDisposableOwnerDatabaseTarget(process.env),
+      context: "Admin-plan",
+      installSql: [`
+        create function public.fail_plan_change_notification() returns trigger
         language plpgsql as $$
         begin
           if new.type = 'learning-plan-changed' then
@@ -115,18 +115,22 @@ describe("real PostgreSQL administrator plan revisions", () => {
           end if;
           return new;
         end;
-        $$;
+        $$
+      `, `
         create trigger fail_plan_change_notification
-        before insert on notification
-        for each row execute function fail_plan_change_notification();
-      `);
-      await expect(notifyLearningPlanChanged(input)).rejects.toThrow(/notification/i);
-      expect(await db.select().from(emailOutbox)).toHaveLength(0);
-      expect(await db.select().from(notification)).toHaveLength(0);
-    } finally {
-      await pool.query("drop trigger if exists fail_plan_change_notification on notification");
-      await pool.query("drop function if exists fail_plan_change_notification() cascade");
-    }
+        before insert on public.notification
+        for each row execute function public.fail_plan_change_notification()
+      `],
+      cleanupSql: [
+        "drop trigger if exists fail_plan_change_notification on public.notification",
+        "drop function if exists public.fail_plan_change_notification()",
+      ],
+      run: async () => {
+        await expect(notifyLearningPlanChanged(input)).rejects.toThrow(/notification/i);
+        expect(await db.select().from(emailOutbox)).toHaveLength(0);
+        expect(await db.select().from(notification)).toHaveLength(0);
+      },
+    });
 
     await notifyLearningPlanChanged(input);
     await notifyLearningPlanChanged(input);

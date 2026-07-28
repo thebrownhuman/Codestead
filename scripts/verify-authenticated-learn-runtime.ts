@@ -28,8 +28,14 @@ import {
 import { EMERGENCY_EXAM_EVENT_PREFIX } from "../src/lib/browser-durability/emergency-events";
 import { eq } from "drizzle-orm";
 import pg from "pg";
+import {
+  type DisposableBoundaryPoolOptions,
+  type DisposableRoleUrls,
+  verifyDisposableIntegrationRoleBoundaries as verifyDisposableRoleBoundaryAdapter,
+} from "./lib/disposable-role-boundary-adapter";
+import { minimalNodeTestEnvironment } from "./lib/disposable-integration-environment";
 
-const { Client } = pg;
+const { Client, Pool } = pg;
 const repoRoot = process.cwd();
 const docker = process.platform === "win32" ? "docker.exe" : "docker";
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
@@ -44,6 +50,7 @@ const objectStorageDir = path.join(repoRoot, `.tmp-auth-runtime-objects-${suffix
 const artifactDir = path.join(repoRoot, "test-artifacts", "authenticated-learn-runtime", runId);
 const profileTempRoot = path.join(os.tmpdir(), "codestead-browser-durability-" + suffix);
 const tlsDir = path.join(profileTempRoot, "tls");
+const commandChildren = new Set<ChildProcess>();
 
 let appProcess: ChildProcess | null = null;
 let browser: Browser | null = null;
@@ -61,33 +68,192 @@ type CleanupResults = Readonly<{
   buildDirectory: "removed" | "failed";
 }>;
 let cleanupPromise: Promise<CleanupResults> | null = null;
+let runtimeSensitiveValues: readonly string[] = [];
+
+type AuthenticatedLearnDatabaseCredentials = Readonly<{
+  bootstrap: string;
+  app: string;
+  migrator: string;
+  worker: string;
+  ops: string;
+  backupReporter: string;
+}>;
+
+type AuthenticatedLearnDatabaseUrls = DisposableRoleUrls & Readonly<{
+  bootstrap: string;
+}>;
+
+type RoleBootstrapRunner = (options: Readonly<{
+  postgresUser: string;
+  postgresDatabase: string;
+  databaseBootstrapUrl: string;
+  databaseAppUrl: string;
+  databaseMigratorUrl: string;
+  databaseWorkerUrl: string;
+  databaseOpsUrl: string;
+  databaseBackupReporterUrl: string;
+  requireCompleteMigrationLedger: boolean;
+  lockTimeoutMs: number;
+  cleanupTimeoutMs: number;
+  pool: InstanceType<typeof Pool>;
+}>) => Promise<unknown>;
+
+type ProductionMigrationRunner = (options: Readonly<{
+  connectionString: string;
+  migrationsFolder: string;
+  requiredPostgresMajor: number;
+}>) => Promise<void>;
+
+type RoleBoundaryVerifier = (options: Readonly<{
+  postgresDatabase: string;
+  databaseAppUrl: string;
+  databaseMigratorUrl: string;
+  databaseWorkerUrl: string;
+  databaseOpsUrl: string;
+  databaseBackupReporterUrl: string;
+  requireApplicationObjects: boolean;
+  lockTimeoutMs: number;
+  poolFactory: (input: Readonly<{
+    connectionString: string;
+    database: string;
+    role: string;
+  }>) => InstanceType<typeof Pool>;
+}>) => Promise<unknown>;
 
 function commandEnvironment(overrides: Partial<NodeJS.ProcessEnv> = {}): NodeJS.ProcessEnv {
-  const environment: NodeJS.ProcessEnv = {
+  return {
+    ...minimalNodeTestEnvironment(process.env),
     NODE_ENV: process.env.NODE_ENV ?? "test",
+    ...overrides,
   };
-  for (const key of [
-    "PATH",
-    "Path",
-    "PATHEXT",
-    "SystemRoot",
-    "SYSTEMROOT",
-    "ComSpec",
-    "COMSPEC",
-    "TEMP",
-    "TMP",
-    "TMPDIR",
-    "HOME",
-    "USERPROFILE",
-    "LOCALAPPDATA",
-    "APPDATA",
-    "PROGRAMFILES",
-    "ProgramFiles",
-    "LANG",
-  ]) {
-    if (process.env[key] !== undefined) environment[key] = process.env[key];
+}
+
+function generatedDatabasePassword(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+function assertDistinctDatabaseCredentials(
+  credentials: AuthenticatedLearnDatabaseCredentials,
+): void {
+  const values = Object.values(credentials);
+  if (
+    values.length !== 6
+    || values.some((value) => Buffer.byteLength(value, "utf8") < 32)
+    || new Set(values).size !== values.length
+  ) {
+    throw new Error(
+      "Authenticated runtime database credentials are not distinct.",
+    );
   }
-  return { ...environment, ...overrides };
+}
+
+function databaseRoleUrl(input: Readonly<{
+  username: string;
+  password: string;
+  hostname: "127.0.0.1";
+  port: number;
+  database: "learncoding_integration";
+}>): string {
+  return `postgresql://${encodeURIComponent(input.username)}:`
+    + `${encodeURIComponent(input.password)}@${input.hostname}:`
+    + `${input.port}/${input.database}`;
+}
+
+function authenticatedLearnDatabaseUrls(
+  port: number,
+  credentials: AuthenticatedLearnDatabaseCredentials,
+): AuthenticatedLearnDatabaseUrls {
+  assertDistinctDatabaseCredentials(credentials);
+  const loopback = (username: string, password: string) =>
+    databaseRoleUrl({
+      username,
+      password,
+      hostname: "127.0.0.1",
+      port,
+      database: "learncoding_integration",
+    });
+  return {
+    bootstrap: loopback("learncoding_ui", credentials.bootstrap),
+    app: loopback("learncoding_app", credentials.app),
+    migrator: loopback("learncoding_migrator", credentials.migrator),
+    worker: loopback("learncoding_worker", credentials.worker),
+    ops: loopback("learncoding_ops", credentials.ops),
+    backupReporter: loopback(
+      "learncoding_backup_reporter",
+      credentials.backupReporter,
+    ),
+  };
+}
+
+function canonicalContainerDatabaseUrl(connectionString: string): string {
+  const url = new URL(connectionString);
+  url.hostname = "postgres";
+  url.port = "5432";
+  return url.href;
+}
+
+async function reconcileAuthenticatedLearnDatabaseRoles(input: Readonly<{
+  roleUrls: AuthenticatedLearnDatabaseUrls;
+  requireCompleteMigrationLedger: boolean;
+}>): Promise<void> {
+  const modulePath = "./bootstrap-database-roles.mjs";
+  const { runDatabaseRoleBootstrap } = await import(
+    /* @vite-ignore */ modulePath
+  ) as { runDatabaseRoleBootstrap: RoleBootstrapRunner };
+  const bootstrapPool = new Pool({
+    connectionString: input.roleUrls.bootstrap,
+    max: 1,
+  });
+  await runDatabaseRoleBootstrap({
+    postgresUser: "learncoding_ui",
+    postgresDatabase: "learncoding_integration",
+    databaseBootstrapUrl: canonicalContainerDatabaseUrl(
+      input.roleUrls.bootstrap,
+    ),
+    databaseAppUrl: canonicalContainerDatabaseUrl(input.roleUrls.app),
+    databaseMigratorUrl: canonicalContainerDatabaseUrl(
+      input.roleUrls.migrator,
+    ),
+    databaseWorkerUrl: canonicalContainerDatabaseUrl(input.roleUrls.worker),
+    databaseOpsUrl: canonicalContainerDatabaseUrl(input.roleUrls.ops),
+    databaseBackupReporterUrl: canonicalContainerDatabaseUrl(
+      input.roleUrls.backupReporter,
+    ),
+    requireCompleteMigrationLedger: input.requireCompleteMigrationLedger,
+    lockTimeoutMs: 10_000,
+    cleanupTimeoutMs: 5_000,
+    pool: bootstrapPool,
+  });
+}
+
+async function runAuthenticatedLearnProductionMigration(
+  roleUrls: AuthenticatedLearnDatabaseUrls,
+): Promise<void> {
+  const modulePath = "./migrate-production.mjs";
+  const { runProductionMigration } = await import(
+    /* @vite-ignore */ modulePath
+  ) as { runProductionMigration: ProductionMigrationRunner };
+  await runProductionMigration({
+    connectionString: roleUrls.migrator,
+    migrationsFolder: path.resolve(repoRoot, "drizzle"),
+    requiredPostgresMajor: 17,
+  });
+}
+
+async function verifyAuthenticatedLearnDatabaseRoleBoundaries(
+  roleUrls: AuthenticatedLearnDatabaseUrls,
+): Promise<void> {
+  const modulePath = "./verify-database-role-boundaries.mjs";
+  const { verifyDatabaseRoleBoundaries } = await import(
+    /* @vite-ignore */ modulePath
+  ) as { verifyDatabaseRoleBoundaries: RoleBoundaryVerifier };
+  await verifyDisposableRoleBoundaryAdapter({
+    database: "learncoding_integration",
+    roleUrls,
+    requireApplicationObjects: true,
+    verifyDatabaseRoleBoundaries,
+    createPool: (options: DisposableBoundaryPoolOptions) => new Pool(options),
+  });
 }
 
 async function availablePort(): Promise<number> {
@@ -212,6 +378,16 @@ async function stopHttpsLoopbackProxy(): Promise<CleanupResults["httpsProxy"]> {
   });
 }
 
+function redactSensitiveText(
+  input: string,
+  sensitiveValues: readonly string[],
+): string {
+  return sensitiveValues.reduce(
+    (safe, value) => value ? safe.replaceAll(value, "[redacted]") : safe,
+    input,
+  );
+}
+
 function collectOutput(child: ChildProcess, sensitiveValues: readonly string[]) {
   let output = "";
   const append = (chunk: Buffer | string) => {
@@ -219,10 +395,7 @@ function collectOutput(child: ChildProcess, sensitiveValues: readonly string[]) 
   };
   child.stdout?.on("data", append);
   child.stderr?.on("data", append);
-  return () => sensitiveValues.reduce(
-    (safe, value) => value ? safe.replaceAll(value, "[redacted]") : safe,
-    output,
-  );
+  return () => redactSensitiveText(output, sensitiveValues);
 }
 
 function runCommand(input: {
@@ -234,13 +407,19 @@ function runCommand(input: {
   return new Promise<void>((resolve, reject) => {
     const child = spawn(input.command, [...input.args], {
       cwd: repoRoot,
+      detached: process.platform !== "win32",
       env: input.env,
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
     });
+    commandChildren.add(child);
     const output = collectOutput(child, input.sensitiveValues);
-    child.once("error", reject);
+    child.once("error", (error) => {
+      commandChildren.delete(child);
+      reject(error);
+    });
     child.once("exit", (code, signal) => {
+      commandChildren.delete(child);
       if (code === 0) resolve();
       else reject(new Error(
         `${path.basename(input.command)} exited with ${code ?? signal ?? "unknown"}. ${output()}`.trim(),
@@ -289,6 +468,7 @@ async function stopProcessTree(child: ChildProcess | null) {
   if (!child?.pid || child.exitCode !== null) return;
   if (process.platform === "win32") {
     spawnSync("taskkill.exe", ["/pid", String(child.pid), "/t", "/f"], {
+      env: commandEnvironment(),
       stdio: "ignore",
       windowsHide: true,
     });
@@ -344,6 +524,15 @@ function cleanup() {
     const temporaryProfileRoot = await removeDirectoryWithEvidence(profileTempRoot);
 
     let applicationProcess: CleanupResults["applicationProcess"] = "stopped";
+    for (const child of [...commandChildren]) {
+      try {
+        await stopProcessTree(child);
+      } catch {
+        applicationProcess = "failed";
+      } finally {
+        commandChildren.delete(child);
+      }
+    }
     try {
       await stopProcessTree(appProcess);
     } catch {
@@ -362,6 +551,7 @@ function cleanup() {
     let postgresContainer: CleanupResults["postgresContainer"] = "not-started";
     if (containerStarted) {
       const removed = spawnSync(docker, ["rm", "--force", containerName], {
+        env: commandEnvironment(),
         stdio: "ignore",
         windowsHide: true,
       });
@@ -391,6 +581,7 @@ function runProvenance() {
   const git = spawnSync("git", ["rev-parse", "HEAD"], {
     cwd: repoRoot,
     encoding: "utf8",
+    env: commandEnvironment(),
     windowsHide: true,
   });
   const gitCommit = git.status === 0 ? git.stdout.trim() : "";
@@ -401,6 +592,7 @@ function runProvenance() {
     {
       cwd: repoRoot,
       encoding: "utf8",
+      env: commandEnvironment(),
       windowsHide: true,
     },
   );
@@ -513,6 +705,7 @@ class KillablePersistentProfile {
         _sharedBrowser: true,
         artifactsDir: diagnosticsDir,
         baseURL: this.baseURL,
+        env: commandEnvironment(),
         headless: true,
       });
     } catch (error) {
@@ -521,32 +714,58 @@ class KillablePersistentProfile {
         (error instanceof Error ? error.message : String(error)),
       );
     }
-    const reportedProfile = (server as BrowserServerWithPersistentDirectory)
-      ._userDataDirForTest;
-    if (!reportedProfile || path.resolve(reportedProfile) !== path.resolve(this.profileRoot)) {
-      await server.kill().catch(() => undefined);
-      throw new Error("PERSISTENT_CRASH_LAUNCH_UNSUPPORTED: Playwright did not bind the requested user-data directory.");
+
+    let browser: Browser | null = null;
+    let registered = false;
+    try {
+      const reportedProfile = (server as BrowserServerWithPersistentDirectory)
+        ._userDataDirForTest;
+      if (
+        !reportedProfile
+        || path.resolve(reportedProfile) !== path.resolve(this.profileRoot)
+      ) {
+        throw new Error(
+          "PERSISTENT_CRASH_LAUNCH_UNSUPPORTED: Playwright did not bind the requested user-data directory.",
+        );
+      }
+      browser = await this.browserType.connect(server.wsEndpoint());
+      const contexts = browser.contexts();
+      if (contexts.length !== 1) {
+        throw new Error(
+          "PERSISTENT_CRASH_LAUNCH_UNSUPPORTED: the default persistent context was unavailable.",
+        );
+      }
+      const process = server.process();
+      const pid = process?.pid;
+      if (!pid || !Number.isSafeInteger(pid)) {
+        throw new Error(
+          "PERSISTENT_CRASH_LAUNCH_UNSUPPORTED: the owned browser PID was unavailable.",
+        );
+      }
+      this.server = server;
+      this.browser = browser;
+      this.context = contexts[0] ?? null;
+      this.currentPid = pid;
+      persistentProfiles.add(this);
+      registered = true;
+      return this;
+    } catch (error) {
+      if (
+        error instanceof Error
+        && error.message.startsWith("PERSISTENT_CRASH_LAUNCH_UNSUPPORTED:")
+      ) {
+        throw error;
+      }
+      throw new Error(
+        "PERSISTENT_CRASH_LAUNCH_UNSUPPORTED: " +
+        (error instanceof Error ? error.message : String(error)),
+      );
+    } finally {
+      if (!registered) {
+        await browser?.close().catch(() => undefined);
+        await server.kill().catch(() => undefined);
+      }
     }
-    const browser = await this.browserType.connect(server.wsEndpoint());
-    const contexts = browser.contexts();
-    if (contexts.length !== 1) {
-      await browser.close().catch(() => undefined);
-      await server.kill().catch(() => undefined);
-      throw new Error("PERSISTENT_CRASH_LAUNCH_UNSUPPORTED: the default persistent context was unavailable.");
-    }
-    const process = server.process();
-    const pid = process?.pid;
-    if (!pid || !Number.isSafeInteger(pid)) {
-      await browser.close().catch(() => undefined);
-      await server.kill().catch(() => undefined);
-      throw new Error("PERSISTENT_CRASH_LAUNCH_UNSUPPORTED: the owned browser PID was unavailable.");
-    }
-    this.server = server;
-    this.browser = browser;
-    this.context = contexts[0] ?? null;
-    this.currentPid = pid;
-    persistentProfiles.add(this);
-    return this;
   }
 
   getContext() {
@@ -2043,22 +2262,35 @@ async function main() {
   while (applicationPort === databasePort) applicationPort = await availablePort();
   let upstreamApplicationPort = await availablePort();
   while ([databasePort, applicationPort].includes(upstreamApplicationPort)) upstreamApplicationPort = await availablePort();
-  const databasePassword = randomBytes(24).toString("base64url");
+  const databaseCredentials: AuthenticatedLearnDatabaseCredentials =
+    Object.freeze({
+      bootstrap: generatedDatabasePassword(),
+      app: generatedDatabasePassword(),
+      migrator: generatedDatabasePassword(),
+      worker: generatedDatabasePassword(),
+      ops: generatedDatabasePassword(),
+      backupReporter: generatedDatabasePassword(),
+    });
+  assertDistinctDatabaseCredentials(databaseCredentials);
+  const roleUrls = authenticatedLearnDatabaseUrls(
+    databasePort,
+    databaseCredentials,
+  );
   const authSecret = randomBytes(48).toString("base64url");
   const isolatedKey = randomBytes(48).toString("base64url");
   const credentialMasterKey = randomBytes(32).toString("base64");
   const syntheticPassword = randomBytes(24).toString("base64url");
-  const databaseURL = `postgresql://learncoding_ui:${databasePassword}@127.0.0.1:${databasePort}/learncoding_integration`;
   const baseURL = `https://127.0.0.1:${applicationPort}`;
   const upstreamApplicationURL = `http://127.0.0.1:${upstreamApplicationPort}`;
   const sensitiveValues = [
-    databasePassword,
+    ...Object.values(databaseCredentials),
+    ...Object.values(roleUrls),
     authSecret,
     isolatedKey,
     credentialMasterKey,
     syntheticPassword,
-    databaseURL,
   ];
+  runtimeSensitiveValues = sensitiveValues;
   const commonEnvironment = commandEnvironment({
     ANTHROPIC_API_KEY: "",
     APP_NAME: "Codestead Synthetic Runtime",
@@ -2074,7 +2306,7 @@ async function main() {
     CUSTOM_OPENAI_ALLOWED_HOSTS: "",
     CUSTOM_OPENAI_BASE_URL: "",
     DATABASE_POOL_SIZE: "8",
-    DATABASE_URL: databaseURL,
+    DATABASE_URL: roleUrls.app,
     DEEPSEEK_API_KEY: "",
     DELETION_TOMBSTONE_KEY: isolatedKey,
     GEMINI_API_KEY: "",
@@ -2136,23 +2368,27 @@ async function main() {
     image,
   ], {
     encoding: "utf8",
-    env: { ...commandEnvironment(), POSTGRES_PASSWORD: databasePassword },
+    env: { ...commandEnvironment(), POSTGRES_PASSWORD: databaseCredentials.bootstrap },
     windowsHide: true,
   });
   if (started.status !== 0) throw new Error("The disposable PostgreSQL container could not be started.");
   containerStarted = true;
-  await waitForPostgres(databaseURL);
-  await runCommand({
-    command: npmCli ? process.execPath : npm,
-    args: npmCli ? [npmCli, "run", "db:migrate"] : ["run", "db:migrate"],
-    env: { ...commonEnvironment, NODE_ENV: "test" },
-    sensitiveValues,
+  await waitForPostgres(roleUrls.bootstrap);
+  await reconcileAuthenticatedLearnDatabaseRoles({
+    roleUrls,
+    requireCompleteMigrationLedger: false,
   });
+  await runAuthenticatedLearnProductionMigration(roleUrls);
+  await reconcileAuthenticatedLearnDatabaseRoles({
+    roleUrls,
+    requireCompleteMigrationLedger: true,
+  });
+  await verifyAuthenticatedLearnDatabaseRoleBoundaries(roleUrls);
 
   Object.assign(process.env, {
     BETTER_AUTH_SECRET: authSecret,
     DATABASE_POOL_SIZE: "4",
-    DATABASE_URL: databaseURL,
+    DATABASE_URL: roleUrls.app,
     INTEGRATION_TEST: "1",
     NODE_ENV: "test",
   });
@@ -2449,7 +2685,11 @@ process.once("SIGTERM", () => {
 
 main()
   .catch(async (error) => {
-    const message = error instanceof Error ? error.message : String(error);
+    const unsafeMessage = error instanceof Error ? error.message : String(error);
+    const message = redactSensitiveText(
+      unsafeMessage,
+      runtimeSensitiveValues,
+    );
     const cleanupResults = await cleanup();
     const finishedAt = new Date();
     let provenance: Record<string, unknown> = {};

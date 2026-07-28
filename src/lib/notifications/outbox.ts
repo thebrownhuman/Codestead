@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { DrizzleQueryError } from "drizzle-orm/errors";
 
 import { db } from "@/lib/db/client";
+import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
 
 import {
   isProductionEmailTemplate,
@@ -249,6 +250,9 @@ function queuedEmail(input: EnqueueEmailInput) {
 }
 
 function queuedEmailInsert(row: ReturnType<typeof queuedEmail>) {
+  const accountAuthorityKey = row.userId
+    ? userAuthorityLockKey(row.userId)
+    : "";
   return sql<InsertedEmailOutboxRelease>`
     INSERT INTO public.email_outbox (
       operation_id,
@@ -262,7 +266,7 @@ function queuedEmailInsert(row: ReturnType<typeof queuedEmail>) {
       idempotency_authority_version,
       status,
       next_attempt_at
-    ) VALUES (
+    ) SELECT
       ${row.operationId},
       ${row.userId},
       ${row.deliveryScopeKey},
@@ -274,7 +278,23 @@ function queuedEmailInsert(row: ReturnType<typeof queuedEmail>) {
       ${row.idempotencyAuthorityVersion},
       'pending',
       pg_catalog.now()
-    )
+    FROM (
+      SELECT CASE
+        WHEN ${row.userId}::pg_catalog.text IS NULL THEN true
+        ELSE pg_catalog.pg_try_advisory_xact_lock(
+          pg_catalog.hashtext(${accountAuthorityKey})::pg_catalog.int8
+        )
+      END AS locked
+    ) account_authority
+    LEFT JOIN public."user" authority_user
+      ON authority_user.id = ${row.userId}
+    WHERE ${row.userId}::pg_catalog.text IS NULL
+       OR (
+         account_authority.locked
+         AND authority_user.id IS NOT NULL
+         AND authority_user.status NOT IN ('deletion_pending', 'deleted')
+         AND pg_catalog.lower(pg_catalog.btrim(authority_user.email)) = ${row.toEmail}
+       )
     ON CONFLICT (idempotency_key) DO NOTHING
     RETURNING
       id::pg_catalog.text AS id,
@@ -284,7 +304,6 @@ function queuedEmailInsert(row: ReturnType<typeof queuedEmail>) {
       delivery_hold_version
   `;
 }
-
 async function persistQueuedEmail(
   tx: OutboxTransaction,
   row: ReturnType<typeof queuedEmail>,
@@ -293,7 +312,20 @@ async function persistQueuedEmail(
     queuedEmailInsert(row),
   );
   const release = inserted.rows[0];
-  if (!release) return;
+  if (!release) {
+    if (row.userId !== null) {
+      const replay = await tx.execute<{ id: string }>(sql`
+        SELECT id::pg_catalog.text AS id
+          FROM public.email_outbox
+         WHERE idempotency_key = ${row.idempotencyKey}
+         LIMIT 1
+      `);
+      if (!replay.rows[0]) {
+        throw new Error("Account email authority is unavailable.");
+      }
+    }
+    return;
+  }
   const released = await tx.execute(sql<{
     outbox_id: string;
     operation_id: string;

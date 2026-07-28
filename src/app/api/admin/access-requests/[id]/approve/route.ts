@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -9,6 +9,7 @@ import { requireAdmin } from "@/lib/http/authz";
 import { enqueueEmailInTransaction } from "@/lib/notifications/outbox";
 import { writeAuditEvent } from "@/lib/security/audit-writer";
 import { authorizePrivilegedAction } from "@/lib/security/privileged-access";
+import { lockAccessRequestSourceAuthority } from "@/lib/security/user-authority-lock";
 
 const bodySchema = z.object({ reason: z.string().trim().min(8).max(500) });
 
@@ -40,6 +41,18 @@ export async function POST(
   }
 
   const { id } = await context.params;
+  const [candidateEmail] = await db
+    .select({ email: accessRequest.email })
+    .from(accessRequest)
+    .where(and(eq(accessRequest.id, id), eq(accessRequest.status, "pending")))
+    .limit(1);
+  if (!candidateEmail) {
+    return NextResponse.json(
+      { error: "Pending request not found." },
+      { status: 404 },
+    );
+  }
+  const authorityEmail = candidateEmail.email.trim().toLowerCase();
   const rawToken = randomBytes(32).toString("base64url");
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1_000);
@@ -47,10 +60,19 @@ export async function POST(
   const activationUrl = `${process.env.APP_URL ?? "http://localhost:3000"}/activate?token=${rawToken}`;
 
   const candidate = await db.transaction(async (tx) => {
+    const sourceAuthorized =
+      await lockAccessRequestSourceAuthority(tx, candidateEmail.email);
+    if (!sourceAuthorized) return null;
     const [pending] = await tx
       .select()
       .from(accessRequest)
-      .where(and(eq(accessRequest.id, id), eq(accessRequest.status, "pending")))
+      .where(
+        and(
+          eq(accessRequest.id, id),
+          eq(accessRequest.status, "pending"),
+          sql`lower(btrim(${accessRequest.email})) = ${authorityEmail}`,
+        ),
+      )
       .limit(1)
       .for("update");
     if (!pending) return null;

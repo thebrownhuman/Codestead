@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, it, vi } from "vitest";
 
@@ -8,19 +9,36 @@ import {
   runWithValidatedRetentionOpsEnvironment,
 } from "../lib/disposable-integration-environment";
 
+const WORKSPACE_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+);
+
 const validEnvironment = () => ({
   INTEGRATION_TEST: "1",
   DATABASE_URL:
-    "postgresql://learncoding_migrator:migrator-password@127.0.0.1:49152/learncoding_integration?options=-c+role%3Dlearncoding_owner",
+    "postgresql://learncoding_app:app-password@127.0.0.1:49152/learncoding_integration",
+  DATABASE_APP_URL:
+    "postgresql://learncoding_app:app-password@127.0.0.1:49152/learncoding_integration",
+  DATABASE_OWNER_URL:
+    "postgresql://learncoding_migrator:owner-password@127.0.0.1:49152/learncoding_integration?options=-c+role%3Dlearncoding_owner",
+  DATABASE_WORKER_URL:
+    "postgresql://learncoding_worker:worker-password@127.0.0.1:49152/learncoding_integration",
   DATABASE_OPS_URL:
     "postgresql://learncoding_ops:ops-password@127.0.0.1:49152/learncoding_integration",
 });
 
 describe("disposable integration environment", () => {
-  it("admits only the exact migrator-owner and ops loopback URLs", async () => {
+  it("admits exact lower roles and returns one frozen owner/app target", async () => {
     const environment = validEnvironment();
     const operation = vi.fn(async (urls: Readonly<{
-      databaseUrl: string;
+      databaseAppUrl: string;
+      databaseOwnerTarget: Readonly<{
+        databaseApplicationUrl: string;
+        databaseOwnerUrl: string;
+      }>;
+      databaseWorkerUrl: string;
       databaseOpsUrl: string;
     }>) => urls);
 
@@ -28,10 +46,17 @@ describe("disposable integration environment", () => {
       environment,
       operation,
     )).resolves.toEqual({
-      databaseUrl: environment.DATABASE_URL,
+      databaseAppUrl: environment.DATABASE_APP_URL,
+      databaseOwnerTarget: {
+        databaseApplicationUrl: environment.DATABASE_APP_URL,
+        databaseOwnerUrl: environment.DATABASE_OWNER_URL,
+      },
+      databaseWorkerUrl: environment.DATABASE_WORKER_URL,
       databaseOpsUrl: environment.DATABASE_OPS_URL,
     });
     expect(operation).toHaveBeenCalledOnce();
+    const validated = operation.mock.calls[0]?.[0];
+    expect(Object.isFrozen(validated?.databaseOwnerTarget)).toBe(true);
   });
 
   it.each([
@@ -41,26 +66,41 @@ describe("disposable integration environment", () => {
     ["wrong integration marker", (env: Record<string, string | undefined>) => {
       env.INTEGRATION_TEST = "true";
     }],
-    ["missing migrator URL", (env: Record<string, string | undefined>) => {
+    ["missing canonical app URL", (env: Record<string, string | undefined>) => {
       delete env.DATABASE_URL;
     }],
-    ["wrong migrator role", (env: Record<string, string | undefined>) => {
-      env.DATABASE_URL = env.DATABASE_URL!.replace("learncoding_migrator", "learncoding_app");
+    ["missing explicit app URL", (env: Record<string, string | undefined>) => {
+      delete env.DATABASE_APP_URL;
     }],
-    ["remote migrator host", (env: Record<string, string | undefined>) => {
-      env.DATABASE_URL = env.DATABASE_URL!.replace("127.0.0.1", "postgres");
+    ["canonical app mismatch", (env: Record<string, string | undefined>) => {
+      env.DATABASE_URL = env.DATABASE_URL!.replace("app-password", "other-password");
     }],
-    ["wrong migrator database", (env: Record<string, string | undefined>) => {
-      env.DATABASE_URL = env.DATABASE_URL!.replace("learncoding_integration", "learncoding");
+    ["wrong app role", (env: Record<string, string | undefined>) => {
+      env.DATABASE_APP_URL = env.DATABASE_APP_URL!.replace("learncoding_app", "learncoding_worker");
     }],
-    ["missing owner option", (env: Record<string, string | undefined>) => {
-      env.DATABASE_URL = env.DATABASE_URL!.split("?")[0];
+    ["missing owner URL", (env: Record<string, string | undefined>) => {
+      delete env.DATABASE_OWNER_URL;
     }],
-    ["extra migrator option", (env: Record<string, string | undefined>) => {
-      env.DATABASE_URL += "&sslmode=disable";
+    ["wrong owner login role", (env: Record<string, string | undefined>) => {
+      env.DATABASE_OWNER_URL = env.DATABASE_OWNER_URL!.replace(
+        "learncoding_migrator",
+        "learncoding_app",
+      );
     }],
-    ["wrong assumed owner", (env: Record<string, string | undefined>) => {
-      env.DATABASE_URL = env.DATABASE_URL!.replace("learncoding_owner", "learncoding_ops");
+    ["missing owner role option", (env: Record<string, string | undefined>) => {
+      env.DATABASE_OWNER_URL = env.DATABASE_OWNER_URL!.split("?")[0];
+    }],
+    ["owner topology mismatch", (env: Record<string, string | undefined>) => {
+      env.DATABASE_OWNER_URL = env.DATABASE_OWNER_URL!.replace(":49152", ":49153");
+    }],
+    ["owner protected port", (env: Record<string, string | undefined>) => {
+      env.DATABASE_OWNER_URL = env.DATABASE_OWNER_URL!.replace(":49152", ":5432");
+    }],
+    ["missing worker URL", (env: Record<string, string | undefined>) => {
+      delete env.DATABASE_WORKER_URL;
+    }],
+    ["wrong worker role", (env: Record<string, string | undefined>) => {
+      env.DATABASE_WORKER_URL = env.DATABASE_WORKER_URL!.replace("learncoding_worker", "learncoding_app");
     }],
     ["missing ops URL", (env: Record<string, string | undefined>) => {
       delete env.DATABASE_OPS_URL;
@@ -68,30 +108,59 @@ describe("disposable integration environment", () => {
     ["wrong ops role", (env: Record<string, string | undefined>) => {
       env.DATABASE_OPS_URL = env.DATABASE_OPS_URL!.replace("learncoding_ops", "learncoding_app");
     }],
-    ["remote ops host", (env: Record<string, string | undefined>) => {
-      env.DATABASE_OPS_URL = env.DATABASE_OPS_URL!.replace("127.0.0.1", "postgres");
+    ["remote host", (env: Record<string, string | undefined>) => {
+      env.DATABASE_WORKER_URL = env.DATABASE_WORKER_URL!.replace("127.0.0.1", "postgres");
     }],
-    ["different ops port", (env: Record<string, string | undefined>) => {
-      env.DATABASE_OPS_URL = env.DATABASE_OPS_URL!.replace(":49152", ":49153");
+    ["protected port", (env: Record<string, string | undefined>) => {
+      env.DATABASE_OPS_URL = env.DATABASE_OPS_URL!.replace(":49152", ":5432");
     }],
-    ["unsafe ops option", (env: Record<string, string | undefined>) => {
-      env.DATABASE_OPS_URL += "?options=-c+role%3Dlearncoding_owner";
+    ["different topology", (env: Record<string, string | undefined>) => {
+      env.DATABASE_WORKER_URL = env.DATABASE_WORKER_URL!.replace(":49152", ":49153");
     }],
-  ])("rejects %s before any connect or query", async (_name, mutate) => {
+    ["wrong database", (env: Record<string, string | undefined>) => {
+      env.DATABASE_APP_URL = env.DATABASE_APP_URL!.replace("learncoding_integration", "postgres");
+    }],
+    ["unsafe query option", (env: Record<string, string | undefined>) => {
+      env.DATABASE_OPS_URL += "?sslmode=disable";
+    }],
+    ["unsafe fragment", (env: Record<string, string | undefined>) => {
+      env.DATABASE_WORKER_URL += "#unsafe";
+    }],
+    ["alternate protocol", (env: Record<string, string | undefined>) => {
+      env.DATABASE_APP_URL = env.DATABASE_APP_URL!.replace("postgresql:", "postgres:");
+    }],
+  ])("rejects %s before the callback can construct a pool", async (_name, mutate) => {
     const environment: Record<string, string | undefined> = validEnvironment();
     mutate(environment);
-    const connect = vi.fn();
-    const query = vi.fn();
+    const operation = vi.fn();
 
     await expect(runWithValidatedRetentionOpsEnvironment(
       environment,
-      async () => {
-        connect();
-        query();
-      },
+      operation,
     )).rejects.toThrow("disposable integration environment validation failed");
-    expect(connect).not.toHaveBeenCalled();
-    expect(query).not.toHaveBeenCalled();
+    expect(operation).not.toHaveBeenCalled();
+  });
+
+  it("keeps the validated owner target stable when ambient input mutates", async () => {
+    const environment: Record<string, string | undefined> = validEnvironment();
+    const originalOwnerUrl = environment.DATABASE_OWNER_URL;
+
+    await runWithValidatedRetentionOpsEnvironment(environment, (validated) => {
+      environment.DATABASE_OWNER_URL =
+        "postgresql://learncoding_migrator:decoy@127.0.0.1:59999/learncoding_integration?options=-c+role%3Dlearncoding_owner";
+      expect(validated.databaseOwnerTarget).toEqual({
+        databaseApplicationUrl: environment.DATABASE_APP_URL,
+        databaseOwnerUrl: originalOwnerUrl,
+      });
+      expect(Object.isFrozen(validated.databaseOwnerTarget)).toBe(true);
+    });
+
+    const source = await readFile(
+      path.resolve(WORKSPACE_ROOT, "scripts/lib/disposable-integration-environment.ts"),
+      "utf8",
+    );
+    expect(source).toContain("validatedDisposableOwnerDatabaseTarget");
+    expect(source).not.toMatch(/\bdatabaseUrl\b/);
   });
 
   it("passes only an explicit minimal platform environment to child tests", () => {

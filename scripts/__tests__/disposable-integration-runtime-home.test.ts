@@ -23,11 +23,25 @@ describe("disposable integration runtime home", () => {
       API_TOKEN: "ambient-token-canary",
     }, {
       taskHomeDirectory,
-      databaseAppUrl: "postgresql://explicit-app",
-      databaseMigratorUrl: "postgresql://explicit-migrator",
-      databaseWorkerUrl: "postgresql://explicit-worker",
-      databaseOpsUrl: "postgresql://explicit-ops",
-      databaseUrl: "postgresql://explicit-owner",
+      databaseAppUrl:
+        "postgresql://learncoding_app:app-password"
+        + "@127.0.0.1:49152/learncoding_integration",
+      databaseMigratorUrl:
+        "postgresql://learncoding_migrator:migrator-password"
+        + "@127.0.0.1:49152/learncoding_integration",
+      databaseWorkerUrl:
+        "postgresql://learncoding_worker:worker-password"
+        + "@127.0.0.1:49152/learncoding_integration",
+      databaseOpsUrl:
+        "postgresql://learncoding_ops:ops-password"
+        + "@127.0.0.1:49152/learncoding_integration",
+      databaseBackupReporterUrl:
+        "postgresql://learncoding_backup_reporter:backup-reporter-password"
+        + "@127.0.0.1:49152/learncoding_integration",
+      databaseOwnerUrl:
+        "postgresql://learncoding_migrator:migrator-password"
+        + "@127.0.0.1:49152/learncoding_integration"
+        + "?options=-c+role%3Dlearncoding_owner",
       betterAuthSecret: "explicit-integration-auth-secret",
     });
 

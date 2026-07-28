@@ -12,7 +12,10 @@ import {
 } from "@/lib/notifications/deletion-notice-capability";
 import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 import { assertEmailOutboxDeliveryRelease } from "@/lib/notifications/outbox";
-import { lockUserAuthorityOnPgClient } from "@/lib/security/user-authority-lock";
+import {
+  lockAccessRequestAuthorityOnPgClient,
+  lockUserAuthorityOnPgClient,
+} from "@/lib/security/user-authority-lock";
 
 import {
   enqueueFileErasures,
@@ -149,33 +152,138 @@ async function deleteCount(client: PoolClient, statement: string, values: unknow
   return result.rowCount ?? 0;
 }
 
-type LockedDeletionOutboxRow = Readonly<{
+async function deleteMatchingAccessAuthorityRows(
+  client: PoolClient,
+  email: string,
+) {
+  const matchingAccess = await client.query<{ id: string }>(
+    "select id from access_request where pg_catalog.lower(pg_catalog.btrim(email)) = pg_catalog.lower(pg_catalog.btrim($1))",
+    [email],
+  );
+  const accessIds = matchingAccess.rows.map((row) => row.id);
+  const invitations = await deleteCount(
+    client,
+    `delete from invitation where pg_catalog.lower(pg_catalog.btrim(email)) = pg_catalog.lower(pg_catalog.btrim($1))
+      or ($2::uuid[] <> '{}'::uuid[] and access_request_id = any($2::uuid[]))`,
+    [email, accessIds],
+  );
+  const accessRequests = await deleteCount(
+    client,
+    "delete from access_request where pg_catalog.lower(pg_catalog.btrim(email)) = pg_catalog.lower(pg_catalog.btrim($1))",
+    [email],
+  );
+  return { invitations, accessRequests };
+}
+type EmailOutboxDeliveryReleaseIdentity = Readonly<{
   id: string;
+  operation_id: string;
+  idempotency_authority_sha256: string;
+  idempotency_original_payload_sha256: string;
+  delivery_hold_version: string;
+}>;
+
+type DeletionOutboxAuthorityRow = EmailOutboxDeliveryReleaseIdentity & Readonly<{
   status: string;
   provider_call_started: Date | string | null;
   provider_message_id: string | null;
 }>;
 
+async function verifyAndLockEmailOutboxDeliveryRelease(
+  client: PoolClient,
+  row: EmailOutboxDeliveryReleaseIdentity,
+) {
+  const verified = await client.query<{
+    outbox_id: string;
+    operation_id: string;
+  }>(
+    `select verified.outbox_id::text as outbox_id,
+            verified.operation_id::text as operation_id
+       from public.verify_email_outbox_delivery_release(
+         $1::uuid, $2::uuid, $3::text, $4::text, $5::text
+       ) as verified`,
+    [
+      row.id,
+      row.operation_id,
+      row.idempotency_authority_sha256,
+      row.idempotency_original_payload_sha256,
+      row.delivery_hold_version,
+    ],
+  );
+  assertEmailOutboxDeliveryRelease(verified, {
+    outboxId: row.id,
+    operationId: row.operation_id,
+  });
+}
+
+function deletionOutboxDisposition(
+  row: Pick<
+    DeletionOutboxAuthorityRow,
+    "status" | "provider_call_started" | "provider_message_id"
+  >,
+): "provider_start_capable" | "safe" | "blocked" {
+  if (row.status === "pending" || row.status === "sending") {
+    return row.provider_call_started === null && row.provider_message_id === null
+      ? "provider_start_capable"
+      : "blocked";
+  }
+  if (row.status === "quarantined") {
+    return row.provider_call_started !== null && row.provider_message_id === null
+      ? "blocked"
+      : "safe";
+  }
+  if (
+    row.status === "sent"
+    || row.status === "failed"
+    || row.status === "suppressed"
+  ) {
+    return "safe";
+  }
+  return "blocked";
+}
+
+async function readDeletionOutboxAuthorityRows(
+  client: PoolClient,
+  input: Readonly<{ userId: string; email: string }>,
+) {
+  return client.query<DeletionOutboxAuthorityRow>(
+    `select id::text, operation_id::text, status::text,
+            provider_call_started, provider_message_id,
+            idempotency_authority_sha256,
+            idempotency_original_payload_sha256, delivery_hold_version
+       from email_outbox
+      where user_id = $1 or pg_catalog.lower(pg_catalog.btrim(to_email)) = pg_catalog.lower(pg_catalog.btrim($2))
+      order by id`,
+    [input.userId, input.email],
+  );
+}
+
 async function lockDeletionOutboxRows(
   client: PoolClient,
   input: Readonly<{ userId: string; email: string }>,
 ) {
-  const result = await client.query<LockedDeletionOutboxRow>(
-    `select id, status, provider_call_started, provider_message_id from email_outbox
-      where user_id = $1 or lower(to_email) = lower($2)
-      order by id
-      for update`,
-    [input.userId, input.email],
+  const initial = await readDeletionOutboxAuthorityRows(client, input);
+  if (initial.rows.some((row) => deletionOutboxDisposition(row) === "blocked")) {
+    throw new AccountDeletionError("PROVIDER_OPERATION_IN_PROGRESS");
+  }
+
+  const rowsToVerify = initial.rows.filter(
+    (row) => deletionOutboxDisposition(row) === "provider_start_capable",
   );
+  for (const row of rowsToVerify) {
+    await verifyAndLockEmailOutboxDeliveryRelease(client, row);
+  }
+
+  const verifiedOutboxIds = new Set(rowsToVerify.map((row) => row.id));
+  const stable = await readDeletionOutboxAuthorityRows(client, input);
   if (
-    result.rows.some((row) =>
-      (
-        row.status === "sending" && row.provider_call_started !== null
-      ) || (
-        row.status === "quarantined" && row.provider_call_started !== null
-        && row.provider_message_id === null
-      ),
-    )
+    stable.rows.some((row) => {
+      const disposition = deletionOutboxDisposition(row);
+      return disposition === "blocked"
+        || (
+          disposition === "provider_start_capable"
+          && !verifiedOutboxIds.has(row.id)
+        );
+    })
   ) {
     throw new AccountDeletionError("PROVIDER_OPERATION_IN_PROGRESS");
   }
@@ -339,7 +447,7 @@ acquireClient: () => Promise<PoolClient>) {
           where grant_row.learner_id = $1 and reservation.status = 'reserved'
          union all
          select 1 from email_outbox
-          where (user_id = $1 or lower(to_email) = lower($2))
+          where (user_id = $1 or pg_catalog.lower(pg_catalog.btrim(to_email)) = pg_catalog.lower(pg_catalog.btrim($2)))
             and (
               (
                 status = 'sending' and provider_call_started is not null
@@ -466,6 +574,7 @@ export async function deleteLearnerAccount(input: {
       await lockUserAuthorityOnPgClient(client, input.learnerId);
       await client.query("select pg_advisory_xact_lock(hashtext($1))", [`runner-learner:${input.learnerId}`]);
       await client.query("select pg_advisory_xact_lock(hashtext($1))", [`account-delete:${input.learnerId}`]);
+      await lockAccessRequestAuthorityOnPgClient(client, claim.target.email);
       const current = await client.query<{ status: string }>(
         `select status from "user" where id = $1 for update`,
         [input.learnerId],
@@ -588,7 +697,7 @@ export async function deleteLearnerAccount(input: {
           where created_by_user_id = $1`,
         [id, now],
       );
-      deletedRows.emailOutbox = await deleteCount(client, "delete from email_outbox where user_id = $1 or lower(to_email) = lower($2)", [id, claim.target.email]);
+      deletedRows.emailOutbox = await deleteCount(client, "delete from email_outbox where user_id = $1 or pg_catalog.lower(pg_catalog.btrim(to_email)) = pg_catalog.lower(pg_catalog.btrim($2))", [id, claim.target.email]);
       deletedRows.notifications = await deleteCount(client, "delete from notification where user_id = $1", [id]);
       deletedRows.inactivityEpisodes = await deleteCount(client, "delete from inactivity_episode where user_id = $1", [id]);
       deletedRows.smartReminderDispatches = await deleteCount(client, "delete from smart_reminder_dispatch where user_id = $1", [id]);
@@ -778,8 +887,8 @@ export async function deleteLearnerAccount(input: {
         `delete from background_job
           where payload ->> 'userId' = $1 or payload ->> 'learnerId' = $1
              or payload ->> 'user_id' = $1 or payload ->> 'learner_id' = $1
-             or lower(payload ->> 'email') = lower($2)
-             or lower(payload ->> 'toEmail') = lower($2)`,
+             or pg_catalog.lower(pg_catalog.btrim(payload ->> 'email')) = pg_catalog.lower(pg_catalog.btrim($2))
+             or pg_catalog.lower(pg_catalog.btrim(payload ->> 'toEmail')) = pg_catalog.lower(pg_catalog.btrim($2))`,
         [id, claim.target.email],
       );
       deletedRows.unlinkedActiveSessionActors = await deleteCount(
@@ -838,19 +947,12 @@ export async function deleteLearnerAccount(input: {
         [id],
       );
 
-      const matchingAccess = await client.query<{ id: string }>(
-        "select id from access_request where lower(email) = lower($1)",
-        [claim.target.email],
-      );
-      const accessIds = matchingAccess.rows.map((row) => row.id);
-      deletedRows.invitations = await deleteCount(
+      const initialAccessCleanup = await deleteMatchingAccessAuthorityRows(
         client,
-        `delete from invitation where lower(email) = lower($1)
-          or ($2::uuid[] <> '{}'::uuid[] and access_request_id = any($2::uuid[]))`,
-        [claim.target.email, accessIds],
+        claim.target.email,
       );
-      deletedRows.accessRequests = await deleteCount(client, "delete from access_request where lower(email) = lower($1)", [claim.target.email]);
-
+      deletedRows.invitations = initialAccessCleanup.invitations;
+      deletedRows.accessRequests = initialAccessCleanup.accessRequests;
       // A retry after a crash must preserve the counts committed by the first
       // database-erasure transaction. New counts are normally zero because
       // the deletes are idempotent; adding them also handles a partially
@@ -890,6 +992,7 @@ export async function deleteLearnerAccount(input: {
       await lockUserAuthorityOnPgClient(client, input.learnerId);
       await client.query("select pg_advisory_xact_lock(hashtext($1))", [`runner-learner:${input.learnerId}`]);
       await client.query("select pg_advisory_xact_lock(hashtext($1))", [`account-delete:${input.learnerId}`]);
+      await lockAccessRequestAuthorityOnPgClient(client, claim.target.email);
       const finalUser = await client.query<{ status: string }>(
         `select status from "user" where id = $1 for update`,
         [input.learnerId],
@@ -897,13 +1000,21 @@ export async function deleteLearnerAccount(input: {
       if (finalUser.rows[0]?.status !== "deletion_pending") {
         throw new AccountDeletionError("LEARNER_NOT_FOUND");
       }
+      const finalAccessCleanup = await deleteMatchingAccessAuthorityRows(
+        client,
+        claim.target.email,
+      );
+      deletedRows.invitations = (deletedRows.invitations ?? 0)
+        + finalAccessCleanup.invitations;
+      deletedRows.accessRequests = (deletedRows.accessRequests ?? 0)
+        + finalAccessCleanup.accessRequests;
       await lockDeletionOutboxRows(client, {
         userId: input.learnerId,
         email: claim.target.email,
       });
       deletedRows.emailOutbox = (deletedRows.emailOutbox ?? 0) + await deleteCount(
         client,
-        "delete from email_outbox where user_id = $1 or lower(to_email) = lower($2)",
+        "delete from email_outbox where user_id = $1 or pg_catalog.lower(pg_catalog.btrim(to_email)) = pg_catalog.lower(pg_catalog.btrim($2))",
         [input.learnerId, claim.target.email],
       );
       const durableFileSummary = await fileErasureSummary(client, claim.runId);
@@ -1032,39 +1143,36 @@ export async function deleteLearnerAccount(input: {
           operationId: insertedRelease.operation_id,
         });
       } else {
+        const conflictIdentity =
+          await client.query<EmailOutboxDeliveryReleaseIdentity>(
+            `select id::text, operation_id::text,
+                    idempotency_authority_sha256,
+                    idempotency_original_payload_sha256, delivery_hold_version
+               from email_outbox
+              where idempotency_key = $1`,
+            [mailKey],
+          );
+        const persistedIdentity = conflictIdentity.rows[0];
+        if (!persistedIdentity) {
+          throw new Error("Deletion notice idempotency state mismatch.");
+        }
+        await verifyAndLockEmailOutboxDeliveryRelease(client, persistedIdentity);
+
         const conflict = await client.query<DeletionNoticeOutboxRow>(
           `select id::text, operation_id::text, user_id, delivery_scope_key,
                   to_email, template, template_version, variables, idempotency_key,
                   idempotency_authority_sha256,
                   idempotency_original_payload_sha256, delivery_hold_version
              from email_outbox
-            where idempotency_key = $1
-            for update`,
-          [mailKey],
+            where id = $1::uuid
+              and operation_id = $2::uuid
+              and idempotency_key = $3`,
+          [persistedIdentity.id, persistedIdentity.operation_id, mailKey],
         );
         const persistedNotice = conflict.rows[0];
         if (!isExactDeletionNoticeRow(persistedNotice, expectedNotice)) {
           throw new Error("Deletion notice idempotency state mismatch.");
         }
-        const verifiedNotice = await client.query<{
-          outbox_id: string;
-          operation_id: string;
-        }>(
-          `select verified.outbox_id::text as outbox_id,
-                  verified.operation_id::text as operation_id
-             from public.verify_email_outbox_delivery_release($1::uuid, $2::uuid, $3::text, $4::text, $5::text) as verified`,
-          [
-            persistedNotice.id,
-            persistedNotice.operation_id,
-            persistedNotice.idempotency_authority_sha256,
-            persistedNotice.idempotency_original_payload_sha256,
-            persistedNotice.delivery_hold_version,
-          ],
-        );
-        assertEmailOutboxDeliveryRelease(verifiedNotice, {
-          outboxId: persistedNotice.id,
-          operationId: persistedNotice.operation_id,
-        });
       }
       await client.query(
         `update data_lifecycle_run set status = 'succeeded', report = $2::jsonb,

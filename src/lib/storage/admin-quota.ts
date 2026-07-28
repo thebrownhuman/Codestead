@@ -10,6 +10,7 @@ import {
   storedObject,
   user,
 } from "@/lib/db/schema";
+import { lockUserAuthority } from "@/lib/security/user-authority-lock";
 import {
   DEFAULT_STORAGE_QUOTA_BYTES,
   MAX_STORAGE_QUOTA_BYTES,
@@ -144,7 +145,11 @@ export async function getLearnerStorageQuota(
     .from(user)
     .leftJoin(learnerProfile, eq(learnerProfile.userId, user.id))
     .leftJoin(storedObject, eq(storedObject.ownerUserId, user.id))
-    .where(and(eq(user.publicId, learnerPublicId), eq(user.role, "learner")))
+    .where(and(
+      eq(user.publicId, learnerPublicId),
+      eq(user.role, "learner"),
+      eq(user.status, "active"),
+    ))
     .groupBy(
       user.id,
       user.publicId,
@@ -213,6 +218,7 @@ export async function changeLearnerStorageQuota(input: {
           eq(user.id, prior.learnerUserId),
           eq(user.publicId, prior.learnerPublicId),
           eq(user.role, "learner"),
+          eq(user.status, "active"),
         ))
         .limit(1);
       if (!priorIdentity) {
@@ -231,7 +237,11 @@ export async function changeLearnerStorageQuota(input: {
     const [identity] = await tx
       .select({ id: user.id })
       .from(user)
-      .where(and(eq(user.publicId, request.learnerPublicId), eq(user.role, "learner")))
+      .where(and(
+        eq(user.publicId, request.learnerPublicId),
+        eq(user.role, "learner"),
+        eq(user.status, "active"),
+      ))
       .limit(1);
     if (!identity) {
       throw new StorageQuotaAdminError("LEARNER_NOT_FOUND", "Learner was not found.");
@@ -239,6 +249,7 @@ export async function changeLearnerStorageQuota(input: {
 
     // Share the exact lock key used by upload reservations. A quota change
     // cannot race a concurrent upload and accidentally move below real usage.
+    await lockUserAuthority(tx, identity.id);
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${identity.id}))`);
     const [current] = await tx
       .select({
@@ -251,7 +262,12 @@ export async function changeLearnerStorageQuota(input: {
       })
       .from(user)
       .leftJoin(learnerProfile, eq(learnerProfile.userId, user.id))
-      .where(and(eq(user.id, identity.id), eq(user.role, "learner")))
+      .where(and(
+        eq(user.id, identity.id),
+        eq(user.publicId, request.learnerPublicId),
+        eq(user.role, "learner"),
+        eq(user.status, "active"),
+      ))
       .limit(1);
     if (!current) {
       throw new StorageQuotaAdminError("LEARNER_NOT_FOUND", "Learner was not found.");

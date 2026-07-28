@@ -31,6 +31,7 @@ import {
   DatabaseRoleBoundaryError,
   verifyDatabaseRoleBoundaries,
   verifyMailWorkerOutboxContract,
+  verifyRestoredNoAclMailAuthorityStructure,
   verifyReviewedMailAuthorityCatalogContracts,
   verifyReviewedApplicationRoutines,
   verifyReviewedApplicationTriggers,
@@ -53,9 +54,41 @@ const REVIEWED_PHASE_0066 = reviewedPhase(66);
 const REVIEWED_PHASE_0067 = reviewedPhase(67);
 const REVIEWED_PHASE_0068 = reviewedPhase(68);
 const REVIEWED_PHASE_0069 = reviewedPhase(69);
+const REVIEWED_REWARD_ROUTINES = Object.freeze([
+  Object.freeze({
+    signature:
+      "public.enqueue_reward_jobs_for_attempt_v1(uuid,text,timestamp with time zone)",
+    owner: "learncoding_owner",
+    securityDefiner: false,
+    configuration: null,
+    allowedRoles: Object.freeze(["learncoding_app", "learncoding_worker"]),
+    bodySha256:
+      "facb629452f45715f4b9dfe577b29f05bee32a0ca44b26f27f80bbaa533b508f",
+    definitionSha256:
+      "05f3a04b1bdc75bece262f2692532d8ecfd2a6f3b46d2bf87c1f7a5aa3812983",
+    argumentNames: Object.freeze(["p_attempt_id", "p_user_id", "p_now"]),
+  }),
+  Object.freeze({
+    signature:
+      "public.enqueue_reward_jobs_for_mastery_scope_v1(uuid,text,timestamp with time zone)",
+    owner: "learncoding_owner",
+    securityDefiner: false,
+    configuration: null,
+    allowedRoles: Object.freeze(["learncoding_app", "learncoding_worker"]),
+    bodySha256:
+      "a94d35a4bb7e85acc21599c875aec04b2922523bc0da857f184dffa3312c8c82",
+    definitionSha256:
+      "871d44498def9aee424a4474a317135e26fa1bc1271d5a4188f80dc04ac59819",
+    argumentNames: Object.freeze([
+      "p_mastery_evidence_id",
+      "p_user_id",
+      "p_now",
+    ]),
+  }),
+]);
 const REPLAY_AUTHORITY_CONSTRAINT_HASHES_BY_POSTGRES_MAJOR = Object.freeze({
   17: "2cc426fbe12df9a29707bbad22a3addf50fa483f0ad8f4c76c778ad25bf6748e",
-  18: "3f32ee19567df8889a129cc1e2e95af9f70a8e4e5878c7f7930ec396259ceefc",
+  18: "2cc426fbe12df9a29707bbad22a3addf50fa483f0ad8f4c76c778ad25bf6748e",
 });
 const GUARDED_REPLAY_TRIGGER_ADDITIONS = Object.freeze([
   "email_outbox_delivery_hold_final",
@@ -102,6 +135,17 @@ const validInput = () => ({
   databaseOpsUrl: `postgresql://learncoding_ops:${password("o")}@postgres:5432/learncoding`,
   databaseBackupReporterUrl: `postgresql://learncoding_backup_reporter:${password("r")}@postgres:5432/learncoding`,
 });
+
+const NO_TEST_FAILURE = Symbol("no-test-failure");
+
+async function captureRejection(operation) {
+  try {
+    await operation();
+    return { rejected: false, reason: NO_TEST_FAILURE };
+  } catch (reason) {
+    return { rejected: true, reason };
+  }
+}
 
 const PLATFORM_ENVIRONMENT_KEYS = Object.freeze([
   "CI",
@@ -180,6 +224,108 @@ test("pins reviewed-SQL and live-catalog Group 4 CHECK hashes separately", () =>
   assert.equal(contract.triggers.length, 9);
   assert.equal(contract.routines.length, 8);
 });
+test("reviews the two reward enqueue routines in every post-0061 catalog phase", () => {
+  for (const phase of REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES) {
+    const rewardRoutines = phase.routines.filter(({ signature }) =>
+      REVIEWED_REWARD_ROUTINES.some(
+        (expected) => expected.signature === signature,
+      ),
+    );
+    assert.deepEqual(
+      rewardRoutines.map(
+        ({
+          signature,
+          owner,
+          securityDefiner,
+          configuration,
+          allowedRoles,
+          bodySha256,
+          definitionSha256,
+          language,
+          kind,
+          volatility,
+          strict,
+          parallel,
+          leakproof,
+          argumentNames,
+          argumentModes,
+          argumentTypes,
+          inputArgumentCount,
+          argumentDefaultCount,
+          returnType,
+          returnsSet,
+          variadic,
+        }) => ({
+          signature,
+          owner,
+          securityDefiner,
+          configuration,
+          allowedRoles,
+          bodySha256,
+          definitionSha256,
+          language,
+          kind,
+          volatility,
+          strict,
+          parallel,
+          leakproof,
+          argumentNames,
+          argumentModes,
+          argumentTypes,
+          inputArgumentCount,
+          argumentDefaultCount,
+          returnType,
+          returnsSet,
+          variadic,
+        }),
+      ),
+      REVIEWED_REWARD_ROUTINES.map((routine) => ({
+        ...routine,
+        language: "plpgsql",
+        kind: "f",
+        volatility: "v",
+        strict: false,
+        parallel: "u",
+        leakproof: false,
+        argumentModes: [],
+        argumentTypes: ["uuid", "text", "timestamp with time zone"],
+        inputArgumentCount: 3,
+        argumentDefaultCount: 0,
+        returnType: "void",
+        returnsSet: false,
+        variadic: false,
+      })),
+      `phase ${phase.index}`,
+    );
+
+    const privilegeSql =
+      reviewedApplicationFunctionPrivilegesSql(phase).toLowerCase();
+    for (const { signature } of REVIEWED_REWARD_ROUTINES) {
+      for (const role of ["learncoding_app", "learncoding_worker"]) {
+        assert.ok(
+          privilegeSql.includes(
+            `grant execute on function ${signature} to ${role}`,
+          ),
+          `phase ${phase.index} ${signature} ${role}`,
+        );
+      }
+      for (const role of [
+        "learncoding_ops",
+        "learncoding_backup_reporter",
+        "learncoding_migrator",
+      ]) {
+        assert.equal(
+          privilegeSql.includes(
+            `grant execute on function ${signature} to ${role}`,
+          ),
+          false,
+          `phase ${phase.index} ${signature} ${role}`,
+        );
+      }
+    }
+  }
+});
+
 test("composes the mail worker outbox role without payload mutation authority", () => {
   assert.deepEqual(MAIL_WORKER_OUTBOX_INSERT_COLUMNS, [
     "operation_id",
@@ -416,8 +562,8 @@ test("rejects direct, effective, marker, receipt, and membership ACL reopenings"
           requiresDispatchBinding: true,
           requiresProviderEvidence: true,
           requiresReplayAuthority: true,
-    requiresProviderRequest: true,
-    requiresGuardedDelivery: true,
+          requiresProviderRequest: true,
+          requiresGuardedDelivery: true,
         },
       ),
       (error) =>
@@ -609,6 +755,761 @@ test("guards reviewed application grants on both role and object existence", () 
   );
 });
 
+test("gates exact reward ACL states before any repair", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  assert.equal(
+    typeof databaseRoleBootstrap.verifyAndRepairReviewedBaselineRewardRoutinePrivileges,
+    "function",
+  );
+  const sql = databaseRoleBootstrap
+    .reviewedBaselineRewardFunctionPrivilegesSql(REVIEWED_PHASE_0069)
+    .toLowerCase();
+  for (const { signature } of REVIEWED_REWARD_ROUTINES) {
+    assert.ok(sql.includes(signature));
+  }
+  assert.doesNotMatch(sql, /email_outbox|backup_status/iu);
+
+  const source = readFileSync(
+    new URL("./bootstrap-database-roles.mjs", import.meta.url),
+    "utf8",
+  );
+  const reconcileStart = source.indexOf(
+    "async function applyDatabaseRolePrivilegeReconciliation",
+  );
+  const gate = source.indexOf(
+    "await verifyAndRepairReviewedBaselineRewardRoutinePrivileges(",
+    reconcileStart,
+  );
+  const precheck = source.indexOf(
+    "await verifyPostMigrationReviewedContractsBeforeReconciliation(",
+    reconcileStart,
+  );
+  const blanketRevoke = source.indexOf(
+    "revoke execute on all routines in schema public",
+    reconcileStart,
+  );
+  const fullRepair = source.indexOf(
+    "await client.query(reviewedApplicationFunctionPrivilegesSql(canonicalPhase))",
+    reconcileStart,
+  );
+  assert.ok(reconcileStart >= 0);
+  assert.ok(gate > reconcileStart);
+  assert.ok(precheck > gate);
+  assert.ok(blanketRevoke > precheck);
+  assert.ok(fullRepair > blanketRevoke);
+
+  const bootstrapStart = source.indexOf(
+    "export async function runDatabaseRoleBootstrap",
+  );
+  const phaseResolution = source.indexOf(
+    "let reviewedPhase = await resolveReviewedMailAuthorityCatalogPhase(client)",
+    bootstrapStart,
+  );
+  const bootstrapGate = source.indexOf(
+    "await verifyAndRepairReviewedBaselineRewardRoutinePrivileges(",
+    phaseResolution,
+  );
+  const bootstrapPrecheck = source.indexOf(
+    "await verifyPostMigrationReviewedContractsBeforeReconciliation(",
+    phaseResolution,
+  );
+  const begin = source.indexOf('await client.query("begin")', bootstrapStart);
+  const commit = source.indexOf(
+    'await client.query("commit")',
+    bootstrapPrecheck,
+  );
+  const cleanupCollectorStart = source.indexOf(
+    "async function collectDatabaseBootstrapCleanupFailures",
+  );
+  const rollback = source.indexOf(
+    '() => client.query("rollback")',
+    cleanupCollectorStart,
+  );
+  const cleanupStart = source.indexOf(
+    "export async function cleanupDatabaseBootstrapResources",
+    cleanupCollectorStart,
+  );
+  assert.ok(phaseResolution > bootstrapStart);
+  assert.ok(begin > bootstrapStart && begin < phaseResolution);
+  assert.ok(bootstrapGate > phaseResolution);
+  assert.ok(bootstrapPrecheck > bootstrapGate);
+  assert.ok(commit > bootstrapPrecheck);
+  assert.ok(rollback > cleanupCollectorStart);
+  assert.ok(cleanupStart > rollback);
+});
+
+test("leaves a canonical reward ACL unchanged", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  const client = makeClient("learncoding_ops", "learncoding", {
+    appliedMigrationIndex: 69,
+    rewardRoutineAclState: "canonical",
+  });
+
+  assert.equal(
+    await databaseRoleBootstrap.verifyAndRepairReviewedBaselineRewardRoutinePrivileges(
+      client,
+      REVIEWED_PHASE_0069,
+    ),
+    "canonical",
+  );
+  assert.equal(
+    client.queries.filter((query) =>
+      query.includes("do $codestead_reviewed_function_0$"),
+    ).length,
+    0,
+  );
+  assert.deepEqual(
+    client.queryParameters
+      .filter((parameters) =>
+        REVIEWED_REWARD_ROUTINES.some(
+          ({ signature }) => signature === parameters?.[0],
+        ),
+      )
+      .map((parameters) => [parameters[0], parameters[5]]),
+    REVIEWED_REWARD_ROUTINES.map(({ signature }) => [
+      signature,
+      ["learncoding_app", "learncoding_worker"],
+    ]),
+  );
+});
+
+test("repairs only the exact owner-only legacy reward ACL", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  const client = makeClient("learncoding_ops", "learncoding", {
+    appliedMigrationIndex: 69,
+    rewardRoutineAclState: "owner-only",
+  });
+
+  assert.equal(
+    await databaseRoleBootstrap.verifyAndRepairReviewedBaselineRewardRoutinePrivileges(
+      client,
+      REVIEWED_PHASE_0069,
+    ),
+    "repaired",
+  );
+  const repairs = client.queries.filter((query) =>
+    query.includes("do $codestead_reviewed_function_0$"),
+  );
+  assert.equal(repairs.length, 1);
+  for (const { signature } of REVIEWED_REWARD_ROUTINES) {
+    assert.ok(repairs[0].includes(signature));
+    for (const role of ["learncoding_app", "learncoding_worker"]) {
+      assert.ok(
+        repairs[0].includes(
+          `grant execute on function ${signature} to ${role}`,
+        ),
+      );
+    }
+  }
+  assert.doesNotMatch(
+    repairs[0],
+    /email_outbox|backup_status|revoke all on (?:database|schema|all tables|all sequences|all routines)/iu,
+  );
+  assert.deepEqual(
+    client.queryParameters
+      .filter((parameters) =>
+        REVIEWED_REWARD_ROUTINES.some(
+          ({ signature }) => signature === parameters?.[0],
+        ),
+      )
+      .map((parameters) => [parameters[0], parameters[5]]),
+    [
+      [
+        REVIEWED_REWARD_ROUTINES[0].signature,
+        ["learncoding_app", "learncoding_worker"],
+      ],
+      [REVIEWED_REWARD_ROUTINES[0].signature, []],
+      [REVIEWED_REWARD_ROUTINES[1].signature, []],
+      [
+        REVIEWED_REWARD_ROUTINES[0].signature,
+        ["learncoding_app", "learncoding_worker"],
+      ],
+      [
+        REVIEWED_REWARD_ROUTINES[1].signature,
+        ["learncoding_app", "learncoding_worker"],
+      ],
+    ],
+  );
+});
+
+test("rejects every hostile reward ACL or structural state before mutation", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  for (const rewardRoutineAclState of [
+    "partial-app",
+    "partial-worker",
+    "public",
+    "ops",
+    "migrator",
+    "backup",
+    "delegated",
+    "grantable",
+    "mixed",
+    "owner-mismatch",
+    "body-drift",
+    "definition-drift",
+    "config-drift",
+  ]) {
+    const client = makeClient("learncoding_ops", "learncoding", {
+      appliedMigrationIndex: 69,
+      rewardRoutineAclState,
+    });
+    await assert.rejects(
+      databaseRoleBootstrap.verifyAndRepairReviewedBaselineRewardRoutinePrivileges(
+        client,
+        REVIEWED_PHASE_0069,
+      ),
+      /reviewed-baseline-reward-routine-pre-repair/u,
+      rewardRoutineAclState,
+    );
+    assert.equal(
+      client.queries.some(
+        (query) =>
+          query.includes("do $codestead_reviewed_function_0$") ||
+          query.includes("revoke all on database") ||
+          query.includes("revoke all on schema public") ||
+          query.includes("revoke execute on all routines"),
+      ),
+      false,
+      rewardRoutineAclState,
+    );
+  }
+});
+test("does not retry operational reward ACL verification failures", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  const operationalFailure = new Error("simulated catalog connection loss");
+  const client = makeClient("learncoding_ops", "learncoding", {
+    appliedMigrationIndex: 69,
+    rewardRoutineOperationalFailure: operationalFailure,
+  });
+  await assert.rejects(
+    databaseRoleBootstrap.verifyAndRepairReviewedBaselineRewardRoutinePrivileges(
+      client,
+      REVIEWED_PHASE_0069,
+    ),
+    (error) => error === operationalFailure,
+  );
+  assert.equal(
+    client.queries.some((query) =>
+      query.includes("do $codestead_reviewed_function_0$"),
+    ),
+    false,
+  );
+});
+test("does not mask operational owner-only reward ACL verification failures", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  const operationalFailure = new Error(
+    "simulated legacy catalog connection loss",
+  );
+  const client = makeClient("learncoding_ops", "learncoding", {
+    appliedMigrationIndex: 69,
+    rewardRoutineAclState: "owner-only",
+    rewardRoutineOwnerOnlyOperationalFailure: operationalFailure,
+  });
+  await assert.rejects(
+    databaseRoleBootstrap.verifyAndRepairReviewedBaselineRewardRoutinePrivileges(
+      client,
+      REVIEWED_PHASE_0069,
+    ),
+    (error) => error === operationalFailure,
+  );
+  assert.equal(
+    client.queries.some((query) =>
+      query.includes("do $codestead_reviewed_function_0$"),
+    ),
+    false,
+  );
+});
+test("gates every reviewed routine before reward and broad ACL repair", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  assert.equal(
+    typeof databaseRoleBootstrap.verifyAndRepairReviewedPhaseRoutinePrivileges,
+    "function",
+  );
+
+  const source = readFileSync(
+    new URL("./bootstrap-database-roles.mjs", import.meta.url),
+    "utf8",
+  );
+  const reconcileStart = source.indexOf(
+    "async function applyDatabaseRolePrivilegeReconciliation",
+  );
+  const allRoutineGate = source.indexOf(
+    "await verifyAndRepairReviewedPhaseRoutinePrivileges(",
+    reconcileStart,
+  );
+  const rewardGate = source.indexOf(
+    "await verifyAndRepairReviewedBaselineRewardRoutinePrivileges(",
+    reconcileStart,
+  );
+  const precheck = source.indexOf(
+    "await verifyPostMigrationReviewedContractsBeforeReconciliation(",
+    reconcileStart,
+  );
+  const broadMutation = source.indexOf(
+    "await client.query(globalDefaultAclScrubSql())",
+    reconcileStart,
+  );
+  assert.ok(reconcileStart >= 0);
+  assert.ok(allRoutineGate > reconcileStart);
+  assert.ok(rewardGate > allRoutineGate);
+  assert.ok(precheck > rewardGate);
+  assert.ok(broadMutation > precheck);
+
+  const bootstrapStart = source.indexOf(
+    "export async function runDatabaseRoleBootstrap",
+  );
+  const begin = source.indexOf('await client.query("begin")', bootstrapStart);
+  const phaseResolution = source.indexOf(
+    "let reviewedPhase = await resolveReviewedMailAuthorityCatalogPhase(client)",
+    bootstrapStart,
+  );
+  const bootstrapAllRoutineGate = source.indexOf(
+    "await verifyAndRepairReviewedPhaseRoutinePrivileges(",
+    phaseResolution,
+  );
+  const bootstrapRewardGate = source.indexOf(
+    "await verifyAndRepairReviewedBaselineRewardRoutinePrivileges(",
+    phaseResolution,
+  );
+  const bootstrapPrecheck = source.indexOf(
+    "await verifyPostMigrationReviewedContractsBeforeReconciliation(",
+    phaseResolution,
+  );
+  const firstAclMutation = source.indexOf(
+    "await createAndResetRoles(client)",
+    phaseResolution,
+  );
+  assert.ok(begin > bootstrapStart && begin < phaseResolution);
+  assert.ok(bootstrapAllRoutineGate > phaseResolution);
+  assert.ok(bootstrapRewardGate > bootstrapAllRoutineGate);
+  assert.ok(bootstrapPrecheck > bootstrapRewardGate);
+  assert.ok(firstAclMutation > bootstrapPrecheck);
+});
+
+test("leaves every canonical reviewed routine ACL unchanged", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  for (const phase of REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES) {
+    const client = makeClient("learncoding_ops", "learncoding", {
+      appliedMigrationIndex: phase.index,
+      reviewedRoutineAclState: "canonical",
+    });
+    assert.equal(
+      await databaseRoleBootstrap.verifyAndRepairReviewedPhaseRoutinePrivileges(
+        client,
+        phase,
+      ),
+      "canonical",
+      `phase ${phase.index}`,
+    );
+    assert.equal(
+      client.queries.some((query) =>
+        query.includes("do $codestead_reviewed_function_0$"),
+      ),
+      false,
+      `phase ${phase.index}`,
+    );
+    assert.deepEqual(
+      client.queryParameters
+        .filter((parameters) =>
+          phase.routines.some(({ signature }) => signature === parameters?.[0]),
+        )
+        .map((parameters) => [parameters[0], parameters[5]]),
+      phase.routines.map(({ signature, allowedRoles }) => [
+        signature,
+        allowedRoles,
+      ]),
+      `phase ${phase.index}`,
+    );
+  }
+});
+
+test("repairs only exact all-owner-only reviewed routine ACL states", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  const allKnownSignatures = [
+    ...new Set(
+      REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.flatMap(({ routines }) =>
+        routines.map(({ signature }) => signature),
+      ),
+    ),
+  ];
+  for (const phase of REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES) {
+    const client = makeClient("learncoding_ops", "learncoding", {
+      appliedMigrationIndex: phase.index,
+      reviewedRoutineAclState: "owner-only",
+    });
+    assert.equal(
+      await databaseRoleBootstrap.verifyAndRepairReviewedPhaseRoutinePrivileges(
+        client,
+        phase,
+      ),
+      "repaired",
+      `phase ${phase.index}`,
+    );
+    const repairs = client.queries.filter(
+      (query) =>
+        query.includes("do $codestead_reviewed_function_0$") &&
+        phase.routines.every(({ signature }) => query.includes(signature)),
+    );
+    assert.equal(repairs.length, 1, `phase ${phase.index}`);
+    assert.equal(
+      repairs[0].match(/do \$codestead_reviewed_function_\d+\$/gu)?.length,
+      phase.routines.length,
+      `phase ${phase.index}`,
+    );
+    assert.deepEqual(
+      allKnownSignatures
+        .filter((signature) => repairs[0].includes(signature))
+        .sort(),
+      phase.routines.map(({ signature }) => signature).sort(),
+      `phase ${phase.index}`,
+    );
+    assert.doesNotMatch(
+      repairs[0],
+      /revoke all on (?:database|schema|all tables|all sequences|all routines)/iu,
+    );
+    for (const { signature, allowedRoles } of phase.routines) {
+      assert.ok(repairs[0].includes(signature), `phase ${phase.index}`);
+      for (const role of allowedRoles) {
+        assert.ok(
+          repairs[0].includes(
+            `grant execute on function ${signature} to ${role}`,
+          ),
+          `phase ${phase.index} ${signature} ${role}`,
+        );
+      }
+    }
+
+    const verificationParameters = client.queryParameters.filter((parameters) =>
+      phase.routines.some(({ signature }) => signature === parameters?.[0]),
+    );
+    const verificationSequence = verificationParameters.map((parameters) => [
+      parameters[0],
+      parameters[5],
+    ]);
+    assert.deepEqual(
+      verificationSequence,
+      [
+        [phase.routines[0].signature, phase.routines[0].allowedRoles],
+        ...phase.routines.map(({ signature }) => [signature, []]),
+        ...phase.routines.map(({ signature, allowedRoles }) => [
+          signature,
+          allowedRoles,
+        ]),
+      ],
+      `phase ${phase.index}`,
+    );
+
+    const ownerOnlyParameters = verificationParameters.slice(
+      1,
+      1 + phase.routines.length,
+    );
+    const postRepairParameters = verificationParameters.slice(
+      1 + phase.routines.length,
+    );
+    for (
+      let routineIndex = 0;
+      routineIndex < phase.routines.length;
+      routineIndex += 1
+    ) {
+      for (
+        let parameterIndex = 0;
+        parameterIndex < ownerOnlyParameters[routineIndex].length;
+        parameterIndex += 1
+      ) {
+        assert.deepEqual(
+          ownerOnlyParameters[routineIndex][parameterIndex],
+          parameterIndex === 5
+            ? []
+            : postRepairParameters[routineIndex][parameterIndex],
+          `phase ${phase.index} routine ${routineIndex} parameter ${parameterIndex}`,
+        );
+      }
+    }
+  }
+});
+
+test("repairs only the exact heterogeneous raw migration routine ACL manifest", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  const rewardSignatures = new Set(
+    REVIEWED_REWARD_ROUTINES.map(({ signature }) => signature),
+  );
+
+  for (const phase of REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES) {
+    const client = makeClient("learncoding_ops", "learncoding", {
+      appliedMigrationIndex: phase.index,
+      reviewedRoutineAclState: "raw-migration",
+    });
+    const rawMigrationManifest = phase.routines.map(
+      ({ signature, allowedRoles }) => [
+        signature,
+        rewardSignatures.has(signature) ? [] : allowedRoles,
+      ],
+    );
+
+    assert.equal(
+      await databaseRoleBootstrap.verifyAndRepairReviewedPhaseRoutinePrivileges(
+        client,
+        phase,
+      ),
+      "repaired",
+      `phase ${phase.index}`,
+    );
+    const repairs = client.queries.filter(
+      (query) =>
+        query.includes("do $codestead_reviewed_function_0$") &&
+        phase.routines.every(({ signature }) => query.includes(signature)),
+    );
+    assert.equal(repairs.length, 1, `phase ${phase.index}`);
+    for (const { signature, allowedRoles } of phase.routines) {
+      assert.ok(repairs[0].includes(signature), `phase ${phase.index}`);
+      for (const role of allowedRoles) {
+        assert.ok(
+          repairs[0].includes(
+            `grant execute on function ${signature} to ${role}`,
+          ),
+          `phase ${phase.index} ${signature} ${role}`,
+        );
+      }
+    }
+
+    const verificationSequence = client.queryParameters
+      .filter((parameters) =>
+        phase.routines.some(({ signature }) => signature === parameters?.[0]),
+      )
+      .map((parameters) => [parameters[0], parameters[5]]);
+    const containsRawManifest = verificationSequence.some(
+      (_entry, startIndex) =>
+        JSON.stringify(
+          verificationSequence.slice(
+            startIndex,
+            startIndex + rawMigrationManifest.length,
+          ),
+        ) === JSON.stringify(rawMigrationManifest),
+    );
+    assert.equal(containsRawManifest, true, `phase ${phase.index}`);
+
+    assert.equal(
+      await databaseRoleBootstrap.verifyAndRepairReviewedPhaseRoutinePrivileges(
+        client,
+        phase,
+      ),
+      "canonical",
+      `phase ${phase.index} idempotent replay`,
+    );
+    assert.equal(
+      client.queries.filter(
+        (query) =>
+          query.includes("do $codestead_reviewed_function_0$") &&
+          phase.routines.every(({ signature }) => query.includes(signature)),
+      ).length,
+      1,
+      `phase ${phase.index} idempotent repair count`,
+    );
+  }
+});
+
+test("rejects structural drift in the raw migration routine manifest before mutation", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  for (const routineContractTamper of [
+    "owner",
+    "body",
+    "definition",
+    "configuration",
+    "security-definer",
+    "language",
+    "kind",
+    "volatility",
+    "strict",
+    "parallel",
+    "argument-names",
+    "argument-modes",
+    "argument-types",
+    "input-argument-count",
+    "argument-defaults",
+    "return-type",
+    "returns-set",
+    "variadic",
+    "owner-execute",
+  ]) {
+    const client = makeClient("learncoding_ops", "learncoding", {
+      appliedMigrationIndex: 69,
+      reviewedRoutineAclState: "raw-migration",
+      routineContractTamper,
+    });
+    await assert.rejects(
+      databaseRoleBootstrap.verifyAndRepairReviewedPhaseRoutinePrivileges(
+        client,
+        REVIEWED_PHASE_0069,
+      ),
+      /reviewed-phase-routine-pre-repair/u,
+      routineContractTamper,
+    );
+    assert.equal(
+      client.queries.some((query) =>
+        query.includes("do $codestead_reviewed_function_0$"),
+      ),
+      false,
+      routineContractTamper,
+    );
+  }
+});
+
+test("rejects mixed and hostile reviewed routine ACL states before mutation", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  for (const reviewedRoutineAclState of [
+    "mixed",
+    "attempt-only-owner-only",
+    "mastery-only-owner-only",
+    "partial-app",
+    "partial-worker",
+    "public",
+    "ops",
+    "migrator",
+    "backup",
+    "delegated",
+    "grantable",
+  ]) {
+    const client = makeClient("learncoding_ops", "learncoding", {
+      appliedMigrationIndex: 69,
+      reviewedRoutineAclState,
+    });
+    await assert.rejects(
+      databaseRoleBootstrap.verifyAndRepairReviewedPhaseRoutinePrivileges(
+        client,
+        REVIEWED_PHASE_0069,
+      ),
+      /reviewed-phase-routine-pre-repair/u,
+      reviewedRoutineAclState,
+    );
+    assert.equal(
+      client.queries.some((query) =>
+        query.includes("do $codestead_reviewed_function_0$"),
+      ),
+      false,
+      reviewedRoutineAclState,
+    );
+  }
+});
+
+test("rejects reviewed routine structural drift before mutation", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  for (const routineContractTamper of [
+    "owner",
+    "body",
+    "definition",
+    "configuration",
+    "security-definer",
+    "language",
+    "kind",
+    "volatility",
+    "strict",
+    "parallel",
+    "argument-names",
+    "argument-modes",
+    "argument-types",
+    "input-argument-count",
+    "argument-defaults",
+    "return-type",
+    "returns-set",
+    "variadic",
+    "owner-execute",
+  ]) {
+    const client = makeClient("learncoding_ops", "learncoding", {
+      appliedMigrationIndex: 69,
+      reviewedRoutineAclState: "owner-only",
+      routineContractTamper,
+    });
+    await assert.rejects(
+      databaseRoleBootstrap.verifyAndRepairReviewedPhaseRoutinePrivileges(
+        client,
+        REVIEWED_PHASE_0069,
+      ),
+      /reviewed-phase-routine-pre-repair/u,
+      routineContractTamper,
+    );
+    assert.equal(
+      client.queries.some((query) =>
+        query.includes("do $codestead_reviewed_function_0$"),
+      ),
+      false,
+      routineContractTamper,
+    );
+  }
+});
+
+test("rejects a missing reviewed routine before mutation", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  const client = makeClient("learncoding_ops", "learncoding", {
+    appliedMigrationIndex: 69,
+    reviewedRoutineAclState: "owner-only",
+    requiredRoutineMissing: true,
+  });
+  await assert.rejects(
+    databaseRoleBootstrap.verifyAndRepairReviewedPhaseRoutinePrivileges(
+      client,
+      REVIEWED_PHASE_0069,
+    ),
+    /reviewed-phase-routine-pre-repair/u,
+  );
+  assert.equal(
+    client.queries.some((query) =>
+      query.includes("do $codestead_reviewed_function_0$"),
+    ),
+    false,
+  );
+});
+
+test("fails closed when all-routine ACL post-verification is not canonical", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  const client = makeClient("learncoding_ops", "learncoding", {
+    appliedMigrationIndex: 69,
+    reviewedRoutineAclState: "owner-only",
+    reviewedRoutinePostRepairAclState: "grantable",
+  });
+  await assert.rejects(
+    databaseRoleBootstrap.verifyAndRepairReviewedPhaseRoutinePrivileges(
+      client,
+      REVIEWED_PHASE_0069,
+    ),
+    DatabaseRoleBoundaryError,
+  );
+  assert.equal(
+    client.queries.filter((query) =>
+      query.includes("do $codestead_reviewed_function_0$"),
+    ).length,
+    1,
+  );
+});
+test("propagates operational failures from both all-routine ACL states", async () => {
+  const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
+  for (const ownerOnly of [false, true]) {
+    const operationalFailure = new Error(
+      ownerOnly
+        ? "simulated all-owner-only catalog loss"
+        : "simulated canonical catalog loss",
+    );
+    const client = makeClient("learncoding_ops", "learncoding", {
+      appliedMigrationIndex: 69,
+      reviewedRoutineAclState: ownerOnly ? "owner-only" : "canonical",
+      ...(ownerOnly
+        ? { reviewedRoutineOwnerOnlyOperationalFailure: operationalFailure }
+        : { reviewedRoutineOperationalFailure: operationalFailure }),
+    });
+    await assert.rejects(
+      databaseRoleBootstrap.verifyAndRepairReviewedPhaseRoutinePrivileges(
+        client,
+        REVIEWED_PHASE_0069,
+      ),
+      (error) => error === operationalFailure,
+    );
+    assert.equal(
+      client.queries.some((query) =>
+        query.includes("do $codestead_reviewed_function_0$"),
+      ),
+      false,
+    );
+  }
+});
 test("replays post-migration privilege reconciliation idempotently", async () => {
   const databaseRoleBootstrap = await import("./bootstrap-database-roles.mjs");
   assert.equal(
@@ -1011,24 +1912,59 @@ function makeClient(role, database, options) {
   const queryParameters = [];
   let delegated = false;
   let grantCatalogVersion = 0;
+  let rewardRoutineAclState = options.rewardRoutineAclState ?? "canonical";
+  let reviewedRoutineAclState = options.reviewedRoutineAclState ?? "canonical";
+  let reviewedRoutineAclStateApplies =
+    options.reviewedRoutineAclState !== undefined;
   const latestApplied =
     options.appliedMigrationIndex === undefined
       ? 67
       : options.appliedMigrationIndex;
+  const activeReviewedPhase = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
+    ({ index }) => index === latestApplied,
+  );
   const backupAuthorityPresent =
     options.backupAuthorityPresent ??
     (options.journalPresent !== false &&
       latestApplied !== null &&
       latestApplied >= 65 &&
       options.missingMigrationIndex !== 65);
+  const releaseArguments = [];
   return {
     queries,
     queryParameters,
-    release() {},
+    releaseArguments,
+    release(destroy) {
+      releaseArguments.push(destroy);
+      if (options.releaseFailureByRole?.has(role)) {
+        throw options.releaseFailureByRole.get(role);
+      }
+    },
     async query(sql, parameters) {
       const normalized = String(sql).replace(/\s+/gu, " ").trim().toLowerCase();
       queries.push(normalized);
       queryParameters.push(parameters);
+      if (
+        normalized.includes("do $codestead_reviewed_function_0$") &&
+        activeReviewedPhase?.routines.every(({ signature }) =>
+          normalized.includes(signature),
+        )
+      ) {
+        reviewedRoutineAclState =
+          options.reviewedRoutinePostRepairAclState ?? "canonical";
+        reviewedRoutineAclStateApplies = true;
+        rewardRoutineAclState = reviewedRoutineAclState;
+        return { rows: [] };
+      }
+      if (
+        normalized.includes("do $codestead_reviewed_function_0$") &&
+        REVIEWED_REWARD_ROUTINES.every(({ signature }) =>
+          normalized.includes(signature),
+        )
+      ) {
+        rewardRoutineAclState = "canonical";
+        return { rows: [] };
+      }
       if (normalized.includes("trusted_search_path")) {
         return {
           rows: [
@@ -1042,8 +1978,12 @@ function makeClient(role, database, options) {
       if (normalized.startsWith("select pg_try_advisory_lock")) {
         return { rows: [{ acquired: options.lockAvailable !== false }] };
       }
-      if (normalized.startsWith("select pg_advisory_unlock"))
+      if (normalized.startsWith("select pg_advisory_unlock")) {
+        if (Object.hasOwn(options, "unlockFailure")) {
+          throw options.unlockFailure;
+        }
         return { rows: [{ released: true }] };
+      }
       if (
         normalized === "select current_user, session_user, current_database()"
       ) {
@@ -1096,9 +2036,7 @@ function makeClient(role, database, options) {
         };
       }
       if (
-        normalized.includes(
-          "authenticated_guarded_delivery_privileges_exact",
-        )
+        normalized.includes("authenticated_guarded_delivery_privileges_exact")
       ) {
         if (
           options.guardedSchemaResolutionDenied === true &&
@@ -1116,7 +2054,8 @@ function makeClient(role, database, options) {
             },
           ],
         };
-      }      if (normalized.includes("reviewed_migration_journal_present")) {
+      }
+      if (normalized.includes("reviewed_migration_journal_present")) {
         return {
           rows: [
             {
@@ -1317,13 +2256,95 @@ function makeClient(role, database, options) {
       if (normalized.includes("routine_direct_acl_exact")) {
         if (options.requiredRoutineMissing === true) return { rows: [] };
         const tamper = options.routineContractTamper;
+        const targetRoutine = parameters?.[0];
+        const rewardRoutine = REVIEWED_REWARD_ROUTINES.some(
+          ({ signature }) => signature === targetRoutine,
+        );
+        const reviewedRoutine = activeReviewedPhase?.routines.find(
+          ({ signature }) => signature === targetRoutine,
+        );
+        const expectedAllowedRoles = parameters?.[5] ?? [];
+        const expectsCanonicalReviewedAcl =
+          reviewedRoutine !== undefined &&
+          expectedAllowedRoles.length === reviewedRoutine.allowedRoles.length &&
+          expectedAllowedRoles.every(
+            (roleName, index) =>
+              roleName === reviewedRoutine.allowedRoles[index],
+          );
+        const expectsOwnerOnlyReviewedAcl =
+          reviewedRoutine !== undefined && expectedAllowedRoles.length === 0;
+        if (
+          reviewedRoutine &&
+          expectsCanonicalReviewedAcl &&
+          options.reviewedRoutineOperationalFailure
+        ) {
+          throw options.reviewedRoutineOperationalFailure;
+        }
+        if (
+          reviewedRoutine &&
+          expectsOwnerOnlyReviewedAcl &&
+          options.reviewedRoutineOwnerOnlyOperationalFailure
+        ) {
+          throw options.reviewedRoutineOwnerOnlyOperationalFailure;
+        }
+        if (rewardRoutine && options.rewardRoutineOperationalFailure) {
+          throw options.rewardRoutineOperationalFailure;
+        }
+
+        const expectsOwnerOnlyRewardAcl = expectedAllowedRoles.length === 0;
+        if (
+          rewardRoutine &&
+          expectsOwnerOnlyRewardAcl &&
+          options.rewardRoutineOwnerOnlyOperationalFailure
+        ) {
+          throw options.rewardRoutineOwnerOnlyOperationalFailure;
+        }
+        const actualRewardAclState =
+          rewardRoutineAclState === "mixed"
+            ? targetRoutine === REVIEWED_REWARD_ROUTINES[0].signature
+              ? "canonical"
+              : "owner-only"
+            : rewardRoutineAclState;
+        const actualReviewedAclState = reviewedRoutineAclStateApplies
+          ? reviewedRoutineAclState === "mixed"
+            ? targetRoutine === activeReviewedPhase?.routines[0].signature
+              ? "canonical"
+              : "owner-only"
+            : reviewedRoutineAclState === "raw-migration"
+              ? rewardRoutine
+                ? "owner-only"
+                : "canonical"
+              : reviewedRoutineAclState === "attempt-only-owner-only"
+                ? targetRoutine === REVIEWED_REWARD_ROUTINES[0].signature
+                  ? "owner-only"
+                  : "canonical"
+                : reviewedRoutineAclState === "mastery-only-owner-only"
+                  ? targetRoutine === REVIEWED_REWARD_ROUTINES[1].signature
+                    ? "owner-only"
+                    : "canonical"
+                  : reviewedRoutineAclState
+          : rewardRoutine
+            ? actualRewardAclState
+            : "canonical";
+        const rewardAclExact =
+          !reviewedRoutine ||
+          (actualReviewedAclState === "canonical" &&
+            expectsCanonicalReviewedAcl) ||
+          (actualReviewedAclState === "owner-only" &&
+            expectsOwnerOnlyReviewedAcl);
         return {
           rows: [
             {
-              body_sha256_exact: tamper !== "body",
-              owner_exact: tamper !== "owner",
+              body_sha256_exact:
+                tamper !== "body" &&
+                (!rewardRoutine || rewardRoutineAclState !== "body-drift"),
+              owner_exact:
+                tamper !== "owner" &&
+                (!rewardRoutine || rewardRoutineAclState !== "owner-mismatch"),
               security_definer_exact: tamper !== "security-definer",
-              configuration_exact: tamper !== "configuration",
+              configuration_exact:
+                tamper !== "configuration" &&
+                (!rewardRoutine || rewardRoutineAclState !== "config-drift"),
               language_exact: tamper !== "language",
               kind_exact: tamper !== "kind",
               volatility_exact: tamper !== "volatility",
@@ -1344,15 +2365,24 @@ function makeClient(role, database, options) {
               transform_types_exact: tamper !== "transform-types",
               binary_exact: tamper !== "binary",
               sql_body_exact: tamper !== "sql-body",
-              definition_sha256_exact: tamper !== "definition",
+              definition_sha256_exact:
+                tamper !== "definition" &&
+                (!rewardRoutine ||
+                  rewardRoutineAclState !== "definition-drift"),
               owner_execute_exact: tamper !== "owner-execute",
-              effective_execute_exact: tamper !== "effective-acl",
-              routine_direct_acl_exact: ![
-                "direct-acl",
-                "missing-acl",
-                "extra-acl",
-                "grantable-acl",
-              ].includes(tamper),
+              effective_execute_exact:
+                options.restoredNoAclState !== true &&
+                tamper !== "effective-acl" &&
+                rewardAclExact,
+              routine_direct_acl_exact:
+                options.restoredNoAclState !== true &&
+                ![
+                  "direct-acl",
+                  "missing-acl",
+                  "extra-acl",
+                  "grantable-acl",
+                ].includes(tamper) &&
+                rewardAclExact,
             },
           ],
         };
@@ -1397,7 +2427,8 @@ function makeClient(role, database, options) {
           row[tamper] = false;
         }
         return { rows: [row] };
-      }      if (normalized.includes("guarded_delivery_presence_exact")) {
+      }
+      if (normalized.includes("guarded_delivery_presence_exact")) {
         const tamper = options.guardedDeliveryAclTamper;
         const row = {
           guarded_delivery_presence_exact: true,
@@ -1410,6 +2441,9 @@ function makeClient(role, database, options) {
           receipt_effective_acl_exact: true,
           runtime_membership_closure_exact: true,
         };
+        if (options.restoredNoAclState === true) {
+          for (const key of Object.keys(row)) row[key] = false;
+        }
         if (typeof tamper === "string" && Object.hasOwn(row, tamper)) {
           row[tamper] = false;
         }
@@ -1469,12 +2503,14 @@ function makeClient(role, database, options) {
                 "replay-constraint-hash",
                 "replay-constraint-columns",
               ].includes(tamper),
-              worker_table_direct_acl_exact: tamper !== "table-acl",
-              worker_column_direct_acl_exact: ![
-                "column-acl",
-                "one-column-grant",
-              ].includes(tamper),
-              worker_effective_privileges_exact: tamper !== "effective-acl",
+              worker_table_direct_acl_exact:
+                options.restoredNoAclState !== true && tamper !== "table-acl",
+              worker_column_direct_acl_exact:
+                options.restoredNoAclState !== true &&
+                !["column-acl", "one-column-grant"].includes(tamper),
+              worker_effective_privileges_exact:
+                options.restoredNoAclState !== true &&
+                tamper !== "effective-acl",
             },
           ],
         };
@@ -1500,7 +2536,8 @@ function makeClient(role, database, options) {
               outbox_replay_lookup_index_catalog_exact:
                 !tamper?.startsWith("lookup-index-"),
               persistent_default_acl_exact:
-                tamper === "default-acl-additional-creator-complete-pair"
+                options.restoredNoAclState !== true &&
+                (tamper === "default-acl-additional-creator-complete-pair"
                   ? normalized.includes(
                       "additional_creator_default_acl_exact",
                     ) &&
@@ -1548,16 +2585,18 @@ function makeClient(role, database, options) {
                       "default-acl-unknown-table-owner",
                       "default-acl-wrong-grantor",
                       "default-acl-wrong-privilege",
-                    ].includes(tamper),
+                    ].includes(tamper)),
               persistent_relation_grant_options_exact:
                 tamper !== "relation-grant-option",
-              persistent_column_acl_exact: ![
-                "column-acl-unexpected",
-                "column-acl-missing",
-                "column-acl-wrong-grantor",
-                "column-acl-wrong-grantee",
-                "column-acl-grantable",
-              ].includes(tamper),
+              persistent_column_acl_exact:
+                options.restoredNoAclState !== true &&
+                ![
+                  "column-acl-unexpected",
+                  "column-acl-missing",
+                  "column-acl-wrong-grantor",
+                  "column-acl-wrong-grantee",
+                  "column-acl-grantable",
+                ].includes(tamper),
               authority_owner_exact: tamper !== "owner",
               authority_columns_exact: !["columns", "extra-column"].includes(
                 tamper,
@@ -1570,12 +2609,14 @@ function makeClient(role, database, options) {
               outbox_delivery_scope_exact: tamper !== "delivery-scope",
               reviewed_trigger_set_exact: tamper !== "extra-trigger",
               reviewed_routine_overloads_exact: tamper !== "routine-overload",
-              authority_direct_acl_exact: tamper !== "direct-acl",
-              authority_effective_acl_exact: tamper !== "effective-acl",
-              authority_column_acl_exact: ![
-                "column-acl",
-                "authority-column-acl",
-              ].includes(tamper),
+              authority_direct_acl_exact:
+                options.restoredNoAclState !== true && tamper !== "direct-acl",
+              authority_effective_acl_exact:
+                options.restoredNoAclState !== true &&
+                tamper !== "effective-acl",
+              authority_column_acl_exact:
+                options.restoredNoAclState !== true &&
+                !["column-acl", "authority-column-acl"].includes(tamper),
               outbox_replay_lookup_index_exact: tamper !== "lookup-index",
               authority_composite_unique_exact: ![
                 "unique-type",
@@ -1779,6 +2820,9 @@ function makeClient(role, database, options) {
         normalized.startsWith("grant select on table ") &&
         options.grantProbeErrorCode
       ) {
+        if (Object.hasOwn(options, "grantProbeFailure")) {
+          throw options.grantProbeFailure;
+        }
         throw Object.assign(new Error("redacted grant probe failure"), {
           code: options.grantProbeErrorCode,
         });
@@ -1822,12 +2866,19 @@ function makePoolHarness(options = {}) {
       const pool = {
         ended: false,
         async connect() {
-          if (options.connectFailureRole === role)
+          if (options.connectFailureRole === role) {
+            if (Object.hasOwn(options, "connectFailure")) {
+              throw options.connectFailure;
+            }
             throw new Error("redacted connection failure");
+          }
           return client;
         },
         async end() {
           this.ended = true;
+          if (options.poolEndFailureByRole?.has(role)) {
+            throw options.poolEndFailureByRole.get(role);
+          }
         },
       };
       pools.push(pool);
@@ -2152,15 +3203,56 @@ test("rejects reviewed post-migration tamper before privilege repair", async () 
         reviewedPhaseForOptions(options),
       ),
     );
-    assert.equal(
-      tampered.queries[0]?.includes("reviewed_migration_journal_present"),
-      true,
+    const journalIndex = tampered.queries.findIndex((query) =>
+      query.includes("reviewed_migration_journal_present"),
     );
+    assert.equal(
+      journalIndex >= 0,
+      options.routineContractTamper === undefined,
+    );
+    const rewardVerificationSequence = tampered.queryParameters
+      .filter((parameters) =>
+        REVIEWED_REWARD_ROUTINES.some(
+          ({ signature }) => signature === parameters?.[0],
+        ),
+      )
+      .map((parameters) => [parameters[0], parameters[5]]);
+    if (options.routineContractTamper !== undefined) {
+      assert.deepEqual(rewardVerificationSequence, [
+        [
+          REVIEWED_REWARD_ROUTINES[0].signature,
+          ["learncoding_app", "learncoding_worker"],
+        ],
+        [REVIEWED_REWARD_ROUTINES[0].signature, []],
+        [REVIEWED_REWARD_ROUTINES[0].signature, []],
+      ]);
+    } else {
+      const canonicalSequence = REVIEWED_REWARD_ROUTINES.map(
+        ({ signature }) => [
+          signature,
+          ["learncoding_app", "learncoding_worker"],
+        ],
+      );
+      assert.deepEqual(rewardVerificationSequence.slice(0, 4), [
+        ...canonicalSequence,
+        ...canonicalSequence,
+      ]);
+      assert.ok(
+        rewardVerificationSequence.length === 4 ||
+          rewardVerificationSequence.length === 6,
+      );
+      assert.deepEqual(
+        rewardVerificationSequence.slice(4),
+        rewardVerificationSequence.length === 6 ? canonicalSequence : [],
+      );
+    }
     assert.equal(
       tampered.queries.some(
         (query) =>
+          query.includes("do $codestead_reviewed_function_0$") ||
           query.includes("revoke all on database") ||
-          query.includes("revoke all on schema public"),
+          query.includes("revoke all on schema public") ||
+          query.includes("revoke execute on all routines"),
       ),
       false,
     );
@@ -2208,6 +3300,178 @@ test("authenticates every restricted role under the shared administration lock",
   );
 });
 
+test("preserves the exact verifier rejection when cleanup succeeds", async () => {
+  for (const primaryFailure of [
+    new Error("verifier primary Error"),
+    "verifier-primary-primitive",
+    undefined,
+  ]) {
+    const harness = makePoolHarness({
+      connectFailureRole: "learncoding_app",
+      connectFailure: primaryFailure,
+    });
+    const outcome = await captureRejection(() =>
+      verifyDatabaseRoleBoundaries({
+        ...validInput(),
+        poolFactory: harness.factory,
+        lockTimeoutMs: 50,
+      }),
+    );
+    assert.equal(outcome.rejected, true);
+    assert.equal(outcome.reason, primaryFailure);
+    assert.equal(
+      harness.pools.every((pool) => pool.ended),
+      true,
+    );
+  }
+});
+
+test("keeps a mutable verifier Error outward and attaches cleanup failures", async () => {
+  const originalCause = new Error("original verifier cause");
+  const primaryFailure = new Error("verifier primary");
+  Object.defineProperty(primaryFailure, "cause", {
+    value: originalCause,
+    configurable: true,
+    writable: true,
+  });
+  const cleanupFailure = new Error("verifier pool cleanup");
+  const harness = makePoolHarness({
+    connectFailureRole: "learncoding_app",
+    connectFailure: primaryFailure,
+    poolEndFailureByRole: new Map([["learncoding_app", cleanupFailure]]),
+  });
+
+  const outcome = await captureRejection(() =>
+    verifyDatabaseRoleBoundaries({
+      ...validInput(),
+      poolFactory: harness.factory,
+      lockTimeoutMs: 50,
+    }),
+  );
+
+  assert.equal(outcome.rejected, true);
+  assert.equal(outcome.reason, primaryFailure);
+  assert.ok(primaryFailure.cause instanceof AggregateError);
+  assert.deepEqual(primaryFailure.cause.errors, [cleanupFailure]);
+  assert.equal(primaryFailure.cause.cause, originalCause);
+});
+
+test("aggregates falsey and non-Error verifier primaries with cleanup failures", async () => {
+  for (const primaryFailure of [
+    false,
+    "verifier-primary-primitive",
+    undefined,
+  ]) {
+    const cleanupFailure = new Error("verifier pool cleanup");
+    const harness = makePoolHarness({
+      connectFailureRole: "learncoding_app",
+      connectFailure: primaryFailure,
+      poolEndFailureByRole: new Map([["learncoding_app", cleanupFailure]]),
+    });
+    const outcome = await captureRejection(() =>
+      verifyDatabaseRoleBoundaries({
+        ...validInput(),
+        poolFactory: harness.factory,
+        lockTimeoutMs: 50,
+      }),
+    );
+
+    assert.equal(outcome.rejected, true);
+    assert.ok(outcome.reason instanceof AggregateError);
+    assert.deepEqual(outcome.reason.errors, [primaryFailure, cleanupFailure]);
+    assert.equal(outcome.reason.cause, primaryFailure);
+  }
+});
+
+test("does not mutate a frozen verifier Error or its cause", async () => {
+  const originalCause = Object.freeze(new Error("frozen verifier cause"));
+  const primaryFailure = Object.freeze(
+    new Error("frozen verifier primary", { cause: originalCause }),
+  );
+  const cleanupFailure = new Error("verifier pool cleanup");
+  const harness = makePoolHarness({
+    connectFailureRole: "learncoding_app",
+    connectFailure: primaryFailure,
+    poolEndFailureByRole: new Map([["learncoding_app", cleanupFailure]]),
+  });
+
+  const outcome = await captureRejection(() =>
+    verifyDatabaseRoleBoundaries({
+      ...validInput(),
+      poolFactory: harness.factory,
+      lockTimeoutMs: 50,
+    }),
+  );
+
+  assert.equal(outcome.rejected, true);
+  assert.ok(outcome.reason instanceof AggregateError);
+  assert.deepEqual(outcome.reason.errors, [primaryFailure, cleanupFailure]);
+  assert.equal(outcome.reason.cause, primaryFailure);
+  assert.equal(primaryFailure.cause, originalCause);
+});
+
+test("rejects with an exact sole falsey or primitive verifier cleanup failure", async () => {
+  for (const cleanupFailure of [undefined, false, "cleanup-primitive"]) {
+    const harness = makePoolHarness({
+      poolEndFailureByRole: new Map([["learncoding_app", cleanupFailure]]),
+    });
+    const outcome = await captureRejection(() =>
+      verifyDatabaseRoleBoundaries({
+        ...validInput(),
+        poolFactory: harness.factory,
+        lockTimeoutMs: 50,
+      }),
+    );
+
+    assert.equal(outcome.rejected, true);
+    assert.equal(outcome.reason, cleanupFailure);
+    assert.equal(
+      harness.pools.every((pool) => pool.ended),
+      true,
+    );
+  }
+});
+
+test("retains every verifier cleanup failure in execution order", async () => {
+  const unlockFailure = undefined;
+  const backupReleaseFailure = false;
+  const workerPoolFailure = new Error("worker pool cleanup");
+  const appReleaseFailure = "app-release-cleanup-primitive";
+  const harness = makePoolHarness({
+    unlockFailure,
+    releaseFailureByRole: new Map([
+      ["learncoding_backup_reporter", backupReleaseFailure],
+      ["learncoding_app", appReleaseFailure],
+    ]),
+    poolEndFailureByRole: new Map([["learncoding_worker", workerPoolFailure]]),
+  });
+
+  const outcome = await captureRejection(() =>
+    verifyDatabaseRoleBoundaries({
+      ...validInput(),
+      poolFactory: harness.factory,
+      lockTimeoutMs: 50,
+    }),
+  );
+
+  assert.equal(outcome.rejected, true);
+  assert.ok(outcome.reason instanceof AggregateError);
+  assert.deepEqual(outcome.reason.errors, [
+    unlockFailure,
+    backupReleaseFailure,
+    workerPoolFailure,
+    appReleaseFailure,
+  ]);
+  assert.equal(outcome.reason.cause, unlockFailure);
+  assert.equal(
+    harness.pools.every((pool) => pool.ended),
+    true,
+  );
+  for (const client of harness.clients.values()) {
+    assert.deepEqual(client.releaseArguments, [true]);
+  }
+});
+
 test("proves application-object access without mutating application rows", async () => {
   const harness = makePoolHarness();
   const result = await verifyDatabaseRoleBoundaries({
@@ -2219,7 +3483,7 @@ test("proves application-object access without mutating application rows", async
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 104,
+    positiveChecks: 106,
     negativeChecks: 29,
   });
   for (const role of [
@@ -2266,12 +3530,13 @@ test("discovers only a table with shared runtime CRUD authority", async () => {
   ]) {
     const queries = harness.clients.get(role).queries;
     assert.equal(
-      queries.some((sql) =>
-        sql.includes('"backup_status_mail_admin_guard"'),
-      ),
+      queries.some((sql) => sql.includes('"backup_status_mail_admin_guard"')),
       false,
     );
-    assert.equal(queries.some((sql) => sql.includes('"sample"')), true);
+    assert.equal(
+      queries.some((sql) => sql.includes('"sample"')),
+      true,
+    );
   }
 });
 
@@ -2286,9 +3551,7 @@ test("boundary verification never reads the protected backup guard", async () =>
   assert.equal(
     harness.clients
       .get("learncoding_ops")
-      .queries.some((sql) =>
-        sql.includes("backup_status_mail_admin_guard"),
-      ),
+      .queries.some((sql) => sql.includes("backup_status_mail_admin_guard")),
     false,
   );
 });
@@ -2341,7 +3604,7 @@ test("requires the exact reviewed 0062 through 0069 routine contracts in applica
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 104,
+    positiveChecks: 106,
     negativeChecks: 29,
   });
   const routineQueries = verified.clients
@@ -2551,7 +3814,7 @@ test("requires exact reviewed trigger and worker outbox catalog contracts", asyn
   });
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 104,
+    positiveChecks: 106,
     negativeChecks: 29,
   });
 
@@ -2865,6 +4128,130 @@ test("verifies a frozen historical mail-authority catalog phase explicitly", asy
   );
 });
 
+test("restored-no-ACL structure accepts ACL-only restore state while strict verification rejects it", async () => {
+  const strictClient = makeClient("learncoding_ops", "learncoding", {
+    appliedMigrationIndex: 69,
+    restoredNoAclState: true,
+  });
+  await assert.rejects(
+    verifyReviewedMailAuthorityCatalogContracts(
+      strictClient,
+      REVIEWED_PHASE_0069,
+    ),
+    (error) =>
+      error instanceof DatabaseRoleBoundaryError &&
+      error.message.includes("effective_execute_exact") &&
+      error.message.includes("routine_direct_acl_exact"),
+  );
+
+  const restoredClient = makeClient("learncoding_ops", "learncoding", {
+    appliedMigrationIndex: 69,
+    restoredNoAclState: true,
+  });
+  assert.deepEqual(
+    await verifyRestoredNoAclMailAuthorityStructure(
+      restoredClient,
+      REVIEWED_PHASE_0069,
+    ),
+    {
+      routinesVerified: REVIEWED_PHASE_0069.routines.length,
+      triggersVerified: REVIEWED_PHASE_0069.triggers.length,
+      workerContractsVerified: 1,
+      totalVerified:
+        REVIEWED_PHASE_0069.routines.length +
+        REVIEWED_PHASE_0069.triggers.length +
+        1,
+    },
+  );
+  assert.equal(
+    restoredClient.queries.some((query) =>
+      query.includes("persistent_relation_grant_options_exact"),
+    ),
+    true,
+  );
+  assert.equal(
+    restoredClient.queries.some((query) =>
+      query.includes("guarded_delivery_catalog_phase_exact"),
+    ),
+    true,
+  );
+  assert.equal(
+    restoredClient.queries.some((query) =>
+      query.includes("guarded_delivery_presence_exact"),
+    ),
+    false,
+  );
+});
+
+test("restored-no-ACL structure rejects representative structural tamper", async () => {
+  for (const [label, options, mismatch] of [
+    ["routine body", { routineContractTamper: "body" }, "body_sha256_exact"],
+    ["trigger", { triggerContractTamper: "enabled" }, "reviewed-trigger:"],
+    [
+      "relation persistence",
+      { replayAuthorityTableTamper: "relation-persistence" },
+      "authority_relation_storage_exact",
+    ],
+    [
+      "row-level security",
+      { replayAuthorityTableTamper: "relation-rls" },
+      "authority_relation_rls_exact",
+    ],
+    [
+      "constraint",
+      { workerContractTamper: "constraint" },
+      "dispatch_constraint_exact",
+    ],
+    [
+      "index",
+      { replayAuthorityTableTamper: "primary-index-key" },
+      "authority_primary_index_catalog_exact",
+    ],
+    [
+      "guarded catalog index",
+      { guardedDeliveryCatalogTamper: "receipt_indexes_exact" },
+      "receipt_indexes_exact",
+    ],
+    [
+      "persistent relation grant options",
+      { replayAuthorityTableTamper: "relation-grant-option" },
+      "persistent_relation_grant_options_exact",
+    ],
+  ]) {
+    await assert.rejects(
+      verifyRestoredNoAclMailAuthorityStructure(
+        makeClient("learncoding_ops", "learncoding", {
+          appliedMigrationIndex: 69,
+          restoredNoAclState: true,
+          ...options,
+        }),
+        REVIEWED_PHASE_0069,
+      ),
+      (error) =>
+        error instanceof DatabaseRoleBoundaryError &&
+        error.message.includes(mismatch),
+      label,
+    );
+  }
+});
+
+test("restored-no-ACL structure accepts only a canonical frozen phase", async () => {
+  const client = {
+    calls: 0,
+    async query() {
+      this.calls += 1;
+      throw new Error("phase validation must happen before catalog access");
+    },
+  };
+  await assert.rejects(
+    verifyRestoredNoAclMailAuthorityStructure(
+      client,
+      Object.freeze({ ...REVIEWED_PHASE_0069 }),
+    ),
+    /reviewed-mail-authority-catalog-phase-contract/u,
+  );
+  assert.equal(client.calls, 0);
+});
 test("rejects Phase A replay-authority relation and catalog-footprint tampering", async () => {
   for (const replayAuthorityTableTamper of [
     "relation-persistence",
@@ -3272,7 +4659,7 @@ test("grounds PostgreSQL's successful no-op GRANT in unchanged effective and cat
 
   assert.deepEqual(result, {
     rolesAuthenticated: 5,
-    positiveChecks: 104,
+    positiveChecks: 106,
     negativeChecks: 29,
   });
   for (const role of [
@@ -3363,7 +4750,14 @@ test("rejects current-role grantability even when the target stays undelegated",
 
 test("fails closed when the fixed GRANT probe errors for any SQLSTATE", async () => {
   for (const grantProbeErrorCode of ["42501", "XX000"]) {
-    const harness = makePoolHarness({ grantProbeErrorCode });
+    const primaryFailure = Object.assign(
+      new Error("redacted grant probe failure"),
+      { code: grantProbeErrorCode },
+    );
+    const harness = makePoolHarness({
+      grantProbeErrorCode,
+      grantProbeFailure: primaryFailure,
+    });
     await assert.rejects(
       verifyDatabaseRoleBoundaries({
         ...validInput(),
@@ -3371,7 +4765,7 @@ test("fails closed when the fixed GRANT probe errors for any SQLSTATE", async ()
         lockTimeoutMs: 50,
         requireApplicationObjects: true,
       }),
-      DatabaseRoleBoundaryError,
+      (error) => error === primaryFailure,
     );
     assert.equal(
       harness.pools.every((pool) => pool.ended),
@@ -3422,7 +4816,11 @@ test("post-migration mode fails closed on insecure or missing authority routines
       lockTimeoutMs: 50,
       requireApplicationObjects: true,
     }),
-    DatabaseRoleBoundaryError,
+    (error) =>
+      error?.name === "BackupStatusMailAuthorityContractError" &&
+      error.message.includes(
+        "routine:public.reject_backup_status_mail_authority_mutation():direct_acl_exact",
+      ),
   );
   assert.equal(
     harness.pools.every((pool) => pool.ended),
@@ -3457,15 +4855,17 @@ test("fails closed when a forbidden statement succeeds or the lock remains held"
     locked.pools.every((pool) => pool.ended),
     true,
   );
+  const connectionPrimaryFailure = new Error("redacted connection failure");
   const connectionFailure = makePoolHarness({
     connectFailureRole: "learncoding_worker",
+    connectFailure: connectionPrimaryFailure,
   });
   await assert.rejects(
     verifyDatabaseRoleBoundaries({
       ...validInput(),
       poolFactory: connectionFailure.factory,
     }),
-    DatabaseRoleBoundaryError,
+    (error) => error === connectionPrimaryFailure,
   );
   assert.equal(
     connectionFailure.pools.every((pool) => pool.ended),

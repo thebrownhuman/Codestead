@@ -2,14 +2,20 @@ export type DisposableIntegrationEnvironmentSource =
   Readonly<Record<string, string | undefined>>;
 type Environment = DisposableIntegrationEnvironmentSource;
 
+export type DisposableOwnerDatabaseTarget = Readonly<{
+  databaseApplicationUrl: string;
+  databaseOwnerUrl: string;
+}>;
+
 export type RetentionOpsEnvironment = Readonly<{
-  databaseUrl: string;
+  databaseAppUrl: string;
+  databaseOwnerTarget: DisposableOwnerDatabaseTarget;
+  databaseWorkerUrl: string;
   databaseOpsUrl: string;
 }>;
 
 const DISPOSABLE_DATABASE = "learncoding_integration";
 const DISPOSABLE_HOST = "127.0.0.1";
-const OWNER_ASSUMPTION = "-c role=learncoding_owner";
 const PLATFORM_ENVIRONMENT_KEYS = Object.freeze([
   "PATH",
   "CI",
@@ -35,7 +41,7 @@ function failValidation(): never {
 
 function parseDatabaseUrl(
   value: string | undefined,
-  expectedUser: "learncoding_migrator" | "learncoding_ops",
+  expectedUser: "learncoding_app" | "learncoding_worker" | "learncoding_ops",
 ): URL {
   if (typeof value !== "string" || value.length === 0) failValidation();
 
@@ -55,7 +61,9 @@ function parseDatabaseUrl(
     || !Number.isSafeInteger(numericPort)
     || numericPort < 1
     || numericPort > 65_535
+    || numericPort === 5_432
     || url.pathname !== `/${DISPOSABLE_DATABASE}`
+    || url.search !== ""
     || url.hash !== ""
   ) {
     failValidation();
@@ -63,31 +71,85 @@ function parseDatabaseUrl(
   return url;
 }
 
+function parseOwnerDatabaseUrl(value: string | undefined): URL {
+  if (typeof value !== "string" || value.length === 0) failValidation();
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    failValidation();
+  }
+  const numericPort = Number(url.port);
+  if (
+    url.protocol !== "postgresql:"
+    || url.username !== "learncoding_migrator"
+    || url.password.length === 0
+    || url.hostname !== DISPOSABLE_HOST
+    || !Number.isSafeInteger(numericPort)
+    || numericPort < 1
+    || numericPort > 65_535
+    || numericPort === 5_432
+    || url.pathname !== `/${DISPOSABLE_DATABASE}`
+    || url.search !== "?options=-c+role%3Dlearncoding_owner"
+    || url.hash !== ""
+  ) {
+    failValidation();
+  }
+  return url;
+}
+
+export function validatedDisposableOwnerDatabaseTarget(
+  environment: Environment,
+): DisposableOwnerDatabaseTarget {
+  if (environment.INTEGRATION_TEST !== "1") failValidation();
+  const canonicalAppUrl = environment.DATABASE_URL;
+  const databaseApplicationUrl = environment.DATABASE_APP_URL;
+  const databaseOwnerUrl = environment.DATABASE_OWNER_URL;
+  const canonicalApp = parseDatabaseUrl(canonicalAppUrl, "learncoding_app");
+  const app = parseDatabaseUrl(databaseApplicationUrl, "learncoding_app");
+  const owner = parseOwnerDatabaseUrl(databaseOwnerUrl);
+  if (
+    canonicalAppUrl !== databaseApplicationUrl
+    || canonicalApp.href !== app.href
+    || owner.hostname !== app.hostname
+    || owner.port !== app.port
+    || owner.pathname !== app.pathname
+  ) {
+    failValidation();
+  }
+  return Object.freeze({
+    databaseApplicationUrl: databaseApplicationUrl!,
+    databaseOwnerUrl: databaseOwnerUrl!,
+  });
+}
+
 function validatedRetentionOpsEnvironment(
   environment: Environment,
 ): RetentionOpsEnvironment {
-  if (environment.INTEGRATION_TEST !== "1") failValidation();
-
-  const databaseUrl = environment.DATABASE_URL;
+  const databaseOwnerTarget =
+    validatedDisposableOwnerDatabaseTarget(environment);
+  const databaseAppUrl = databaseOwnerTarget.databaseApplicationUrl;
+  const databaseWorkerUrl = environment.DATABASE_WORKER_URL;
   const databaseOpsUrl = environment.DATABASE_OPS_URL;
-  const migrator = parseDatabaseUrl(databaseUrl, "learncoding_migrator");
+  const app = parseDatabaseUrl(databaseAppUrl, "learncoding_app");
+  const worker = parseDatabaseUrl(databaseWorkerUrl, "learncoding_worker");
   const ops = parseDatabaseUrl(databaseOpsUrl, "learncoding_ops");
-  const migratorOptions = [...migrator.searchParams.entries()];
 
   if (
-    migratorOptions.length !== 1
-    || migratorOptions[0]?.[0] !== "options"
-    || migratorOptions[0]?.[1] !== OWNER_ASSUMPTION
-    || ops.search !== ""
-    || ops.hostname !== migrator.hostname
-    || ops.port !== migrator.port
-    || ops.pathname !== migrator.pathname
+    worker.hostname !== app.hostname
+    || worker.port !== app.port
+    || worker.pathname !== app.pathname
+    || ops.hostname !== app.hostname
+    || ops.port !== app.port
+    || ops.pathname !== app.pathname
   ) {
     failValidation();
   }
 
   return {
-    databaseUrl: databaseUrl!,
+    databaseAppUrl,
+    databaseOwnerTarget,
+    databaseWorkerUrl: databaseWorkerUrl!,
     databaseOpsUrl: databaseOpsUrl!,
   };
 }
@@ -99,7 +161,6 @@ export async function runWithValidatedRetentionOpsEnvironment<T>(
   const validated = validatedRetentionOpsEnvironment(environment);
   return operation(validated);
 }
-
 function environmentValue(environment: Environment, canonicalName: string) {
   if (Object.prototype.hasOwnProperty.call(environment, canonicalName)) {
     return environment[canonicalName];

@@ -20,6 +20,8 @@ import {
 } from "./lib/disposable-integration-runtime";
 import { allocateDisposableLoopbackPort } from
   "./lib/disposable-loopback-port.mjs";
+import { withDisposableIntegrationReset } from
+  "./lib/disposable-integration-reset";
 import { buildDisposableToolEnvironment } from
   "./lib/disposable-tool-environment";
 import {
@@ -554,7 +556,8 @@ async function main() {
         databaseMigratorUrl: roleUrls.migrator,
         databaseWorkerUrl: roleUrls.worker,
         databaseOpsUrl: roleUrls.ops,
-        databaseUrl: ownerDatabaseUrl,
+        databaseBackupReporterUrl: roleUrls.backupReporter,
+        databaseOwnerUrl: ownerDatabaseUrl,
         betterAuthSecret,
       });
     const topology = {
@@ -586,12 +589,34 @@ async function main() {
       },
     });
 
-    failureReporter.enter("application-tests");
-    await runNpm([
-      "run",
-      "test:integration:vitest",
-      ...(requestedTests.length > 0 ? ["--", ...requestedTests] : []),
-    ], testEnvironment, secrets, childController);
+    const resetInstallerPool = new Pool({
+      connectionString: databaseUrl,
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 5_000,
+      max: 1,
+      query_timeout: 30_000,
+      statement_timeout: 30_000,
+      lock_timeout: 5_000,
+      idle_in_transaction_session_timeout: 30_000,
+      allowExitOnIdle: true,
+    });
+    failureReporter.enter("reset-capability-install");
+    await withDisposableIntegrationReset(
+      resetInstallerPool,
+      async () => {
+        failureReporter.enter("application-tests");
+        await runNpm([
+          "run",
+          "test:integration:vitest",
+          ...(requestedTests.length > 0 ? ["--", ...requestedTests] : []),
+        ], testEnvironment, secrets, childController);
+      },
+      (primaryState) => {
+        if (primaryState.status === "fulfilled") {
+          failureReporter.enter("reset-capability-teardown");
+        }
+      },
+    );
     failureReporter.enter("harness-cleanup");
   });
 }

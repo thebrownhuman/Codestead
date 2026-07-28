@@ -53,11 +53,18 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    command: ["node", "/app/scripts/bootstrap-database-roles.mjs"]
+    command:
+      - /bin/sh
+      - -ceu
+      - |
+        node --import tsx /app/scripts/verify-restored-backup.ts --remove-ledger-authority-before-bootstrap
+        node /app/scripts/bootstrap-database-roles.mjs
+        exec node --import tsx /app/scripts/verify-restored-backup.ts --install-ledger-authority
     environment:
       POSTGRES_DB: learncoding_restore
       POSTGRES_USER: learncoding_restore
       REQUIRE_COMPLETE_MIGRATION_LEDGER: ${REQUIRE_COMPLETE_MIGRATION_LEDGER:-false}
+      RESTORE_NO_ACL_RECONCILIATION: ${RESTORE_NO_ACL_RECONCILIATION:-false}
       DATABASE_BOOTSTRAP_URL_FILE: /run/secrets/database_bootstrap_url
       DATABASE_APP_URL_FILE: /run/secrets/database_app_url
       DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
@@ -191,7 +198,7 @@ services:
       RESTORE_APP_DATA_ROOT: /restore-app-data
       RESTORE_APP_DATA_MANIFEST: /restore/app-data-objects.sha256
       RESTORE_CREDENTIAL_PROBE: /restore/credential-probe.json
-      CREDENTIAL_MASTER_KEY_FILE: /run/secrets/credential_master_key
+      RESTORE_CREDENTIAL_MASTER_KEY_PATH: /run/secrets/credential_master_key
     secrets:
       - source: database_ops_url
         target: database_url

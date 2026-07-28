@@ -5,6 +5,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { db, pool } from "@/lib/db/client";
 import { emailOutbox, user } from "@/lib/db/schema";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
 
 const SUCCESS_SUMMARY =
   "The nightly encrypted backup completed and passed local verification. No archive is attached to this email.";
@@ -25,15 +26,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows
-    .map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`)
-    .join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 function productionOutboxSql() {

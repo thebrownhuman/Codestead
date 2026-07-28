@@ -6,6 +6,7 @@ import { db } from "@/lib/db/client";
 import { accessRequest, user } from "@/lib/db/schema";
 import { enqueueEmailInTransaction } from "@/lib/notifications/outbox";
 import { rateLimitIp, withRateLimit } from "@/lib/security/rate-limit";
+import { lockAccessRequestSourceAuthority } from "@/lib/security/user-authority-lock";
 
 const requestSchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -43,9 +44,9 @@ export async function POST(request: NextRequest) {
         },
         async () => {
           await db.transaction(async (tx) => {
-            await tx.execute(
-              sql`select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext(${`access-request:${parsed.data.email}`}))`,
-            );
+            const sourceAuthorized =
+              await lockAccessRequestSourceAuthority(tx, parsed.data.email);
+            if (!sourceAuthorized) return;
             const [existing] = await tx
               .select({ id: accessRequest.id })
               .from(accessRequest)

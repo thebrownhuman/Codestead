@@ -25,6 +25,10 @@ import { DrizzleLearningStore } from "@/lib/learning-service/drizzle-store";
 import { decodeEvidenceEnvelope } from "@/lib/learning-service/evidence-engine";
 import { toLearnerAttemptCreationPayload } from "@/lib/learning-service/learner-activity";
 import { LearningService } from "@/lib/learning-service/service";
+import { validatedDisposableOwnerDatabaseTarget } from
+  "../scripts/lib/disposable-integration-environment";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
+import { withValidatedOwnerFaultInjection } from "./support/with-validated-owner-fault-injection";
 
 const LEARNER = "practice-integration-learner";
 const OTHER = "practice-integration-other";
@@ -106,13 +110,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 beforeEach(async () => {
@@ -620,21 +618,28 @@ describe("persisted reviewed practice PostgreSQL journey", () => {
       skillId: "python.toolchain.repl",
       kind: "practice",
     });
-    await pool.query(`
-      create function practice_help_test_reject() returns trigger language plpgsql as $$
-      begin raise exception 'forced practice help receipt failure'; end $$
-    `);
-    await pool.query(`create trigger practice_help_test_reject before insert on practice_help_event for each row execute function practice_help_test_reject()`);
-    try {
-      await expect(service.revealNextPracticeHelp({
-        userId: LEARNER,
-        attemptId: created.attempt!.id,
-        requestId: "b4000000-0000-4000-8000-000000000001",
-      })).rejects.toThrow(/Failed query: insert into "practice_help_event"/);
-    } finally {
-      await pool.query(`drop trigger if exists practice_help_test_reject on practice_help_event`);
-      await pool.query(`drop function if exists practice_help_test_reject()`);
-    }
+    await withValidatedOwnerFaultInjection({
+      databaseTarget: validatedDisposableOwnerDatabaseTarget(process.env),
+      context: "Practice-learning",
+      installSql: [`
+        create function public.practice_help_test_reject() returns trigger language plpgsql as $$
+        begin raise exception 'forced practice help receipt failure'; end $$
+      `, `
+        create trigger practice_help_test_reject before insert on public.practice_help_event
+        for each row execute function public.practice_help_test_reject()
+      `],
+      cleanupSql: [
+        "drop trigger if exists practice_help_test_reject on public.practice_help_event",
+        "drop function if exists public.practice_help_test_reject()",
+      ],
+      run: async () => {
+        await expect(service.revealNextPracticeHelp({
+          userId: LEARNER,
+          attemptId: created.attempt!.id,
+          requestId: "b4000000-0000-4000-8000-000000000001",
+        })).rejects.toThrow(/Failed query: insert into "practice_help_event"/);
+      },
+    });
     const [stored] = await db.select().from(attempt).where(eq(attempt.id, created.attempt!.id));
     const events = await db.select().from(practiceHelpEvent).where(eq(practiceHelpEvent.attemptId, created.attempt!.id));
     expect(stored).toMatchObject({ helpStep: 0, assistanceLevel: "A0", solutionRevealed: false });

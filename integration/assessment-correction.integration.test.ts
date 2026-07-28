@@ -30,6 +30,7 @@ import { createLearnerExport, EXPORT_SCHEMA_VERSION } from "@/lib/data-lifecycle
 import { admitRunnerJob, hashRunnerAdmissionRequest } from "@/lib/runner/admission";
 import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
 import { computeAndPersistLeaderboardScore } from "@/lib/social/leaderboard-service";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
 
 const ADMIN_ID = "correction-integration-admin";
 const LEARNER_ID = "correction-integration-learner";
@@ -64,13 +65,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const result = await pool.query<{ table_name: string }>(`
-    SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-  `);
-  if (!result.rows.length) return;
-  const names = result.rows.map(({ table_name }) => `"${table_name.replaceAll('"', '""')}"`).join(", ");
-  await pool.query(`TRUNCATE TABLE ${names} RESTART IDENTITY CASCADE`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 async function waitForUserAuthorityWaiters(blockerPid: number, expectedCount: number) {

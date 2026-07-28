@@ -35,6 +35,7 @@ import {
 import { ENROLLMENT_DISCLOSURE_VERSION } from "@/lib/privacy/consent";
 import { createProjectRevision } from "@/lib/projects/revision-service";
 import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
+import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
 
 const NOW = new Date("2026-07-14T12:00:00.000Z");
 const ADMIN = "community-battle-admin";
@@ -93,11 +94,7 @@ function assertDisposableDatabase() {
 
 async function truncateApplicationTables() {
   assertDisposableDatabase();
-  const tables = await pool.query<{ table_name: string }>(`
-    select table_name from information_schema.tables
-     where table_schema = 'public' and table_type = 'BASE TABLE'`);
-  const names = tables.rows.map((row) => `"${row.table_name.replaceAll('"', '""')}"`).join(",");
-  if (names) await pool.query(`truncate table ${names} restart identity cascade`);
+  await resetDisposableIntegrationDatabase(pool);
 }
 
 function assessmentBank() {

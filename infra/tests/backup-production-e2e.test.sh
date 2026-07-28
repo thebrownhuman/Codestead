@@ -93,6 +93,36 @@ write_random_hex_file() {
   printf '%s\n' "$value" >"$path"
 }
 
+write_database_role_url_files() {
+  local root="$1" database="$2" bootstrap_user="$3" bootstrap_password="$4"
+  local app_password="$5" migrator_password="$6" worker_password="$7"
+  local ops_password="$8" backup_reporter_password="$9"
+  [[ "$root" == /* && "$database" =~ ^[a-z_][a-z0-9_]{0,62}$ \
+    && "$bootstrap_user" =~ ^[a-z_][a-z0-9_]{0,62}$ ]] || return 1
+  for value in "$bootstrap_password" "$app_password" "$migrator_password" \
+    "$worker_password" "$ops_password" "$backup_reporter_password"; do
+    [[ "$value" =~ ^[0-9a-f]{48}$ ]] || return 1
+  done
+  install -d -m 0700 "$root" || return 1
+  printf 'postgresql://%s:%s@postgres:5432/%s\n' \
+    "$bootstrap_user" "$bootstrap_password" "$database" \
+    >"$root/database_bootstrap_url" || return 1
+  printf 'postgresql://learncoding_app:%s@postgres:5432/%s\n' \
+    "$app_password" "$database" >"$root/database_app_url" || return 1
+  printf 'postgresql://learncoding_migrator:%s@postgres:5432/%s\n' \
+    "$migrator_password" "$database" >"$root/database_migrator_url" || return 1
+  printf 'postgresql://learncoding_worker:%s@postgres:5432/%s\n' \
+    "$worker_password" "$database" >"$root/database_worker_url" || return 1
+  printf 'postgresql://learncoding_ops:%s@postgres:5432/%s\n' \
+    "$ops_password" "$database" >"$root/database_ops_url" || return 1
+  printf 'postgresql://learncoding_backup_reporter:%s@postgres:5432/%s\n' \
+    "$backup_reporter_password" "$database" \
+    >"$root/database_backup_reporter_url" || return 1
+  chmod 0400 "$root"/* || return 1
+  [[ "$(find -P "$root" -mindepth 1 -maxdepth 1 -type f | wc -l | tr -d ' ')" == 6 ]] \
+    || return 1
+}
+
 image_repo_digest() {
   local image="$1" repository="$2" candidate
   while IFS= read -r candidate; do
@@ -651,6 +681,9 @@ run_inner() {
   local restore_app_root="$test_root/restored-app-data" recovery_root="$test_root/recovery-key"
   local docker_config_root="$test_root/docker-config" home_root="$test_root/home"
   local tmp_root="$test_root/tmp"
+  local database_role_secret_root="$tmp_root/database-role-secrets"
+  local source_role_secret_root="$database_role_secret_root/source"
+  local restore_role_secret_root="$database_role_secret_root/restore"
   local compose_env="$config_root/compose.env"
   local compose_override="$config_root/compose.override.yaml"
   local backup_config="$config_root/backup.env"
@@ -659,7 +692,10 @@ run_inner() {
   local controller_log="$test_root/controller.log"
   local expected_images="$test_root/expected-images"
   local postgres_password database_url credential_master_key db_sentinel recovery_key
-  local app_sentinel migration_hash migration_created_at migration_state_hash
+  local app_sentinel migration_count migration_last_id migration_created_at
+  local migration_state_hash
+  local role_app_password role_migrator_password role_worker_password
+  local role_ops_password role_backup_reporter_password
   local cloudflare_account cloudflare_secret cloudflare_tunnel
   local git_commit postgres_id restore_database archive checksum marker actual_hash
   local sidecar_hash sidecar_name sidecar_extra completed_utc marker_archive marker_hash
@@ -668,6 +704,7 @@ run_inner() {
   local service id details full_id running status health project working_dir service_label
   local extra network_id network_name manifest actual_images
   local -a archives=() checksums=() marker_lines=() running_services=()
+  local -a migration_fixture_metadata=()
 
   [[ $# -eq 1 && "$1" == --inside-toolbox ]] || fail "invalid inner invocation"
   [[ "$(uname -s)" == Linux && "$(id -u)" == 0 ]] \
@@ -734,6 +771,23 @@ run_inner() {
   chmod 0600 "$backup_root/.learncoding-backup-root"
 
   postgres_password="$(random_hex 24)" || fail "random password generation failed"
+  role_app_password="$(random_hex 24)" || fail "app role password generation failed"
+  role_migrator_password="$(random_hex 24)" \
+    || fail "migrator role password generation failed"
+  role_worker_password="$(random_hex 24)" \
+    || fail "worker role password generation failed"
+  role_ops_password="$(random_hex 24)" || fail "ops role password generation failed"
+  role_backup_reporter_password="$(random_hex 24)" \
+    || fail "backup reporter role password generation failed"
+  [[ "$(printf '%s\n' "$postgres_password" "$role_app_password" \
+    "$role_migrator_password" "$role_worker_password" "$role_ops_password" \
+    "$role_backup_reporter_password" | sort -u | wc -l | tr -d ' ')" == 6 ]] \
+    || fail "database role passwords are not distinct"
+  write_database_role_url_files "$source_role_secret_root" learncoding \
+    learncoding "$postgres_password" "$role_app_password" \
+    "$role_migrator_password" "$role_worker_password" "$role_ops_password" \
+    "$role_backup_reporter_password" \
+    || fail "source database role URL fixture generation failed"
   db_sentinel="$(random_hex 24)" || fail "database sentinel generation failed"
   app_sentinel="$(random_hex 24)" || fail "application sentinel generation failed"
   credential_master_key="$(python3 -c \
@@ -989,27 +1043,41 @@ EOF
   [[ "$database_version" =~ ^postgres[[:space:]]+\(PostgreSQL\)[[:space:]]+17([.][0-9]+)? ]] \
     || fail "PostgreSQL major version is not 17"
 
-  migration_hash="$(printf '%s' "migration-$run_id" | sha256sum)"
-  migration_hash="${migration_hash%% *}"
-  migration_created_at="$(date -u +%s)000"
-  [[ "$migration_hash" =~ ^[0-9a-f]{64}$ \
-    && "$migration_created_at" =~ ^[0-9]{13}$ ]] \
-    || fail "migration fixture metadata is invalid"
+  docker run --rm --pull never --name "$resource_prefix-source-role-bootstrap-pre" \
+    --label "$OWNER_LABEL_KEY=$run_id" \
+    --label "$OWNER_PROJECT_LABEL_KEY=$ownership_project" \
+    --network "container:$postgres_id" --read-only --cap-drop ALL \
+    --security-opt no-new-privileges=true --pids-limit 64 --memory 384m --cpus 1 \
+    --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m --user 0:0 --workdir /app \
+    --mount "type=bind,src=$source_role_secret_root,dst=/run/secrets,readonly" \
+    --env POSTGRES_USER=learncoding --env POSTGRES_DB=learncoding \
+    --env REQUIRE_COMPLETE_MIGRATION_LEDGER=false \
+    --env DATABASE_BOOTSTRAP_URL_FILE=/run/secrets/database_bootstrap_url \
+    --env DATABASE_APP_URL_FILE=/run/secrets/database_app_url \
+    --env DATABASE_MIGRATOR_URL_FILE=/run/secrets/database_migrator_url \
+    --env DATABASE_WORKER_URL_FILE=/run/secrets/database_worker_url \
+    --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
+    --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
+    "$operations_digest" node /app/scripts/bootstrap-database-roles.mjs \
+    >/dev/null 2>&1 || fail "source database initial role bootstrap failed"
+
+  docker run --rm --pull never --name "$resource_prefix-source-migrate" \
+    --label "$OWNER_LABEL_KEY=$run_id" \
+    --label "$OWNER_PROJECT_LABEL_KEY=$ownership_project" \
+    --network "container:$postgres_id" --read-only --cap-drop ALL \
+    --security-opt no-new-privileges=true --pids-limit 64 --memory 512m --cpus 1 \
+    --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m --user 0:0 --workdir /app \
+    --mount "type=bind,src=$source_role_secret_root/database_migrator_url,dst=/run/secrets/database_url,readonly" \
+    --mount "type=bind,src=$repo_root/drizzle,dst=/app/drizzle,readonly" \
+    --mount "type=bind,src=$repo_root/scripts/migrate-production.mjs,dst=/app/scripts/migrate-production.mjs,readonly" \
+    --env DATABASE_URL_FILE=/run/secrets/database_url \
+    --env REQUIRE_POSTGRES_MAJOR=17 \
+    "$operations_digest" node /app/scripts/migrate-production.mjs \
+    >/dev/null 2>&1 || fail "source database reviewed migration failed"
+
   if ! docker exec -i "$postgres_id" psql --username=learncoding \
     --dbname=learncoding --no-psqlrc --quiet --set=ON_ERROR_STOP=1 \
     >/dev/null 2>&1 <<EOF
-CREATE SCHEMA drizzle;
-CREATE TABLE drizzle.__drizzle_migrations (
-  id bigint PRIMARY KEY,
-  hash text NOT NULL,
-  created_at bigint NOT NULL
-);
-INSERT INTO drizzle.__drizzle_migrations (id, hash, created_at)
-VALUES (1, '$migration_hash', $migration_created_at);
-CREATE TABLE public."user" (id text PRIMARY KEY);
-CREATE TABLE public.course (id text PRIMARY KEY);
-CREATE TABLE public.lesson (id text PRIMARY KEY);
-CREATE TABLE public.enrollment (id text PRIMARY KEY);
 CREATE TABLE public.backup_e2e_sentinel (
   id integer PRIMARY KEY,
   value text NOT NULL
@@ -1020,6 +1088,98 @@ EOF
   then
     fail "PostgreSQL fixture initialization failed"
   fi
+
+  docker run --rm --pull never --name "$resource_prefix-source-role-bootstrap-post" \
+    --label "$OWNER_LABEL_KEY=$run_id" \
+    --label "$OWNER_PROJECT_LABEL_KEY=$ownership_project" \
+    --network "container:$postgres_id" --read-only --cap-drop ALL \
+    --security-opt no-new-privileges=true --pids-limit 64 --memory 384m --cpus 1 \
+    --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m --user 0:0 --workdir /app \
+    --mount "type=bind,src=$source_role_secret_root,dst=/run/secrets,readonly" \
+    --env POSTGRES_USER=learncoding --env POSTGRES_DB=learncoding \
+    --env REQUIRE_COMPLETE_MIGRATION_LEDGER=true \
+    --env DATABASE_BOOTSTRAP_URL_FILE=/run/secrets/database_bootstrap_url \
+    --env DATABASE_APP_URL_FILE=/run/secrets/database_app_url \
+    --env DATABASE_MIGRATOR_URL_FILE=/run/secrets/database_migrator_url \
+    --env DATABASE_WORKER_URL_FILE=/run/secrets/database_worker_url \
+    --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
+    --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
+    "$operations_digest" node /app/scripts/bootstrap-database-roles.mjs \
+    >/dev/null 2>&1 || fail "source database complete role bootstrap failed"
+
+  docker run --rm --pull never --name "$resource_prefix-source-role-boundary" \
+    --label "$OWNER_LABEL_KEY=$run_id" \
+    --label "$OWNER_PROJECT_LABEL_KEY=$ownership_project" \
+    --network "container:$postgres_id" --read-only --cap-drop ALL \
+    --security-opt no-new-privileges=true --pids-limit 64 --memory 384m --cpus 1 \
+    --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m --user 0:0 --workdir /app \
+    --mount "type=bind,src=$source_role_secret_root,dst=/run/secrets,readonly" \
+    --env POSTGRES_DB=learncoding \
+    --env DATABASE_URL_FILE=/run/secrets/database_app_url \
+    --env DATABASE_MIGRATOR_URL_FILE=/run/secrets/database_migrator_url \
+    --env DATABASE_WORKER_URL_FILE=/run/secrets/database_worker_url \
+    --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
+    --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
+    "$operations_digest" node /app/scripts/verify-database-role-boundaries.mjs \
+      --require-application-objects \
+    >/dev/null 2>&1 || fail "source database role boundary verification failed"
+
+  mapfile -t migration_fixture_metadata < <(
+    python3 - "$repo_root/drizzle/meta/_journal.json" "$repo_root/drizzle" <<'PY'
+import hashlib
+import json
+from pathlib import Path
+import sys
+
+journal_path = Path(sys.argv[1])
+drizzle_root = Path(sys.argv[2])
+journal = json.loads(journal_path.read_text(encoding="utf-8"))
+entries = journal.get("entries")
+if not isinstance(entries, list) or len(entries) != 70:
+    raise SystemExit("reviewed migration journal must contain exactly 70 entries")
+if entries[-1].get("idx") != 69:
+    raise SystemExit("reviewed migration journal tail index is not 69")
+if entries[-1].get("tag") != "0069_mail_outbox_guarded_delivery_authority":
+    raise SystemExit("reviewed migration journal tail is not 0069")
+
+rows = []
+previous_when = -1
+for position, entry in enumerate(entries):
+    tag = entry.get("tag")
+    when = entry.get("when")
+    if (
+        entry.get("idx") != position
+        or not isinstance(tag, str)
+        or not tag.startswith(f"{position:04d}_")
+        or not isinstance(when, int)
+        or when <= previous_when
+    ):
+        raise SystemExit("reviewed migration journal ordering is invalid")
+    sql_path = drizzle_root / f"{tag}.sql"
+    sql_sha256 = hashlib.sha256(sql_path.read_bytes()).hexdigest()
+    rows.append((position + 1, sql_sha256, when))
+    previous_when = when
+
+state_bytes = "".join(
+    f"{migration_id}|{sql_sha256}|{created_at}\n"
+    for migration_id, sql_sha256, created_at in rows
+).encode("ascii")
+print(len(rows))
+print(rows[-1][0])
+print(rows[-1][2])
+print(hashlib.sha256(state_bytes).hexdigest())
+PY
+  ) || fail "reviewed migration fixture generation failed"
+  [[ ${#migration_fixture_metadata[@]} -eq 4 ]] \
+    || fail "reviewed migration fixture metadata is incomplete"
+  migration_count="${migration_fixture_metadata[0]}"
+  migration_last_id="${migration_fixture_metadata[1]}"
+  migration_created_at="${migration_fixture_metadata[2]}"
+  migration_state_hash="${migration_fixture_metadata[3]}"
+  [[ "$migration_count" == 70 && "$migration_last_id" == 70 \
+    && "$migration_created_at" == 1785009372253 \
+    && "$migration_state_hash" =~ ^[0-9a-f]{64}$ ]] \
+    || fail "migration fixture metadata is invalid"
   original_value="$(docker exec "$postgres_id" psql --username=learncoding \
     --dbname=learncoding --no-psqlrc --quiet --tuples-only --no-align \
     --set=ON_ERROR_STOP=1 \
@@ -1027,9 +1187,7 @@ EOF
     || fail "database sentinel query failed"
   [[ "$original_value" == "$db_sentinel" ]] \
     || fail "database sentinel was not initialized"
-  migration_state_hash="$(printf '%s|%s|%s\n' 1 "$migration_hash" \
-    "$migration_created_at" | sha256sum)"
-  migration_state_hash="${migration_state_hash%% *}"
+
   git_commit="$(git -C "$repo_root" rev-parse --verify HEAD)" \
     || fail "Git commit lookup failed"
 
@@ -1052,6 +1210,8 @@ EOF
   set -e
   [[ "$controller_status" -eq 0 ]] || fail "production backup controller failed"
   for secret_value in "$postgres_password" "$database_url" "$credential_master_key" \
+    "$role_app_password" "$role_migrator_password" "$role_worker_password" \
+    "$role_ops_password" "$role_backup_reporter_password" \
     "$cloudflare_account" "$cloudflare_secret" "$cloudflare_tunnel" \
     "$db_sentinel" "$app_sentinel"; do
     if grep -Fq -- "$secret_value" "$controller_log"; then
@@ -1171,9 +1331,9 @@ EOF
     "$manifest" || fail "manifest PostgreSQL version is invalid"
   grep -Fxq "git_commit=$git_commit" "$manifest" \
     || fail "manifest Git commit does not match the real release commit"
-  grep -Fxq 'migration_count=1' "$manifest" \
+  grep -Fxq 'migration_count=70' "$manifest" \
     || fail "manifest migration count is invalid"
-  grep -Fxq 'migration_last_id=1' "$manifest" \
+  grep -Fxq 'migration_last_id=70' "$manifest" \
     || fail "manifest migration last id is invalid"
   grep -Fxq "migration_last_created_at=$migration_created_at" "$manifest" \
     || fail "manifest migration timestamp is invalid"
@@ -1261,8 +1421,52 @@ PY
       >>"$restore_root/app-data-objects.sha256"
   done < <(find -P "$restore_app_root/app-data" -type f -print0 | sort -z)
 
+  write_database_role_url_files "$restore_role_secret_root" "$restore_database" \
+    learncoding "$postgres_password" "$role_app_password" \
+    "$role_migrator_password" "$role_worker_password" "$role_ops_password" \
+    "$role_backup_reporter_password" \
+    || fail "restored database role URL fixture generation failed"
+  docker run --rm --pull never --name "$resource_prefix-restore-role-bootstrap" \
+    --label "$OWNER_LABEL_KEY=$run_id" \
+    --label "$OWNER_PROJECT_LABEL_KEY=$ownership_project" \
+    --network "container:$postgres_id" --read-only --cap-drop ALL \
+    --security-opt no-new-privileges=true --pids-limit 64 --memory 384m --cpus 1 \
+    --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m --user 0:0 --workdir /app \
+    --mount "type=bind,src=$restore_role_secret_root,dst=/run/secrets,readonly" \
+    --env POSTGRES_USER=learncoding --env "POSTGRES_DB=$restore_database" \
+    --env REQUIRE_COMPLETE_MIGRATION_LEDGER=true \
+    --env DATABASE_BOOTSTRAP_URL_FILE=/run/secrets/database_bootstrap_url \
+    --env DATABASE_APP_URL_FILE=/run/secrets/database_app_url \
+    --env RESTORE_NO_ACL_RECONCILIATION=true \
+    --env DATABASE_MIGRATOR_URL_FILE=/run/secrets/database_migrator_url \
+    --env DATABASE_WORKER_URL_FILE=/run/secrets/database_worker_url \
+    --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
+    --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
+    "$operations_digest" /bin/sh -ceu \
+      'node --import tsx /app/scripts/verify-restored-backup.ts --remove-ledger-authority-before-bootstrap
+       node /app/scripts/bootstrap-database-roles.mjs
+       exec node --import tsx /app/scripts/verify-restored-backup.ts --install-ledger-authority' \
+    >/dev/null 2>&1 || fail "restored database role/ledger authority bootstrap failed"
+
+  docker run --rm --pull never --name "$resource_prefix-restore-role-boundary" \
+    --label "$OWNER_LABEL_KEY=$run_id" \
+    --label "$OWNER_PROJECT_LABEL_KEY=$ownership_project" \
+    --network "container:$postgres_id" --read-only --cap-drop ALL \
+    --security-opt no-new-privileges=true --pids-limit 64 --memory 384m --cpus 1 \
+    --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m --user 0:0 --workdir /app \
+    --mount "type=bind,src=$restore_role_secret_root,dst=/run/secrets,readonly" \
+    --env "POSTGRES_DB=$restore_database" \
+    --env DATABASE_URL_FILE=/run/secrets/database_app_url \
+    --env DATABASE_MIGRATOR_URL_FILE=/run/secrets/database_migrator_url \
+    --env DATABASE_WORKER_URL_FILE=/run/secrets/database_worker_url \
+    --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
+    --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
+    "$operations_digest" node /app/scripts/verify-database-role-boundaries.mjs \
+      --require-application-objects \
+    >/dev/null 2>&1 || fail "restored database role boundary verification failed"
+
   smoke_output="$test_root/restore-smoke.out"
-  docker run --rm --name "$resource_prefix-restore-smoke" \
+  docker run --rm --pull never --name "$resource_prefix-restore-smoke" \
     --label "$OWNER_LABEL_KEY=$run_id" \
     --label "$OWNER_PROJECT_LABEL_KEY=$ownership_project" \
     --network "container:$postgres_id" --read-only --cap-drop ALL \
@@ -1270,14 +1474,15 @@ PY
     --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m --user 0:0 --workdir /app \
     --mount "type=bind,src=$restore_root,dst=/restore,readonly" \
     --mount "type=bind,src=$restore_app_root/app-data,dst=/restore-app-data,readonly" \
-    --mount "type=bind,src=$recovery_root,dst=/recovery,readonly" \
-    --env "RESTORE_DATABASE_URL=postgresql://learncoding:${postgres_password}@127.0.0.1:5432/$restore_database" \
+    --mount "type=bind,src=$restore_role_secret_root/database_ops_url,dst=/run/secrets/database_url,readonly" \
+    --mount "type=bind,src=$recovery_key,dst=/run/secrets/credential_master_key,readonly" \
+    --env DATABASE_URL_FILE=/run/secrets/database_url \
     --env RESTORE_APP_DATA_ROOT=/restore-app-data \
     --env RESTORE_APP_DATA_MANIFEST=/restore/app-data-objects.sha256 \
     --env RESTORE_CREDENTIAL_PROBE=/restore/credential-probe.json \
-    --env CREDENTIAL_MASTER_KEY_FILE=/recovery/credential_master_key \
-    --entrypoint node "$operations_digest" \
-    --import tsx /app/scripts/verify-restored-backup.ts >"$smoke_output" \
+    --env RESTORE_CREDENTIAL_MASTER_KEY_PATH=/run/secrets/credential_master_key \
+    "$operations_digest" node --import tsx /app/scripts/verify-restored-backup.ts \
+    >"$smoke_output" \
     || fail "real restored database/app-data/credential smoke failed"
   [[ "$(wc -l <"$smoke_output" | tr -d ' ')" == 3 ]] \
     || fail "restore smoke acknowledgement cardinality is invalid"

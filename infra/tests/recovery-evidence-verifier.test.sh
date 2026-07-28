@@ -85,12 +85,23 @@ incident="$(date -u -d '30 minutes ago' +%Y%m%dT%H%M%SZ)"
 recorded="$(date -u -d '20 minutes ago' +%Y%m%dT%H%M%SZ)"
 approval="$(date -u -d '10 minutes ago' +%Y%m%dT%H%M%SZ)"
 rpo="$(( $(date -u -d "${incident:0:4}-${incident:4:2}-${incident:6:2} ${incident:9:2}:${incident:11:2}:${incident:13:2} UTC" +%s) - $(date -u -d "${snapshot:0:4}-${snapshot:4:2}-${snapshot:6:2} ${snapshot:9:2}:${snapshot:11:2}:${snapshot:13:2} UTC" +%s) ))"
+archive_sha256="$(sha256sum "$remote/full/${archives[0]}" | awk '{print $1}')"
+source_release_git_commit=0123456789abcdef0123456789abcdef01234567
+verifier_release_git_commit="$source_release_git_commit"
+source_database_version='postgres (PostgreSQL) 17.6'
+migration_state_sha256=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+reviewed_migration_ledger_sha256=20b480c7dd694d6e8e243704f14aeb05aa42fda4c5b7e863f6c357bf095a2551
+restore_operations_image=registry.example.test/codestead/operations@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+restore_postgres_image=postgres:17-bookworm@sha256:4f736ae292687621d4be0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394
+restore_postgres_version_num=170006
+restore_verifier_sha256="$(sha256sum "$repo_root/scripts/verify-restored-backup.ts" | awk '{print $1}')"
 restore="$backup/restore-reports/restore-drill-$approval.txt"
 cat >"$restore" <<EOF
-version=1
+version=2
 result=pass
 source=offsite
 archive=${archives[0]}
+archive_sha256=$archive_sha256
 approval_utc=$approval
 snapshot_utc=$snapshot
 incident_utc=$incident
@@ -106,6 +117,21 @@ rpo_seconds=$rpo
 rpo_within_24h=true
 rto_seconds=60
 rto_within_4h=true
+source_release_git_commit=$source_release_git_commit
+verifier_release_git_commit=$verifier_release_git_commit
+source_database_version=$source_database_version
+migration_count=70
+migration_last_id=70
+migration_last_created_at=1785009372253
+migration_state_sha256=$migration_state_sha256
+reviewed_migration_count=70
+reviewed_migration_tail_idx=69
+reviewed_migration_tail_tag=0069_mail_outbox_guarded_delivery_authority
+reviewed_migration_ledger_sha256=$reviewed_migration_ledger_sha256
+restore_operations_image=$restore_operations_image
+restore_postgres_image=$restore_postgres_image
+restore_postgres_version_num=$restore_postgres_version_num
+restore_verifier_sha256=$restore_verifier_sha256
 EOF
 chmod 0600 "$restore"
 (cd "$(dirname "$restore")" && sha256sum "$(basename "$restore")" >"$(basename "$restore").sha256")
@@ -157,6 +183,7 @@ RCLONE_CONTROL_TIMEOUT_SECONDS=30
 RCLONE_OPERATION_GRACE_SECONDS=2
 RCLONE_OUTPUT_LIMIT_BYTES=1048576
 MAX_RESTORE_DRILL_AGE_HOURS=1
+RESTORE_OPERATIONS_IMAGE=$restore_operations_image
 EOF
 chmod 0600 "$config"
 mkdir -m 0700 "$work/live"
@@ -168,6 +195,51 @@ grep -Fxq result=pass "$output"
 grep -Fxq "retention_run_id=$run_id" "$output"
 grep -Fxq pointer_attestation_verified=true "$output"
 grep -Fxq restore_report_verified=true "$output"
+
+restore_v2_baseline="$work/restore-v2-baseline.txt"
+cp "$restore" "$restore_v2_baseline"
+refresh_restore_checksum() {
+  (cd "$backup/restore-reports" \
+    && sha256sum "$(basename -- "$restore")" >"$(basename -- "$restore").sha256")
+  chmod 0600 "$restore.sha256"
+}
+expect_restore_mutation_rejected() {
+  local label="$1" expression="$2" mutation_output="$backup/state/restore-mutation-output"
+  cp "$restore_v2_baseline" "$restore"
+  sed -i "$expression" "$restore"
+  chmod 0600 "$restore"
+  refresh_restore_checksum
+  rm -f -- "$mutation_output"
+  if PATH="$fake_bin:$PATH" FAKE_REMOTE_ROOT="$remote_root" FAKE_TRASH_ROOT="$trash" \
+    BACKUP_CONFIG_FILE="$config" bash "$verifier" --output "$mutation_output" \
+    >/dev/null 2>&1; then
+    echo "recovery-evidence-verifier-test-failed: $label restore report passed" >&2
+    exit 1
+  fi
+  [[ ! -e "$mutation_output" ]]
+}
+expect_restore_mutation_rejected old-v1 's|^version=2$|version=1|'
+expect_restore_mutation_rejected archive-name \
+  "s|^archive=.*$|archive=${archives[1]}|"
+expect_restore_mutation_rejected archive-sha256 \
+  's|^archive_sha256=.*$|archive_sha256=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc|'
+expect_restore_mutation_rejected release-commit \
+  's|^verifier_release_git_commit=.*$|verifier_release_git_commit=fedcba9876543210fedcba9876543210fedcba98|'
+expect_restore_mutation_rejected source-postgres \
+  's|^source_database_version=.*$|source_database_version=postgres (PostgreSQL) 18.1|'
+expect_restore_mutation_rejected reviewed-ledger \
+  's|^reviewed_migration_ledger_sha256=.*$|reviewed_migration_ledger_sha256=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd|'
+expect_restore_mutation_rejected operations-image \
+  's|^restore_operations_image=.*$|restore_operations_image=registry.example.test/codestead/operations@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee|'
+expect_restore_mutation_rejected postgres-image \
+  's|^restore_postgres_image=.*$|restore_postgres_image=postgres:18-bookworm@sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee|'
+expect_restore_mutation_rejected postgres-version \
+  's|^restore_postgres_version_num=.*$|restore_postgres_version_num=180001|'
+expect_restore_mutation_rejected verifier-sha256 \
+  's|^restore_verifier_sha256=.*$|restore_verifier_sha256=ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff|'
+cp "$restore_v2_baseline" "$restore"
+chmod 0600 "$restore"
+refresh_restore_checksum
 if grep -Eqi '(sha256|ciphertext|drive[_ -]?id|token|secret)' "$output"; then
   echo "recovery-evidence-verifier-test-failed: evidence exposed prohibited material" >&2
   exit 1
@@ -240,10 +312,11 @@ write_boundary_restore_report() {
     "${boundary_snapshot:0:4}-${boundary_snapshot:4:2}-${boundary_snapshot:6:2} ${boundary_snapshot:9:2}:${boundary_snapshot:11:2}:${boundary_snapshot:13:2} UTC" +%s) ))
   boundary_report="$backup/restore-reports/restore-drill-$boundary_approval.txt"
   cat >"$boundary_report" <<EOF
-version=1
+version=2
 result=pass
 source=offsite
 archive=${archives[0]}
+archive_sha256=$archive_sha256
 approval_utc=$boundary_approval
 snapshot_utc=$boundary_snapshot
 incident_utc=$boundary_incident
@@ -259,6 +332,21 @@ rpo_seconds=$boundary_rpo
 rpo_within_24h=true
 rto_seconds=60
 rto_within_4h=true
+source_release_git_commit=$source_release_git_commit
+verifier_release_git_commit=$verifier_release_git_commit
+source_database_version=$source_database_version
+migration_count=70
+migration_last_id=70
+migration_last_created_at=1785009372253
+migration_state_sha256=$migration_state_sha256
+reviewed_migration_count=70
+reviewed_migration_tail_idx=69
+reviewed_migration_tail_tag=0069_mail_outbox_guarded_delivery_authority
+reviewed_migration_ledger_sha256=$reviewed_migration_ledger_sha256
+restore_operations_image=$restore_operations_image
+restore_postgres_image=$restore_postgres_image
+restore_postgres_version_num=$restore_postgres_version_num
+restore_verifier_sha256=$restore_verifier_sha256
 EOF
   chmod 0600 "$boundary_report"
   (cd "$backup/restore-reports" \
