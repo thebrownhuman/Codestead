@@ -521,3 +521,45 @@ Explicitly deferred, not silently green:
 After this checkpoint is pushed, the next repository task is Task 9's complete
 live concurrency/deletion race execution, followed by Task 10's clean-checkout
 release matrix and repair of any final failures.
+
+## Superseding Task 9 core-race checkpoint - 2026-07-28
+
+This section supersedes the Task 9 next-step statement immediately above for the
+user-approved local/few-user scope. The checkpoint base is
+`7eb10c0e8b7a3993db03869b2f6c39144f458c64` on `main`.
+
+The competing-claimer regression now proves the exact authoritative row rather
+than accepting an aggregate false green:
+
+- `CLAIM-02` proves one pending row wins and its same-scope sibling remains
+  pending and unleased;
+- `CLAIM-03` proves the specifically expired row is reclaimed, its fence
+  advances exactly once, its attempt count becomes two, its owner/token are
+  replaced, and the untouched sibling remains pending and unleased.
+
+Live native disposable evidence:
+
+- PostgreSQL 17.10: 25/25 focused mail/deletion races passed in 454.19 seconds;
+- PostgreSQL 18.1: 25/25 focused mail/deletion races passed in 452.52 seconds;
+- covered competing pending claimers, competing expired reclaimers, provider
+  boundary rollback and commit-ack uncertainty, exact guarded-dispatch
+  boundary text, both finalizer/sweeper lock orders, definite-rejection
+  recovery, both provider/deletion orders, deletion lifecycle serialization,
+  notice deduplication/retry, and tombstone replay after final-commit
+  acknowledgement loss;
+- both native clusters used private random non-5432 loopback ports, then
+  stopped with zero remaining process, listener, or disposable root;
+- Docker, the Windows PostgreSQL service, and port 5432 were not touched.
+
+Scope boundary, deliberately not reported as green:
+
+- the older production-certification design's dedicated 40-case/66-leaf
+  reporter, crash-child, protocol-proxy, and paired evidence framework is not
+  implemented;
+- that larger production-grade framework remains deferred under the user's
+  local/few-user scope and would be required before claiming full
+  production-scale race certification;
+- external Gmail and device/service evidence remains unproven.
+
+The next repository task is Task 10: run the complete clean-checkout release
+matrix, repair any failures, and preserve the same explicit scope boundary.

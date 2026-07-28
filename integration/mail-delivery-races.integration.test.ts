@@ -593,7 +593,7 @@ async function waitForBlockedBackendBy(
 async function seedOutboxRows(
   kind: "pending" | "expired-pre-provider",
   count = 2,
-) {
+): Promise<OutboxClaim<EmailOutboxPayload> | null> {
   const application = await pool.connect();
   try {
     await application.query("BEGIN");
@@ -655,7 +655,9 @@ async function seedOutboxRows(
       16_000,
     );
     await waitForOutboxLeaseExpiry(claim.id);
+    return claim;
   }
+  return null;
 }
 
 async function waitForOutboxLeaseExpiry(
@@ -1410,10 +1412,14 @@ describe("real PostgreSQL mail delivery races", () => {
   });
 
   it.each([
-    ["pending claimers", "pending" as const],
-    ["expired reclaimers", "expired-pre-provider" as const],
-  ])("allows one of two %s and keeps the delivery scope single-active", async (_name, fixtureKind) => {
-    await seedOutboxRows(fixtureKind);
+    ["CLAIM-02", "pending claimers", "pending" as const],
+    ["CLAIM-03", "expired reclaimers", "expired-pre-provider" as const],
+  ])("[%s] allows one of two %s and keeps the delivery scope single-active", async (
+    _caseId,
+    _name,
+    fixtureKind,
+  ) => {
+    const staleClaim = await seedOutboxRows(fixtureKind);
     const race = new ClaimRaceCoordinator();
     const racingStore = await store(new InstrumentedPool(workerPool, race.hooks));
     const first = racingStore.claimNext({
@@ -1433,8 +1439,12 @@ describe("real PostgreSQL mail delivery races", () => {
       race.releaseAll();
     }
     const firstRound = await Promise.all([first, second]);
-    expect(firstRound.filter((claim) => claim !== null)).toHaveLength(1);
+    const winners = firstRound.filter(
+      (claim): claim is OutboxClaim<EmailOutboxPayload> => claim !== null,
+    );
+    expect(winners).toHaveLength(1);
     expect(firstRound.filter((claim) => claim === null)).toHaveLength(1);
+    const winner = winners[0]!;
 
     const followUp = await (await store()).claimNext({
       owner: "racing-worker-follow-up",
@@ -1445,9 +1455,60 @@ describe("real PostgreSQL mail delivery races", () => {
 
     const rows = await outboxState();
     expect(rows.filter((row) => row.status === "sending" && row.lease_is_active)).toHaveLength(1);
-    expect(rows.reduce((total, row) => total + row.attempt_count, 0)).toBe(
-      fixtureKind === "pending" ? 1 : 2,
-    );
+    if (fixtureKind === "pending") {
+      expect(staleClaim).toBeNull();
+      expect(winner).toMatchObject({
+        id: ROW_IDS[0],
+        claimVersion: 1,
+      });
+      expect(rows).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          id: ROW_IDS[0],
+          status: "sending",
+          attempt_count: 1,
+          claim_version: 1,
+          lease_is_active: true,
+        }),
+        expect.objectContaining({
+          id: ROW_IDS[1],
+          status: "pending",
+          attempt_count: 0,
+          claim_token: null,
+          claim_owner: null,
+          claim_version: 0,
+          lease_expires_at: null,
+        }),
+      ]));
+      return;
+    }
+
+    expect(staleClaim).not.toBeNull();
+    expect(winner).toMatchObject({
+      id: staleClaim!.id,
+      claimVersion: staleClaim!.claimVersion + 1,
+    });
+    expect(winner.claimToken).not.toBe(staleClaim!.claimToken);
+    expect(winner.claimOwner).not.toBe(staleClaim!.claimOwner);
+    expect(rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: staleClaim!.id,
+        status: "sending",
+        attempt_count: 2,
+        claim_token: winner.claimToken,
+        claim_owner: winner.claimOwner,
+        claim_version: staleClaim!.claimVersion + 1,
+        lease_is_active: true,
+      }),
+      expect.objectContaining({
+        id: ROW_IDS[1],
+        status: "pending",
+        attempt_count: 0,
+        claim_token: null,
+        claim_owner: null,
+        claim_version: 0,
+        lease_expires_at: null,
+      }),
+    ]));
   });
 
   it("rolls back a provider boundary when its transaction does not commit", async () => {

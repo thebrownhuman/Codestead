@@ -196,3 +196,31 @@ current_superseding_update:
   following_task: "Task 10 - clean-checkout release matrix and repair"
   safe_to_continue: true
   production_ready: false
+
+task_9_superseding_update:
+  snapshot_time: "2026-07-28T15:49:00+05:30"
+  branch: "main"
+  checkpoint_base: "7eb10c0e8b7a3993db03869b2f6c39144f458c64"
+  status: "local/few-user core concurrency and deletion race gate verified; this commit is the Task 9 checkpoint"
+  regression_hardening:
+    claim_02: "exact pending winner and untouched pending sibling proven"
+    claim_03: "exact expired row reclaimed with one fence advance, attempt_count 2, replaced owner/token, and untouched pending sibling"
+  verification:
+    postgres_17_10_core_races: "25/25 PASS; 454.19 seconds"
+    postgres_18_1_core_races: "25/25 PASS; 452.52 seconds"
+    provider_commit_uncertainty: "PASS"
+    finalizer_sweeper_both_orders: "PASS"
+    deletion_provider_both_orders: "PASS"
+    deletion_notice_retry_and_tombstone_replay: "PASS"
+    diff_check: "PASS"
+  disposable_cleanup:
+    postgres_17_processes_listeners_roots_remaining: 0
+    postgres_18_processes_listeners_roots_remaining: 0
+    docker_touched: false
+    windows_postgres_service_touched: false
+    port_5432_touched: false
+  explicitly_deferred:
+    - "older production-certification 40-case/66-leaf reporter, crash-child, protocol-proxy and paired evidence framework"
+    - "external Gmail, NUC, Cloudflare, Drive, reboot and supervised power-cut evidence"
+  next_task: "Task 10 - complete clean-checkout release matrix and repair"
+  production_ready: false
