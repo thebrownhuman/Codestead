@@ -16,6 +16,9 @@ import {
   assertBackupStatusMailAuthority0065PostgresProjection,
   backupStatusMailAuthority0065CiContract,
 } from "./backup-status-mail-authority-0065-ci-contract.mjs";
+import {
+  projectHistoricalPostgresCiProjection,
+} from "./mail-guarded-delivery-0069-ci-contract.mjs";
 
 const readBytes = (relativePath) =>
   readFileSync(new URL(`../../${relativePath}`, import.meta.url));
@@ -416,10 +419,12 @@ assert.match(
 assert.match(productionCompose, /DATABASE_BACKUP_REPORTER_URL_FILE:/u);
 assert.match(productionCompose, /database_backup_reporter_url/u);
 
-const postgresJob =
+const currentPostgresJob =
   workflow.match(
     /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
   )?.[0] ?? "";
+const postgresJob =
+  projectHistoricalPostgresCiProjection(currentPostgresJob);
 assertBackupStatusMailAuthority0065PostgresProjection(postgresJob);
 
 console.log("backup-status-mail-authority-0065-registration-tests-ok");

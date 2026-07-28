@@ -1451,6 +1451,71 @@ test("H2 proves the real cutover relation-lock wait topology", () => {
   );
 });
 
+test("H2 bounds expected quiescence rejection input at the preflight", () => {
+  const helperStart = integrationHarness.indexOf(
+    "function migration0067ThroughQuiescencePreflight",
+  );
+  const helperEnd = integrationHarness.indexOf(
+    "function migration0067WithHostileAcls",
+    helperStart,
+  );
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
+  const helper = integrationHarness.slice(helperStart, helperEnd);
+  for (const contract of [
+    /splitPostgresStatements\(migration0067\)/u,
+    /statements\[3\]\.end/u,
+    /migration0067\.slice\(0,/u,
+    /email outbox delivery cutover requires quiescence/u,
+  ]) {
+    assert.match(helper, contract);
+  }
+
+  const proofStart = integrationHarness.indexOf(
+    "const quiescenceCases = Object.freeze",
+  );
+  const proofEnd = integrationHarness.indexOf(
+    'pass("delivery-hold-cutover-rollback")',
+    proofStart,
+  );
+  assert.ok(proofStart >= 0 && proofEnd > proofStart);
+  const proof = integrationHarness.slice(proofStart, proofEnd);
+  const quiescenceCaseMarkers = [
+    ...proof.matchAll(/marker:\s*"([^"]+)"/gu),
+  ].map((match) => match[1]);
+  assert.equal(
+    quiescenceCaseMarkers.length,
+    4,
+    "the quiescence matrix must contain exactly four cases",
+  );
+  assert.deepEqual(quiescenceCaseMarkers, [
+    "delivery-hold-quiescence-sending",
+    "delivery-hold-quiescence-claim-token",
+    "delivery-hold-quiescence-claim-owner",
+    "delivery-hold-quiescence-live-lease",
+  ]);
+  assert.match(proof, /MIGRATION_0067_QUIESCENCE_PREFLIGHT/u);
+  assert.doesNotMatch(proof, /migration0067WithHostileAcls\(\)/u);
+});
+
+test("H2 derives granted lock catalog from the exact topology manifests", () => {
+  const proofStart = integrationHarness.indexOf(
+    "async function proveGrantedCutoverLocks",
+  );
+  const proofEnd = integrationHarness.indexOf(
+    "async function proveCutoverNowaitContention",
+    proofStart,
+  );
+  assert.ok(proofStart >= 0 && proofEnd > proofStart);
+  const proof = integrationHarness.slice(proofStart, proofEnd);
+  for (const contract of [
+    /const targets = \[\s*\.\.\.CUTOVER_EXCLUSIVE_SOURCES,\s*\.\.\.CUTOVER_SHARE_PROOF_SOURCES,\s*\]/u,
+    /\.\.\.CUTOVER_EXCLUSIVE_SOURCES\.map\([\s\S]*?mode: "AccessExclusiveLock"/u,
+    /\.\.\.CUTOVER_SHARE_PROOF_SOURCES\.map\([\s\S]*?mode: "ShareLock"/u,
+  ]) {
+    assert.match(proof, contract);
+  }
+});
+
 test("H3 proves live coverage timeout clamp and caller-setting restoration", () => {
   for (const contract of [
     /async function proveCoverageTimeoutSemantics/u,
@@ -1960,7 +2025,7 @@ test("0067 live payload proof uses the runtime recipient and PostgreSQL-native v
   );
   assert.match(
     semanticsProof,
-    /variablesSql:\s*"NULL"[\s\S]*?code:\s*"23502"/u,
+    /variablesSql:\s*"NULL"[\s\S]*?code:\s*"23514"[\s\S]*?constraint:\s*"email_outbox_variables_object_valid"/u,
   );
   const numericStart = semanticsProof.indexOf("POSTGRES_NUMERIC_EDGE_PAIRS");
   const numericEnd = semanticsProof.indexOf(
@@ -2053,6 +2118,27 @@ test("0067 validates replay identity before a prior fingerprint can suppress the
   assert.match(
     integrationHarness,
     /await proveReplayConflictFingerprintSemantics\(port, "mail0067"\)/u,
+  );
+  const mainBody = integrationHarness.slice(
+    integrationHarness.indexOf("export async function main()"),
+  );
+  const legacyClassificationIndex = mainBody.indexOf(
+    "proveLegacyClassification(",
+  );
+  const replayConflictIndex = mainBody.indexOf(
+    "proveReplayConflictFingerprintSemantics(",
+  );
+  assert.ok(
+    legacyClassificationIndex >= 0,
+    "legacy classification call must be present",
+  );
+  assert.ok(
+    replayConflictIndex >= 0,
+    "native replay conflict call must be present",
+  );
+  assert.ok(
+    legacyClassificationIndex < replayConflictIndex,
+    "legacy classification must precede native replay rows",
   );
 });
 
@@ -2503,5 +2589,30 @@ test("C preserves unknown-template failure when rollback database drop also fail
       "throw preserveOperationAndCleanupFailures",
     ],
     "unknown-template primary/drop ordering",
+  );
+});
+
+test("writer inventory reports the exact definition hash before graph comparison", () => {
+  const functionStart = integrationHarness.indexOf(
+    "async function proveWriterInventoryRoutineCatalog",
+  );
+  const functionEnd = integrationHarness.indexOf(
+    "async function reconcileReviewedPrivileges",
+    functionStart,
+  );
+  assert.ok(functionStart >= 0 && functionEnd > functionStart);
+  const writerInventory = integrationHarness.slice(functionStart, functionEnd);
+
+  assertOrdered(
+    writerInventory,
+    [
+      "const actualDefinitionSha256 = scalar(",
+      "pg_catalog.pg_get_functiondef(",
+      "assert.equal(",
+      "actualDefinitionSha256,",
+      "reviewed.definitionSha256,",
+      "const writerCatalogGraph = scalar(",
+    ],
+    "writer definition hash diagnostic ordering",
   );
 });

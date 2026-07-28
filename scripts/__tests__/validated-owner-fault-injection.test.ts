@@ -60,6 +60,7 @@ import * as ownerFaultModule
   from "../../integration/support/with-validated-owner-fault-injection";
 
 const {
+  ageValidatedDisposableTerminalEmailOutboxFixtures,
   readValidatedIntegrationMigrationJournal,
   runValidatedIntegrationMigrations,
   withValidatedOwnerFaultInjection,
@@ -1152,6 +1153,24 @@ describe("validated disposable owner fault injection", () => {
     expect(pgMock.Pool).not.toHaveBeenCalled();
   });
 
+  it("rejects an invalid terminal-fixture aging timestamp before connecting", async () => {
+    await expect(ageValidatedDisposableTerminalEmailOutboxFixtures({
+      agedAt: new Date(Number.NaN),
+      databaseTarget: VALID_DATABASE_TARGET,
+      fixtures: [],
+    })).rejects.toThrow(/valid aging timestamp/);
+    expect(pgMock.Pool).not.toHaveBeenCalled();
+  });
+
+  it("rejects the wrong terminal-fixture cardinality before connecting", async () => {
+    await expect(ageValidatedDisposableTerminalEmailOutboxFixtures({
+      agedAt: new Date("2026-06-01T00:00:00.000Z"),
+      databaseTarget: VALID_DATABASE_TARGET,
+      fixtures: [],
+    })).rejects.toThrow(/exactly two terminal outbox fixtures/);
+    expect(pgMock.Pool).not.toHaveBeenCalled();
+  });
+
   it("uses the frozen target after ambient mutation, validates identity, brackets DDL, and closes", async () => {
     const approved = await approvedFaultInput();
     const order: string[] = [];
@@ -2023,6 +2042,7 @@ describe("validated disposable owner fault injection", () => {
     );
 
     expect(Object.keys(ownerFaultModule).sort()).toEqual([
+      "ageValidatedDisposableTerminalEmailOutboxFixtures",
       "readValidatedIntegrationMigrationJournal",
       "runValidatedIntegrationMigrations",
       "withValidatedOwnerFaultInjection",
@@ -2034,6 +2054,16 @@ describe("validated disposable owner fault injection", () => {
     expect(helperSource).not.toMatch(
       /\bexport\s+(?:async\s+)?function\s+withValidatedOwnerSession\b/,
     );
+    expect(helperSource).toMatch(
+      /\bexport\s+async\s+function\s+ageValidatedDisposableTerminalEmailOutboxFixtures\b/,
+    );
+    expect(helperSource).toMatch(
+      /alter\s+table\s+only\s+public\.email_outbox\s+disable\s+trigger\s+email_outbox_delivery_hold_final/i,
+    );
+    expect(helperSource).toMatch(
+      /alter\s+table\s+only\s+public\.email_outbox\s+enable\s+always\s+trigger\s+email_outbox_delivery_hold_final/i,
+    );
+    expect(helperSource).not.toMatch(/\bdisable\s+trigger\s+user\b/i);
     expect(helperSource).toMatch(/run:\s*\(\)\s*=>\s*Promise<T>/);
     const helperFile = ts.createSourceFile(
       "with-validated-owner-fault-injection.ts",
@@ -2217,6 +2247,7 @@ describe("validated disposable owner fault injection", () => {
   it("exhaustively inventories every helper import, receiver, alias, and callsite", async () => {
     const helperModuleSuffix = "support/with-validated-owner-fault-injection";
     const exportedOperations = new Set([
+      "ageValidatedDisposableTerminalEmailOutboxFixtures",
       "readValidatedIntegrationMigrationJournal",
       "runValidatedIntegrationMigrations",
       "withValidatedOwnerFaultInjection",
@@ -2248,8 +2279,14 @@ describe("validated disposable owner fault injection", () => {
         imports: ["withValidatedOwnerFaultInjection"],
       }],
 ["integration/postgres.integration.test.ts", {
-        calls: ["runValidatedIntegrationMigrations"],
-        imports: ["runValidatedIntegrationMigrations"],
+        calls: [
+          "ageValidatedDisposableTerminalEmailOutboxFixtures",
+          "runValidatedIntegrationMigrations",
+        ],
+        imports: [
+          "ageValidatedDisposableTerminalEmailOutboxFixtures",
+          "runValidatedIntegrationMigrations",
+        ],
       }],
     ]);
     const integrationRoot = path.resolve(WORKSPACE_ROOT, "integration");

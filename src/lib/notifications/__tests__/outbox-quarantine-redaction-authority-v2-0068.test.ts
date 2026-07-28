@@ -372,14 +372,11 @@ describe("0068 quarantined mail redaction authority v2", () => {
       "public.email_outbox_idempotency_coverage_authority(",
       redaction,
     );
-    const deletion = retention.indexOf(
-      "delete from email_outbox where id in",
-      coverage,
-    );
+    const deletion = retention.indexOf("delete from email_outbox", coverage);
     expect(redaction).toBeGreaterThanOrEqual(0);
     expect(coverage).toBeGreaterThan(redaction);
     expect(deletion).toBeGreaterThan(coverage);
-    expect(retention.slice(deletion)).toContain("id = any($3::uuid[])");
+    expect(retention.slice(deletion)).toContain("id = any($2::uuid[])");
     expect(retention).not.toContain(
       "from public.redact_unresolved_email_outbox_authority(",
     );

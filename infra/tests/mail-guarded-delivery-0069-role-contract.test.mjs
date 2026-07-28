@@ -55,7 +55,10 @@ test("0067 delegated backup authority uses the reviewed durable-replay bytes", (
     enqueue?.bodySha256,
     "ac406b4dff127c10f791267c1464faddbe93e8ce88faa0a52c215881ac1b7480",
   );
-  assert.equal(enqueue?.definitionSha256, null);
+  assert.equal(
+    enqueue?.definitionSha256,
+    "9da144a39b11b808c114068c9bf32b4ff45b63b1be20e680f79804c01db30ea2",
+  );
 });
 
 test("0069 has a distinct exact guarded-delivery routine manifest", () => {

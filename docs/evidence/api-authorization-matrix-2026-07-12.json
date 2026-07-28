@@ -135,7 +135,7 @@
       "admin": "allowed",
       "objectAuthorization": "public-input",
       "ownershipProof": "validated public request",
-      "operationSourceSha256": "4a9363e3b59b8d8797283a93ab1b67ee9a610eca544edaa0fc384d6a2fb0ec17"
+      "operationSourceSha256": "4a5a2a1c3a786f14912bbcef850e364ada9c960ffe732c0d0885053713269331"
     },
     {
       "operation": "POST /api/admin/access-requests/[id]/approve",
@@ -148,7 +148,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "e7c4ba8fa3166a1701d80b67e7eebe55bb834adf4075385d32d017311ee1d978"
+      "operationSourceSha256": "fc1591beb733289e4310bdb16375177c8e4ac32de2e9b0cacbadfc857a70c28c"
     },
     {
       "operation": "POST /api/admin/access-requests/[id]/reject",
@@ -161,7 +161,7 @@
       "admin": "allowed",
       "objectAuthorization": "administrator-scope",
       "ownershipProof": "requireAdmin() before request parsing or data access",
-      "operationSourceSha256": "6d85786498e49f6f6f6b1403887a1f1a034c1c65d8adc4a49421272a3d068667"
+      "operationSourceSha256": "998a10277b755f97ad83d32e2ac76f6781531c7a4943560b096c4a8e7c8e1bde"
     },
     {
       "operation": "GET /api/admin/access-requests",
@@ -2140,7 +2140,7 @@
       "operationSourceSha256": "b88f55f3a91e588c90d93419fbf944eba9e0f64f9fd6a5ab3e2f9a003ce2ccd8"
     }
   ],
-  "generatedAt": "2026-07-27T21:59:36.024Z",
+  "generatedAt": "2026-07-28T11:34:58.350Z",
   "scope": "Complete static role/object-authorization source inventory. The endpoint sweep verifies guard invocation, while authz.test.ts verifies real guard decisions and runtime-authorization.integration.test.ts behaviorally covers a representative owner-bound route set. This report alone is not runtime cross-user proof, deployed proxy/browser evidence, or PostgreSQL RLS evidence.",
   "runtimeVerification": {
     "guardInvocationTest": "src/lib/security/__tests__/endpoint-auth-boundaries.test.ts",

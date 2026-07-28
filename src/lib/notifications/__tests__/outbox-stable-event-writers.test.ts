@@ -183,7 +183,7 @@ describe("production email stable-event writer inventory", () => {
     expect(dispatchBinding).toMatch(
       /idempotency_key,\s+idempotency_authority_version,\s+status/u,
     );
-    expect(dispatchBinding).toMatch(/\$6::text,\s+'event-v1-native',\s+'pending'/u);
+    expect(dispatchBinding).toMatch(/\$5::text,\s+'event-v1-native',\s+'pending'/u);
   });
 
   it("registers a real Drizzle rollback proof for sanitized replay conflicts", () => {

@@ -7,7 +7,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { hashPassword } from "better-auth/crypto";
-import { Pool as PgPool } from "pg";
+import { Pool as PgPool, type PoolClient } from "pg";
 
 import { POST as activateInvitation } from "@/app/api/invitations/activate/route";
 import {
@@ -40,6 +40,14 @@ import {
   enqueueEmail,
   enqueueEmailInTransaction,
 } from "@/lib/notifications/outbox";
+import {
+  captureMailDispatchApplicationOrigin,
+  PostgresOutboxStore,
+} from "@/lib/notifications/postgres-outbox-store";
+import { MAIL_DISPATCH_RUNTIME_BOOTSTRAP } from
+  "@/lib/notifications/mail-dispatch-runtime-policy";
+import { inspectMailDispatchRuntime } from
+  "@/lib/notifications/mail-dispatch-runtime-startup";
 import {
   activity,
   adminFallbackGrant,
@@ -122,10 +130,20 @@ import {
   decideAppeal,
   getAdminAppealDetail,
 } from "@/lib/appeals/admin-service";
-import { validatedDisposableOwnerDatabaseTarget } from
-  "../scripts/lib/disposable-integration-environment";
+import {
+  acquireValidatedDisposableRoleClient,
+  DISPOSABLE_INTEGRATION_POOL_BOUNDS,
+  endDisposableIntegrationPoolWithinDeadline,
+  runWithBoundedDisposableIntegrationPool,
+  runWithValidatedRetentionOpsEnvironment,
+  validatedDisposableOwnerDatabaseTarget,
+  validatedDisposableRetentionOpsEnvironment,
+} from "../scripts/lib/disposable-integration-environment";
 import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
-import { runValidatedIntegrationMigrations } from "./support/with-validated-owner-fault-injection";
+import {
+  ageValidatedDisposableTerminalEmailOutboxFixtures,
+  runValidatedIntegrationMigrations,
+} from "./support/with-validated-owner-fault-injection";
 
 const WORKSPACE_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -146,13 +164,20 @@ const EXAM_ATTEMPT_ID = "20000000-0000-4000-8000-000000000001";
 const EXAM_SESSION_ID = "20000000-0000-4000-8000-000000000002";
 const FAILED_EXAM_ATTEMPT_ID = "20000000-0000-4000-8000-000000000003";
 const FAILED_EXAM_SESSION_ID = "20000000-0000-4000-8000-000000000004";
+const validatedIntegrationEnvironment =
+  validatedDisposableRetentionOpsEnvironment(process.env);
 const integrationRetentionPool = new PgPool({
+  ...DISPOSABLE_INTEGRATION_POOL_BOUNDS,
   application_name: "codestead_integration_retention_ops",
-  connectionString: process.env.DATABASE_OPS_URL,
+  connectionString: validatedIntegrationEnvironment.databaseOpsUrl,
   max: 1,
 });
 const integrationRetentionDependencies = {
-  acquireClient: () => integrationRetentionPool.connect(),
+  acquireClient: () =>
+    acquireValidatedDisposableRoleClient<PoolClient>(
+      integrationRetentionPool,
+      "learncoding_ops",
+    ),
 } as const;
 const integrationFileErasureDependencies = {
   processFileErasures: (input: Parameters<typeof processFileErasures>[0]) => processFileErasures({
@@ -170,6 +195,128 @@ const integrationRetentionFileErasureDependencies = {
   ...integrationRetentionDependencies,
   ...integrationFileErasureDependencies,
 } as const;
+
+type IntegrationRetentionDependencies = NonNullable<
+  Parameters<typeof runRetention>[1]
+>;
+
+async function runValidatedIntegrationRetention(
+  input: Parameters<typeof runRetention>[0],
+  dependencies: IntegrationRetentionDependencies,
+) {
+  return runWithValidatedRetentionOpsEnvironment(
+    process.env,
+    ({ databaseOpsUrl }) => {
+      if (databaseOpsUrl !== validatedIntegrationEnvironment.databaseOpsUrl) {
+        throw new Error("disposable integration ops environment changed");
+      }
+      return runRetention(input, dependencies);
+    },
+  );
+}
+
+const RETENTION_EMAIL_FIXTURES = [
+  {
+    claimToken: "76000000-0000-4000-8000-000000000001",
+    idempotencySeed: "retention-old-email",
+  },
+  {
+    claimToken: "76000000-0000-4000-8000-000000000002",
+    idempotencySeed: "retention-old-failed-email",
+  },
+] as const;
+
+async function seedTerminalEmailOutboxFixtures(old: Date) {
+  for (const fixture of RETENTION_EMAIL_FIXTURES) {
+    await enqueueEmail({
+      to: "learner-a@integration.invalid",
+      template: "weekly-summary",
+      variables: {
+        name: "Integration Learner A",
+        summary: "Expired integration retention fixture",
+      },
+      userId: USER_A,
+      idempotencySeed: fixture.idempotencySeed,
+    });
+  }
+
+  await runWithValidatedRetentionOpsEnvironment(
+    process.env,
+    async ({ databaseWorkerUrl, databaseOwnerTarget }) => {
+      const workerPool = new PgPool({
+        application_name: "codestead_integration_retention_worker_fixture",
+        ...DISPOSABLE_INTEGRATION_POOL_BOUNDS,
+        connectionString: databaseWorkerUrl,
+        max: MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolMaximumConnections,
+        connectionTimeoutMillis:
+          MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolAcquireTimeoutMs,
+        idleTimeoutMillis:
+          MAIL_DISPATCH_RUNTIME_BOOTSTRAP.poolIdleTimeoutMs,
+      });
+      await runWithBoundedDisposableIntegrationPool(workerPool, async () => {
+        const inspection = await inspectMailDispatchRuntime(workerPool);
+        const applicationOrigin =
+          captureMailDispatchApplicationOrigin(inspection);
+        const store = new PostgresOutboxStore(
+          workerPool,
+          inspection,
+          applicationOrigin,
+        );
+        for (const fixture of RETENTION_EMAIL_FIXTURES) {
+          const claim = await store.claimNext({
+            owner: "retention-terminal-fixture",
+            token: fixture.claimToken,
+            leaseMs: 60_000,
+          });
+          if (!claim) {
+            throw new Error("Expected a released retention outbox claim.");
+          }
+          const finished = await store.finishBeforeProvider(claim, {
+            kind: "failed",
+            code: "RETENTION_FIXTURE_EXPIRED",
+          });
+          if (finished.kind !== "applied") {
+            throw new Error("Retention outbox fixture lost its delivery fence.");
+          }
+        }
+      });
+
+      const idempotencyKeys = RETENTION_EMAIL_FIXTURES.map((fixture) =>
+        accountMailEventIdempotencyKey({
+          eventId: fixture.idempotencySeed,
+          template: "weekly-summary",
+          userId: USER_A,
+        })
+      );
+      const terminalRows = await pool.query<{
+        id: string;
+        idempotency_key: string;
+        status: string;
+      }>(
+        `select id::text, idempotency_key, status::text
+           from public.email_outbox
+          where idempotency_key = any($1::text[])
+          order by id`,
+        [idempotencyKeys],
+      );
+      if (
+        terminalRows.rows.length !== RETENTION_EMAIL_FIXTURES.length
+        || terminalRows.rows.some((row) => row.status !== "failed")
+      ) {
+        throw new Error("Retention outbox terminal fixtures are invalid.");
+      }
+
+      await ageValidatedDisposableTerminalEmailOutboxFixtures({
+        agedAt: old,
+        databaseTarget: databaseOwnerTarget,
+        fixtures: terminalRows.rows.map((row) => ({
+          id: row.id,
+          idempotencyKey: row.idempotency_key,
+        })),
+      });
+    },
+  );
+}
 
 const REVIEWED_LEARNING_FIXTURE_BANK = {
   $schema: "../content/schema/assessment-bank.schema.json",
@@ -771,8 +918,8 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await Promise.all([
-    pool.end(),
-    integrationRetentionPool.end(),
+    endDisposableIntegrationPoolWithinDeadline(pool),
+    endDisposableIntegrationPoolWithinDeadline(integrationRetentionPool),
   ]);
 });
 
@@ -1991,9 +2138,17 @@ describe("append-only learning evidence", () => {
 describe("versioned category retention", () => {
   it("dry-runs idempotently, purges bounded expired raw data/files, and preserves official evidence plus audit", async () => {
     await seedLearningGraph();
-    const now = new Date("2026-07-12T00:00:00.000Z");
-    const old = new Date("2025-01-01T00:00:00.000Z");
-    const recent = new Date("2026-06-01T00:00:00.000Z");
+    const clock = await pool.query<{ database_now: Date }>(
+      "select pg_catalog.statement_timestamp() as database_now",
+    );
+    const databaseNow = clock.rows[0]?.database_now;
+    if (!(databaseNow instanceof Date)) {
+      throw new Error("Retention fixture database clock is unavailable.");
+    }
+    const dayMs = 86_400_000;
+    const now = databaseNow;
+    const old = new Date(now.getTime() - 730 * dayMs);
+    const recent = new Date(now.getTime() - dayMs);
     const oldThreadId = "71000000-0000-4000-8000-000000000001";
     const recentThreadId = "71000000-0000-4000-8000-000000000002";
     await db.insert(chatThread).values([
@@ -2054,41 +2209,7 @@ describe("versioned category retention", () => {
       "74000000-0000-4000-8000-000000000001",
       old,
     );
-    await db.insert(emailOutbox).values({
-      userId: USER_A,
-      deliveryScopeKey: `a:${USER_A}`,
-      toEmail: "learner-a@integration.invalid",
-      template: "weekly-summary",
-      templateVersion: "1",
-      variables: { name: "Learner" },
-      idempotencyKey: accountMailEventIdempotencyKey({
-        eventId: "retention-old-email",
-        template: "weekly-summary",
-        userId: USER_A,
-      }),
-      idempotencyAuthorityVersion: "event-v1-native",
-      status: "sent",
-      sentAt: old,
-      createdAt: old,
-      updatedAt: old,
-    });
-    await db.insert(emailOutbox).values({
-      userId: USER_A,
-      deliveryScopeKey: `a:${USER_A}`,
-      toEmail: "learner-a@integration.invalid",
-      template: "weekly-summary",
-      templateVersion: "1",
-      variables: { name: "Learner" },
-      idempotencyKey: accountMailEventIdempotencyKey({
-        eventId: "retention-old-failed-email",
-        template: "weekly-summary",
-        userId: USER_A,
-      }),
-      idempotencyAuthorityVersion: "event-v1-native",
-      status: "failed",
-      createdAt: old,
-      updatedAt: old,
-    });
+    await seedTerminalEmailOutboxFixtures(old);
     const objectRoot = await mkdtemp(path.join(tmpdir(), "learncoding-retention-"));
     const ownerSegment = ownerStorageSegment(USER_A);
     const storageKey = `${ownerSegment}/75000000-0000-4000-8000-000000000001`;
@@ -2125,7 +2246,7 @@ describe("versioned category retention", () => {
       updatedAt: old,
     });
     try {
-      const dryRun = await runRetention({
+      const dryRun = await runValidatedIntegrationRetention({
         idempotencyKey: "retention:integration:dry-run",
         dryRun: true,
         now,
@@ -2133,22 +2254,33 @@ describe("versioned category retention", () => {
       }, integrationRetentionDependencies);
       expect(dryRun.categories.rawChat.eligible).toBe(1);
       expect(dryRun.categories.rawChat.deleted).toBe(0);
-      const replay = await runRetention({
+      const replay = await runValidatedIntegrationRetention({
         idempotencyKey: "retention:integration:dry-run",
         dryRun: true,
         now,
         objectStorageRoot: objectRoot,
       }, integrationRetentionDependencies);
-      expect(replay.replayed).toBe(true);
-      await expect(runRetention({
+      expect(replay).toMatchObject({
+        runId: dryRun.runId,
+        replayed: false,
+        cutoffs: dryRun.cutoffs,
+        categories: dryRun.categories,
+      });
+      const laterDryRun = await runValidatedIntegrationRetention({
         idempotencyKey: "retention:integration:dry-run",
         dryRun: true,
-        now: new Date("2026-07-13T00:00:00.000Z"),
+        now: new Date(now.getTime() + dayMs),
         objectStorageRoot: objectRoot,
-      }, integrationRetentionDependencies)).rejects.toMatchObject({ code: "IDEMPOTENCY_MISMATCH" });
+      }, integrationRetentionDependencies);
+      expect(laterDryRun).toMatchObject({
+        runId: dryRun.runId,
+        replayed: false,
+      });
+      expect(laterDryRun.evaluatedAt).not.toBe(dryRun.evaluatedAt);
+      expect(laterDryRun.cutoffs).not.toEqual(dryRun.cutoffs);
       expect(await db.select().from(chatMessage)).toHaveLength(2);
 
-      const applied = await runRetention({
+      const applied = await runValidatedIntegrationRetention({
         idempotencyKey: "retention:integration:apply",
         dryRun: false,
         now,
@@ -2618,7 +2750,7 @@ describe("bounded export and administrator-only account deletion", () => {
         backupStatus: "awaiting_retention_expiry",
       });
       expect(backupReport.records[0]?.statement).toContain("verify every configured");
-      const expiryRun = await runRetention({
+      const expiryRun = await runValidatedIntegrationRetention({
         idempotencyKey: "retention:integration:backup-expiry",
         dryRun: false,
         now: new Date("2027-07-12T00:00:00.001Z"),

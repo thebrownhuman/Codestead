@@ -79,8 +79,8 @@ describe("dedicated backup-status reporter role contract", () => {
     expect(bootstrap).toContain(
       "public.enqueue_backup_status_mail_authority(text,text)",
     );
-    expect(bootstrap).toContain(
-      "REVIEWED_0065_BACKUP_STATUS_AUTHORITY_ROUTINES =\n  BACKUP_STATUS_AUTHORITY_ROUTINES",
+    expect(bootstrap).toMatch(
+      /export const REVIEWED_0065_BACKUP_STATUS_AUTHORITY_ROUTINES\s*=\s*BACKUP_STATUS_AUTHORITY_0065_CONTRACT\.routines;/u,
     );
     expect(authorityVerifier).toContain(
       'allowedRoles: ["learncoding_backup_reporter"]',
@@ -97,7 +97,9 @@ describe("dedicated backup-status reporter role contract", () => {
       "owner_role.rolname is distinct from 'learncoding_owner'",
     );
     expect(bootstrap).toContain("p.prosecdef is distinct from true");
-    expect(bootstrap).toContain("array['search_path=pg_catalog']::text[]");
+    expect(authorityVerifier).toMatch(
+      /signature: "public\.enqueue_backup_status_mail_authority\(text,text\)"[\s\S]*?configuration: \["search_path=pg_catalog"\][\s\S]*?allowedRoles: \["learncoding_backup_reporter"\]/u,
+    );
     expect(authorityVerifier).toContain(
       "public.enqueue_backup_status_mail_authority(text,text)",
     );
@@ -111,7 +113,9 @@ describe("dedicated backup-status reporter role contract", () => {
     expect(authorityVerifier).toContain("search_path=pg_catalog");
     expect(authorityVerifier).toContain("direct_acl_exact");
     expect(authorityVerifier).not.toMatch(/acl\.grantee\s*<>\s*p\.proowner/u);
-    expect(boundaryVerifier).toContain("verifyBackupStatusMailAuthorityObjects");
+    expect(boundaryVerifier).toContain(
+      "verifyBackupStatusMailAuthorityCatalogObjects",
+    );
   });
 
   it("mounts the reporter secret into bootstrap, both verifier gates, and the one-shot reporter", () => {
@@ -148,8 +152,8 @@ describe("dedicated backup-status reporter role contract", () => {
         expect(service).toContain("target: database_backup_reporter_url");
       }
     }
-    expect(boundaryVerifier).toContain(
-      '[\"backupReporter\", \"databaseBackupReporterUrl\", \"learncoding_backup_reporter\"]',
+    expect(boundaryVerifier).toMatch(
+      /\[\s*"backupReporter",\s*"databaseBackupReporterUrl",\s*"learncoding_backup_reporter",?\s*\]/u,
     );
     expect(boundaryVerifier).toContain(
       "databaseBackupReporterUrl: process.env.DATABASE_BACKUP_REPORTER_URL",

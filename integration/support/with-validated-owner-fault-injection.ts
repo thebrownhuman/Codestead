@@ -47,6 +47,17 @@ type ValidatedIntegrationMigrationsInput = Readonly<{
   migrationsFolder: string;
 }>;
 
+type TerminalEmailOutboxFixture = Readonly<{
+  id: string;
+  idempotencyKey: string;
+}>;
+
+type TerminalEmailOutboxFixtureAgingInput = Readonly<{
+  agedAt: Date;
+  databaseTarget: DisposableOwnerDatabaseTarget;
+  fixtures: readonly TerminalEmailOutboxFixture[];
+}>;
+
 type OwnerFaultSqlContract = Readonly<{
   cleanupSqlSha256: readonly string[];
   installSqlSha256: readonly string[];
@@ -59,6 +70,9 @@ const WORKSPACE_ROOT = path.resolve(
 );
 const WORKSPACE_MIGRATIONS_FOLDER = path.resolve(WORKSPACE_ROOT, "drizzle");
 const OWNER_POOL_SHUTDOWN_TIMEOUT_MS = 5_000;
+const CANONICAL_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const LOWERCASE_SHA256_PATTERN = /^[0-9a-f]{64}$/;
 
 const APPROVED_OWNER_FAULT_SQL = {
   "0064-dispatch-identity-probe": {
@@ -369,6 +383,186 @@ async function withValidatedOwnerSession<T>(
 
   throwPreservingFailures(input.context, primaryFailure, cleanupFailures);
   return result;
+}
+
+export async function ageValidatedDisposableTerminalEmailOutboxFixtures(
+  input: TerminalEmailOutboxFixtureAgingInput,
+): Promise<void> {
+  const context = "Retention terminal outbox fixture aging";
+  const agedAt = input?.agedAt;
+  const fixtures = input?.fixtures;
+  if (!(agedAt instanceof Date) || !Number.isFinite(agedAt.getTime())) {
+    throw requirementError(context, "a valid aging timestamp");
+  }
+  if (!Array.isArray(fixtures) || fixtures.length !== 2) {
+    throw requirementError(context, "exactly two terminal outbox fixtures");
+  }
+  const snapshot = fixtures.map((fixture) => ({
+    id: fixture?.id,
+    idempotencyKey: fixture?.idempotencyKey,
+  }));
+  if (
+    snapshot.some((fixture) => (
+      typeof fixture.id !== "string"
+      || !CANONICAL_UUID_PATTERN.test(fixture.id)
+      || typeof fixture.idempotencyKey !== "string"
+      || !LOWERCASE_SHA256_PATTERN.test(fixture.idempotencyKey)
+    ))
+    || new Set(snapshot.map((fixture) => fixture.id)).size !== snapshot.length
+    || new Set(snapshot.map((fixture) => fixture.idempotencyKey)).size
+      !== snapshot.length
+  ) {
+    throw requirementError(
+      context,
+      "unique canonical UUIDs and unique lowercase SHA-256 idempotency keys",
+    );
+  }
+  const agedAtIso = agedAt.toISOString();
+  const fixtureIds = snapshot.map((fixture) => fixture.id);
+  const fixtureKeys = snapshot.map((fixture) => fixture.idempotencyKey);
+
+  await withValidatedOwnerSession({
+    context,
+    databaseTarget: input.databaseTarget,
+    run: async (client) => {
+      let transactionOpen = false;
+      try {
+        await client.query("begin");
+        transactionOpen = true;
+        const clock = await client.query<{ old_enough: boolean }>(
+          `select $1::timestamptz
+                    <= pg_catalog.statement_timestamp() - interval '30 days'
+                    as old_enough`,
+          [agedAtIso],
+        );
+        if (clock.rows.length !== 1 || clock.rows[0]?.old_enough !== true) {
+          throw requirementError(
+            context,
+            "a timestamp at least 30 days before the database clock",
+          );
+        }
+
+        const terminalRows = await client.query<{ id: string }>(
+          `with requested(id, idempotency_key) as (
+             select ($1::uuid[])[position],
+                    ($2::text[])[position]
+               from pg_catalog.generate_subscripts(
+                 $1::uuid[], 1
+               ) as requested_index(position)
+           )
+           select outbox.id::text
+             from requested
+             join only public.email_outbox as outbox
+               on outbox.id = requested.id
+              and outbox.idempotency_key = requested.idempotency_key
+            where outbox.status = 'failed'
+              and outbox.last_error_code = 'RETENTION_FIXTURE_EXPIRED'
+              and outbox.claim_token is null
+              and outbox.claim_owner is null
+              and outbox.lease_expires_at is null
+              and outbox.provider_call_started is null
+              and outbox.adapter is null
+              and outbox.dispatch_binding_version is null
+              and outbox.dispatch_binding_sha256 is null
+              and outbox.provider_correlation_version is null
+              and outbox.provider_evidence_version is null
+              and outbox.provider_evidence_sha256 is null
+              and outbox.provider_message_id is null
+              and outbox.provider_request_body_sha256 is null
+              and outbox.provider_request_body_length is null
+              and outbox.sent_at is null
+              and outbox.quarantined_at is null
+            order by outbox.id
+            for update of outbox`,
+          [fixtureIds, fixtureKeys],
+        );
+        if (terminalRows.rows.length !== snapshot.length) {
+          throw new Error(`${context} fixture state mismatch.`);
+        }
+
+        const requireDeliveryHoldAlways = async () => {
+          const trigger = await client.query<{ tgenabled: string }>(
+            `select trigger_row.tgenabled::text
+               from pg_catalog.pg_trigger as trigger_row
+              where trigger_row.tgrelid =
+                      'public.email_outbox'::pg_catalog.regclass
+                and trigger_row.tgname =
+                      'email_outbox_delivery_hold_final'
+                and not trigger_row.tgisinternal`,
+          );
+          if (
+            trigger.rows.length !== 1
+            || trigger.rows[0]?.tgenabled !== "A"
+          ) {
+            throw new Error(
+              `${context} requires the final delivery hold enabled ALWAYS.`,
+            );
+          }
+        };
+        await requireDeliveryHoldAlways();
+        await client.query(
+          `alter table only public.email_outbox
+             disable trigger email_outbox_delivery_hold_final`,
+        );
+        const aged = await client.query<{ id: string }>(
+          `with requested(id, idempotency_key) as (
+             select ($2::uuid[])[position],
+                    ($3::text[])[position]
+               from pg_catalog.generate_subscripts(
+                 $2::uuid[], 1
+               ) as requested_index(position)
+           )
+           update only public.email_outbox as outbox
+              set updated_at = $1::timestamptz
+             from requested
+            where outbox.id = requested.id
+              and outbox.idempotency_key = requested.idempotency_key
+              and outbox.status = 'failed'
+              and outbox.last_error_code = 'RETENTION_FIXTURE_EXPIRED'
+              and outbox.claim_token is null
+              and outbox.claim_owner is null
+              and outbox.lease_expires_at is null
+              and outbox.provider_call_started is null
+              and outbox.adapter is null
+              and outbox.dispatch_binding_version is null
+              and outbox.dispatch_binding_sha256 is null
+              and outbox.provider_correlation_version is null
+              and outbox.provider_evidence_version is null
+              and outbox.provider_evidence_sha256 is null
+              and outbox.provider_message_id is null
+              and outbox.provider_request_body_sha256 is null
+              and outbox.provider_request_body_length is null
+              and outbox.sent_at is null
+              and outbox.quarantined_at is null
+           returning outbox.id::text`,
+          [agedAtIso, fixtureIds, fixtureKeys],
+        );
+        if (aged.rowCount !== snapshot.length) {
+          throw new Error(`${context} update was incomplete.`);
+        }
+        await client.query(
+          `alter table only public.email_outbox
+             enable always trigger email_outbox_delivery_hold_final`,
+        );
+        await requireDeliveryHoldAlways();
+        await client.query("commit");
+        transactionOpen = false;
+      } catch (error) {
+        if (transactionOpen) {
+          try {
+            await client.query("rollback");
+          } catch (rollbackError) {
+            throw new AggregateError(
+              [error, rollbackError],
+              `${context} failed and rollback also failed.`,
+              { cause: error },
+            );
+          }
+        }
+        throw error;
+      }
+    },
+  });
 }
 
 function requireWorkspaceMigrationsFolder(

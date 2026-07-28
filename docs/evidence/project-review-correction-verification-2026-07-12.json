@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
   "generatedAt": "2026-07-12T17:45:00.000Z",
-  "revalidatedAt": "2026-07-19T22:38:32.478Z",
+  "revalidatedAt": "2026-07-28T13:27:44.340Z",
   "status": "passed",
   "scope": [
     "PRJ-005",
@@ -13,7 +13,7 @@
     "workflow": "0030_goofy_roxanne_simpson",
     "hardening": "0031_easy_deathstrike",
     "ledgerFencing": "0033_project_review_ledger_fencing",
-    "fullChainAppliedThrough": "0033_project_review_ledger_fencing"
+    "fullChainAppliedThrough": "0069_mail_outbox_guarded_delivery_authority"
   },
   "authority": {
     "sourceReviewImmutable": true,
@@ -66,17 +66,28 @@
       "filesPassed": 15,
       "testsPassed": 81
     },
+    "repository": {
+      "command": "npm.cmd test -- --run",
+      "filesPassed": 465,
+      "filesSkipped": 1,
+      "testsPassed": 4893,
+      "testsSkipped": 11
+    },
     "postgres": {
+      "command": "npm.cmd run test:integration:vitest -- integration/backup-status-outbox.integration.test.ts integration/exam-reliability.integration.test.ts integration/project-review-correction.integration.test.ts integration/project-revisions.integration.test.ts integration/postgres.integration.test.ts integration/provider-operation-idempotency.integration.test.ts integration/provider-outage-fallback.integration.test.ts integration/assessment-correction.integration.test.ts integration/runner-admission.integration.test.ts integration/learner-drafts.integration.test.ts",
       "deprecationsFatal": true,
       "migrationsAppliedTwice": true,
       "file": "integration/project-review-correction.integration.test.ts",
       "testsPassed": 5,
-      "durationSeconds": 1.33,
-      "fullSuite": "37 files / 204 tests passed"
+      "durationSeconds": 3.192,
+      "postgresMajor": 17,
+      "releaseCycles": 2,
+      "cleanupPassed": true,
+      "fullSuite": "10 files / 85 tests passed in 63.03 seconds"
     },
     "typecheck": "passed",
     "focusedLint": "passed",
-    "schemaTablesCoveredByPrivacyInventory": 89
+    "schemaTablesCoveredByPrivacyInventory": 125
   },
   "artifactSha256": {
     "src/lib/projects/review-correction-service.ts": "1790be14111a280823851b3557256684238384b62c067f4b5550c11979fa7b59",
@@ -84,9 +95,9 @@
     "drizzle/0030_goofy_roxanne_simpson.sql": "7f3a9ee11a7af7041868265fa59264bd713609d2f2ec5f132f154549f5b45fc9",
     "drizzle/0031_easy_deathstrike.sql": "bba2a0a67f6e1f83ca5c4a1d5a2151cf6d74b3d050da5456f64bd3a3a263ef11",
     "drizzle/0033_project_review_ledger_fencing.sql": "971731ba79ee91b9005315c79b26f82f726188cedad91b2dcc70e8fda21a23cb",
-    "integration/project-review-correction.integration.test.ts": "ee953e62d747e3d45cd09be703ccf454ea8aeee23f9bd320a2d084a7c3b59292",
+    "integration/project-review-correction.integration.test.ts": "d88ebd57b0051b1a33b1cc6fcb37d0dae776e9c8d0f980bb405acccb4644b112",
     "src/lib/data-lifecycle/export.ts": "e95fdfc268a2bc17742a1da6d21669dae5f4818ae6179c142b7a90f40434b3a4",
-    "src/lib/data-lifecycle/deletion.ts": "d9d6e9d333d71f4d14eca5699eb32e806cfad90ef08cc62283db2dfcd3c5aab5"
+    "src/lib/data-lifecycle/deletion.ts": "fad4507e9f96b03e695b2ea0335ffdf2ed353c8fc7dcd990a7c69f5f178a96b3"
   },
   "supersededDigests": [
     {
@@ -108,6 +119,16 @@
       "artifact": "scripts/process-project-review-corrections.ts",
       "priorDigest": "69583268a523fdfdb123e1f8dd3be7c40c5cd84c94ed2f67e87f51d3533bac05",
       "replacedAt": "2026-07-19T22:38:32.478Z"
+    },
+    {
+      "artifact": "integration/project-review-correction.integration.test.ts",
+      "priorDigest": "ee953e62d747e3d45cd09be703ccf454ea8aeee23f9bd320a2d084a7c3b59292",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "src/lib/data-lifecycle/deletion.ts",
+      "priorDigest": "d9d6e9d333d71f4d14eca5699eb32e806cfad90ef08cc62283db2dfcd3c5aab5",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
     }
   ],
   "auditImpact": {

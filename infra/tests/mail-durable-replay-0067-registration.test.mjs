@@ -7,6 +7,9 @@ import {
   assertMailDurableReplay0067PostgresProjection,
   mailDurableReplay0067CiContract,
 } from "./mail-durable-replay-0067-ci-contract.mjs";
+import {
+  projectHistoricalPostgresCiProjection,
+} from "./mail-guarded-delivery-0069-ci-contract.mjs";
 
 const read = (relativePath) =>
   readFileSync(new URL(`../../${relativePath}`, import.meta.url), "utf8");
@@ -73,9 +76,11 @@ assert.ok(
   "the writer inventory must follow reviewed migration-ledger registration",
 );
 
-const postgresJob = workflow.match(
+const currentPostgresJob = workflow.match(
   /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
 )?.[0] ?? "";
+const postgresJob =
+  projectHistoricalPostgresCiProjection(currentPostgresJob);
 assertMailDurableReplay0067PostgresProjection(postgresJob);
 
 const replaceProjectionExactly = (projection, before, after) => {
@@ -140,7 +145,7 @@ assert.match(
   harness,
   /async function proveWriterInventoryRoutineCatalog\(/u,
 );
-assert.match(harness, /BACKUP_STATUS_AUTHORITY_ROUTINES/u);
+assert.match(harness, /BACKUP_STATUS_AUTHORITY_0067_ROUTINES/u);
 assert.match(harness, /WITH RECURSIVE user_routines AS/u);
 assert.match(harness, /pg_catalog\.pg_proc/u);
 assert.match(harness, /routine\.prokind IN \('f', 'p'\)/u);

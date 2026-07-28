@@ -5,8 +5,14 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  acquireValidatedDisposableRoleClient,
+  DISPOSABLE_INTEGRATION_POOL_BOUNDS,
+  endDisposableIntegrationPoolWithinDeadline,
   minimalNodeTestEnvironment,
+  runWithBoundedDisposableIntegrationPool,
   runWithValidatedRetentionOpsEnvironment,
+  validatedDisposableApplicationDatabaseUrl,
+  validatedDisposableBackupReporterEnvironment,
 } from "../lib/disposable-integration-environment";
 
 const WORKSPACE_ROOT = path.resolve(
@@ -27,6 +33,8 @@ const validEnvironment = () => ({
     "postgresql://learncoding_worker:worker-password@127.0.0.1:49152/learncoding_integration",
   DATABASE_OPS_URL:
     "postgresql://learncoding_ops:ops-password@127.0.0.1:49152/learncoding_integration",
+  DATABASE_BACKUP_REPORTER_URL:
+    "postgresql://learncoding_backup_reporter:reporter-password@127.0.0.1:49152/learncoding_integration",
 });
 
 describe("disposable integration environment", () => {
@@ -161,6 +169,156 @@ describe("disposable integration environment", () => {
     );
     expect(source).toContain("validatedDisposableOwnerDatabaseTarget");
     expect(source).not.toMatch(/\bdatabaseUrl\b/);
+  });
+
+  it("validates exact app and backup-reporter topology without ambient fallback", () => {
+    const environment = validEnvironment();
+    expect(validatedDisposableApplicationDatabaseUrl(environment)).toBe(
+      environment.DATABASE_APP_URL,
+    );
+    expect(validatedDisposableBackupReporterEnvironment(environment)).toEqual({
+      databaseAppUrl: environment.DATABASE_APP_URL,
+      databaseBackupReporterUrl: environment.DATABASE_BACKUP_REPORTER_URL,
+    });
+    for (const mutate of [
+      (env: Record<string, string | undefined>) => {
+        delete env.DATABASE_BACKUP_REPORTER_URL;
+      },
+      (env: Record<string, string | undefined>) => {
+        env.DATABASE_BACKUP_REPORTER_URL = env.DATABASE_BACKUP_REPORTER_URL!
+          .replace("learncoding_backup_reporter", "learncoding_ops");
+      },
+      (env: Record<string, string | undefined>) => {
+        env.DATABASE_BACKUP_REPORTER_URL = env.DATABASE_BACKUP_REPORTER_URL!
+          .replace(":49152", ":5432");
+      },
+      (env: Record<string, string | undefined>) => {
+        env.DATABASE_BACKUP_REPORTER_URL = env.DATABASE_BACKUP_REPORTER_URL!
+          .replace("127.0.0.1", "localhost");
+      },
+    ]) {
+      const invalid: Record<string, string | undefined> = validEnvironment();
+      mutate(invalid);
+      expect(() => validatedDisposableBackupReporterEnvironment(invalid))
+        .toThrow("disposable integration environment validation failed");
+    }
+  });
+
+  it("probes the exact connected role identity and destroys a mismatch", async () => {
+    const exact = {
+      query: vi.fn(async (statement: string) => {
+        expect(statement).toContain("current_database()");
+        return { rows: [{
+          current_database: "learncoding_integration",
+          current_user: "learncoding_ops",
+          session_user: "learncoding_ops",
+        }] };
+      }),
+      release: vi.fn(),
+    };
+    await expect(acquireValidatedDisposableRoleClient(
+      { connect: vi.fn(async () => exact) },
+      "learncoding_ops",
+    )).resolves.toBe(exact);
+    expect(exact.release).not.toHaveBeenCalled();
+
+    const mismatch = {
+      query: vi.fn(async (statement: string) => {
+        expect(statement).toContain("current_database()");
+        return { rows: [{
+          current_database: "learncoding_integration",
+          current_user: "learncoding_owner",
+          session_user: "learncoding_ops",
+        }] };
+      }),
+      release: vi.fn(),
+    };
+    await expect(acquireValidatedDisposableRoleClient(
+      { connect: vi.fn(async () => mismatch) },
+      "learncoding_ops",
+    )).rejects.toThrow("disposable integration role identity mismatch");
+    expect(mismatch.release).toHaveBeenCalledExactlyOnceWith(true);
+  });
+
+  it("bounds every pool phase and preserves fixture plus shutdown failures", async () => {
+    expect(DISPOSABLE_INTEGRATION_POOL_BOUNDS).toEqual({
+      connectionTimeoutMillis: 5_000,
+      idleTimeoutMillis: 5_000,
+      query_timeout: 30_000,
+      statement_timeout: 30_000,
+      lock_timeout: 5_000,
+      idle_in_transaction_session_timeout: 30_000,
+    });
+    const fixtureFailure = new Error("fixture failed");
+    const shutdownFailure = new Error("shutdown failed");
+    let failure: unknown;
+    try {
+      await runWithBoundedDisposableIntegrationPool(
+        { end: vi.fn(async () => { throw shutdownFailure; }) },
+        async () => { throw fixtureFailure; },
+      );
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(AggregateError);
+    expect((failure as AggregateError).errors).toEqual([
+      fixtureFailure,
+      shutdownFailure,
+    ]);
+    expect((failure as Error & { cause?: unknown }).cause).toBe(fixtureFailure);
+
+    vi.useFakeTimers();
+    try {
+      const pending = endDisposableIntegrationPoolWithinDeadline({
+        end: () => new Promise<void>(() => {}),
+      });
+      const assertion = expect(pending).rejects.toThrow(
+        "disposable integration pool shutdown timed out",
+      );
+      await vi.advanceTimersByTimeAsync(5_000);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("wires reporter and retention integration operations through validated sessions", async () => {
+    const [reporterSource, postgresSource] = await Promise.all([
+      readFile(
+        path.resolve(
+          WORKSPACE_ROOT,
+          "integration/backup-status-outbox.integration.test.ts",
+        ),
+        "utf8",
+      ),
+      readFile(
+        path.resolve(WORKSPACE_ROOT, "integration/postgres.integration.test.ts"),
+        "utf8",
+      ),
+    ]);
+
+    expect(reporterSource).toContain(
+      "validatedDisposableBackupReporterEnvironment(process.env)",
+    );
+    expect(reporterSource).toContain("acquireValidatedDisposableRoleClient(");
+    expect(reporterSource).toContain("DISPOSABLE_INTEGRATION_POOL_BOUNDS");
+    expect(reporterSource).not.toContain(
+      'process.env.DATABASE_BACKUP_REPORTER_URL ?? ""',
+    );
+    expect(postgresSource).toContain(
+      "validatedDisposableRetentionOpsEnvironment(process.env)",
+    );
+    expect(postgresSource).toContain("runValidatedIntegrationRetention(");
+    expect(postgresSource).toMatch(
+      /acquireValidatedDisposableRoleClient<PoolClient>\(\s*integrationRetentionPool,\s*"learncoding_ops",/u,
+    );
+    expect(postgresSource).not.toContain(
+      "connectionString: process.env.DATABASE_OPS_URL",
+    );
+    expect([...postgresSource.matchAll(/\brunRetention\(/gu)]).toHaveLength(1);
+    expect([
+      ...postgresSource.matchAll(/\brunValidatedIntegrationRetention\(/gu),
+    ]).toHaveLength(6);
   });
 
   it("passes only an explicit minimal platform environment to child tests", () => {

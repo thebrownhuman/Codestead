@@ -44,7 +44,8 @@ describe("credential mutation security boundaries", () => {
     expect(source).toContain("return db.transaction(async (tx)");
     expect(source).toContain("writeAuditEventInTransaction(tx");
     expect(source).toContain("await tx.insert(notification)");
-    expect(source).toContain(".insert(emailOutbox)");
+    expect(source).toContain("await enqueueEmailInTransaction(tx, {");
+    expect(source).not.toContain(".insert(emailOutbox)");
     expect(source).not.toMatch(/console\.(?:log|info|warn|error)/);
   });
 

@@ -1,46 +1,50 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { Pool, type PoolClient } from "pg";
 
 import { db, pool } from "@/lib/db/client";
 import { emailOutbox, user } from "@/lib/db/schema";
 import { resetDisposableIntegrationDatabase } from "./support/reset-disposable-database";
+import {
+  acquireValidatedDisposableRoleClient,
+  DISPOSABLE_INTEGRATION_POOL_BOUNDS,
+  endDisposableIntegrationPoolWithinDeadline,
+  validatedDisposableBackupReporterEnvironment,
+} from "../scripts/lib/disposable-integration-environment";
 
 const SUCCESS_SUMMARY =
   "The nightly encrypted backup completed and passed local verification. No archive is attached to this email.";
 const FAILURE_SUMMARY =
   "The nightly encrypted backup did not complete. Review the protected operations logs; no archive or log is attached to this email.";
 
-function assertDisposableDatabase() {
-  const connectionString = process.env.DATABASE_URL ?? "";
-  if (
-    process.env.INTEGRATION_TEST !== "1" ||
-    !/\/learncoding_integration(?:\?|$)/.test(connectionString)
-  ) {
-    throw new Error(
-      "Backup-status integration tests require the disposable learncoding_integration database.",
-    );
-  }
-}
-
 async function truncateApplicationTables() {
-  assertDisposableDatabase();
   await resetDisposableIntegrationDatabase(pool);
 }
 
-function productionOutboxSql() {
-  const source = readFileSync(
-    resolve(process.cwd(), "scripts", "backup", "common.sh"),
-    "utf8",
-  );
-  const match = source.match(/cat <<'SQL'\r?\n(?<sql>[\s\S]*?)\r?\nSQL/);
-  if (!match?.groups?.sql) {
-    throw new Error("The production backup outbox SQL block could not be found.");
+const backupReporterEnvironment =
+  validatedDisposableBackupReporterEnvironment(process.env);
+const reporterPool = new Pool({
+  ...DISPOSABLE_INTEGRATION_POOL_BOUNDS,
+  application_name: "codestead_integration_backup_status_reporter",
+  connectionString: backupReporterEnvironment.databaseBackupReporterUrl,
+  max: 1,
+});
+const PRODUCTION_OUTBOX_SQL = `
+  SELECT acknowledgement, authority_id::text, outbox_id::text,
+         operation_id::text
+    FROM public.enqueue_backup_status_mail_authority($1::text, $2::text)
+`;
+
+async function queryBackupReporter(values: [string, string]) {
+  const reporterClient: PoolClient =
+    await acquireValidatedDisposableRoleClient(
+      reporterPool,
+      "learncoding_backup_reporter",
+    );
+  try {
+    return await reporterClient.query(PRODUCTION_OUTBOX_SQL, values);
+  } finally {
+    reporterClient.release();
   }
-  return match.groups.sql
-    .replaceAll(":'report_outcome'", "$1")
-    .replaceAll(":'report_key'", "$2");
 }
 
 beforeEach(async () => {
@@ -59,27 +63,41 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-  await pool.end();
+  await Promise.all([
+    endDisposableIntegrationPoolWithinDeadline(reporterPool),
+    endDisposableIntegrationPoolWithinDeadline(pool),
+  ]);
 });
 
 describe("nightly backup status outbox", () => {
   it("queues generic success/failure reports and replays an exact status idempotently", async () => {
-    const sql = productionOutboxSql();
-    const successKey = "a".repeat(64);
-    const failureKey = "b".repeat(64);
+    const successRunKey = "20990101T000000Z";
+    const failureRunKey = "20990101T000001Z";
 
-    await expect(pool.query<{ case: string }>(sql, ["success", successKey]))
-      .resolves.toMatchObject({ rows: [{ case: "queued" }] });
-    await expect(pool.query<{ case: string }>(sql, ["success", successKey]))
-      .resolves.toMatchObject({ rows: [{ case: "existing" }] });
-    await expect(pool.query<{ case: string }>(sql, ["failure", failureKey]))
-      .resolves.toMatchObject({ rows: [{ case: "queued" }] });
+    await expect(queryBackupReporter([
+      successRunKey,
+      "success",
+    ])).resolves.toMatchObject({
+      rows: [expect.objectContaining({ acknowledgement: "queued" })],
+    });
+    await expect(queryBackupReporter([
+      successRunKey,
+      "success",
+    ])).resolves.toMatchObject({
+      rows: [expect.objectContaining({ acknowledgement: "existing" })],
+    });
+    await expect(queryBackupReporter([
+      failureRunKey,
+      "failure",
+    ])).resolves.toMatchObject({
+      rows: [expect.objectContaining({ acknowledgement: "queued" })],
+    });
 
     const rows = await db.select().from(emailOutbox);
     expect(rows).toHaveLength(2);
     expect(rows.map((row) => row.idempotencyKey).sort()).toEqual([
-      successKey,
-      failureKey,
+      `backup-status:v1:${successRunKey}`,
+      `backup-status:v1:${failureRunKey}`,
     ]);
     expect(rows).toEqual(
       expect.arrayContaining([
@@ -89,10 +107,10 @@ describe("nightly backup status outbox", () => {
           template: "backup-status",
           templateVersion: "1",
           status: "pending",
-          variables: { name: "administrator", summary: SUCCESS_SUMMARY },
+          variables: { name: "Administrator", summary: SUCCESS_SUMMARY },
         }),
         expect.objectContaining({
-          variables: { name: "administrator", summary: FAILURE_SUMMARY },
+          variables: { name: "Administrator", summary: FAILURE_SUMMARY },
         }),
       ]),
     );
@@ -107,11 +125,10 @@ describe("nightly backup status outbox", () => {
     await pool.query(`UPDATE "user" SET status = 'suspended' WHERE id = $1`, [
       "backup-status-admin",
     ]);
-    const result = await pool.query<{ case: string }>(productionOutboxSql(), [
+    await expect(queryBackupReporter([
+      "20990101T000002Z",
       "failure",
-      "c".repeat(64),
-    ]);
-    expect(result.rows).toEqual([{ case: "no-admin" }]);
+    ])).rejects.toMatchObject({ code: "23514" });
     expect(await db.select().from(emailOutbox)).toHaveLength(0);
   });
 });

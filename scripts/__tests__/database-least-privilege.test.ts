@@ -1212,26 +1212,31 @@ describe("database least-privilege bootstrap", () => {
       "const integrationRetentionDependencies = {",
     );
     const dependencyEnd = source.indexOf("} as const;", dependencyStart);
-    const retentionCalls = [...source.matchAll(/runRetention\(/gu)];
-    const scopedRetentionCalls = [
-      ...source.matchAll(
-        /\}, integrationRetention(?:FileErasure)?Dependencies\)(?:;|\))/gu,
-      ),
+    const retentionCalls = [...source.matchAll(/\brunRetention\(/gu)];
+    const validatedRetentionCalls = [
+      ...source.matchAll(/\brunValidatedIntegrationRetention\(/gu),
     ];
 
     expect(source).toContain("const integrationRetentionPool = new PgPool({");
     expect(source).toContain(
       "const integrationRetentionFileErasureDependencies = {",
     );
-    expect(source).toContain("connectionString: process.env.DATABASE_OPS_URL");
-    expect(source).toContain("integrationRetentionPool.end()");
+    expect(source).toContain(
+      "connectionString: validatedIntegrationEnvironment.databaseOpsUrl",
+    );
+    expect(source).toContain(
+      "endDisposableIntegrationPoolWithinDeadline(integrationRetentionPool)",
+    );
     expect(dependencyStart).toBeGreaterThanOrEqual(0);
     expect(dependencyEnd).toBeGreaterThan(dependencyStart);
     expect(source.slice(dependencyStart, dependencyEnd)).toContain(
-      "acquireClient: () => integrationRetentionPool.connect()",
+      "acquireValidatedDisposableRoleClient<PoolClient>(",
     );
-    expect(retentionCalls.length).toBeGreaterThan(0);
-    expect(scopedRetentionCalls).toHaveLength(retentionCalls.length);
+    expect(source.slice(dependencyStart, dependencyEnd)).toContain(
+      '"learncoding_ops"',
+    );
+    expect(retentionCalls).toHaveLength(1);
+    expect(validatedRetentionCalls).toHaveLength(6);
     const opsProofCalls = [
       ...opsProofSource.matchAll(/(?:\bretention[.])?runRetention\(/gu),
     ];

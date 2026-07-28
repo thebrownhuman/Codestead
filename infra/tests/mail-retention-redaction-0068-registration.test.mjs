@@ -7,6 +7,9 @@ import {
   assertMailRetentionRedaction0068PostgresProjection,
   mailRetentionRedaction0068CiContract,
 } from "./mail-retention-redaction-0068-ci-contract.mjs";
+import {
+  projectHistoricalPostgresCiProjection,
+} from "./mail-guarded-delivery-0069-ci-contract.mjs";
 
 const read = (relativePath) =>
   readFileSync(new URL(`../../${relativePath}`, import.meta.url), "utf8");
@@ -65,9 +68,11 @@ assert.ok(
     ),
 );
 
-const postgresJob = workflow.match(
+const currentPostgresJob = workflow.match(
   /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
 )?.[0] ?? "";
+const postgresJob =
+  projectHistoricalPostgresCiProjection(currentPostgresJob);
 assertMailRetentionRedaction0068PostgresProjection(postgresJob);
 
 assert.equal(snapshot0068.prevId, snapshot0067.id);

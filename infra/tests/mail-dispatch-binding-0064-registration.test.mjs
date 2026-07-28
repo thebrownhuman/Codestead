@@ -8,6 +8,9 @@ import {
   assertMailDispatchBinding0064PostgresProjection,
   mailDispatchBinding0064CiContract,
 } from "./mail-dispatch-binding-0064-ci-contract.mjs";
+import {
+  projectHistoricalPostgresCiProjection,
+} from "./mail-guarded-delivery-0069-ci-contract.mjs";
 
 const allocatorProbePath = fileURLToPath(
   new URL(
@@ -42,6 +45,43 @@ const pg18Harness = read(
   "infra/tests/mail-dispatch-binding-0064.integration.mjs",
 );
 const scripts = packageManifest.scripts;
+
+const harnessMainStart = pg18Harness.indexOf("async function main()");
+assert.ok(harnessMainStart >= 0);
+const harnessMainBody = pg18Harness.slice(harnessMainStart);
+const temporaryRootIndex = harnessMainBody.indexOf(
+  "const temporaryRoot = mkdtempSync",
+);
+const topLevelTryIndex = harnessMainBody.indexOf("try {", temporaryRootIndex);
+const temporaryRootStatementEnd =
+  harnessMainBody.indexOf(");", temporaryRootIndex) + 2;
+assert.ok(temporaryRootIndex >= 0 && topLevelTryIndex > temporaryRootIndex);
+assert.ok(temporaryRootStatementEnd > temporaryRootIndex);
+assert.equal(
+  harnessMainBody
+    .slice(temporaryRootStatementEnd, topLevelTryIndex)
+    .trim(),
+  "",
+  "the 0064 top-level try must begin literally immediately after mkdtemp",
+);
+for (const fallibleMarker of [
+  'path.join(temporaryRoot, "data")',
+  'path.join(temporaryRoot, "socket")',
+  "mkdirSync(socketDirectory)",
+  'path.join(temporaryRoot, "postgres.log")',
+  "stagedMigrationsThrough(temporaryRoot, 61)",
+  "prefixMigrationVerifier(61)",
+  "allocateDisposableLoopbackPort()",
+]) {
+  const markerIndex = harnessMainBody.indexOf(
+    fallibleMarker,
+    temporaryRootIndex,
+  );
+  assert.ok(
+    markerIndex > topLevelTryIndex,
+    `${fallibleMarker} must be inside the 0064 top-level try/finally`,
+  );
+}
 
 const {
   registrationScript,
@@ -157,6 +197,70 @@ assert.match(pg18Harness, /current_setting\('server_version_num'\)/u);
 assert.match(pg18Harness, /escapedPostgresMajor/u);
 assert.match(
   pg18Harness,
+  /stagedMigrationsThrough\(temporaryRoot, 61\)/u,
+);
+assert.match(
+  pg18Harness,
+  /stagedMigrationsThrough\(temporaryRoot, 64\)/u,
+);
+assert.equal(
+  pg18Harness.split("migrationsFolder: stagedMigrations0064").length - 1,
+  3,
+);
+assert.doesNotMatch(pg18Harness, /migrationsFolder: migrationDirectory/u);
+for (const helper of [
+  "globalDefaultAclScrubSql",
+  "managedColumnAclScrubSql",
+  "mailWorkerOutboxPrivilegesSql",
+]) {
+  assert.match(pg18Harness, new RegExp(`${helper}\\(\\)`, "u"));
+}
+assert.doesNotMatch(pg18Harness, /runDatabaseRoleBootstrap/u);
+assert.match(
+  pg18Harness,
+  /globalDefaultAclScrubSql\(\)[\s\S]*?migrationsFolder: stagedMigrations0061[\s\S]*?"62"[\s\S]*?reconcileHistoricalBaselineRewardPrivileges\(adminConnectionString\)[\s\S]*?managedColumnAclScrubSql\(\)[\s\S]*?mailWorkerOutboxPrivilegesSql\(\)[\s\S]*?migrationsFolder: stagedMigrations0062[\s\S]*?verifyRawReviewedPhase\([\s\S]*?REVIEWED_PHASE_0062/u,
+  "0064 must prove default ACL hardening -> 0061 -> exact table/column ACLs -> 0062 -> raw phase-0062 verification",
+);
+assert.match(
+  pg18Harness,
+  /verifyAndRepairReviewedBaselineRewardRoutinePrivileges/u,
+);
+assert.doesNotMatch(
+  pg18Harness,
+  /verifyAndRepairReviewedPhaseRoutinePrivileges/u,
+);
+const rawReviewedPhaseBody = pg18Harness.match(
+  /async function verifyRawReviewedPhase\([^)]*\) \{([\s\S]*?)\n\}/u,
+)?.[1];
+assert.equal(typeof rawReviewedPhaseBody, "string");
+assert.doesNotMatch(
+  rawReviewedPhaseBody,
+  /verifyAndRepairReviewed/u,
+  "raw reviewed-phase verification must not repair ACL drift first",
+);
+assert.match(
+  pg18Harness,
+  /verifyRawReviewedPhase\(connectionString, expectedPhase\)/u,
+);
+assert.doesNotMatch(
+  pg18Harness,
+  /verifyRawReviewedPhase\(connectionString,\s*expectedPhase\s*=/u,
+);
+for (const phaseName of [
+  "REVIEWED_PHASE_0062",
+  "REVIEWED_PHASE_0063",
+  "REVIEWED_PHASE_0064",
+]) {
+  assert.match(
+    pg18Harness,
+    new RegExp(
+      `verifyRawReviewedPhase\\([\\s\\S]*?${phaseName}`,
+      "u",
+    ),
+  );
+}
+assert.match(
+  pg18Harness,
   /\.\.\/\.\.\/scripts\/lib\/disposable-loopback-port\.mjs/u,
 );
 assert.doesNotMatch(pg18Harness, /net\.createServer|unusedLoopbackPort/u);
@@ -182,10 +286,12 @@ assert.match(
   /scripts\/lib\/disposable-loopback-port\.mjs$/u,
 );
 
-const postgresJob =
+const currentPostgresJob =
   workflow.match(
     /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
   )?.[0] ?? "";
+const postgresJob =
+  projectHistoricalPostgresCiProjection(currentPostgresJob);
 assert.doesNotThrow(
   () => assertMailDispatchBinding0064PostgresProjection(postgresJob),
   "the historical 0064 contract must accept ordered 0065-0067 suffixes",

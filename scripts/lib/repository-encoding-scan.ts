@@ -1,7 +1,6 @@
 import { lstat, readdir } from "node:fs/promises";
 import path from "node:path";
 
-import { findSecretCanaries } from "../../src/lib/security/secret-canary";
 import {
   isGitMetadataPath,
   normalizeRepositoryPath,
@@ -16,8 +15,7 @@ import {
   isGeneratedRepositoryArtifactDirectory,
 } from "./repository-scan-exclusions";
 
-const ignoredDirectories = new Set(["coverage", "node_modules", "dist"]);
-const textExtensions = new Set([
+const includedExtensions = new Set([
   "",
   ".bash",
   ".c",
@@ -27,7 +25,6 @@ const textExtensions = new Set([
   ".css",
   ".cts",
   ".env",
-  ".example",
   ".fish",
   ".html",
   ".ini",
@@ -35,11 +32,9 @@ const textExtensions = new Set([
   ".js",
   ".json",
   ".jsx",
-  ".key",
   ".md",
   ".mjs",
   ".mts",
-  ".pem",
   ".properties",
   ".py",
   ".service",
@@ -57,54 +52,22 @@ const textExtensions = new Set([
   ".yml",
   ".zsh",
 ]);
-
-export interface RepositorySecretFinding {
-  readonly path: string;
-  readonly detector: string;
-  readonly line: number;
-}
-
-function isLocalEnvironmentFile(name: string) {
-  const lowerName = name.toLowerCase();
-  const environmentFile = lowerName === ".env" || lowerName.startsWith(".env.");
-  return (
-    environmentFile &&
-    !lowerName.includes("example") &&
-    !lowerName.includes("sample") &&
-    !lowerName.includes("template")
-  );
-}
+const excludedDirectories = new Set(["coverage", "dist", "node_modules"]);
+const mojibake =
+  /\uFFFD|\u00C2[\u0080-\u00BF]|\u00C3[\u0080-\u00BF]|\u00E2(?:\u20AC|[\u0080-\u00BF])|\u00E2\u201A\u00AC|\u00F0(?:\u0178\u02DC\u20AC|\u009F[\u0080-\u00BF]{2})/u;
 
 function isTextCandidate(name: string): boolean {
   const lowerName = name.toLowerCase();
   const environmentFile = lowerName === ".env" || lowerName.startsWith(".env.");
-  return environmentFile || textExtensions.has(path.extname(lowerName));
-}
-
-function trackedIdentityKeys(
-  trackedPaths: ReadonlySet<string> | null,
-): ReadonlySet<string> {
-  if (trackedPaths === null) return new Set();
-  return new Set([...trackedPaths].map((relativePath) => repositoryPathIdentityKey(relativePath)));
+  return environmentFile || includedExtensions.has(path.extname(lowerName));
 }
 
 async function scanFile(
   absolute: string,
   relativePath: string,
-  tracked: boolean,
-  gitAvailable: boolean,
-  findings: RepositorySecretFinding[],
+  failures: string[],
 ) {
-  if (isGitMetadataPath(relativePath)) return;
-  const name = path.basename(absolute);
-  if (
-    (isLocalEnvironmentFile(name) && gitAvailable && !tracked) ||
-    (relativePath.startsWith("public/monaco/") && gitAvailable && !tracked) ||
-    !isTextCandidate(name)
-  ) {
-    return;
-  }
-
+  if (isGitMetadataPath(relativePath) || !isTextCandidate(path.basename(absolute))) return;
   const metadata = await lstat(absolute);
   if (metadata.isSymbolicLink()) {
     throw new Error(
@@ -115,9 +78,7 @@ async function scanFile(
 
   const safePath = repositoryFindingPath(relativePath);
   await visitDecodedTextLines(absolute, relativePath, (line, lineNumber) => {
-    for (const finding of findSecretCanaries(line, relativePath)) {
-      findings.push({ path: safePath, detector: finding.detector, line: lineNumber });
-    }
+    if (mojibake.test(line)) failures.push(`${safePath}:${lineNumber}`);
   });
 }
 
@@ -125,10 +86,9 @@ async function scanDirectory(
   root: string,
   directory: string,
   trackedPaths: ReadonlySet<string> | null,
-  trackedKeys: ReadonlySet<string>,
   scannedKeys: Set<string>,
-  findings: RepositorySecretFinding[],
-) {
+  failures: string[],
+): Promise<void> {
   const entries = await readdir(directory, { withFileTypes: true });
   for (const entry of entries) {
     const absolute = path.join(directory, entry.name);
@@ -137,33 +97,19 @@ async function scanDirectory(
     if (entry.isSymbolicLink()) continue;
     if (entry.isDirectory()) {
       if (
-        !ignoredDirectories.has(entry.name.toLowerCase()) &&
+        !excludedDirectories.has(entry.name.toLowerCase()) &&
         !isGeneratedRepositoryArtifactDirectory(relativePath) &&
         !isGeneratedNextOutputDirectory(relativePath)
       ) {
-        await scanDirectory(
-          root,
-          absolute,
-          trackedPaths,
-          trackedKeys,
-          scannedKeys,
-          findings,
-        );
+        await scanDirectory(root, absolute, trackedPaths, scannedKeys, failures);
       }
       continue;
     }
-
     if (!entry.isFile()) continue;
     const identity = repositoryPathIdentityKey(relativePath);
     if (scannedKeys.has(identity)) continue;
     scannedKeys.add(identity);
-    await scanFile(
-      absolute,
-      relativePath,
-      trackedKeys.has(identity),
-      trackedPaths !== null,
-      findings,
-    );
+    await scanFile(absolute, relativePath, failures);
   }
 }
 
@@ -171,38 +117,25 @@ async function scanTrackedFiles(
   root: string,
   trackedPaths: ReadonlySet<string>,
   scannedKeys: Set<string>,
-  findings: RepositorySecretFinding[],
+  failures: string[],
 ) {
   for (const relativePath of trackedPaths) {
     if (isGitMetadataPath(relativePath)) continue;
     const identity = repositoryPathIdentityKey(relativePath);
     if (scannedKeys.has(identity)) continue;
     const absolute = await resolveTrackedRegularRepositoryFile(root, relativePath);
-    await scanFile(absolute, relativePath, true, true, findings);
+    await scanFile(absolute, relativePath, failures);
     scannedKeys.add(identity);
   }
 }
 
-export async function scanRepositoryForSecrets(root: string) {
-  const findings: RepositorySecretFinding[] = [];
+export async function scanRepositoryForMojibake(root: string): Promise<string[]> {
+  const failures: string[] = [];
   const trackedPaths = await tryListGitTrackedRepositoryPaths(root);
-  const trackedKeys = trackedIdentityKeys(trackedPaths);
   const scannedKeys = new Set<string>();
   if (trackedPaths !== null) {
-    await scanTrackedFiles(root, trackedPaths, scannedKeys, findings);
+    await scanTrackedFiles(root, trackedPaths, scannedKeys, failures);
   }
-  await scanDirectory(
-    root,
-    root,
-    trackedPaths,
-    trackedKeys,
-    scannedKeys,
-    findings,
-  );
-  return findings.sort(
-    (left, right) =>
-      left.path.localeCompare(right.path) ||
-      left.line - right.line ||
-      left.detector.localeCompare(right.detector),
-  );
+  await scanDirectory(root, root, trackedPaths, scannedKeys, failures);
+  return failures.sort();
 }

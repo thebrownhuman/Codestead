@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T17:45:30+05:30",
-  "revalidatedAt": "2026-07-14T13:20:00+05:30",
+  "revalidatedAt": "2026-07-28T13:27:44.340Z",
   "scope": "Launch 1 learner-owned project revision workspace; local source, UI, and disposable PostgreSQL evidence only",
   "status": "verified",
   "claims": {
     "ownerBound": "Create, paginated list, and detail read pass the authenticated learner id into SQL predicates that join through the owned project; foreign targets are indistinguishable not-found responses.",
     "appendOnly": "Migration 0022 creates project_revision/project_revision_object and database update guards. Integration tests prove revision and snapshot rewrites fail with SQLSTATE 55000 while account/project deletion and object-reference nulling remain possible.",
-    "idempotentConcurrentCreate": "A per-project row lock serializes sequence allocation. Expected latest sequence rejects stale writers, exact request/hash retries replay once, and changed request-id reuse is rejected.",
+    "idempotentConcurrentCreate": "An account-authority row lock is acquired before project and session sources, then a per-project row lock serializes sequence allocation. Expected latest sequence rejects stale writers, exact request/hash retries replay once, and changed request-id reuse is rejected.",
     "safeFileAssociation": "At most 20 unique files must be owned, undeleted, user_upload, and scanStatus=safe. Only metadata plus a nullable reference is recorded; no bytes or quota_ledger row are added.",
     "reviewIsolation": "Revision creation creates no model_call, runner_job, or project_review record and the UI states that no implicit AI, execution, or review occurs.",
     "lifecycle": "Export schema 4 includes revisions and metadata snapshots without bytes. Retention policy 2026-07-12.v3 retains history until administrator deletion, whose transaction explicitly removes link/revision rows.",
@@ -21,11 +21,11 @@
     },
     {
       "command": "npm.cmd test -- --run",
-      "result": "171 files passed; 1195 passed; 1 intentionally skipped"
+      "result": "465 files passed; 1 platform-specific file skipped; 4893 tests passed; 11 tests intentionally skipped"
     },
     {
-      "command": "npm.cmd run test:integration -- integration/project-revisions.integration.test.ts",
-      "result": "All migrations through 0024 applied successfully and the second migration pass was a no-op; all 4 project cases passed, including active-session milestone, immediate inactivity close, meaningful timestamp advancement, and exact-replay non-duplication."
+      "command": "npm.cmd run test:integration:vitest -- integration/backup-status-outbox.integration.test.ts integration/exam-reliability.integration.test.ts integration/project-review-correction.integration.test.ts integration/project-revisions.integration.test.ts integration/postgres.integration.test.ts integration/provider-operation-idempotency.integration.test.ts integration/provider-outage-fallback.integration.test.ts integration/assessment-correction.integration.test.ts integration/runner-admission.integration.test.ts integration/learner-drafts.integration.test.ts",
+      "result": "Native PostgreSQL 17 completed two full release cycles through migration 0069; all 4 project-revision cases passed in 2.400 seconds within a 10-file / 85-test green suite, and disposable cleanup passed."
     },
     {
       "command": "npm.cmd run typecheck",
@@ -71,7 +71,7 @@
     },
     "service": {
       "path": "src/lib/projects/revision-service.ts",
-      "sha256": "de8da8181f80f05785c8faef6e311b026010cc6b7cfe45a398312b0aba1936e8"
+      "sha256": "e5e1cb962fb094578c713a4748669896f2afbe036ef802529ef774fbb79972dd"
     },
     "collectionRoute": {
       "path": "src/app/api/projects/[id]/revisions/route.ts",
@@ -83,7 +83,7 @@
     },
     "postgresTest": {
       "path": "integration/project-revisions.integration.test.ts",
-      "sha256": "03d08a34d7c3569ddba4a63530ca5a3709a934703d85ebe540e8bbe6a4b00dec"
+      "sha256": "e2677387e1852c5bb8dfbcc8c2c17c7327706b25e9960411458a90105b682a69"
     }
   },
   "supersededDigests": [
@@ -91,6 +91,16 @@
       "artifact": "src/components/product/project-revision-dialog.tsx",
       "priorDigest": "a3a5589503a67666b92ac2724f5c5bc0121d90aa260e4ea584e89fe6e9937174",
       "replacedAt": "2026-07-14T13:20:00+05:30"
+    },
+    {
+      "artifact": "src/lib/projects/revision-service.ts",
+      "priorDigest": "de8da8181f80f05785c8faef6e311b026010cc6b7cfe45a398312b0aba1936e8",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "integration/project-revisions.integration.test.ts",
+      "priorDigest": "03d08a34d7c3569ddba4a63530ca5a3709a934703d85ebe540e8bbe6a4b00dec",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
     }
   ],
   "notProven": [

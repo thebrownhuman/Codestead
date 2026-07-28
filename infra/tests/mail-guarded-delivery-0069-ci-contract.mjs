@@ -297,3 +297,41 @@ export function assertMailGuardedDelivery0069PostgresProjection(
     "the production-primary PostgreSQL 17 proof must precede PostgreSQL 18",
   );
 }
+
+export function projectHistoricalPostgresCiProjection(postgresProjection) {
+  assertMailGuardedDelivery0069PostgresProjection(postgresProjection);
+
+  const restoreLines = new Set([
+    `      - run: npm run ${restoreDrillRoleBoundaryCiContract.registrationScript}`,
+    `      - run: POSTGRES_17_BIN=/usr/lib/postgresql/17/bin npm run ${restoreDrillRoleBoundaryCiContract.pg17Script}`,
+    `      - run: POSTGRES_18_BIN=/usr/lib/postgresql/18/bin npm run ${restoreDrillRoleBoundaryCiContract.pg18Script}`,
+  ]);
+  let removedLineCount = 0;
+  const historicalProjection = postgresProjection
+    .split(/\r?\n/u)
+    .filter((line) => {
+      if (!restoreLines.has(line)) {
+        return true;
+      }
+      removedLineCount += 1;
+      return false;
+    })
+    .join("\n");
+  assert.equal(
+    removedLineCount,
+    restoreLines.size,
+    "the historical projection must remove the exact reviewed restore extension",
+  );
+  const currentTimeoutLine =
+    `    timeout-minutes: ${postgresCiProjectionThrough0069.timeoutMinutes}`;
+  const historicalTimeoutLine = "    timeout-minutes: 20";
+  assert.equal(
+    historicalProjection.split(currentTimeoutLine).length,
+    2,
+    "the current PostgreSQL timeout must appear exactly once",
+  );
+  return historicalProjection.replace(
+    currentTimeoutLine,
+    historicalTimeoutLine,
+  );
+}

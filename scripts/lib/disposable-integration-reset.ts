@@ -24,7 +24,7 @@ SET LOCAL statement_timeout = '30000ms';
 SET LOCAL idle_in_transaction_session_timeout = '30000ms'
 `;
 
-const RESET_NAMESPACE_OBJECT_CONTRACT_SQL = String.raw`
+const RESET_NAMESPACE_OBJECT_CONTRACT_SQL = `
 (
   (
     SELECT pg_catalog.count(*) = 1
@@ -260,7 +260,7 @@ const RESET_NAMESPACE_OBJECT_CONTRACT_SQL = String.raw`
 )
 `;
 
-const RESET_NAMESPACE_DEPENDENCY_CONTRACT_SQL = String.raw`
+const RESET_NAMESPACE_DEPENDENCY_CONTRACT_SQL = `
 (
   (
     SELECT pg_catalog.count(*) = 1
@@ -384,7 +384,7 @@ const RESET_NAMESPACE_DEPENDENCY_CONTRACT_SQL = String.raw`
   )
 )
 `;
-const RESET_GUARD_CONTRACT_SQL = String.raw`
+const RESET_GUARD_CONTRACT_SQL = `
   SELECT ${RESET_NAMESPACE_OBJECT_CONTRACT_SQL},
          ${RESET_NAMESPACE_DEPENDENCY_CONTRACT_SQL}
     INTO reset_namespace_contract_exact,
@@ -607,7 +607,7 @@ const RESET_GUARD_CONTRACT_SQL = String.raw`
     FROM ONLY public.backup_status_mail_admin_guard AS guard;
 `;
 
-const INSTALL_RESET_SQL = String.raw`
+const INSTALL_RESET_SQL = `
 CREATE SCHEMA codestead_disposable_test AUTHORIZATION learncoding_owner;
 REVOKE ALL ON SCHEMA codestead_disposable_test
   FROM PUBLIC, learncoding_it, learncoding_app, learncoding_worker,

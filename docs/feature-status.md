@@ -1,5 +1,12 @@
 # Requested feature status
 
+## Current release validation - 2026-07-28
+
+This section supersedes the historical release-validation row below. The reviewed migration ledger is contiguous through `0069`; native disposable PostgreSQL 17.10 and 18.1 mail-authority, race, and restore-role gates passed on private random non-5432 loopback ports. The pinned Node 22.23.1 `npm run check` is green with 4,893 tests passed, 11 intentional skips, and 0 failed; coverage is 80.70% statements, 75.02% branches, 80.91% functions, and 83.78% lines. Evidence integrity verifies 81 Markdown files, 273 links, 81 JSON records, and 147 hashes; the production build generated 95 pages.
+
+The release audit still records 43 implemented, 70 partial, and 2 missing requirements. Full Firefox, WebKit/tablet/mobile, production-auth browser smoke, and real Gmail/NUC/Cloudflare/Drive/reboot/power evidence remain unproven. This is not a production-readiness claim.
+
+
 **Snapshot:** 2026-07-14, current-source local revalidation in progress\
 **Meaning:** “Implemented” requires current code plus relevant automated evidence. “Partial” never means launch-ready. External deployment, credentials, human editorial approval, and physical-device checks remain separate even when the local implementation is complete.
 

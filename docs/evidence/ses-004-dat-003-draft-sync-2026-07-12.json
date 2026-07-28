@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T17:42:00+05:30",
-  "revalidatedAt": "2026-07-18T04:35:43.439Z",
+  "revalidatedAt": "2026-07-28T13:27:44.340Z",
   "requirements": [
     "SES-004",
     "DAT-003"
@@ -42,12 +42,12 @@
       "failed": 0
     },
     {
-      "command": "npm run test:integration -- integration/learner-drafts.integration.test.ts",
+      "command": "npm.cmd run test:integration:vitest -- integration/learner-drafts.integration.test.ts",
       "result": "pass",
       "files": 1,
       "passed": 10,
       "failed": 0,
-      "notes": "Disposable PostgreSQL 17; all migrations through 0024 applied twice; includes ownership, scope, DSA language isolation, idempotency, optimistic concurrency, database-trigger quota concurrency, cascade, and constraint cases."
+      "notes": "Native disposable PostgreSQL 17.10; full checked-in migration chain through 0069 passed two release cycles and the in-suite re-application contract; includes ownership, scope, DSA language isolation, idempotency, optimistic concurrency, database-trigger quota concurrency, cascade, and constraint cases; cluster cleanup passed."
     },
     {
       "command": "npm run test:coverage",
@@ -146,7 +146,7 @@
     "src/lib/drafts/logout.ts": "c7515692d430c9024dafaa2ba8784fcaa12d1cc8ee437ffb949eaf54135a208c",
     "src/app/api/drafts/route.ts": "f2624118a0ca8fe8d52da7241371a12a34b98bb68f82b6a8729cf0d11adc68ba",
     "src/components/lesson/lesson-workspace.tsx": "a793afd7ddfae26fb9d2637e9317d9e82a8cb0df46184426fc686a10752b90ce",
-    "integration/learner-drafts.integration.test.ts": "ef15f3a605a8d02adb240a484be12ab8f259a6bca7b943acc147b9f71a9cc91f"
+    "integration/learner-drafts.integration.test.ts": "10c060a3992d80b603fbf3472981f65925c5d0b539021e931a7ddfc8ddc89da2"
   },
   "supersededDigests": [
     {
@@ -178,6 +178,11 @@
       "artifact": "src/components/lesson/lesson-workspace.tsx",
       "priorDigest": "be93f416bb6b02e2887913179ffa37f8e53d769e37049992a2d4bb5ff4e1006b",
       "replacedAt": "2026-07-17T17:01:45+05:30"
+    },
+    {
+      "artifact": "integration/learner-drafts.integration.test.ts",
+      "priorDigest": "ef15f3a605a8d02adb240a484be12ab8f259a6bca7b943acc147b9f71a9cc91f",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
     }
   ],
   "remainingLimitations": [

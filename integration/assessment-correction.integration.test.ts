@@ -27,6 +27,11 @@ import {
 import { pool } from "@/lib/db/client";
 import { deleteLearnerAccount } from "@/lib/data-lifecycle/deletion";
 import { createLearnerExport, EXPORT_SCHEMA_VERSION } from "@/lib/data-lifecycle/export";
+import {
+  accountDeletionNoticeBinding,
+  type AccountDeletionNoticeVariables,
+} from "@/lib/notifications/deletion-notice-capability";
+import { accountMailEventIdempotencyKey } from "@/lib/notifications/idempotency-authority";
 import { admitRunnerJob, hashRunnerAdmissionRequest } from "@/lib/runner/admission";
 import { userAuthorityLockKey } from "@/lib/security/user-authority-lock";
 import { computeAndPersistLeaderboardScore } from "@/lib/social/leaderboard-service";
@@ -1039,7 +1044,7 @@ describe("real PostgreSQL assessment correction and regrading", () => {
     }]);
   });
 
-  it("serializes official correction persistence behind account deletion and leaves no post-deletion projections", async () => {
+  it("serializes official correction persistence behind account deletion while preserving the deletion notice", async () => {
     await seedScenario();
     const created = await createAssessmentCorrection(createInput("b3000000-0000-4000-8000-000000000025"));
     await queueAssessmentCorrection({
@@ -1085,7 +1090,15 @@ describe("real PostgreSQL assessment correction and regrading", () => {
       await waitForUserAuthorityWaiters(blockerPid, 2);
       await blocker.query("commit");
 
-      await expect(deletion).resolves.toMatchObject({ primaryStoreDeletionComplete: true });
+      const deletionReport = await deletion;
+      expect(deletionReport).toMatchObject({
+        learnerNotificationQueued: true,
+        primaryStoreDeletionComplete: true,
+        replayed: false,
+      });
+      if (!deletionReport?.deletionNotice) {
+        throw new Error("Deletion notice report binding is missing.");
+      }
       await expect(worker).resolves.toMatchObject({
         processed: true,
         succeeded: false,
@@ -1096,14 +1109,12 @@ describe("real PostgreSQL assessment correction and regrading", () => {
         effective_results: string;
         adjustments: string;
         notifications: string;
-        email: string;
       }>(
         `select
           (select count(*)::text from assessment_regrade_outcome where user_id = $1) outcomes,
           (select count(*)::text from assessment_attempt_effective_result where user_id = $1) effective_results,
           (select count(*)::text from assessment_mastery_adjustment where user_id = $1) adjustments,
-          (select count(*)::text from notification where user_id = $1) notifications,
-          (select count(*)::text from email_outbox where user_id = $1) email`,
+          (select count(*)::text from notification where user_id = $1) notifications`,
         [LEARNER_ID],
       );
       expect(residue.rows[0]).toEqual({
@@ -1111,8 +1122,145 @@ describe("real PostgreSQL assessment correction and regrading", () => {
         effective_results: "0",
         adjustments: "0",
         notifications: "0",
-        email: "0",
       });
+      const mail = await pool.query<{
+        id: string;
+        operation_id: string;
+        user_id: string;
+        delivery_scope_key: string;
+        to_email: string;
+        template: string;
+        template_version: string;
+        variables: unknown;
+        idempotency_key: string;
+        idempotency_authority_version: string;
+        idempotency_authority_sha256: string;
+        idempotency_original_payload_sha256: string;
+        delivery_hold_version: string;
+        delivery_release_insert_xid: string | null;
+        delivery_release_insert_system_identifier: string | null;
+        status: string;
+        attempt_count: number;
+        claim_token: string | null;
+        claim_owner: string | null;
+        claim_version: number;
+        lease_expires_at: Date | null;
+        provider_call_started: Date | null;
+        adapter: string | null;
+        dispatch_binding_version: string | null;
+        dispatch_binding_sha256: string | null;
+        provider_correlation_version: string | null;
+        provider_evidence_version: string | null;
+        provider_evidence_sha256: string | null;
+        provider_request_body_sha256: string | null;
+        provider_request_body_length: number | null;
+        provider_message_id: string | null;
+        sent_at: Date | null;
+        quarantined_at: Date | null;
+        last_error_code: string | null;
+      }>(
+        `select id::text, operation_id::text, user_id, delivery_scope_key,
+                to_email, template, template_version, variables, idempotency_key,
+                idempotency_authority_version, idempotency_authority_sha256,
+                idempotency_original_payload_sha256, delivery_hold_version,
+                delivery_release_insert_xid::text,
+                delivery_release_insert_system_identifier::text, status::text,
+                attempt_count, claim_token::text, claim_owner, claim_version,
+                lease_expires_at, provider_call_started, adapter,
+                dispatch_binding_version, dispatch_binding_sha256,
+                provider_correlation_version, provider_evidence_version,
+                provider_evidence_sha256, provider_request_body_sha256,
+                provider_request_body_length, provider_message_id, sent_at,
+                quarantined_at, last_error_code
+           from public.email_outbox
+          where user_id = $1
+             or pg_catalog.lower(pg_catalog.btrim(to_email)) =
+                pg_catalog.lower(pg_catalog.btrim($2))
+          order by id`,
+        [LEARNER_ID, "asha-correction@integration.invalid"],
+      );
+      expect(mail.rows).toHaveLength(1);
+      const notice = mail.rows[0]!;
+      const expectedVariables: AccountDeletionNoticeVariables = {
+        backupRetentionUntil: deletionReport.backupRetentionUntil,
+        tombstoneId: deletionReport.tombstoneId,
+        deletionRunId: deletionReport.runId,
+      };
+      expect(notice.variables).toEqual(expectedVariables);
+      expect(notice).toMatchObject({
+        id: deletionReport.deletionNotice.outboxId,
+        operation_id: deletionReport.deletionNotice.operationId,
+        user_id: LEARNER_ID,
+        delivery_scope_key: `a:${LEARNER_ID}`,
+        to_email: "asha-correction@integration.invalid",
+        template: "account-deleted",
+        template_version: "1",
+        variables: expectedVariables,
+        idempotency_key: accountMailEventIdempotencyKey({
+          eventId: deletionReport.runId,
+          template: "account-deleted",
+          userId: LEARNER_ID,
+        }),
+        idempotency_authority_version: "event-v1-native",
+        delivery_hold_version: "task7-v1",
+        delivery_release_insert_xid: null,
+        delivery_release_insert_system_identifier: null,
+        status: "pending",
+        attempt_count: 0,
+        claim_token: null,
+        claim_owner: null,
+        claim_version: 0,
+        lease_expires_at: null,
+        provider_call_started: null,
+        adapter: null,
+        dispatch_binding_version: null,
+        dispatch_binding_sha256: null,
+        provider_correlation_version: null,
+        provider_evidence_version: null,
+        provider_evidence_sha256: null,
+        provider_request_body_sha256: null,
+        provider_request_body_length: null,
+        provider_message_id: null,
+        sent_at: null,
+        quarantined_at: null,
+        last_error_code: null,
+      });
+      expect(notice.idempotency_authority_sha256).toBe(
+        notice.idempotency_key,
+      );
+      expect(notice.idempotency_original_payload_sha256).toMatch(
+        /^[0-9a-f]{64}$/,
+      );
+      const binding = accountDeletionNoticeBinding({
+        recipient: notice.to_email,
+        variables: notice.variables as AccountDeletionNoticeVariables,
+        secret: process.env.DELETION_TOMBSTONE_KEY!,
+      });
+      expect(binding).toEqual({
+        recipientHmacSha256:
+          deletionReport.deletionNotice.recipientHmacSha256,
+        payloadSha256: deletionReport.deletionNotice.payloadSha256,
+      });
+      const release = await pool.query<{
+        outbox_id: string;
+        operation_id: string;
+      }>(
+        `select verified.outbox_id::text, verified.operation_id::text
+           from public.verify_email_outbox_delivery_release(
+             $1::uuid, $2::uuid, $3::text, $4::text, $5::text
+           ) as verified`,
+        [
+          notice.id,
+          notice.operation_id,
+          notice.idempotency_authority_sha256,
+          notice.idempotency_original_payload_sha256,
+          notice.delivery_hold_version,
+        ],
+      );
+      expect(release.rows).toEqual([{
+        outbox_id: notice.id,
+        operation_id: notice.operation_id,
+      }]);
     } finally {
       await blocker.query("rollback").catch(() => undefined);
       blocker.release();

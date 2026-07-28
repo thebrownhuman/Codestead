@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "requirement": "RUN-008",
   "generatedAt": "2026-07-12T18:28:00.000Z",
-  "revalidatedAt": "2026-07-18T04:35:43.439Z",
+  "revalidatedAt": "2026-07-28T13:27:44.340Z",
   "status": "locally-verified-partial",
   "scope": "Atomic one-active-official-job admission per learner for exam final tests and assessment correction regrades; practice execution remains outside the official slot.",
   "databaseContract": {
@@ -29,15 +29,15 @@
   ],
   "verification": [
     {
-      "command": "npm run test:integration -- integration/runner-admission.integration.test.ts",
+      "command": "npm.cmd run test:integration:vitest -- integration/runner-admission.integration.test.ts",
       "result": "passed",
-      "migrations": "applied successfully twice in a fresh disposable PostgreSQL 17 container",
+      "migrations": "full chain through 0069 passed two release cycles and the in-suite re-application contract on native disposable PostgreSQL 17.10",
       "tests": "8/8"
     },
     {
-      "command": "npm run test:integration -- integration/assessment-correction.integration.test.ts",
+      "command": "npm.cmd run test:integration:vitest -- integration/assessment-correction.integration.test.ts",
       "result": "passed",
-      "migrations": "applied successfully twice in a fresh disposable PostgreSQL 17 container",
+      "migrations": "full chain through 0069 passed two release cycles and the in-suite re-application contract on native disposable PostgreSQL 17.10",
       "tests": "18/18"
     },
     {
@@ -55,23 +55,24 @@
       "tests": "38/38"
     },
     {
-      "command": "npm.cmd run test:integration",
-      "result": "37 files / 204 tests passed",
-      "migrations": "applied successfully twice in a fresh disposable PostgreSQL 17 container"
+      "command": "npm.cmd run test:integration:vitest -- integration/backup-status-outbox.integration.test.ts integration/exam-reliability.integration.test.ts integration/project-review-correction.integration.test.ts integration/project-revisions.integration.test.ts integration/postgres.integration.test.ts integration/provider-operation-idempotency.integration.test.ts integration/provider-outage-fallback.integration.test.ts integration/assessment-correction.integration.test.ts integration/runner-admission.integration.test.ts integration/learner-drafts.integration.test.ts",
+      "result": "10 files / 85 tests passed",
+      "migrations": "role bootstrap, two release cycles, and the current migration-chain re-application contract passed on native disposable PostgreSQL 17.10",
+      "cleanup": "disposable cluster cleanup passed"
     }
   ],
   "sha256": {
     "drizzle/0035_official_runner_fairness.sql": "5248e2c78a8152a4994f9e286d16c1577820ef8dda40db1b8df7058eff7abbe6",
     "drizzle/meta/0035_snapshot.json": "4d0e919e4cc302bc0390dc2552d27a15abe4eedd16e2d3e0107c696166e155d2",
-    "src/lib/db/schema.ts": "1793b21d5a9ea2bf40863641a05b421b59dda4036050c792b1f77c92a8099c5b",
+    "src/lib/db/schema.ts": "3575f2617f5cf449848ef5a5fcf01a8e1217823d570e87189313b7eff9cb6b1b",
     "src/lib/runner/admission.ts": "2b114931f9f427c96a0da096d27927a8407de43d6c1a5e64849c9784d4322a00",
     "src/lib/runner/client.ts": "619d3dd0da0588caaec523389964c1a7cd091091ce12f267b372de1275121d3f",
     "src/app/api/code/run/route.ts": "c84e1e6d8d90a6505ae6ce5363db943122ebc4d8bfd9ffa8afdde411357348c8",
     "src/app/api/exams/_lib/service.ts": "e11f966b69b96a65e62e5ab80eb9913986bbcd776b36e2171acd8caa5edc04a2",
     "src/app/api/exams/_lib/finalization-worker.ts": "5a56bce1b838855df3fd489e98de213bd5fa84eeae9b5736fa1a594d712c5c5a",
-    "src/lib/assessment-corrections/worker.ts": "5e4c27115fd1c02d74eafd161c5dbf4ed067e90d53a75b5db0d2a53e60197c68",
-    "integration/runner-admission.integration.test.ts": "7f09ed1d4ced3b10ddcdd7bf84c96300c84e66275101c3d6dbcc4fb1462e13f9",
-    "integration/assessment-correction.integration.test.ts": "0467f13f359e05d121cc62a408956e68b41e9d5e8342c9885bfb165bd5779978",
+    "src/lib/assessment-corrections/worker.ts": "81a529295ae38f0b3fd69b394deb33deaab424a8c906686428578505d7190970",
+    "integration/runner-admission.integration.test.ts": "e98e8c2c013c533ccd941eee3cd1c84a24d584588e0394e5cbe35975a03b3852",
+    "integration/assessment-correction.integration.test.ts": "57dd7ed53022ba455ce0936c7f8c46a0c4261f369758ce91decdd3cc91811195",
     "src/lib/data-lifecycle/export.ts": "e95fdfc268a2bc17742a1da6d21669dae5f4818ae6179c142b7a90f40434b3a4"
   },
   "supersededDigests": [
@@ -109,6 +110,26 @@
       "artifact": "src/app/api/exams/_lib/service.ts",
       "priorDigest": "48949237a92277536e61488dc6bca1bede40c6214bebd45169433cd6f3c7cd62",
       "replacedAt": "2026-07-17T17:01:45+05:30"
+    },
+    {
+      "artifact": "src/lib/db/schema.ts",
+      "priorDigest": "1793b21d5a9ea2bf40863641a05b421b59dda4036050c792b1f77c92a8099c5b",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "src/lib/assessment-corrections/worker.ts",
+      "priorDigest": "5e4c27115fd1c02d74eafd161c5dbf4ed067e90d53a75b5db0d2a53e60197c68",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "integration/runner-admission.integration.test.ts",
+      "priorDigest": "7f09ed1d4ced3b10ddcdd7bf84c96300c84e66275101c3d6dbcc4fb1462e13f9",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "integration/assessment-correction.integration.test.ts",
+      "priorDigest": "0467f13f359e05d121cc62a408956e68b41e9d5e8342c9885bfb165bd5779978",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
     }
   ],
   "notProved": [

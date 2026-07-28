@@ -389,7 +389,8 @@ export const BACKUP_STATUS_AUTHORITY_0067_ROUTINES = Object.freeze(
           configuration: ["search_path=pg_catalog, pg_temp"],
           bodySha256:
             "ac406b4dff127c10f791267c1464faddbe93e8ce88faa0a52c215881ac1b7480",
-          definitionSha256: null,
+          definitionSha256:
+            "9da144a39b11b808c114068c9bf32b4ff45b63b1be20e680f79804c01db30ea2",
         })
       : routine,
   ),

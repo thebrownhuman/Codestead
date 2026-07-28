@@ -662,7 +662,10 @@ test("selects the widened 0067 contract without changing frozen 0065 bytes", asy
     replayEnqueue?.bodySha256,
     "ac406b4dff127c10f791267c1464faddbe93e8ce88faa0a52c215881ac1b7480",
   );
-  assert.equal(replayEnqueue?.definitionSha256, null);
+  assert.equal(
+    replayEnqueue?.definitionSha256,
+    "9da144a39b11b808c114068c9bf32b4ff45b63b1be20e680f79804c01db30ea2",
+  );
 
   const client = exactClient();
   assert.equal(

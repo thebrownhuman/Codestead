@@ -1,19 +1,42 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T16:28:00.000Z",
-  "revalidatedAt": "2026-07-20T05:04:15.801Z",
-  "scope": "Local deterministic validation of backup status reporting into the application email outbox; no external email was sent.",
+  "revalidatedAt": "2026-07-28T13:27:44.340Z",
+  "scope": "Local deterministic validation of nightly backup status reporting through the dedicated least-privilege reporter and current PostgreSQL mail-authority chain on native disposable PostgreSQL 17; no Docker, host PostgreSQL service, real data, real credentials, or external email was used.",
   "status": "passed",
   "shellContract": {
     "syntaxPassed": true,
     "backupConfigRegressionPassed": true,
     "successAndFailureHooksPresent": true,
     "invalidOutcomeRejected": true,
-    "invalidIdempotencySeedRejected": true,
-    "missingAdministratorFailsToAcknowledge": true
+    "invalidRunIdentityRejected": true,
+    "forgedAcknowledgementRejected": true,
+    "dedicatedOneShotReporterOnly": true,
+    "boundedManagedDeadline": true,
+    "databaseCredentialsExcludedFromArguments": true
+  },
+  "reporterAuthorityContract": {
+    "service": "backup-status-reporter",
+    "entrypoint": "scripts/backup/enqueue-backup-status.mjs",
+    "databaseRole": "learncoding_backup_reporter",
+    "authorityRoutine": "public.enqueue_backup_status_mail_authority(text,text)",
+    "directHostOutboxDml": false,
+    "databaseUrlReadFromSecretFile": true,
+    "finiteConnectionQueryAndShutdownDeadlines": true,
+    "ownerSecurityAclVerifierPassed": true
   },
   "postgresqlContract": {
-    "database": "disposable PostgreSQL 17 with the complete migration chain",
+    "database": "native disposable PostgreSQL 17 with the complete current 0000-0069 migration chain",
+    "loopbackPort": 56472,
+    "hostPort5432Used": false,
+    "releaseCycles": 2,
+    "releaseCyclesPassed": 2,
+    "migrationTopologyStableAcrossReplay": true,
+    "selectedIntegrationFiles": 10,
+    "selectedIntegrationTests": 85,
+    "selectedIntegrationTestsPassed": 85,
+    "backupStatusTests": 2,
+    "backupStatusTestsPassed": 2,
     "activeAdministrators": 1,
     "successCalls": 2,
     "successAcknowledgements": [
@@ -28,6 +51,15 @@
     "template": "backup-status",
     "initialStatus": "pending",
     "exactRetryCreatedDuplicate": false,
+    "noActiveAdministratorFailsClosed": true,
+    "noActiveAdministratorSqlstate": "23514",
+    "dedicatedReporterRoleUsed": true,
+    "authorityRoutine": "public.enqueue_backup_status_mail_authority(text,text)",
+    "authorityMigrationChain": [
+      "0065_backup_status_mail_authority",
+      "0067_mail_outbox_durable_replay_authority",
+      "0069_mail_outbox_guarded_delivery_authority"
+    ],
     "genericSuccessSummaryPreserved": true,
     "genericFailureSummaryPreserved": true,
     "protectedMetadataCanaryMatches": 0,
@@ -40,10 +72,32 @@
       "application data path"
     ]
   },
+  "verification": {
+    "nativePostgresql17": {
+      "localLog": "C:\\tmp\\codestead-native-pg17-85-final-20260728-185559.stdout.log",
+      "localLogSha256": "83a63ff83b089c03eaa15212327a9751612d00ffdfec596a186cf23e1735e087",
+      "command": "npm run test:integration:vitest -- integration/backup-status-outbox.integration.test.ts integration/exam-reliability.integration.test.ts integration/project-review-correction.integration.test.ts integration/project-revisions.integration.test.ts integration/postgres.integration.test.ts integration/provider-operation-idempotency.integration.test.ts integration/provider-outage-fallback.integration.test.ts integration/assessment-correction.integration.test.ts integration/runner-admission.integration.test.ts integration/learner-drafts.integration.test.ts",
+      "releaseCyclesPassed": "2/2",
+      "filesPassed": "10/10",
+      "testsPassed": "85/85",
+      "backupStatusTestsPassed": "2/2",
+      "cleanupPassed": true
+    },
+    "shell": {
+      "syntaxCommand": "bash -n scripts/backup/common.sh scripts/backup/backup.sh infra/tests/backup-config.test.sh",
+      "regressionCommand": "bash infra/tests/backup-config.test.sh",
+      "result": "passed"
+    },
+    "focusedReporterAndVerifier": {
+      "command": "node --test scripts/backup/enqueue-backup-status.test.mjs scripts/verify-backup-status-mail-authority.test.mjs",
+      "testsPassed": "24/24"
+    }
+  },
   "cleanup": {
-    "containersRemoved": true,
-    "networkRemoved": true,
-    "volumesRemoved": true,
+    "nativePostgresCleanupPassed": true,
+    "dockerUsed": false,
+    "hostPostgresServiceUsed": false,
+    "hostPort5432Used": false,
     "realDataUsed": false,
     "realCredentialsUsed": false,
     "externalEmailsSent": 0
@@ -51,39 +105,103 @@
   "sourceHashes": [
     {
       "path": "scripts/backup/common.sh",
-      "sha256": "e47ceeade59465752fc21905e4ee920636783fde1d029c6d2b79fb49da80f918"
+      "sha256": "85e415ad0c0a589e7113c29b746c2237ba1f4673f4499004bc71ac6d68ed3b25"
     },
     {
       "path": "scripts/backup/backup.sh",
-      "sha256": "ea45d4a7d497f47f4de4fac5d3ac576c9247c7cb7f41a75258b42091a9084e6b"
+      "sha256": "fe2888b4c33a472b42943f9d463a7ced75f4454cadffb8ef4fab80f22bd55d53"
+    },
+    {
+      "path": "scripts/backup/enqueue-backup-status.mjs",
+      "sha256": "04048de98e37f5ab8e105102668cc2d59af7d8a8d827662939aa9d455eb75ae8"
+    },
+    {
+      "path": "scripts/backup/enqueue-backup-status.test.mjs",
+      "sha256": "667a05541e56d2464086eccf7aed5ae4d2aeddc825c9bba2fb824d7c825edb03"
+    },
+    {
+      "path": "compose.yaml",
+      "sha256": "916d76f799f0a3a4c227c6f59c57fee53a933aea3ff67f89f2ccc26c19b8df58"
+    },
+    {
+      "path": "drizzle/0065_backup_status_mail_authority.sql",
+      "sha256": "1274dda8013fe80f09df63f7ddc73b24b0a9a482a40e5f5042eaef2373c14b3c"
+    },
+    {
+      "path": "drizzle/0067_mail_outbox_durable_replay_authority.sql",
+      "sha256": "ccb3e093847fb875ded41ec0c36d0ff8405c04d1546ba9dd21696e86a73a6817"
+    },
+    {
+      "path": "drizzle/0069_mail_outbox_guarded_delivery_authority.sql",
+      "sha256": "da33b7f35d6fe75c750e8ffdea9717e0c27098b7bb2a6a2e458cc9c7e2e9ec9c"
+    },
+    {
+      "path": "drizzle/meta/_journal.json",
+      "sha256": "f62f2d8ce0640aa88eab712de40e463fcb27d7c3f78197e56a248612f2309080"
+    },
+    {
+      "path": "scripts/lib/reviewed-migration-ledger.mjs",
+      "sha256": "ea6edf83dd8ee770013a4be83b6bd9806b08f63e083d449926b6423bd648acd3"
+    },
+    {
+      "path": "scripts/migrate-production.mjs",
+      "sha256": "c78ce13741076478935c4945b671b25835d4e526c56ef258b6eaaf24cfaea801"
+    },
+    {
+      "path": "scripts/bootstrap-database-roles.mjs",
+      "sha256": "92712e752c2d2f0ea751f3d287f42a714b012851eaffa8fa74373b1c62d2b59b"
+    },
+    {
+      "path": "scripts/verify-database-role-boundaries.mjs",
+      "sha256": "0fd77e9fc8717b65bf36120210eac30ab108605fac85a65ab900e63ca196a7e4"
+    },
+    {
+      "path": "scripts/verify-backup-status-mail-authority.mjs",
+      "sha256": "f444ab133781ea968741a80c408c5eaa0f57ce458796141b2193ef7a6c682082"
+    },
+    {
+      "path": "scripts/verify-backup-status-mail-authority.test.mjs",
+      "sha256": "05beb7dfaffae2cba33ff62e4e6307aa48f5b70c778e33264ecb5ecb3f776c28"
     },
     {
       "path": "infra/tests/backup-config.test.sh",
-      "sha256": "d515355d0d6d13fd850bbbde3b605b8a677d3633255577833831bcded296dc0d"
-    },
-    {
-      "path": "docs/runbooks/backup-and-restore.md",
-      "sha256": "dce43df6138ee80bdc8e723fd46de428daf7446037bead6b5cc9534def50d30f"
+      "sha256": "c2b8150d58dadc8dfe3a258b332d18ded4e3d0d14a117cbe03a1c5b0796931df"
     },
     {
       "path": "integration/backup-status-outbox.integration.test.ts",
-      "sha256": "f3bb6061b271e4fdbdf09535c9b2c61121c09b9fe60d6d59f3986a9dd7f1d11e"
+      "sha256": "7cee741eee4c9c7d89487ae643de7036d3d2fd295943dd96d8cff14f8340e34a"
+    },
+    {
+      "path": "infra/tests/backup-status-mail-authority-0065.integration.mjs",
+      "sha256": "30d25becd8a654e31ba6bfabe6e7ed92543e157f7b11613cf0c81988ff141362"
+    },
+    {
+      "path": "infra/tests/backup-status-mail-authority-0065-registration.test.mjs",
+      "sha256": "6766d6f61fe488a6b0f523ec08049cfc18342ecec749071586b82844949112f2"
+    },
+    {
+      "path": "scripts/__tests__/backup-reporter-role-contract.test.ts",
+      "sha256": "e4651ff8cdd9de0ef984dbbd5acefdb375149476342d5b424bc2b93b460336e7"
     },
     {
       "path": "scripts/run-integration-tests.ts",
-      "sha256": "6563a8546d23ab66ebd871ab5ba75fb51b1f6f6983f42aedba0695d0d10182b1"
+      "sha256": "b2b3c68f05df07538310843e37efdc31f9f4ca0c59cc373681de8a0700092937"
     },
     {
       "path": "vitest.integration.config.ts",
       "sha256": "547b3009a32b866ee974bc2e2b97257561f5a95ea34784a7924fc592dd635e63"
     },
     {
+      "path": "docs/runbooks/backup-and-restore.md",
+      "sha256": "e1bd3efb5ff6ccde11517c3c5ee45c5bcc85f8671a29ade3430b2926f401ab55"
+    },
+    {
       "path": ".github/workflows/ci.yml",
-      "sha256": "4405f9732a676cd42fb8c5df9b0866e35a4366ae9046b2834925409fb939087a"
+      "sha256": "84d5c20ff0fb148a445406a9fc42c59b2b6ad07abfd1ec2cb63ed8a4e683ff4c"
     },
     {
       "path": "infra/tests/backup-ci-registration.test.mjs",
-      "sha256": "7a72e3a05cc82c51b70756a6916771307dde2cc7729ec005671581a6c4336d77"
+      "sha256": "7618caca831df49bb974350dd7367c0986e85ec276d342cf08a326f83a09e3bd"
     }
   ],
   "supersededDigests": [
@@ -146,11 +264,58 @@
       "artifact": ".github/workflows/ci.yml",
       "priorDigest": "b2ff8df08ba1cc00f0f719a674d7394bc49e0e8786a575f3005604358abf1172",
       "replacedAt": "2026-07-20T06:05:00.000Z"
+    },
+    {
+      "artifact": "scripts/backup/common.sh",
+      "priorDigest": "e47ceeade59465752fc21905e4ee920636783fde1d029c6d2b79fb49da80f918",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "scripts/backup/backup.sh",
+      "priorDigest": "ea45d4a7d497f47f4de4fac5d3ac576c9247c7cb7f41a75258b42091a9084e6b",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "infra/tests/backup-config.test.sh",
+      "priorDigest": "d515355d0d6d13fd850bbbde3b605b8a677d3633255577833831bcded296dc0d",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "docs/runbooks/backup-and-restore.md",
+      "priorDigest": "dce43df6138ee80bdc8e723fd46de428daf7446037bead6b5cc9534def50d30f",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "integration/backup-status-outbox.integration.test.ts",
+      "priorDigest": "f3bb6061b271e4fdbdf09535c9b2c61121c09b9fe60d6d59f3986a9dd7f1d11e",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "scripts/run-integration-tests.ts",
+      "priorDigest": "6563a8546d23ab66ebd871ab5ba75fb51b1f6f6983f42aedba0695d0d10182b1",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": ".github/workflows/ci.yml",
+      "priorDigest": "4405f9732a676cd42fb8c5df9b0866e35a4366ae9046b2834925409fb939087a",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "infra/tests/backup-ci-registration.test.mjs",
+      "priorDigest": "7a72e3a05cc82c51b70756a6916771307dde2cc7729ec005671581a6c4336d77",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "integration/backup-status-outbox.integration.test.ts",
+      "priorDigest": "82e3cee42f3f46f8f4d6a5af600a46be1f8ef213f9ddb292906326151d4692a1",
+      "replacedAt": "2026-07-28T23:06:21.4800341+05:30"
     }
   ],
   "limitations": [
-    "If PostgreSQL or Docker is unavailable, a failed backup cannot enqueue into that same unavailable database; journald and the root-owned alert hook remain the independent fallback.",
-    "This validates outbox creation and template safety, not configured Gmail delivery, bounce handling, SPF, DKIM, or DMARC.",
-    "The exact full backup and restore drill is recorded separately; this report exercises the reporting hook and its database contract."
+    "If PostgreSQL or the production Compose runtime is unavailable, a failed backup cannot enqueue into that same unavailable database; journald and the root-owned alert hook remain the independent fallback.",
+    "This validates the host reporting hook, dedicated reporter, database authority, outbox creation, replay behavior, and template safety; it does not prove configured Gmail delivery, bounce handling, SPF, DKIM, or DMARC.",
+    "The selected native evidence run used PostgreSQL 17 only. Separate repository gates cover PostgreSQL 18; this record does not claim that external runtime evidence.",
+    "The exact full backup and restore drill is recorded separately; this report does not exercise real backup archives, Google Drive, or real recovery credentials.",
+    "The named C:\\tmp log is local run provenance rather than a committed artifact; the active source hashes and rerunnable commands are the repository integrity boundary."
   ]
 }

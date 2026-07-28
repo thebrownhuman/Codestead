@@ -9,6 +9,9 @@ import {
 import {
   mailProviderCorrelation0066PostgresCiExtension,
 } from "./mail-provider-correlation-0066-ci-contract.mjs";
+import {
+  projectHistoricalPostgresCiProjection,
+} from "./mail-guarded-delivery-0069-ci-contract.mjs";
 import * as postgresCiProjectionModule from "./mail-retention-redaction-0063-ci-contract.mjs";
 import {
   outwardFailureCode,
@@ -428,10 +431,12 @@ assert.match(
 );
 
 if (!staticOnly) {
-  const postgresJob =
+  const currentPostgresJob =
     workflow.match(
       /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
     )?.[0] ?? "";
+  const postgresJob =
+    projectHistoricalPostgresCiProjection(currentPostgresJob);
   const replaceProjectionExactly = (projection, before, after) => {
     assert.equal(
       projection.split(before).length,

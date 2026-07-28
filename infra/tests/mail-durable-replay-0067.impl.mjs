@@ -75,7 +75,11 @@ const LIBPQ_ENVIRONMENT_KEYS = Object.freeze([
 ]);
 for (const key of LIBPQ_ENVIRONMENT_KEYS) delete process.env[key];
 
-const CUTOVER_PROOF_SOURCES = Object.freeze([
+const CUTOVER_EXCLUSIVE_SOURCES = Object.freeze([
+  "public.email_outbox",
+  "public.backup_status_mail_authority",
+]);
+const CUTOVER_SHARE_PROOF_SOURCES = Object.freeze([
   'public."user"',
   "public.verification",
   "public.lost_device_proof",
@@ -84,11 +88,14 @@ const CUTOVER_PROOF_SOURCES = Object.freeze([
   "public.smart_reminder_dispatch",
   "public.access_request",
   "public.invitation",
+]);
+const CUTOVER_PROOF_SOURCES = Object.freeze([
+  ...CUTOVER_SHARE_PROOF_SOURCES,
   "public.backup_status_mail_authority",
 ]);
 const CUTOVER_LOCK_STATEMENTS = Object.freeze([
-  "lock table public.email_outbox in access exclusive mode nowait;",
-  `lock table ${CUTOVER_PROOF_SOURCES.join(", ")} in share mode nowait;`,
+  `lock table ${CUTOVER_EXCLUSIVE_SOURCES.join(", ")} in access exclusive mode nowait;`,
+  `lock table ${CUTOVER_SHARE_PROOF_SOURCES.join(", ")} in share mode nowait;`,
 ]);
 const CUTOVER_SEARCH_PATH_STATEMENT =
   "set local search_path = pg_catalog, pg_temp;";
@@ -2353,7 +2360,7 @@ function aliasRows() {
       ADMIN_EMAIL,
       "access-request-admin",
       ACCESS_ADMIN_ID,
-      `admin:${ADMIN_ID}`,
+      ADMIN_ID,
       systemEventKey(
         "access-request-admin",
         "access-request-admin",
@@ -2367,7 +2374,7 @@ function aliasRows() {
       "approved-0067@example.invalid",
       "access-request-approved",
       INVITATION_ID,
-      `requester:${ACCESS_APPROVED_ID}`,
+      ACCESS_APPROVED_ID,
       systemEventKey(
         "invitation",
         "access-request-approved",
@@ -3186,7 +3193,10 @@ function seedLegacyOutbox(port, database) {
     ...blockedPolicyRows,
     ...sourceMapNearMisses,
   ];
-  assert.equal(new Set(blockedRows.map((row) => row.template)).size, 21);
+  assert.deepEqual(
+    [...new Set(blockedRows.map((row) => row.template))].sort(),
+    [...sourceMapPolicySet].sort(),
+  );
   const additionalSourceMapNearMissCaseNames = new Set([
     "inactivity-non-admin",
     "deletion-target-mismatch",
@@ -3261,6 +3271,27 @@ function poison0067DefaultAcls(port, database) {
     `,
   );
 }
+
+function migration0067ThroughQuiescencePreflight() {
+  const statements = splitPostgresStatements(migration0067);
+  assert.ok(statements.length > 3);
+  const canonical = statements.slice(0, 4).map(
+    ({ sql: statement }) => canonicalizePostgresStatement(statement),
+  );
+  assert.deepEqual(canonical.slice(0, 2), CUTOVER_LOCK_STATEMENTS);
+  assert.equal(canonical[2], CUTOVER_SEARCH_PATH_STATEMENT);
+  assert.match(
+    canonical[3],
+    /email outbox delivery cutover requires quiescence/u,
+  );
+  assert.ok(statements[3].end < migration0067.length);
+  const preflight = `${migration0067.slice(0, statements[3].end)}\n`;
+  assert.equal(splitPostgresStatements(preflight).length, 4);
+  return preflight;
+}
+
+const MIGRATION_0067_QUIESCENCE_PREFLIGHT =
+  migration0067ThroughQuiescencePreflight();
 
 function migration0067WithHostileAcls() {
   const marker = "DO $codestead_idempotency_acl_scrub$";
@@ -3873,7 +3904,10 @@ async function proveGrantedCutoverLocks(
   database,
   applicationName,
 ) {
-  const targets = ["public.email_outbox", ...CUTOVER_PROOF_SOURCES];
+  const targets = [
+    ...CUTOVER_EXCLUSIVE_SOURCES,
+    ...CUTOVER_SHARE_PROOF_SOURCES,
+  ];
   const result = await queryDatabase(
     port,
     database,
@@ -3899,13 +3933,13 @@ async function proveGrantedCutoverLocks(
       ORDER BY target.relation_name, lock.mode, lock.granted;`,
   );
   const expected = [
-    {
-      relation_name: "public.email_outbox",
+    ...CUTOVER_EXCLUSIVE_SOURCES.map((relationName) => ({
+      relation_name: relationName,
       mode: "AccessExclusiveLock",
       granted: true,
       lock_count: 1,
-    },
-    ...CUTOVER_PROOF_SOURCES.map((relationName) => ({
+    })),
+    ...CUTOVER_SHARE_PROOF_SOURCES.map((relationName) => ({
       relation_name: relationName,
       mode: "ShareLock",
       granted: true,
@@ -4848,8 +4882,8 @@ async function proveOriginalPayloadVariableSemantics(port, database) {
     {
       name: "variables-sql-null",
       variablesSql: "NULL",
-      code: "23502",
-      constraint: undefined,
+      code: "23514",
+      constraint: "email_outbox_variables_object_valid",
     },
   ]) {
     const row = newEventRow(150, invalidVariables.name);
@@ -5326,7 +5360,7 @@ function proveCompositeAuthorityBackstop(port, database) {
        id, operation_id, user_id, delivery_scope_key, to_email, template,
        template_version, variables, idempotency_key,
        idempotency_authority_version, idempotency_authority_sha256,
-       idempotency_original_payload_sha256
+       idempotency_original_payload_sha256, delivery_hold_version
      ) VALUES (
        '${triggerDisabled.id}', '${triggerDisabled.operationId}',
        '${triggerDisabled.userId}', 'a:${triggerDisabled.userId}',
@@ -5334,7 +5368,7 @@ function proveCompositeAuthorityBackstop(port, database) {
        '${triggerDisabled.version}',
        ${sqlLiteral(JSON.stringify(triggerDisabled.variables))}::jsonb,
        '${triggerDisabled.key}', 'event-v1-native', '${triggerDisabled.key}',
-       ${triggerDisabledDigest}
+       ${triggerDisabledDigest}, 'task7-v1'
      );
      SET CONSTRAINTS email_outbox_idempotency_authority_fk IMMEDIATE;
      COMMIT;`,
@@ -6257,7 +6291,18 @@ function proveNewReplayAndRollback(port, database) {
 }
 
 async function proveUnrelatedConflictCannotOrphanAuthority(port, database) {
-  const duplicateOperationId = fixtureUuid("76", 100);
+  const duplicateOperationId = fixtureUuid("76", 1);
+  assert.equal(
+    scalar(
+      port,
+      database,
+      `SELECT pg_catalog.count(*)::pg_catalog.text
+         FROM public.email_outbox
+        WHERE operation_id = '${duplicateOperationId}'::pg_catalog.uuid;`,
+    ),
+    "1",
+    "unrelated conflict fixture must target one existing operation ID",
+  );
   const row = newEventRow(50, "unrelated-operation-conflict", {
     operationId: duplicateOperationId,
   });
@@ -6442,13 +6487,14 @@ async function proveUnrelatedConflictCannotOrphanAuthority(port, database) {
       port,
       database,
       `BEGIN;
+       SET ROLE learncoding_owner;
        SET CONSTRAINTS ALL IMMEDIATE;
        ${insertOutboxSql(doUpdateAttempt, { eventAuthority: true })}
        ON CONFLICT (operation_id) DO UPDATE
          SET updated_at = email_outbox.updated_at
        RETURNING id;
        COMMIT;`,
-      "learncoding_app",
+      "learncoding_migrator",
     ),
     heldBlocker.id,
   );
@@ -7788,11 +7834,11 @@ function proveBackupCompatibility(port, database) {
 }
 
 async function proveWriterInventoryRoutineCatalog(port, database) {
-  const { BACKUP_STATUS_AUTHORITY_ROUTINES } =
+  const { BACKUP_STATUS_AUTHORITY_0067_ROUTINES } =
     await import("../../scripts/verify-backup-status-mail-authority.mjs");
   const signature =
     "public.enqueue_backup_status_mail_authority(text,text)";
-  const reviewed = BACKUP_STATUS_AUTHORITY_ROUTINES.find(
+  const reviewed = BACKUP_STATUS_AUTHORITY_0067_ROUTINES.find(
     (routine) => routine.signature === signature,
   );
   assert.ok(
@@ -7803,6 +7849,26 @@ async function proveWriterInventoryRoutineCatalog(port, database) {
     .slice(0, reviewed.inputArgumentCount)
     .map((name, index) => `${name} ${reviewed.argumentTypes[index]}`)
     .join(", ");
+  const actualDefinitionSha256 = scalar(
+    port,
+    database,
+    `SELECT pg_catalog.encode(
+       pg_catalog.sha256(
+         pg_catalog.convert_to(
+           pg_catalog.pg_get_functiondef(
+             pg_catalog.to_regprocedure(${sqlLiteral(signature)})::pg_catalog.oid
+           ),
+           'UTF8'
+         )
+       ),
+       'hex'
+     );`,
+  );
+  assert.equal(
+    actualDefinitionSha256,
+    reviewed.definitionSha256,
+    "the reviewed backup writer definition hash must match the live catalog",
+  );
   const writerCatalogGraph = scalar(
     port,
     database,
@@ -7903,7 +7969,7 @@ async function proveWriterInventoryRoutineCatalog(port, database) {
        (SELECT pg_catalog.count(*)::text FROM trigger_writers),
        (SELECT pg_catalog.count(*)::text FROM dynamic_routines),
        (SELECT pg_catalog.count(*)::text FROM reviewed_writer),
-       pg_catalog.coalesce(
+       COALESCE(
          (
            SELECT (
              writer.prokind = ${sqlLiteral(reviewed.kind)}
@@ -7917,12 +7983,17 @@ async function proveWriterInventoryRoutineCatalog(port, database) {
                    ),
                    'hex'
                  ) = ${sqlLiteral(reviewed.bodySha256)}
-             AND pg_catalog.encode(
-                   pg_catalog.sha256(
-                     pg_catalog.convert_to(writer.definition, 'UTF8')
-                   ),
-                   'hex'
-                 ) = ${sqlLiteral(reviewed.definitionSha256)}
+             AND (
+               ${sqlLiteral(reviewed.definitionSha256)}::pg_catalog.text
+                 IS NULL
+               OR pg_catalog.encode(
+                    pg_catalog.sha256(
+                      pg_catalog.convert_to(writer.definition, 'UTF8')
+                    ),
+                    'hex'
+                  ) =
+                  ${sqlLiteral(reviewed.definitionSha256)}::pg_catalog.text
+             )
            )::text
            FROM reviewed_writer AS writer
          ),
@@ -8814,7 +8885,7 @@ async function proveDeliveryHoldAuthority(port, database) {
       scalar(
         port,
         proofDatabase,
-        `${insertHeldEventSql(row, "NULL")}
+        `${insertOutboxSql(row, { eventAuthority: true })}
          RETURNING delivery_hold_version;`,
         "learncoding_app",
       ),
@@ -8913,7 +8984,7 @@ async function proveDeliveryHoldAuthority(port, database) {
         port,
         proofDatabase,
         `SET ROLE learncoding_owner;
-         ${migration0067WithHostileAcls()}`,
+         ${MIGRATION_0067_QUIESCENCE_PREFLIGHT}`,
         {
           username: "learncoding_migrator",
           singleTransaction: true,
@@ -9015,9 +9086,10 @@ async function proveDeliveryHoldAuthority(port, database) {
       scalar(
         port,
         proofDatabase,
-        `${insertHeldEventSql(explicitNullRow, "NULL")}
+        `SET ROLE learncoding_owner;
+         ${insertHeldEventSql(explicitNullRow, "NULL")}
          RETURNING delivery_hold_version;`,
-        "learncoding_app",
+        "learncoding_migrator",
       ),
       "task7-v1",
     );
@@ -9026,8 +9098,9 @@ async function proveDeliveryHoldAuthority(port, database) {
     await expectDatabaseError(
       port,
       proofDatabase,
-      "learncoding_app",
-      `${insertHeldEventSql(explicitOtherRow, "'task8-v1'")}
+      "learncoding_migrator",
+      `SET ROLE learncoding_owner;
+       ${insertHeldEventSql(explicitOtherRow, "'task8-v1'")}
        RETURNING delivery_hold_version;`,
       holdOwnershipError,
     );
@@ -9036,8 +9109,9 @@ async function proveDeliveryHoldAuthority(port, database) {
     await expectDatabaseError(
       port,
       proofDatabase,
-      "learncoding_app",
-      `${insertHeldSendingSql(nonPristineRow, {
+      "learncoding_migrator",
+      `SET ROLE learncoding_owner;
+       ${insertHeldSendingSql(nonPristineRow, {
         claimToken: fixtureUuid("90", 7),
         claimOwner: "delivery-hold-nonpristine",
         leaseSql:
@@ -9065,6 +9139,7 @@ async function proveDeliveryHoldAuthority(port, database) {
       port,
       proofDatabase,
       `\\set VERBOSITY verbose
+SET ROLE learncoding_owner;
 COPY public.email_outbox (
   id, operation_id, user_id, delivery_scope_key, to_email, template,
   template_version, variables, idempotency_key,
@@ -9073,7 +9148,7 @@ COPY public.email_outbox (
 ${copyInput("task8-v1")}
 \\.
 `,
-      { username: "learncoding_app", allowFailure: true },
+      { username: "learncoding_migrator", allowFailure: true },
     );
     assert.notEqual(rejectedCopy.status, 0);
     const rejectedCopyDiagnostic =
@@ -9102,7 +9177,8 @@ ${copyInput("task8-v1")}
     psql(
       port,
       proofDatabase,
-      `COPY public.email_outbox (
+      `SET ROLE learncoding_owner;
+       COPY public.email_outbox (
          id, operation_id, user_id, delivery_scope_key, to_email, template,
          template_version, variables, idempotency_key,
          idempotency_authority_version, delivery_hold_version
@@ -9110,7 +9186,7 @@ ${copyInput("task8-v1")}
 ${copyInput("\\N")}
 \\.
 `,
-      { username: "learncoding_app" },
+      { username: "learncoding_migrator" },
     );
     assert.equal(
       scalar(
@@ -9461,8 +9537,7 @@ ${copyInput("\\N")}
       `INSERT INTO public.email_outbox (
          id, operation_id, user_id, delivery_scope_key, to_email, template,
          template_version, variables, idempotency_key,
-         idempotency_authority_version, delivery_hold_version,
-         next_attempt_at
+         idempotency_authority_version, next_attempt_at
        )
        SELECT (
                 '9e000000-0000-4000-8000-' ||
@@ -9488,7 +9563,7 @@ ${copyInput("\\N")}
                 ),
                 'hex'
               ),
-              'event-v1-native', NULL,
+              'event-v1-native',
               pg_catalog.statement_timestamp() - interval '1 hour'
          FROM pg_catalog.generate_series(1, 17) AS series;`,
       { username: "learncoding_app" },
@@ -9600,13 +9675,13 @@ ${copyInput("\\N")}
       scalar(
         port,
         proofDatabase,
-        `${insertHeldEventSql(
+        `${insertOutboxSql(
           {
             ...explicitNullRow,
             id: fixtureUuid("79", 711),
             operationId: fixtureUuid("7a", 711),
           },
-          "NULL",
+          { eventAuthority: true },
         )}
          RETURNING id;`,
         "learncoding_app",
@@ -9618,14 +9693,14 @@ ${copyInput("\\N")}
       port,
       proofDatabase,
       "learncoding_app",
-      `${insertHeldEventSql(
+      `${insertOutboxSql(
         {
           ...explicitNullRow,
           id: fixtureUuid("79", 712),
           operationId: fixtureUuid("7a", 712),
           variables: { fixture: "delivery-hold-divergent-replay" },
         },
-        "NULL",
+        { eventAuthority: true },
       )}
        RETURNING id;`,
       {
@@ -9680,13 +9755,13 @@ ${copyInput("\\N")}
       scalar(
         port,
         proofDatabase,
-        `${insertHeldEventSql(
+        `${insertOutboxSql(
           {
             ...explicitNullRow,
             id: fixtureUuid("79", 713),
             operationId: fixtureUuid("7a", 713),
           },
-          "NULL",
+          { eventAuthority: true },
         )}
          RETURNING id;`,
         "learncoding_app",
@@ -10206,6 +10281,13 @@ export async function main() {
     ]);
     const { runProductionMigration } =
       await import("../../scripts/migrate-production.mjs");
+    const {
+      globalDefaultAclScrubSql,
+      mailWorkerOutboxPrivilegesSql,
+      managedColumnAclScrubSql,
+    } =
+      await import("../../scripts/bootstrap-database-roles.mjs");
+    ownerSql(port, "mail0067", globalDefaultAclScrubSql());
     await runProductionMigration({
       connectionString:
         `postgresql://learncoding_migrator@127.0.0.1:${port}/mail0067`,
@@ -10216,6 +10298,8 @@ export async function main() {
       verifyAppliedMigrationLedger:
         phase0065Verifier.verifyAppliedMigrationLedgerPrefix,
     });
+    ownerSql(port, "mail0067", managedColumnAclScrubSql());
+    ownerSql(port, "mail0067", mailWorkerOutboxPrivilegesSql());
     await reconcileReviewedPrivileges(port, "mail0067", {
       phase: "0065",
       phaseIndex: 65,
@@ -10250,15 +10334,28 @@ export async function main() {
       additionalSourceMapNearMisses,
       legacyRowCount,
     } = seedLegacyOutbox(port, "mail0067");
-    const terminalReplayRow = {
-      id: scalar(
+    const terminalReplayPayload = JSON.parse(
+      scalar(
         port,
         "mail0067",
-        `SELECT outbox_id::pg_catalog.text
-           FROM public.backup_status_mail_authority
-          WHERE run_key = '${BACKUP_RUN_KEY}';`,
+        `SELECT pg_catalog.json_build_object(
+           'id', outbox.id::pg_catalog.text,
+           'operationId', outbox.operation_id::pg_catalog.text,
+           'userId', outbox.user_id,
+           'to', outbox.to_email,
+           'template', outbox.template,
+           'version', outbox.template_version,
+           'variables', outbox.variables,
+           'key', outbox.idempotency_key
+         )::pg_catalog.text
+           FROM public.backup_status_mail_authority AS authority
+           JOIN public.email_outbox AS outbox
+             ON outbox.id = authority.outbox_id
+          WHERE authority.run_key = '${BACKUP_RUN_KEY}';`,
       ),
-      userId: ADMIN_ID,
+    );
+    const terminalReplayRow = {
+      ...terminalReplayPayload,
       stableKey: accountEventKey(
         "backup-status",
         ADMIN_ID,
@@ -10266,6 +10363,22 @@ export async function main() {
       ),
     };
     assert.match(terminalReplayRow.id, /^[0-9a-f-]{36}$/u);
+    assert.match(terminalReplayRow.operationId, /^[0-9a-f-]{36}$/u);
+    assert.deepEqual(
+      [
+        terminalReplayRow.userId,
+        terminalReplayRow.to,
+        terminalReplayRow.template,
+        terminalReplayRow.version,
+      ],
+      [ADMIN_ID, ADMIN_EMAIL, "backup-status", "1"],
+    );
+    assert.ok(
+      terminalReplayRow.variables !== null
+        && !Array.isArray(terminalReplayRow.variables)
+        && typeof terminalReplayRow.variables === "object",
+      "terminal replay variables must be persisted JSON",
+    );
     assert.match(terminalReplayRow.stableKey, /^[0-9a-f]{64}$/u);
     ownerSql(
       port,
@@ -10293,10 +10406,6 @@ export async function main() {
     );
     proveCatalogAndAcl(port, "mail0067");
     await proveWriterInventoryRoutineCatalog(port, "mail0067");
-    proveOriginalPayloadDigestVectors(port, "mail0067");
-    await proveOriginalPayloadVariableSemantics(port, "mail0067");
-    await proveReplayConflictFingerprintSemantics(port, "mail0067");
-    proveCompositeAuthorityBackstop(port, "mail0067");
     proveLegacyClassification(
       port,
       "mail0067",
@@ -10305,6 +10414,10 @@ export async function main() {
       primarySourceMapNearMisses,
       additionalSourceMapNearMisses,
     );
+    proveOriginalPayloadDigestVectors(port, "mail0067");
+    await proveOriginalPayloadVariableSemantics(port, "mail0067");
+    await proveReplayConflictFingerprintSemantics(port, "mail0067");
+    proveCompositeAuthorityBackstop(port, "mail0067");
     await proveBlockedRowsDoNotAliasNativeEvents(
       port,
       "mail0067",

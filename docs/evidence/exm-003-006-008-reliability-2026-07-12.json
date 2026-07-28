@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-13T00:45:40+05:30",
-  "revalidatedAt": "2026-07-20T05:12:20.472Z",
+  "revalidatedAt": "2026-07-28T13:27:44.340Z",
   "scope": [
     "EXM-003",
     "EXM-006",
@@ -34,9 +34,9 @@
     "reexamGrantService": "src/lib/exams/reexam-grant.ts",
     "reexamGrantServiceSha256": "5c8f016e799abded4f8e8d33a5b8cda5e13e00481b19caaf0864156a403a09c9",
     "postgresJourney": "integration/exam-reliability.integration.test.ts",
-    "postgresJourneySha256": "7e47064d52944651acf0920df558fc29aa9fb89eab3479e0e60456bc41cd64e4",
+    "postgresJourneySha256": "3a1d09e085edfeeca01464d750f75c279e024b790dc9041670941757f352ae94",
     "releaseAudit": "docs/release-audit.md",
-    "releaseAuditSha256": "28725af8f713c7d5cc759b82298fc905645ac139a10bc8cd3df897bb52d06afd",
+    "releaseAuditSha256": "2f4b6dab1cc922e5cee3863fe177aa34db81a536dccb2d224eef893ba9cdf8e2",
     "runtimeCommand": "npm run worker:exam-finalization",
     "composeService": "exam-finalization-worker",
     "artifactSha256": {
@@ -52,8 +52,8 @@
       "src/lib/runner/client.ts": "619d3dd0da0588caaec523389964c1a7cd091091ce12f267b372de1275121d3f",
       "src/lib/db/postgres-errors.ts": "178a1f4c1b2298994f8a44f3ee5dcedd453ba2bcba419b5f81b445beaeb69891",
       "src/lib/exams/reexam-grant.ts": "5c8f016e799abded4f8e8d33a5b8cda5e13e00481b19caaf0864156a403a09c9",
-      "integration/exam-reliability.integration.test.ts": "7e47064d52944651acf0920df558fc29aa9fb89eab3479e0e60456bc41cd64e4",
-      "docs/release-audit.md": "28725af8f713c7d5cc759b82298fc905645ac139a10bc8cd3df897bb52d06afd"
+      "integration/exam-reliability.integration.test.ts": "3a1d09e085edfeeca01464d750f75c279e024b790dc9041670941757f352ae94",
+      "docs/release-audit.md": "2f4b6dab1cc922e5cee3863fe177aa34db81a536dccb2d224eef893ba9cdf8e2"
     }
   },
   "supersededDigests": [
@@ -141,6 +141,16 @@
       "artifact": "docs/release-audit.md",
       "priorDigest": "25adfd121c797ebb2223d161e05ea0a59765b987bc42de20681af0b700527a8b",
       "replacedAt": "2026-07-20T05:12:20.472Z"
+    },
+    {
+      "artifact": "integration/exam-reliability.integration.test.ts",
+      "priorDigest": "7e47064d52944651acf0920df558fc29aa9fb89eab3479e0e60456bc41cd64e4",
+      "replacedAt": "2026-07-28T13:27:44.340Z"
+    },
+    {
+      "artifact": "docs/release-audit.md",
+      "priorDigest": "28725af8f713c7d5cc759b82298fc905645ac139a10bc8cd3df897bb52d06afd",
+      "replacedAt": "2026-07-28T22:49:31.5166481+05:30"
     }
   ],
   "verification": {
@@ -170,14 +180,26 @@
         "lines": 97.56
       }
     },
+    "repositorySuite": {
+      "command": "npm.cmd test -- --run",
+      "filesPassed": 465,
+      "filesSkipped": 1,
+      "testsPassed": 4893,
+      "testsSkipped": 11
+    },
     "postgres": {
+      "command": "npm.cmd run test:integration:vitest -- integration/backup-status-outbox.integration.test.ts integration/exam-reliability.integration.test.ts integration/project-review-correction.integration.test.ts integration/project-revisions.integration.test.ts integration/postgres.integration.test.ts integration/provider-operation-idempotency.integration.test.ts integration/provider-outage-fallback.integration.test.ts integration/assessment-correction.integration.test.ts integration/runner-admission.integration.test.ts integration/learner-drafts.integration.test.ts",
       "files": 1,
       "tests": 7,
       "passed": 7,
       "failed": 0,
+      "durationSeconds": 4.549,
+      "postgresMajor": 17,
+      "releaseCycles": 2,
       "migrationsAppliedTwice": true,
       "independentlyReproducedByRoot": true,
-      "fullSuite": "37 files / 204 tests passed"
+      "cleanupPassed": true,
+      "fullSuite": "10 files / 85 tests passed in 63.03 seconds"
     }
   },
   "proven": [

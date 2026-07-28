@@ -20,8 +20,12 @@ import { fileURLToPath } from "node:url";
 import { Client } from "pg";
 
 import {
+  globalDefaultAclScrubSql,
+  mailWorkerOutboxPrivilegesSql,
+  managedColumnAclScrubSql,
   REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES,
   verifyPostMigrationReviewedContractsBeforeReconciliation,
+  verifyAndRepairReviewedBaselineRewardRoutinePrivileges,
 } from "../../scripts/bootstrap-database-roles.mjs";
 import { allocateDisposableLoopbackPort } from "../../scripts/lib/disposable-loopback-port.mjs";
 import {
@@ -31,9 +35,17 @@ import {
 
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(testDirectory, "../..");
+const REVIEWED_PHASE_0062 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
+  ({ index }) => index === 62,
+);
+const REVIEWED_PHASE_0063 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
+  ({ index }) => index === 63,
+);
 const REVIEWED_PHASE_0064 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
   ({ index }) => index === 64,
 );
+assert.ok(REVIEWED_PHASE_0062, "reviewed phase 0062 must be registered");
+assert.ok(REVIEWED_PHASE_0063, "reviewed phase 0063 must be registered");
 assert.ok(REVIEWED_PHASE_0064, "reviewed phase 0064 must be registered");
 const migrationDirectory = path.join(repositoryRoot, "drizzle");
 const selectedPostgresRuntime = [
@@ -156,7 +168,7 @@ function assertMigrationLineage() {
 
 function stagedMigrationsThrough(temporaryRoot, maximumIndex) {
   assert.ok(
-    Number.isInteger(maximumIndex) && maximumIndex >= 0 && maximumIndex <= 63,
+    Number.isInteger(maximumIndex) && maximumIndex >= 0 && maximumIndex <= 64,
   );
   const suffix = String(maximumIndex).padStart(4, "0");
   const staged = path.join(temporaryRoot, `migrations-through-${suffix}`);
@@ -356,7 +368,29 @@ function ownerSql(port, database, sql) {
   });
 }
 
-async function verifyRawReviewedPhase(connectionString) {
+async function reconcileHistoricalBaselineRewardPrivileges(
+  connectionString,
+) {
+  const client = new Client({
+    connectionString,
+    connectionTimeoutMillis: 5_000,
+    statement_timeout: 5_000,
+  });
+  await client.connect();
+  try {
+    assert.equal(
+      await verifyAndRepairReviewedBaselineRewardRoutinePrivileges(
+        client,
+        REVIEWED_PHASE_0062,
+      ),
+      "repaired",
+      "phase-0061 reward ACLs must start in the exact owner-only legacy state",
+    );
+  } finally {
+    await client.end();
+  }
+}
+async function verifyRawReviewedPhase(connectionString, expectedPhase) {
   const client = new Client({
     connectionString,
     connectionTimeoutMillis: 5_000,
@@ -367,7 +401,7 @@ async function verifyRawReviewedPhase(connectionString) {
     assert.equal(
       await verifyPostMigrationReviewedContractsBeforeReconciliation(
         client,
-        REVIEWED_PHASE_0064,
+        expectedPhase,
       ),
       1,
     );
@@ -376,7 +410,12 @@ async function verifyRawReviewedPhase(connectionString) {
   }
 }
 
-async function proveRawPhaseTamperDetection(port, database, connectionString) {
+async function proveRawPhaseTamperDetection(
+  port,
+  database,
+  connectionString,
+  expectedPhase,
+) {
   ownerSql(
     port,
     database,
@@ -389,8 +428,8 @@ GRANT EXECUTE ON FUNCTION
   );
   try {
     await assert.rejects(
-      verifyRawReviewedPhase(connectionString),
-      /database role boundary verification failed/u,
+      verifyRawReviewedPhase(connectionString, expectedPhase),
+      /database role boundary verification failed: reviewed-routine:public\.classify_email_outbox_retention_redaction/u,
     );
   } finally {
     ownerSql(
@@ -404,7 +443,7 @@ REVOKE EXECUTE ON FUNCTION
   ) FROM learncoding_app;`,
     );
   }
-  await verifyRawReviewedPhase(connectionString);
+  await verifyRawReviewedPhase(connectionString, expectedPhase);
 
   psql(
     port,
@@ -429,8 +468,8 @@ GRANT learncoding_owner TO learncoding_app
       "inherited owner membership did not create the intended EXECUTE drift",
     );
     await assert.rejects(
-      verifyRawReviewedPhase(connectionString),
-      /database role boundary verification failed/u,
+      verifyRawReviewedPhase(connectionString, expectedPhase),
+      /database role boundary verification failed: reviewed-routine:public\.redact_unresolved_email_outbox_authority/u,
     );
   } finally {
     psql(
@@ -441,7 +480,7 @@ REVOKE learncoding_owner FROM learncoding_app;
 ALTER ROLE learncoding_app NOINHERIT;`,
     );
   }
-  await verifyRawReviewedPhase(connectionString);
+  await verifyRawReviewedPhase(connectionString, expectedPhase);
 }
 
 function expectSqlState(
@@ -1722,41 +1761,39 @@ DROP ROLE mail_dispatch_hostile_default;`,
 
 async function main() {
   assertMigrationLineage();
-  const fullReviewedMigrationCount = String(
-    JSON.parse(
-      readFileSync(
-        path.join(migrationDirectory, "meta", "_journal.json"),
-        "utf8",
-      ),
-    ).entries.length,
-  );
   const version = run(executable("postgres"), ["--version"]).stdout.trim();
   assert.match(
     version,
     new RegExp(`PostgreSQL\\) ${escapedPostgresMajor}\\.`, "u"),
   );
 
-  const temporaryRoot = mkdtempSync(
-    path.join(os.tmpdir(), `codestead-mail-0064-pg${postgresMajor}-`),
-  );
-  const dataDirectory = path.join(temporaryRoot, "data");
-  const socketDirectory = path.join(temporaryRoot, "socket");
-  mkdirSync(socketDirectory);
-  const socketOption =
-    process.platform === "win32"
-      ? ""
-      : ` -k "${socketDirectory}"`;
-  const logFile = path.join(temporaryRoot, "postgres.log");
   const database = "mail_dispatch_binding_0064";
-  const stagedMigrations0062 = stagedMigrationsThrough(temporaryRoot, 62);
-  const stagedMigrations0063 = stagedMigrationsThrough(temporaryRoot, 63);
-  const stagedVerifier0062 = prefixMigrationVerifier(62);
-  const stagedVerifier0063 = prefixMigrationVerifier(63);
-  const port = await allocateDisposableLoopbackPort();
+  let dataDirectory;
+  let logFile;
   let operationError;
   let startAttempted = false;
 
+  const temporaryRoot = mkdtempSync(
+    path.join(os.tmpdir(), `codestead-mail-0064-pg${postgresMajor}-`),
+  );
   try {
+    dataDirectory = path.join(temporaryRoot, "data");
+    const socketDirectory = path.join(temporaryRoot, "socket");
+    mkdirSync(socketDirectory);
+    const socketOption =
+      process.platform === "win32"
+        ? ""
+        : ` -k "${socketDirectory}"`;
+    logFile = path.join(temporaryRoot, "postgres.log");
+    const stagedMigrations0061 = stagedMigrationsThrough(temporaryRoot, 61);
+    const stagedMigrations0062 = stagedMigrationsThrough(temporaryRoot, 62);
+    const stagedMigrations0063 = stagedMigrationsThrough(temporaryRoot, 63);
+    const stagedMigrations0064 = stagedMigrationsThrough(temporaryRoot, 64);
+    const stagedVerifier0061 = prefixMigrationVerifier(61);
+    const stagedVerifier0062 = prefixMigrationVerifier(62);
+    const stagedVerifier0063 = prefixMigrationVerifier(63);
+    const stagedVerifier0064 = prefixMigrationVerifier(64);
+    const port = await allocateDisposableLoopbackPort();
     run(executable("initdb"), [
       `--pgdata=${dataDirectory}`,
       "--username=postgres",
@@ -1841,6 +1878,23 @@ GRANT learncoding_owner TO learncoding_migrator
       await import("../../scripts/migrate-production.mjs");
     const connectionString = `postgresql://learncoding_migrator@127.0.0.1:${port}/${database}`;
     const adminConnectionString = `postgresql://postgres@127.0.0.1:${port}/${database}`;
+    ownerSql(port, database, globalDefaultAclScrubSql());
+    await runProductionMigration({
+      connectionString,
+      migrationsFolder: stagedMigrations0061,
+      ...stagedVerifier0061,
+    });
+    assert.equal(
+      scalar(
+        port,
+        database,
+        "SELECT pg_catalog.count(*)::text FROM drizzle.__drizzle_migrations;",
+      ),
+      "62",
+    );
+    await reconcileHistoricalBaselineRewardPrivileges(adminConnectionString);
+    ownerSql(port, database, managedColumnAclScrubSql());
+    ownerSql(port, database, mailWorkerOutboxPrivilegesSql());
     await runProductionMigration({
       connectionString,
       migrationsFolder: stagedMigrations0062,
@@ -1854,7 +1908,10 @@ GRANT learncoding_owner TO learncoding_migrator
       ),
       "63",
     );
-    await verifyRawReviewedPhase(adminConnectionString);
+    await verifyRawReviewedPhase(
+      adminConnectionString,
+      REVIEWED_PHASE_0062,
+    );
 
     await runProductionMigration({
       connectionString,
@@ -1869,8 +1926,16 @@ GRANT learncoding_owner TO learncoding_migrator
       ),
       "64",
     );
-    await verifyRawReviewedPhase(adminConnectionString);
-    await proveRawPhaseTamperDetection(port, database, adminConnectionString);
+    await verifyRawReviewedPhase(
+      adminConnectionString,
+      REVIEWED_PHASE_0063,
+    );
+    await proveRawPhaseTamperDetection(
+      port,
+      database,
+      adminConnectionString,
+      REVIEWED_PHASE_0063,
+    );
     installHostilePre0064CatalogState(port, database);
     assertHostilePre0064CatalogState(port, database);
 
@@ -1936,7 +2001,8 @@ INSERT INTO public.email_outbox (
     );
     const failedMigration = await runProductionMigration({
       connectionString,
-      migrationsFolder: migrationDirectory,
+      migrationsFolder: stagedMigrations0064,
+      ...stagedVerifier0064,
     }).then(
       () => null,
       (error) => error,
@@ -1994,9 +2060,13 @@ INSERT INTO public.email_outbox (
 
     await runProductionMigration({
       connectionString,
-      migrationsFolder: migrationDirectory,
+      migrationsFolder: stagedMigrations0064,
+      ...stagedVerifier0064,
     });
-    await verifyRawReviewedPhase(adminConnectionString);
+    await verifyRawReviewedPhase(
+      adminConnectionString,
+      REVIEWED_PHASE_0064,
+    );
     assertHostilePost0064FunctionAclsRemoved(port, database);
     removeHostilePost0064CatalogState(port, database);
     assert.equal(
@@ -2005,7 +2075,7 @@ INSERT INTO public.email_outbox (
         database,
         "SELECT pg_catalog.count(*)::text FROM drizzle.__drizzle_migrations;",
       ),
-      fullReviewedMigrationCount,
+      "65",
     );
     assert.equal(
       scalar(
@@ -2052,7 +2122,8 @@ INSERT INTO public.email_outbox (
     );
     await runProductionMigration({
       connectionString,
-      migrationsFolder: migrationDirectory,
+      migrationsFolder: stagedMigrations0064,
+      ...stagedVerifier0064,
     });
     assert.equal(catalogDigest(port, database), digestBeforeReplay);
     assert.equal(
@@ -2073,7 +2144,7 @@ INSERT INTO public.email_outbox (
         database,
         "SELECT pg_catalog.count(*)::text FROM drizzle.__drizzle_migrations;",
       ),
-      fullReviewedMigrationCount,
+      "65",
     );
 
     process.stdout.write(

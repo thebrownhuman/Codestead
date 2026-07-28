@@ -1,5 +1,20 @@
 # Codestead continuation handoff
 
+## Current superseding checkpoint - 2026-07-28 (Tasks 9-10 and final repository verification)
+
+This section supersedes the older task and Git state below; the historical material remains for provenance.
+
+- Active branch: `main`; this completion commit is based on pushed Task 9 checkpoint `4ce58ffdd74d3bf14889b7504398b2893416f443` and is intended to be pushed directly to `origin/main`.
+- The repository-scoped Task 5-10 mail-authority lanes are complete for the current local/few-user scope: durable replay (`0067`), quarantine redaction/retention (`0068`), guarded exact-byte delivery (`0069`), CI/role/restore/rollback registration, live concurrency/deletion races, and the final release-gate repair pass.
+- Native disposable PostgreSQL 17 and 18 verification passed for `0067`, `0068`, `0069`, restore-role boundaries, and the 25-case concurrency/deletion race matrix on each major. The post-audit `0064` harness also passed on both majors. Docker remained off; Windows PostgreSQL and port `5432` were not modified.
+- Final audit repairs fail-close the repository secret/encoding walkers across tracked files, Git-free archives, generated-root exclusions, UTF-8/UTF-16 decoding, large-file streaming, malformed Git output, missing/nonregular tracked files, symlinks, nested `.git` components, and redacted finding paths. Focused scanner tests passed 93/93, both live scans passed, and an independent read-only re-review found no remaining scanner finding.
+- Integration fault-injection now validates exact role/database topology before creating privileged pools or mutating data, routes every retention call through that boundary, applies finite pool/query/transaction/shutdown deadlines, and preserves primary failures through cleanup. Focused behavioral/static verification passed 87/87 after independent review.
+- Database harness audit repairs pin the exact four `0067` quiescence cases, reject missing legacy/replay calls, and keep all fallible `0064` setup inside guaranteed cleanup. The `0064` registration and both role contracts passed, including native PostgreSQL 17/18 execution with no leaked process.
+- The final uninterrupted `npm run check` passed in 535 seconds under Node 22.23.1: lint, typecheck, dependency/security/API/architecture gates, migration and role contracts through `0069`, restore/rollback and writer registration, auth tests, coverage, curriculum/content checks, evidence integrity, and the 95-page production build. Coverage was 80.73% statements, 75.04% branches, 80.98% functions, and 83.81% lines. Evidence integrity verified 81 Markdown files, 273 local links, 81 evidence JSON files, and 147 declared hashes.
+- P3-2 remains explicitly deferred: guarded-delivery/outbox privileges are narrowed and verified, but broader historical app/ops CRUD surfaces outside this lane still require either technical narrowing or release-owner risk acceptance.
+- The release audit remains intentionally non-green at 43 implemented, 70 partial, and 2 missing requirements. This checkpoint proves the completed repository lanes; it does not declare the whole product production-ready.
+- Real Gmail delivery/OAuth, NUC runtime, Cloudflare, Google Drive restore, reboot, device accessibility, and supervised power-cut evidence still require the actual services/hardware and remain external and unproven.
+
 ## Current superseding checkpoint - 2026-07-27 (Task 8 final verification)
 
 This section supersedes the older task and Git state below; the historical material remains for provenance.
