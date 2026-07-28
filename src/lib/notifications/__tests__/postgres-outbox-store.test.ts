@@ -1133,10 +1133,19 @@ describe("PostgresOutboxStore", () => {
     expect(Object.isFrozen(boundary.permit)).toBe(true);
     expect(Reflect.ownKeys(boundary.permit)).toEqual([]);
 
-    const sql = input.client.calls[5]!.sql;
+    const boundaryUpdate = input.client.calls[5]!;
+    const providerLease = input.inspection.plan.providerLease;
+    expect(providerLease.providerLeaseStampMs).not.toBe(
+      providerLease.postCommitProviderLeaseMs,
+    );
+    expect(boundaryUpdate.values[6]).toBe(providerLease.providerLeaseStampMs);
+    const sql = boundaryUpdate.sql;
     expect(sql).toContain("claim_token = $3::uuid");
     expect(sql).toContain("claim_owner = $4::text");
     expect(sql).toContain("claim_version = $5::integer");
+    expect(sql).toContain(
+      "lease_expires_at = pg_catalog.statement_timestamp() + ($7::integer * interval '1 millisecond')",
+    );
     expect(sql).toContain("provider_call_started is null");
     expect(sql).toContain("lease_expires_at > pg_catalog.statement_timestamp()");
     expect(sql).toContain("dispatch_binding_version = $19::text");

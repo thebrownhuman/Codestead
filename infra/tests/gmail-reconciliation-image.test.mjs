@@ -169,13 +169,20 @@ test("the production worker image ships the reconciliation operator", () => {
 
 test("the production runbook invokes the image entrypoint with a one-session gate", () => {
   const runbook = read("docs/runbooks/gmail-outbox-reconciliation.md");
-  const command =
-    /docker compose --env-file \/etc\/learncoding\/compose\.env -f \/opt\/learncoding\/compose\.yaml run --rm --no-deps -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx \/app\/scripts\/reconcile-gmail-outbox\.ts/gu;
+  const inspectCommand =
+    /^docker compose --env-file \/etc\/learncoding\/compose\.env -f \/opt\/learncoding\/compose\.yaml run --rm --no-deps -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx \/app\/scripts\/reconcile-gmail-outbox\.ts --operation-id <operation-uuid>$/mu;
+  const applyCommand =
+    /^docker compose --env-file \/etc\/learncoding\/compose\.env -f \/opt\/learncoding\/compose\.yaml run --rm --no-deps -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx \/app\/scripts\/reconcile-gmail-outbox\.ts --operation-id <operation-uuid> --apply --confirm-operation-id <same-operation-uuid>$/mu;
 
-  assert.equal(
-    [...runbook.matchAll(command)].length,
-    2,
-    "both operator commands must use the exact production Compose authority",
+  assert.match(
+    runbook,
+    inspectCommand,
+    "inspect must use the exact production Compose authority and operation ID",
+  );
+  assert.match(
+    runbook,
+    applyCommand,
+    "apply must bind and confirm the same operation ID",
   );
   assert.doesNotMatch(runbook, /npm run worker:email:reconcile/u);
   assert.doesNotMatch(runbook, /docker compose exec/u);
