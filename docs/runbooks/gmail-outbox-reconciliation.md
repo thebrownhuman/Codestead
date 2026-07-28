@@ -29,7 +29,7 @@ sends mail.
 ## Inspect without mutation
 
 ```text
-docker compose run --rm --no-deps -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx /app/scripts/reconcile-gmail-outbox.ts --operation-id <operation-uuid>
+docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml run --rm --no-deps -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx /app/scripts/reconcile-gmail-outbox.ts --operation-id <operation-uuid>
 ```
 
 Before any Gmail call, the command validates the declared OAuth scopes and
@@ -53,7 +53,7 @@ quarantined and must never trigger a resend.
 Repeat the same operation ID as an explicit mutation confirmation:
 
 ```text
-docker compose run --rm --no-deps -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx /app/scripts/reconcile-gmail-outbox.ts --operation-id <operation-uuid> --apply --confirm-operation-id <same-operation-uuid>
+docker compose --env-file /etc/learncoding/compose.env -f /opt/learncoding/compose.yaml run --rm --no-deps -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx /app/scripts/reconcile-gmail-outbox.ts --operation-id <operation-uuid> --apply --confirm-operation-id <same-operation-uuid>
 ```
 
 The final update reacquires the same account/system delivery-scope advisory

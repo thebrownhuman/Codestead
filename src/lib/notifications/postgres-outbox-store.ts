@@ -3027,7 +3027,7 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
         ],
       );
       const updated = result.rows[0];
-      return updated &&
+      const terminalRowIsConsistent = updated &&
         updated.status === "sent" &&
         updated.claim_version === fence.claimVersion &&
         updated.adapter === fence.adapter &&
@@ -3056,7 +3056,13 @@ export class PostgresOutboxStore implements OutboxStore<EmailOutboxPayload> {
               reconciliationAuthority.providerRequestBodyLength) &&
         updated.release_receipt_sha256 ===
           reconciliationAuthority.releaseReceiptSha256 &&
-        updated.last_error_code === null
+        updated.last_error_code === null;
+      if (updated !== undefined && !terminalRowIsConsistent) {
+        throw new Error(
+          "Gmail reconciliation finalization returned an inconsistent terminal row.",
+        );
+      }
+      return terminalRowIsConsistent
         ? { kind: "applied" as const }
         : { kind: "lost" as const };
     });

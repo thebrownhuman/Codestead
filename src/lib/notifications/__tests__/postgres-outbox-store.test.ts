@@ -1890,6 +1890,50 @@ describe("PostgresOutboxStore", () => {
     expect(update.values).toContain("gmail-1");
   });
 
+  it("rolls back when Gmail reconciliation returns an inconsistent terminal row", async () => {
+    const input = await harness([
+      { contains: "begin" },
+      { contains: "pg_advisory_xact_lock" },
+      { contains: "status = 'quarantined'", rows: [scopeRow()] },
+      {
+        contains: "update public.email_outbox",
+        rows: [{
+          status: "sent",
+          claim_version: 4,
+          adapter: "gmail",
+          provider_message_id: "gmail-conflicting",
+          provider_call_started: "2026-07-22 19:00:05.123456+00",
+          dispatch_binding_version: "gmail-raw-v1",
+          dispatch_binding_sha256: "b".repeat(64),
+          provider_correlation_version: "legacy-raw-v0",
+          provider_evidence_version: null,
+          provider_evidence_sha256: null,
+          sent_at: new Date("2026-07-22T19:02:00.000Z"),
+          provider_request_body_sha256: null,
+          provider_request_body_length: null,
+          release_receipt_sha256: RELEASE_RECEIPT_SHA256,
+          quarantined_at: null,
+          last_error_code: null,
+        }],
+      },
+      { contains: "rollback" },
+    ]);
+
+    await expect(input.store.finalizeGmailReconciliation({
+      fence: boundReconciliationFence,
+      providerMessageId: "gmail-1",
+      proof: {
+        kind: "raw-sha256-v1",
+        adapterPayloadSha256: "b".repeat(64),
+      },
+    })).rejects.toThrow(
+      "Gmail reconciliation finalization returned an inconsistent terminal row.",
+    );
+
+    expect(input.client.calls.at(-1)?.sql).toBe("rollback");
+    expect(input.client.calls.some(({ sql }) => sql === "commit")).toBe(false);
+  });
+
   it("quarantines only expired post-boundary rows with the exact observed fence", async () => {
     const lease = new Date("2026-07-22T18:58:00.000Z");
     const input = await harness([

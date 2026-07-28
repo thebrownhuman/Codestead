@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
+import { tsImport } from "tsx/esm/api";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const read = (file) => readFileSync(path.join(root, file), "utf8");
@@ -37,6 +45,7 @@ function sources(overrides = {}) {
     rootEnvironment: read(".env.example"),
     compose: read("compose.yaml"),
     infrastructureEnvironment: read("infra/env/compose.env.example"),
+    store: read("src/lib/notifications/postgres-outbox-store.ts"),
     transport: read("src/lib/notifications/mailer-transport-internal.ts"),
     runtimePolicy: read("src/lib/notifications/mail-dispatch-runtime-policy.ts"),
     ...overrides,
@@ -144,7 +153,33 @@ function runtimePolicy(document) {
   };
 }
 
-function assertContract(input) {
+const plannedProviderLeasePolicies = new Map();
+
+async function plannedProviderLeasePolicy(document) {
+  let pending = plannedProviderLeasePolicies.get(document);
+  if (pending !== undefined) return pending;
+  pending = (async () => {
+    const directory = mkdtempSync(
+      path.join(tmpdir(), "codestead-mail-runtime-policy-"),
+    );
+    const source = path.join(directory, "mail-dispatch-runtime-policy.ts");
+    try {
+      writeFileSync(source, document, "utf8");
+      const imported = await tsImport(
+        pathToFileURL(source).href,
+        import.meta.url,
+      );
+      const api = imported.default ?? imported;
+      return api.planMailDispatchRuntime().providerLease;
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  })();
+  plannedProviderLeasePolicies.set(document, pending);
+  return pending;
+}
+
+async function assertContract(input) {
   const defaultMs = integerConstant(input.transport, "DEFAULT_GMAIL_REQUEST_TIMEOUT_MS");
   const minimumMs = integerConstant(input.transport, "MIN_GMAIL_REQUEST_TIMEOUT_MS");
   const maximumMs = integerConstant(input.transport, "MAX_GMAIL_REQUEST_TIMEOUT_MS");
@@ -160,7 +195,14 @@ function assertContract(input) {
     input.transport,
     "EXACT_GUARDED_SEND_DEADLINE_MS",
   );
-  const policy = runtimePolicy(input.runtimePolicy);
+  const parsedPolicy = runtimePolicy(input.runtimePolicy);
+  const plannedLease = await plannedProviderLeasePolicy(input.runtimePolicy);
+  const policy = {
+    ...parsedPolicy,
+    tx1Ms: plannedLease.tx1CommitAckAllowanceMs,
+    postCommitProviderLeaseMs: plannedLease.postCommitProviderLeaseMs,
+    providerLeaseStampMs: plannedLease.providerLeaseStampMs,
+  };
   const rootDefault = Number(environmentValue(input.rootEnvironment, "GMAIL_REQUEST_TIMEOUT_MS"));
   const infrastructureDefault = Number(
     environmentValue(input.infrastructureEnvironment, "GMAIL_REQUEST_TIMEOUT_MS"),
@@ -236,6 +278,11 @@ function assertContract(input) {
   assert.equal(policy.oauthDeadlineMs, exactOauthDeadlineMs);
   assert.equal(policy.guardedSendDeadlineMs, exactGuardedSendDeadlineMs);
   assert.equal(policy.providerAbortSettlementMs, abortSettlementMs);
+  assert.match(
+    input.store,
+    /const leaseStampMs =\s*storeRuntime\.startupInspection\.plan\.providerLease\.providerLeaseStampMs;/u,
+    "the outbox store must consume the planner-derived provider lease stamp",
+  );
   assert.equal(
     policy.providerLeaseStampMs,
     policy.tx1Ms + policy.postCommitProviderLeaseMs,
@@ -289,12 +336,24 @@ function replaceExactly(document, needle, replacement, label) {
   return `${pieces[0]}${replacement}${pieces[1]}`;
 }
 
-test("Gmail request timeout configuration is consistent and lease-safe", () => {
-  assertContract(sources());
+test("Gmail request timeout configuration is consistent and lease-safe", async () => {
+  await assertContract(sources());
 });
 
-test("Gmail request timeout contract rejects cross-layer and safety drift", () => {
+test("Gmail request timeout contract rejects cross-layer and safety drift", async () => {
   const baseline = sources();
+  const dormantProviderLeaseDefault = replaceExactly(
+    baseline.runtimePolicy,
+    "  providerLeaseStampMs: 110_000,",
+    "  providerLeaseStampMs: 109_999,",
+    "dormant provider lease stamp default",
+  );
+  await assert.doesNotReject(() =>
+    assertContract({
+      ...baseline,
+      runtimePolicy: dormantProviderLeaseDefault,
+    }),
+  );
   const mutations = [
     [
       "developer default",
@@ -360,12 +419,21 @@ test("Gmail request timeout contract rejects cross-layer and safety drift", () =
       ) },
     ],
     [
-      "TX1 provider lease stamp",
+      "active provider lease stamp derivation",
       { runtimePolicy: replaceExactly(
         baseline.runtimePolicy,
-        "  providerLeaseStampMs: 110_000,",
-        "  providerLeaseStampMs: 109_999,",
-        "TX1 provider lease stamp",
+        "const expectedProviderLeaseStampMs = tx1TimeoutMs + postCommitProviderLeaseMs;",
+        "const expectedProviderLeaseStampMs = tx1TimeoutMs + postCommitProviderLeaseMs + 1;",
+        "active provider lease stamp derivation",
+      ) },
+    ],
+    [
+      "runtime provider lease stamp consumer",
+      { store: replaceExactly(
+        baseline.store,
+        "startupInspection.plan.providerLease.providerLeaseStampMs",
+        "startupInspection.plan.providerLease.postCommitProviderLeaseMs",
+        "runtime provider lease stamp consumer",
       ) },
     ],
     [
@@ -407,6 +475,10 @@ test("Gmail request timeout contract rejects cross-layer and safety drift", () =
   ];
 
   for (const [label, override] of mutations) {
-    assert.throws(() => assertContract({ ...baseline, ...override }), undefined, label);
+    await assert.rejects(
+      () => assertContract({ ...baseline, ...override }),
+      undefined,
+      label,
+    );
   }
 });
