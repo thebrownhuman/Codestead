@@ -37,9 +37,8 @@ function sources(overrides = {}) {
     rootEnvironment: read(".env.example"),
     compose: read("compose.yaml"),
     infrastructureEnvironment: read("infra/env/compose.env.example"),
-    mailer: read("src/lib/notifications/mailer.ts"),
-    worker: read("scripts/process-outbox.ts"),
-    store: read("src/lib/notifications/postgres-outbox-store.ts"),
+    transport: read("src/lib/notifications/mailer-transport-internal.ts"),
+    runtimePolicy: read("src/lib/notifications/mail-dispatch-runtime-policy.ts"),
     ...overrides,
   };
 }
@@ -82,11 +81,86 @@ function integerConstant(document, name) {
   return Number(match[1].replaceAll("_", ""));
 }
 
+function policyObjectBody(document, name) {
+  const pattern = new RegExp(
+    `export const ${name} = Object\\.freeze\\(\\{([\\s\\S]*?)\\n\\}\\);`,
+    "u",
+  );
+  const match = pattern.exec(document);
+  assert.ok(match, `missing runtime policy object ${name}`);
+  return match[1];
+}
+
+function policyInteger(document, objectName, propertyName) {
+  const body = policyObjectBody(document, objectName);
+  const pattern = new RegExp(
+    `^\\s*${propertyName}:\\s*([0-9][0-9_]*),\\s*$`,
+    "mu",
+  );
+  const match = pattern.exec(body);
+  assert.ok(match, `missing ${objectName}.${propertyName}`);
+  return Number(match[1].replaceAll("_", ""));
+}
+
+function runtimePolicy(document) {
+  const limit = (name) =>
+    policyInteger(document, "MAIL_DISPATCH_RUNTIME_LIMITS", name);
+  const defaultValue = (name) =>
+    policyInteger(document, "MAIL_DISPATCH_RUNTIME_DEFAULTS", name);
+  return {
+    minimumHardWatchdogLeadMs: limit("minimumHardWatchdogLeadMs"),
+    minimumPostProviderDatabaseFallbackLeadMs: limit(
+      "minimumPostProviderDatabaseFallbackLeadMs",
+    ),
+    poolAcquireMs: policyInteger(
+      document, "MAIL_DISPATCH_RUNTIME_BOOTSTRAP", "poolAcquireTimeoutMs",
+    ),
+    tx1Ms: defaultValue("tx1TimeoutMs"),
+    oauthDeadlineMs: defaultValue("oauthDeadlineMs"),
+    guardedSendDeadlineMs: defaultValue("guardedSendDeadlineMs"),
+    providerAbortSettlementMs: defaultValue(
+      "providerAbortSettlementTimeoutMs",
+    ),
+    fatalExitMarginMs: defaultValue("fatalExitMarginMs"),
+    postProviderIdleMs: defaultValue(
+      "postProviderInitiationIdleInTransactionSessionTimeoutMs",
+    ),
+    postProviderTransactionMs: defaultValue(
+      "postProviderInitiationTransactionTimeoutMs",
+    ),
+    preProviderTx2PhaseMs: defaultValue("preProviderTx2PhaseBudgetMs"),
+    postProviderTx2PhaseMs: defaultValue("postProviderTx2PhaseBudgetMs"),
+    watchdogArmAckMs: defaultValue("watchdogArmAckTimeoutMs"),
+    watchdogTeardownConfirmationMs: defaultValue(
+      "watchdogTeardownConfirmationTimeoutMs",
+    ),
+    watchdogDisarmDeliveryMs: defaultValue(
+      "watchdogDisarmDeliveryTimeoutMs",
+    ),
+    hardWatchdogMs: defaultValue("hardWatchdogMs"),
+    persistenceMarginMs: defaultValue("persistenceMarginMs"),
+    postCommitProviderLeaseMs: defaultValue("postCommitProviderLeaseMs"),
+    providerLeaseStampMs: defaultValue("providerLeaseStampMs"),
+  };
+}
+
 function assertContract(input) {
-  const defaultMs = integerConstant(input.mailer, "DEFAULT_GMAIL_REQUEST_TIMEOUT_MS");
-  const minimumMs = integerConstant(input.mailer, "MIN_GMAIL_REQUEST_TIMEOUT_MS");
-  const maximumMs = integerConstant(input.mailer, "MAX_GMAIL_REQUEST_TIMEOUT_MS");
-  const providerLeaseMs = integerConstant(input.worker, "PROVIDER_LEASE_MS");
+  const defaultMs = integerConstant(input.transport, "DEFAULT_GMAIL_REQUEST_TIMEOUT_MS");
+  const minimumMs = integerConstant(input.transport, "MIN_GMAIL_REQUEST_TIMEOUT_MS");
+  const maximumMs = integerConstant(input.transport, "MAX_GMAIL_REQUEST_TIMEOUT_MS");
+  const abortSettlementMs = integerConstant(
+    input.transport,
+    "GMAIL_ABORT_SETTLEMENT_RESERVE_MS",
+  );
+  const exactOauthDeadlineMs = integerConstant(
+    input.transport,
+    "EXACT_OAUTH_DEADLINE_MS",
+  );
+  const exactGuardedSendDeadlineMs = integerConstant(
+    input.transport,
+    "EXACT_GUARDED_SEND_DEADLINE_MS",
+  );
+  const policy = runtimePolicy(input.runtimePolicy);
   const rootDefault = Number(environmentValue(input.rootEnvironment, "GMAIL_REQUEST_TIMEOUT_MS"));
   const infrastructureDefault = Number(
     environmentValue(input.infrastructureEnvironment, "GMAIL_REQUEST_TIMEOUT_MS"),
@@ -99,11 +173,11 @@ function assertContract(input) {
   const mailWorker = serviceBlock(input.compose, "mail-worker");
   const app = serviceBlock(input.compose, "app");
 
-  assert.equal(rootDefault, defaultMs, "developer environment default drifted from the mailer");
+  assert.equal(rootDefault, defaultMs, "developer environment default drifted from the transport");
   assert.equal(
     infrastructureDefault,
     defaultMs,
-    "infrastructure environment default drifted from the mailer",
+    "infrastructure environment default drifted from the transport",
   );
   assert.equal(rootScopes, "", "developer scope declaration must default closed");
   assert.equal(
@@ -149,24 +223,63 @@ function assertContract(input) {
   assert.doesNotMatch(app, /GMAIL_REQUEST_TIMEOUT_MS/u, "the app service must not receive the Gmail setting");
   assert.doesNotMatch(app, /GMAIL_OAUTH_SCOPES/u, "the app service must not receive Gmail scopes");
   assert.match(
-    input.mailer,
+    input.transport,
     /process\.env\.GMAIL_REQUEST_TIMEOUT_MS\?\.trim\(\)/u,
     "the Gmail adapter must consume the configured deadline",
   );
   assert.ok(minimumMs > 0 && minimumMs <= defaultMs && defaultMs <= maximumMs);
-
-  const graceMatches = [
-    ...input.store.matchAll(
-      /lease_expires_at < pg_catalog\.statement_timestamp\(\) - interval '([0-9]+) seconds'/gu,
-    ),
-  ].map((match) => Number(match[1]) * 1_000);
-  assert.ok(graceMatches.length >= 2, "abandoned-work sweep grace must guard selection and update");
-  assert.equal(new Set(graceMatches).size, 1, "abandoned-work sweep grace predicates drifted");
-  const sweepGraceMs = graceMatches[0];
-  assert.ok(maximumMs < sweepGraceMs, "one Gmail request can outlive abandoned-work sweep grace");
+  assert.equal(
+    maximumMs + abortSettlementMs,
+    exactOauthDeadlineMs,
+    "the configured request ceiling plus abort settlement must fill the aggregate OAuth deadline",
+  );
+  assert.equal(policy.oauthDeadlineMs, exactOauthDeadlineMs);
+  assert.equal(policy.guardedSendDeadlineMs, exactGuardedSendDeadlineMs);
+  assert.equal(policy.providerAbortSettlementMs, abortSettlementMs);
+  assert.equal(
+    policy.providerLeaseStampMs,
+    policy.tx1Ms + policy.postCommitProviderLeaseMs,
+    "the physical provider lease stamp must include the complete TX1 acknowledgement allowance",
+  );
+  const leasedDispatchPathMs =
+    policy.oauthDeadlineMs +
+    policy.watchdogArmAckMs +
+    policy.poolAcquireMs +
+    policy.postProviderTransactionMs +
+    policy.persistenceMarginMs;
   assert.ok(
-    maximumMs * 2 < providerLeaseMs,
-    "sequential OAuth and delivery requests can exhaust the provider lease",
+    leasedDispatchPathMs < policy.postCommitProviderLeaseMs,
+    "the post-COMMIT OAuth and guarded TX2 path can exhaust the provider lease",
+  );
+  const lockedProviderWindowMs =
+    policy.guardedSendDeadlineMs +
+    policy.providerAbortSettlementMs +
+    policy.fatalExitMarginMs;
+  const tx2PathMs =
+    policy.preProviderTx2PhaseMs +
+    lockedProviderWindowMs +
+    policy.postProviderTx2PhaseMs;
+  const watchdogControlPathMs =
+    policy.watchdogArmAckMs +
+    policy.poolAcquireMs +
+    tx2PathMs +
+    policy.watchdogTeardownConfirmationMs +
+    policy.watchdogDisarmDeliveryMs;
+  assert.ok(
+    watchdogControlPathMs + policy.minimumHardWatchdogLeadMs <=
+      policy.hardWatchdogMs,
+    "the guarded TX2 control path does not retain the hard-watchdog lead",
+  );
+  const minimumDatabaseFallbackMs =
+    policy.hardWatchdogMs +
+    policy.minimumPostProviderDatabaseFallbackLeadMs;
+  assert.ok(
+    minimumDatabaseFallbackMs <= policy.postProviderIdleMs,
+    "the post-provider idle fallback can fire before the hard watchdog",
+  );
+  assert.ok(
+    minimumDatabaseFallbackMs <= policy.postProviderTransactionMs,
+    "the post-provider transaction fallback can fire before the hard watchdog",
   );
 }
 
@@ -238,16 +351,57 @@ test("Gmail request timeout contract rejects cross-layer and safety drift", () =
       ) },
     ],
     [
-      "sweep grace",
-      { store: baseline.store.replaceAll("interval '30 seconds'", "interval '20 seconds'") },
+      "transport request ceiling",
+      { transport: replaceExactly(
+        baseline.transport,
+        "const MAX_GMAIL_REQUEST_TIMEOUT_MS = 15_000;",
+        "const MAX_GMAIL_REQUEST_TIMEOUT_MS = 15_001;",
+        "transport request ceiling",
+      ) },
     ],
     [
-      "provider lease",
-      { worker: replaceExactly(
-        baseline.worker,
-        "const PROVIDER_LEASE_MS = 300_000;",
-        "const PROVIDER_LEASE_MS = 40_000;",
-        "provider lease",
+      "TX1 provider lease stamp",
+      { runtimePolicy: replaceExactly(
+        baseline.runtimePolicy,
+        "  providerLeaseStampMs: 110_000,",
+        "  providerLeaseStampMs: 109_999,",
+        "TX1 provider lease stamp",
+      ) },
+    ],
+    [
+      "provider persistence margin",
+      { runtimePolicy: replaceExactly(
+        baseline.runtimePolicy,
+        "  persistenceMarginMs: 5_000,",
+        "  persistenceMarginMs: 11_000,",
+        "provider persistence margin",
+      ) },
+    ],
+    [
+      "hard-watchdog lead",
+      { runtimePolicy: replaceExactly(
+        baseline.runtimePolicy,
+        "  hardWatchdogMs: 55_000,",
+        "  hardWatchdogMs: 54_999,",
+        "hard-watchdog lead",
+      ) },
+    ],
+    [
+      "post-provider idle fallback",
+      { runtimePolicy: replaceExactly(
+        baseline.runtimePolicy,
+        "  postProviderInitiationIdleInTransactionSessionTimeoutMs: 60_000,",
+        "  postProviderInitiationIdleInTransactionSessionTimeoutMs: 59_999,",
+        "post-provider idle fallback",
+      ) },
+    ],
+    [
+      "post-provider transaction fallback",
+      { runtimePolicy: replaceExactly(
+        baseline.runtimePolicy,
+        "  postProviderInitiationTransactionTimeoutMs: 60_000,",
+        "  postProviderInitiationTransactionTimeoutMs: 59_999,",
+        "post-provider transaction fallback",
       ) },
     ],
   ];

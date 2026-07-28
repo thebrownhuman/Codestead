@@ -11,7 +11,8 @@ sends mail.
   `GMAIL_RECONCILIATION_ENABLED=true` for the operator session.
 - Set the non-secret `GMAIL_OAUTH_SCOPES` declaration to the exact comma- or
   space-separated scopes granted to the Gmail refresh token. Operator startup
-  validates this contract before opening the database or calling Gmail.
+  validates this contract after its read-only database runtime inspection and
+  before any Gmail call.
 - For the least-privilege combined sender/reconciliation grant, declare
   `https://www.googleapis.com/auth/gmail.send` plus
   `https://www.googleapis.com/auth/gmail.readonly`.
@@ -31,11 +32,17 @@ sends mail.
 docker compose run --rm --no-deps -e GMAIL_RECONCILIATION_ENABLED=true mail-worker node --import tsx /app/scripts/reconcile-gmail-outbox.ts --operation-id <operation-uuid>
 ```
 
-The command first verifies the exact quarantined database fence. It then runs
-one Gmail `rfc822msgid:<Message-ID>` search limited to two `SENT` messages. A
-sole result is fetched once as metadata and must retain both the exact
-`Message-ID` and the `SENT` label. Output contains only the outcome, never the
-operation ID, correlation Message-ID, recipient, or Gmail provider ID.
+Before any Gmail call, the command validates the declared OAuth scopes and
+verifies the exact quarantined database fence. It then runs one Gmail
+`rfc822msgid:<Message-ID>` search limited to two `SENT` messages. A sole result
+must retain both the exact `Message-ID` and the `SENT` label.
+
+Bound legacy and current rows are fetched as raw messages. Legacy rows must
+match the persisted payload digest; current rows must match their persisted
+opaque-header evidence. Legacy unbound rows use metadata-only verification and
+remain inspection-only, so they can never be applied. Output contains only the
+outcome, never the operation ID, correlation Message-ID, recipient, or Gmail
+provider ID.
 
 `not-found` is not proof that Gmail did not accept the send. Search visibility
 can lag. `not-found`, `ambiguous`, and failed verification leave the row

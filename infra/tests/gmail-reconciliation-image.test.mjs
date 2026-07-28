@@ -12,6 +12,25 @@ import { test } from "node:test";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const read = (relative) => readFileSync(path.join(root, relative), "utf8");
+const posixShell = process.platform === "win32"
+  ? "C:/Program Files/Git/bin/sh.exe"
+  : "sh";
+
+function posixPath(file) {
+  if (process.platform !== "win32") return file;
+  const normalized = file.replaceAll("\\", "/");
+  const match = /^([A-Za-z]):\/(.*)$/u.exec(normalized);
+  assert.ok(match, `cannot normalize Windows path for Git Bash: ${file}`);
+  return `/${match[1].toLowerCase()}/${match[2]}`;
+}
+
+function sourceBetween(document, start, end, label) {
+  const startIndex = document.indexOf(start);
+  assert.notEqual(startIndex, -1, `missing ${label} start`);
+  const endIndex = document.indexOf(end, startIndex + start.length);
+  assert.notEqual(endIndex, -1, `missing ${label} end`);
+  return document.slice(startIndex, endIndex);
+}
 
 test("the production worker image ships the reconciliation operator", () => {
   const dockerfile = read("Dockerfile");
@@ -34,6 +53,15 @@ test("the production runbook invokes the image entrypoint with a one-session gat
   assert.match(runbook, command);
   assert.doesNotMatch(runbook, /npm run worker:email:reconcile/u);
   assert.doesNotMatch(runbook, /docker compose exec/u);
+  assert.match(
+    runbook,
+    /after its read-only database runtime inspection\s+and\s+before any Gmail call/u,
+  );
+  assert.match(runbook, /Bound legacy and current rows are fetched as raw messages/u);
+  assert.match(
+    runbook,
+    /Legacy unbound rows use metadata-only verification\s+and\s+remain inspection-only/u,
+  );
 
   const compose = read("compose.yaml");
   const workerService =
@@ -56,18 +84,127 @@ test("the production runbook invokes the image entrypoint with a one-session gat
     entrypoint,
     /DELETION_TOMBSTONE_KEY must be at least 32 characters/u,
   );
+});
 
-  const storeTest = read("src/lib/notifications/__tests__/postgres-outbox-store.test.ts");
-  assert.match(storeTest, /process\.env\.DELETION_TOMBSTONE_KEY =/u);
+test("the reconciliation operator preserves the guarded exact-evidence fence", () => {
+  const operator = read("scripts/reconcile-gmail-outbox.ts");
   assert.match(
-    storeTest,
-    /template: "account-deleted"[\s\S]*?beginProviderCall\(deletionClaim,/u,
+    operator,
+    /const result = await reconcileGmailDelivery\(input, \{\s*store,\s*gmail: \{ findByMessageId: findGmailMessageByMessageId \},\s*\}\);/u,
+  );
+  assert.doesNotMatch(
+    operator,
+    /\b(?:beginProviderCall|dispatchAfterProviderBoundary)\b/u,
+    "the reconciliation operator must never open a new provider-send boundary",
+  );
+  const operatorMain = sourceBetween(
+    operator,
+    "async function main() {",
+    "async function closePoolWithinDeadline()",
+    "Gmail reconciliation operator main",
+  );
+  const runtimeInspectionIndex = operatorMain.indexOf(
+    "startupInspection = await inspectMailDispatchRuntime(resources.pool)",
+  );
+  const scopeValidationIndex = operatorMain.indexOf(
+    "assertGmailReconciliationOAuthScopes(process.env.GMAIL_OAUTH_SCOPES)",
+  );
+  const reconciliationIndex = operatorMain.indexOf(
+    "const result = await reconcileGmailDelivery(input",
+  );
+  assert.ok(
+    runtimeInspectionIndex !== -1 &&
+      runtimeInspectionIndex < scopeValidationIndex &&
+      scopeValidationIndex < reconciliationIndex,
+    "database runtime inspection, scope validation, and Gmail reconciliation order drifted",
+  );
+
+  const reconciliation = read("src/lib/notifications/gmail-reconciliation.ts");
+  const authority = sourceBetween(
+    reconciliation,
+    "export function gmailReconciliationAuthority(",
+    "export function gmailProofAuthorizesFence(",
+    "Gmail reconciliation authority",
+  );
+  for (const field of [
+    "providerRequestBodySha256",
+    "providerRequestBodyLength",
+    "releaseReceiptSha256",
+  ]) {
+    assert.match(
+      authority,
+      new RegExp(`fence\\.${field}`, "u"),
+      `reconciliation authority must bind ${field}`,
+    );
+  }
+  assert.match(
+    authority,
+    /LOWERCASE_SHA256\.test\(fence\.providerRequestBodySha256\)/u,
+  );
+  assert.match(
+    authority,
+    /Number\.isSafeInteger\(fence\.providerRequestBodyLength\)/u,
+  );
+  assert.match(
+    authority,
+    /LOWERCASE_SHA256\.test\(fence\.releaseReceiptSha256\)/u,
+  );
+  assert.match(
+    reconciliation,
+    /gmailProofAuthorizesFence\(authority, lookup\.proof\)/u,
+  );
+  assert.match(
+    reconciliation,
+    /deps\.store\.finalizeGmailReconciliation\(\{\s*fence: candidate\.fence,\s*providerMessageId: lookup\.providerMessageId,\s*proof: lookup\.proof,\s*\}\)/u,
+  );
+
+  const lookup = read("src/lib/notifications/gmail-correlation-lookup.ts");
+  assert.match(
+    lookup,
+    /if \(input\.authority\.kind === "legacy-unbound-v0"\) \{[\s\S]*?format", "metadata"[\s\S]*?\} else \{[\s\S]*?format", "raw"/u,
+  );
+  assert.match(
+    lookup,
+    /const proof = verifiedProof\(rawBytes, headers, input\.authority\)/u,
+  );
+
+  const store = read("src/lib/notifications/postgres-outbox-store.ts");
+  const findFence = sourceBetween(
+    store,
+    "  async findGmailReconciliationFence(",
+    "  async finalizeGmailReconciliation(",
+    "Gmail reconciliation fence reader",
+  );
+  const finalizeFence = sourceBetween(
+    store,
+    "  async finalizeGmailReconciliation(",
+    "  async claimNext(",
+    "Gmail reconciliation finalizer",
+  );
+  for (const field of [
+    "provider_request_body_sha256",
+    "provider_request_body_length",
+    "release_receipt_sha256",
+  ]) {
+    assert.match(findFence, new RegExp(field, "u"));
+    assert.match(finalizeFence, new RegExp(field, "u"));
+  }
+  assert.match(
+    findFence,
+    /\$\{OUTBOX_EXACT_DELIVERY_RELEASE_RECEIPT_SQL\}/u,
+  );
+  assert.match(
+    finalizeFence,
+    /gmailProofAuthorizesFence\(authorityClass, input\.proof\)/u,
+  );
+  assert.match(
+    finalizeFence,
+    /\$\{OUTBOX_EXACT_DELIVERY_RELEASE_RECEIPT_SQL\}[\s\S]*?= \$20::text/u,
   );
 });
 
 test(
   "the image entrypoint expands database and Gmail file secrets before exec",
-  { skip: process.platform === "win32" },
   () => {
     const directory = mkdtempSync(path.join(tmpdir(), "codestead-gmail-entrypoint-"));
     const values = {
@@ -83,13 +220,13 @@ test(
         delete environment[name];
         const file = path.join(directory, name.toLowerCase());
         writeFileSync(file, value, { encoding: "utf8", mode: 0o600 });
-        environment[`${name}_FILE`] = file;
+        environment[`${name}_FILE`] = posixPath(file);
       }
       const result = spawnSync(
-        "sh",
+        posixShell,
         [
-          path.join(root, "infra/docker/entrypoint.sh"),
-          process.execPath,
+          posixPath(path.join(root, "infra/docker/entrypoint.sh")),
+          posixPath(process.execPath),
           "-e",
           `process.stdout.write(JSON.stringify({
             DATABASE_URL: process.env.DATABASE_URL,
@@ -111,9 +248,8 @@ test(
 
 test(
   "the production entrypoint rejects an unusable deletion capability key",
-  { skip: process.platform === "win32" },
   () => {
-    const entrypoint = path.join(root, "infra/docker/entrypoint.sh");
+    const entrypoint = posixPath(path.join(root, "infra/docker/entrypoint.sh"));
     const baseEnvironment = {
       PATH: process.env.PATH ?? "/usr/bin:/bin",
       NODE_ENV: "production",
@@ -129,8 +265,8 @@ test(
         environment.DELETION_TOMBSTONE_KEY = deletionKey;
       }
       const result = spawnSync(
-        "sh",
-        [entrypoint, process.execPath, "-e", 'process.stdout.write("unexpected")'],
+        posixShell,
+        [entrypoint, posixPath(process.execPath), "-e", 'process.stdout.write("unexpected")'],
         { cwd: root, env: environment, encoding: "utf8" },
       );
       assert.equal(result.status, 64);
@@ -142,8 +278,8 @@ test(
     }
 
     const result = spawnSync(
-      "sh",
-      [entrypoint, process.execPath, "-e", 'process.stdout.write("ok")'],
+      posixShell,
+      [entrypoint, posixPath(process.execPath), "-e", 'process.stdout.write("ok")'],
       {
         cwd: root,
         env: {
