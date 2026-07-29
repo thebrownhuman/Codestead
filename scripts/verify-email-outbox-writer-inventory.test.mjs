@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
@@ -11,6 +12,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   EXPECTED_WRITERS,
@@ -141,7 +143,6 @@ test("accepts exactly five release-composed runtime sinks and one delegated edge
     const paths = exactFixture(root);
     assert.equal(paths.length, EXPECTED_WRITERS.length);
     assert.deepEqual(verifyWriterInventory({ repositoryRoot: root, paths }), {
-      catalogWriters: 1,
       delegatedEdges: 1,
       runtimeWriters: 5,
     });
@@ -582,7 +583,7 @@ test("known non-writer text types are read, unknown types fail closed", () => {
     }
     assert.deepEqual(
       verifyWriterInventory({ repositoryRoot: root, paths: paths.sort() }),
-      { catalogWriters: 1, delegatedEdges: 1, runtimeWriters: 5 },
+      { delegatedEdges: 1, runtimeWriters: 5 },
     );
     write(root, "assets/opaque.wat", "safe");
     expectInventoryFailure(
@@ -687,7 +688,7 @@ test("only the two exact reviewed SQL paths may carry one physical writer", () =
     paths.push("drizzle/0065_backup_status_mail_authority.sql");
     assert.deepEqual(
       verifyWriterInventory({ repositoryRoot: root, paths: paths.sort() }),
-      { catalogWriters: 1, delegatedEdges: 1, runtimeWriters: 5 },
+      { delegatedEdges: 1, runtimeWriters: 5 },
     );
     write(
       root,
@@ -814,12 +815,39 @@ test("bounded reads reject oversized files", () => {
   try {
     write(root, "scripts/direct.py", "x".repeat(65));
     const read = createBoundedReader(root, {
-      limits: { ...LIMITS, fileBytes: 64, totalBytes: 64 },
+      limits: { ...LIMITS, fileBytes: 64, totalBytes: 128 },
     });
-    assert.throws(() => read("scripts/direct.py"), /file-size-limit/u);
+    assert.throws(
+      () => read("scripts/direct.py"),
+      /file-size-limit:scripts\/direct\.py/u,
+    );
   } finally {
     rmSync(root, { force: true, recursive: true });
   }
+});
+
+test("bounded reads reject aggregate overflow across individually valid files", () => {
+  const root = fixtureRoot();
+  try {
+    write(root, "scripts/first.py", "a".repeat(40));
+    write(root, "scripts/second.py", "b".repeat(40));
+    const read = createBoundedReader(root, {
+      limits: { ...LIMITS, fileBytes: 64, totalBytes: 64 },
+    });
+
+    assert.equal(read("scripts/first.py").toString("utf8"), "a".repeat(40));
+    assert.throws(
+      () => read("scripts/second.py"),
+      /total-size-limit:scripts\/second\.py/u,
+    );
+  } finally {
+    rmSync(root, { force: true, recursive: true });
+  }
+});
+
+test("writer inventory keeps reviewed per-file and aggregate byte ceilings", () => {
+  assert.equal(LIMITS.fileBytes, 2 * 1024 * 1024);
+  assert.equal(LIMITS.totalBytes, 80 * 1024 * 1024);
 });
 
 test("git discovery has time, byte, count, termination, and duplicate guards", () => {
@@ -894,4 +922,45 @@ test("an extra trusted writer or a missing manifest writer is rejected", () => {
   } finally {
     rmSync(root, { force: true, recursive: true });
   }
+});
+
+test("the shipped CLI reports only the static writer proof it executes", () => {
+  const environment = Object.fromEntries(
+    [
+      "ComSpec",
+      "LANG",
+      "Path",
+      "PATH",
+      "PATHEXT",
+      "SystemRoot",
+      "SYSTEMROOT",
+      "TEMP",
+      "TMP",
+      "TMPDIR",
+    ]
+      .filter((key) => process.env[key] !== undefined)
+      .map((key) => [key, process.env[key]]),
+  );
+  const result = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(
+        new URL("./verify-email-outbox-writer-inventory.mjs", import.meta.url),
+      ),
+    ],
+    {
+      cwd: os.tmpdir(),
+      encoding: "utf8",
+      env: environment,
+      timeout: 20_000,
+      windowsHide: true,
+    },
+  );
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0);
+  assert.equal(
+    result.stdout,
+    "email_outbox_writer_inventory=runtime:5:delegated:1:static-pass\n",
+  );
+  assert.doesNotMatch(`${result.stdout}${result.stderr}`, /catalog/iu);
 });

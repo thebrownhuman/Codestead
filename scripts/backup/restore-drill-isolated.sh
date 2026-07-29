@@ -188,7 +188,7 @@ write_restore_secret() {
 restore_postgres_password="${restore_passwords[0]}"
 write_restore_secret "$restore_postgres_password_file" "$restore_postgres_password"
 write_restore_secret "$restore_database_bootstrap_url_file" \
-  "postgresql://learncoding_restore:$restore_postgres_password@postgres:5432/learncoding_restore"
+  "postgresql://codestead_restore:$restore_postgres_password@postgres:5432/learncoding_restore"
 write_restore_secret "$restore_database_app_url_file" \
   "postgresql://learncoding_app:${restore_passwords[1]}@postgres:5432/learncoding_restore"
 write_restore_secret "$restore_database_migrator_url_file" \
@@ -477,6 +477,7 @@ REQUIRE_COMPLETE_MIGRATION_LEDGER=true \
 RESTORE_NO_ACL_RECONCILIATION=true \
   restore_one_shot database-role-bootstrap
 restore_one_shot database-boundary-verifier
+restore_one_shot restore-ledger-authority-installer
 
 smoke_output="$work/smoke.out"
 restore_compose run --rm --no-deps smoke >"$smoke_output"

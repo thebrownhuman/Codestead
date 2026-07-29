@@ -65,7 +65,7 @@ const ambientDatabaseNames = Object.freeze([
 export const MAX_SUBRUN_MS = 60_000;
 export const SUCCESS_MARKER = "restore_drill_role_boundary=PASS\n";
 export const FAILURE_MARKER = "restore_drill_role_boundary=FAIL\n";
-export const RESTORE_BOOTSTRAP_IDENTITY = "learncoding_restore";
+export const RESTORE_BOOTSTRAP_IDENTITY = "codestead_restore";
 
 export const NO_OPERATION_FAILURE = Symbol("no restore operation failure");
 
@@ -1514,10 +1514,15 @@ async function runRestoreProof(
     ...buildBoundedPgConfig(sourceActual.bootstrap),
     max: 1,
   });
+  const sourceClusterAdministrationPool = new Pool({
+    ...buildBoundedPgConfig(maintenanceUrl),
+    max: 1,
+  });
   await runDatabaseRoleBootstrap({
     ...sourceCanonical,
     lockTimeoutMs: DATABASE_LOCK_TIMEOUT_MS,
     pool: sourceBootstrapPool,
+    clusterAdministrationPool: sourceClusterAdministrationPool,
     requireCompleteMigrationLedger: false,
   });
   const migrationPool = new Pool({
@@ -1533,10 +1538,16 @@ async function runRestoreProof(
     ...buildBoundedPgConfig(sourceActual.bootstrap),
     max: 1,
   });
+  const sourceReconcileClusterAdministrationPool = new Pool({
+    ...buildBoundedPgConfig(maintenanceUrl),
+    max: 1,
+  });
   await runDatabaseRoleBootstrap({
     ...sourceCanonical,
     lockTimeoutMs: DATABASE_LOCK_TIMEOUT_MS,
     pool: sourceReconcilePool,
+    clusterAdministrationPool:
+      sourceReconcileClusterAdministrationPool,
     requireCompleteMigrationLedger: true,
   });
   await verifyDatabaseRoleBoundaries({
@@ -1587,10 +1598,15 @@ async function runRestoreProof(
     ...buildBoundedPgConfig(restoredActual.bootstrap),
     max: 1,
   });
+  const restoredPreClusterAdministrationPool = new Pool({
+    ...buildBoundedPgConfig(maintenanceUrl),
+    max: 1,
+  });
   await runDatabaseRoleBootstrap({
     ...restoredCanonical,
     lockTimeoutMs: DATABASE_LOCK_TIMEOUT_MS,
     pool: restoredPreBootstrapPool,
+    clusterAdministrationPool: restoredPreClusterAdministrationPool,
     requireCompleteMigrationLedger: false,
   });
   await verifyDatabaseRoleBoundaries({

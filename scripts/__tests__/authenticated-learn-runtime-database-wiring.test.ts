@@ -94,7 +94,7 @@ describe("authenticated learn runtime database wiring", () => {
       source.match(/:\s*generatedDatabasePassword\(\),/gu) ?? [],
     ).toHaveLength(6);
     for (const [credential, role] of Object.entries({
-      bootstrap: "learncoding_ui",
+      bootstrap: "codestead_ui",
       app: "learncoding_app",
       migrator: "learncoding_migrator",
       worker: "learncoding_worker",

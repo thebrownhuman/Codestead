@@ -4,6 +4,8 @@ import { verifyDisposableIntegrationRoleBoundaries } from
   "../lib/disposable-role-boundary-adapter";
 
 const roleUrls = {
+  bootstrap:
+    "postgresql://codestead_it:bootstrap-password-0000@127.0.0.1:49152/learncoding_integration",
   app: "postgresql://learncoding_app:app-password-0001@127.0.0.1:49152/learncoding_integration",
   migrator:
     "postgresql://learncoding_migrator:migrator-password-0002@127.0.0.1:49152/learncoding_integration",
@@ -15,6 +17,7 @@ const roleUrls = {
 } as const;
 
 const roleProperties = [
+  ["codestead_it", "databaseBootstrapUrl", "bootstrap"],
   ["learncoding_app", "databaseAppUrl", "app"],
   ["learncoding_migrator", "databaseMigratorUrl", "migrator"],
   ["learncoding_worker", "databaseWorkerUrl", "worker"],
@@ -53,6 +56,7 @@ describe("disposable role-boundary adapter", () => {
     });
 
     await verifyDisposableIntegrationRoleBoundaries({
+      postgresUser: "codestead_it",
       database: "learncoding_integration",
       roleUrls,
       requireApplicationObjects: true,
@@ -64,19 +68,23 @@ describe("disposable role-boundary adapter", () => {
     expect(Object.keys(capturedVerifierInput ?? {}).sort()).toEqual([
       "databaseAppUrl",
       "databaseBackupReporterUrl",
+      "databaseBootstrapUrl",
       "databaseMigratorUrl",
       "databaseOpsUrl",
       "databaseWorkerUrl",
       "lockTimeoutMs",
       "poolFactory",
       "postgresDatabase",
+      "postgresUser",
       "requireApplicationObjects",
     ]);
-    expect(capturedVerifierInput).not.toHaveProperty("databaseBootstrapUrl");
     expect(capturedVerifierInput).toMatchObject({
+      postgresUser: "codestead_it",
       postgresDatabase: "learncoding_integration",
       requireApplicationObjects: true,
       lockTimeoutMs: 10_000,
+      databaseBootstrapUrl:
+        "postgresql://codestead_it:bootstrap-password-0000@postgres:5432/learncoding_integration",
       databaseAppUrl:
         "postgresql://learncoding_app:app-password-0001@postgres:5432/learncoding_integration",
       databaseMigratorUrl:
@@ -90,9 +98,9 @@ describe("disposable role-boundary adapter", () => {
     });
     const canonicalPasswords = roleProperties.map(([, property]) =>
       new URL(capturedVerifierInput![property] as string).password);
-    expect(new Set(canonicalPasswords).size).toBe(5);
+    expect(new Set(canonicalPasswords).size).toBe(6);
 
-    expect(createdPools).toHaveLength(5);
+    expect(createdPools).toHaveLength(6);
     for (const [index, [role, , roleName]] of roleProperties.entries()) {
       const options = createdPools[index]!;
       const connectionUrl = new URL(options.connectionString as string);

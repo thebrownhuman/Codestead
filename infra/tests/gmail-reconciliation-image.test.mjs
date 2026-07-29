@@ -620,6 +620,43 @@ test(
 );
 
 test(
+  "the restore ledger installer rejects a generic database credential before exec",
+  () => {
+    const result = spawnSync(
+      posixShell,
+      [
+        posixPath(path.join(root, "infra/docker/entrypoint.sh")),
+        "node",
+        "--import",
+        "tsx",
+        "/app/scripts/verify-restored-backup.ts",
+        "--install-ledger-authority",
+      ],
+      {
+        cwd: root,
+        env: {
+          PATH: process.env.PATH ?? "/usr/bin:/bin",
+          NODE_ENV: "production",
+          RESTORE_LEDGER_AUTHORITY_INSTALLER: "1",
+          DATABASE_BOOTSTRAP_URL:
+            "postgresql://bootstrap:example@postgres/codestead",
+          DATABASE_URL: "postgresql://app:example@postgres/codestead",
+        },
+        encoding: "utf8",
+      },
+    );
+
+    assert.ifError(result.error);
+    assert.equal(result.status, 64);
+    assert.equal(result.stdout, "");
+    assert.equal(
+      result.stderr,
+      "fatal: restore ledger authority installer accepts only the bootstrap credential\n",
+    );
+  },
+);
+
+test(
   "the production entrypoint rejects an unusable deletion capability key",
   () => {
     const entrypoint = posixPath(path.join(root, "infra/docker/entrypoint.sh"));

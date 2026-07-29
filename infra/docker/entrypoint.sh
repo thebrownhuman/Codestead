@@ -68,18 +68,51 @@ done
 unset restore_credential_master_key_path
 
 if [ "${NODE_ENV:-}" = "production" ]; then
+  restore_ledger_authority_installer="${RESTORE_LEDGER_AUTHORITY_INSTALLER:-0}"
+  if [ "$restore_ledger_authority_installer" != 0 ] \
+    && [ "$restore_ledger_authority_installer" != 1 ]; then
+    echo "fatal: RESTORE_LEDGER_AUTHORITY_INSTALLER must be 0 or 1" >&2
+    exit 64
+  fi
   if [ -n "${DATABASE_BOOTSTRAP_URL:-}" ]; then
-    for variable in DATABASE_APP_URL DATABASE_MIGRATOR_URL DATABASE_WORKER_URL DATABASE_OPS_URL DATABASE_BACKUP_REPORTER_URL; do
-      eval "value=\${$variable-}"
-      if [ -z "$value" ]; then
-        echo "fatal: the complete database role credential set is required" >&2
+    if [ "$restore_ledger_authority_installer" = 1 ]; then
+      for variable in DATABASE_URL DATABASE_APP_URL DATABASE_MIGRATOR_URL DATABASE_WORKER_URL DATABASE_OPS_URL DATABASE_BACKUP_REPORTER_URL; do
+        eval "value=\${$variable-}"
+        if [ -n "$value" ]; then
+          echo "fatal: restore ledger authority installer accepts only the bootstrap credential" >&2
+          exit 64
+        fi
+      done
+      if [ "$#" -ne 5 ] \
+        || [ "$1" != node ] \
+        || [ "$2" != --import ] \
+        || [ "$3" != tsx ] \
+        || [ "$4" != /app/scripts/verify-restored-backup.ts ] \
+        || [ "$5" != --install-ledger-authority ]; then
+        echo "fatal: restore ledger authority installer command is not reviewed" >&2
         exit 64
       fi
-    done
+    else
+      for variable in DATABASE_APP_URL DATABASE_MIGRATOR_URL DATABASE_WORKER_URL DATABASE_OPS_URL DATABASE_BACKUP_REPORTER_URL; do
+        eval "value=\${$variable-}"
+        if [ -z "$value" ]; then
+          echo "fatal: the complete database role credential set is required" >&2
+          exit 64
+        fi
+      done
+    fi
   elif [ -z "${DATABASE_URL:-}" ]; then
+    if [ "$restore_ledger_authority_installer" = 1 ]; then
+      echo "fatal: restore ledger authority installer requires the bootstrap credential" >&2
+      exit 64
+    fi
       echo "fatal: DATABASE_URL is required in production" >&2
       exit 64
+  elif [ "$restore_ledger_authority_installer" = 1 ]; then
+    echo "fatal: restore ledger authority installer requires bootstrap-only mode" >&2
+    exit 64
   fi
+  unset restore_ledger_authority_installer
   if [ "${REQUIRE_APP_SECRETS:-0}" = "1" ]; then
     auth_secret="${BETTER_AUTH_SECRET:-}"
     lost_device_proof_key="${LOST_DEVICE_PROOF_KEY:-}"

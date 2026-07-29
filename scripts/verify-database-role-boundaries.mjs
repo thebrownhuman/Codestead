@@ -22,8 +22,16 @@ import {
   REVIEWED_REPLAY_AUTHORITY_RELATIONAL_CONTRACT,
   canonicalReviewedMailAuthorityCatalogPhase,
   preserveDatabaseOperationAndCleanupFailures,
+  resolveReviewedMailAuthorityCatalogPhase,
 } from "./bootstrap-database-roles.mjs";
 import { verifyBackupStatusMailAuthorityCatalogObjects } from "./verify-backup-status-mail-authority.mjs";
+import {
+  assertSameVerifierDatabaseRuntimeCapabilityPhase,
+  assertVerifierDatabaseRuntimeCapabilityPhaseRequest,
+  observeVerifierDatabaseRuntimeCredentialEvidence,
+  resolveVerifierDatabaseRuntimeCapabilityPhase,
+  verifyDatabaseRuntimeCapabilityCatalog,
+} from "./verify-database-runtime-capabilities.mjs";
 
 export const DATABASE_ADMIN_LOCK_NAME = "codestead:database-administration:v1";
 const MIN_PASSWORD_BYTES = 32;
@@ -85,10 +93,14 @@ function decodeComponent(value) {
 
 export function validateDatabaseRoleBoundaryUrls(input) {
   if (!/^[a-z_][a-z0-9_]{0,62}$/u.test(input.postgresDatabase ?? "")) fail();
+  const bootstrapUser = validatePostgresBootstrapUser(input.postgresUser);
   const parsed = {};
   const passwords = new Set();
   try {
-    for (const [name, property, expectedUsername] of ROLE_SPECS) {
+    for (const [name, property, expectedUsername] of [
+      ["bootstrap", "databaseBootstrapUrl", bootstrapUser],
+      ...ROLE_SPECS,
+    ]) {
       const url = new URL(input[property]);
       const username = decodeComponent(url.username);
       const password = decodeComponent(url.password);
@@ -115,6 +127,17 @@ export function validateDatabaseRoleBoundaryUrls(input) {
     fail();
   }
   return parsed;
+}
+
+function validatePostgresBootstrapUser(postgresUser) {
+  if (
+    typeof postgresUser !== "string" ||
+    !/^[a-z_][a-z0-9_]{0,62}$/u.test(postgresUser) ||
+    postgresUser.startsWith("learncoding_")
+  ) {
+    fail("postgres-user");
+  }
+  return postgresUser;
 }
 
 function defaultPoolFactory({ connectionString, role }) {
@@ -165,6 +188,186 @@ async function bounded(operation, timeoutMs = CLEANUP_TIMEOUT_MS) {
   } finally {
     if (timer !== undefined) clearTimeout(timer);
   }
+}
+
+function remainingAuthenticationTime(deadline) {
+  const remaining = Math.floor(deadline - performance.now());
+  if (!Number.isSafeInteger(remaining) || remaining <= 0) {
+    fail("post-lock-authentication-timeout");
+  }
+  return remaining;
+}
+
+async function checkoutRoleClientBeforeDeadline(resource, deadline) {
+  const timeoutMs = remainingAuthenticationTime(deadline);
+  const connection = Promise.resolve().then(() => resource.pool.connect());
+  const connectionOutcome = connection.then(
+    (client) => ({ client, kind: "connected" }),
+    (error) => ({ error, kind: "rejected" }),
+  );
+  let timer;
+  const result = await Promise.race([
+    connectionOutcome,
+    new Promise((resolve) => {
+      timer = setTimeout(
+        () => resolve({ kind: "timeout" }),
+        timeoutMs,
+      );
+    }),
+  ]);
+  if (timer !== undefined) clearTimeout(timer);
+  if (result.kind === "timeout") {
+    resource.pendingCheckoutOutcome = connectionOutcome;
+    fail("post-lock-authentication-timeout");
+  }
+  if (result.kind === "rejected") throw result.error;
+  resource.client = result.client;
+  resource.destroyClient = true;
+  await bounded(
+    () => establishTrustedCatalogSearchPath(result.client),
+    remainingAuthenticationTime(deadline),
+  );
+  resource.destroyClient = false;
+}
+
+async function settlePendingCheckoutBeforeDeadline(resource, deadline) {
+  const pending = resource.pendingCheckoutOutcome;
+  if (pending === undefined) return;
+  const timeoutError = new DatabaseRoleBoundaryError(
+    "post-lock-authentication-cleanup-timeout",
+  );
+  const remaining = Math.floor(deadline - performance.now());
+  let timer;
+  const result = remaining <= 0
+    ? { error: timeoutError, kind: "cleanup-timeout" }
+    : await Promise.race([
+      pending,
+      new Promise((resolve) => {
+        timer = setTimeout(
+          () => resolve({ error: timeoutError, kind: "cleanup-timeout" }),
+          remaining,
+        );
+      }),
+    ]);
+  if (timer !== undefined) clearTimeout(timer);
+  resource.pendingCheckoutOutcome = undefined;
+  if (result.kind === "connected") {
+    result.client.release(true);
+    return;
+  }
+  if (result.kind === "rejected") throw result.error;
+  void pending.then((lateResult) => {
+    let lateFailure;
+    if (lateResult.kind === "connected") {
+      try {
+        lateResult.client.release(true);
+      } catch (error) {
+        lateFailure = error;
+      }
+    } else {
+      lateFailure = lateResult.error;
+    }
+    if (lateFailure !== undefined && timeoutError.cause === undefined) {
+      try {
+        timeoutError.cause = lateFailure;
+      } catch {
+        // The fixed cleanup-timeout failure remains authoritative.
+      }
+    }
+  });
+  throw timeoutError;
+}
+
+async function inMigratorOwnerReadOnlySnapshot(
+  client,
+  operation,
+  { onRollbackFailure = () => undefined } = {},
+) {
+  let transactionOpen = false;
+  let operationFailed = false;
+  let operationFailure;
+  let result;
+  try {
+    await client.query(
+      "begin transaction isolation level repeatable read read only",
+    );
+    transactionOpen = true;
+    await client.query("set local role learncoding_owner");
+    await client.query("set local search_path to pg_catalog, pg_temp");
+    const identity = await client.query("select current_user, session_user");
+    if (
+      identity.rows.length !== 1 ||
+      !exactRow(identity.rows[0], {
+        current_user: "learncoding_owner",
+        session_user: "learncoding_migrator",
+      })
+    ) {
+      fail("capability-owner-snapshot");
+    }
+    result = await operation(client);
+  } catch (error) {
+    operationFailed = true;
+    operationFailure = error;
+  }
+
+  const cleanupFailures = [];
+  if (transactionOpen) {
+    try {
+      await bounded(() => client.query("rollback"));
+    } catch (error) {
+      onRollbackFailure(error);
+      cleanupFailures.push(error);
+    }
+  }
+  const outcome = preserveDatabaseOperationAndCleanupFailures({
+    operationFailed,
+    operationFailure,
+    cleanupFailures,
+    message:
+      "database runtime capability snapshot failed and rollback was incomplete",
+  });
+  if (outcome.failed) throw outcome.failure;
+  return result;
+}
+
+async function inBootstrapReadOnlySnapshot(
+  client,
+  operation,
+  { onRollbackFailure = () => undefined } = {},
+) {
+  let transactionOpen = false;
+  let operationFailed = false;
+  let operationFailure;
+  let result;
+  try {
+    await client.query(
+      "begin transaction isolation level repeatable read read only",
+    );
+    transactionOpen = true;
+    await client.query("set local search_path to pg_catalog, pg_temp");
+    result = await operation(client);
+  } catch (error) {
+    operationFailed = true;
+    operationFailure = error;
+  }
+  const cleanupFailures = [];
+  if (transactionOpen) {
+    try {
+      await bounded(() => client.query("rollback"));
+    } catch (error) {
+      onRollbackFailure(error);
+      cleanupFailures.push(error);
+    }
+  }
+  const outcome = preserveDatabaseOperationAndCleanupFailures({
+    operationFailed,
+    operationFailure,
+    cleanupFailures,
+    message:
+      "database credential evidence snapshot failed and rollback was incomplete",
+  });
+  if (outcome.failed) throw outcome.failure;
+  return result;
 }
 
 async function acquireAdministrationLock(client, timeoutMs) {
@@ -4164,14 +4367,40 @@ async function verifyRole({
   return { positiveChecks, negativeChecks };
 }
 
+function assertSameReviewedMailPhase(expected, observed, section) {
+  const expectedPhase =
+    canonicalReviewedMailAuthorityCatalogPhase(expected)?.index ?? null;
+  const observedPhase =
+    canonicalReviewedMailAuthorityCatalogPhase(observed)?.index ?? null;
+  if (expectedPhase !== observedPhase) fail(section);
+}
+
 export async function verifyDatabaseRoleBoundaries(options) {
+  assertVerifierDatabaseRuntimeCapabilityPhaseRequest(
+    options.databaseRuntimeCapabilityPhase,
+  );
+  const postgresUser = validatePostgresBootstrapUser(options.postgresUser);
   const parsed = validateDatabaseRoleBoundaryUrls(options);
   const poolFactory = options.poolFactory ?? defaultPoolFactory;
   const lockTimeoutMs = options.lockTimeoutMs ?? MAX_LOCK_TIMEOUT_MS;
+  const requestedAuthenticationTimeout =
+    options.authenticationTimeoutMs ?? CLEANUP_TIMEOUT_MS;
+  if (
+    !Number.isSafeInteger(requestedAuthenticationTimeout)
+    || requestedAuthenticationTimeout <= 0
+  ) {
+    fail("post-lock-authentication-timeout");
+  }
+  const authenticationTimeoutMs = Math.min(
+    requestedAuthenticationTimeout,
+    CLEANUP_TIMEOUT_MS,
+  );
   const requireApplicationObjects = options.requireApplicationObjects === true;
   const resources = new Map();
   let lockClient;
   let lockAcquired = false;
+  let lockedCapabilitySeal;
+  let lockedCredentialEvidence;
   let rolesAuthenticated = 0;
   let positiveChecks = 0;
   let negativeChecks = 0;
@@ -4179,35 +4408,126 @@ export async function verifyDatabaseRoleBoundaries(options) {
   let operationFailure;
   let verificationResult;
   try {
-    for (const [name] of ROLE_SPECS) {
+    for (const [name] of [["bootstrap"], ...ROLE_SPECS]) {
       const role = parsed[name];
       const pool = poolFactory({
         connectionString: role.connectionString,
         database: role.database,
         role: role.username,
       });
-      const resource = { client: undefined, pool };
+      const resource = {
+        client: undefined,
+        destroyClient: false,
+        pendingCheckoutOutcome: undefined,
+        pool,
+      };
       resources.set(name, resource);
-      resource.client = await pool.connect();
     }
-    lockClient = resources.get("ops").client;
+    const initialAuthenticationDeadline =
+      performance.now() + authenticationTimeoutMs;
+    for (const name of ["bootstrap", "migrator"]) {
+      await checkoutRoleClientBeforeDeadline(
+        resources.get(name),
+        initialAuthenticationDeadline,
+      );
+    }
+    const migratorResource = resources.get("migrator");
+    const bootstrapResource = resources.get("bootstrap");
+    const onMigratorRollbackFailure = () => {
+      migratorResource.destroyClient = true;
+    };
+    const onBootstrapRollbackFailure = () => {
+      bootstrapResource.destroyClient = true;
+    };
+    const observeSeal = (client) =>
+      Promise.all([
+        resolveVerifierDatabaseRuntimeCapabilityPhase(client, {
+          requestedPhase: options.databaseRuntimeCapabilityPhase,
+        }),
+        requireApplicationObjects
+          ? resolveReviewedMailAuthorityCatalogPhase(client)
+          : Promise.resolve(null),
+      ]).then(([capability, mailPhase]) => ({ capability, mailPhase }));
+    const preLockSeal = await inMigratorOwnerReadOnlySnapshot(
+      migratorResource.client,
+      observeSeal,
+      { onRollbackFailure: onMigratorRollbackFailure },
+    );
+    lockClient = bootstrapResource.client;
     await acquireAdministrationLock(lockClient, lockTimeoutMs);
     lockAcquired = true;
+    try {
+      migratorResource.client.release(true);
+      migratorResource.client = undefined;
+    } catch (error) {
+      migratorResource.destroyClient = true;
+      throw error;
+    }
+    const postLockAuthenticationDeadline =
+      performance.now() + authenticationTimeoutMs;
+    const authenticationResults = await Promise.allSettled(
+      ROLE_SPECS.map(([name]) =>
+        checkoutRoleClientBeforeDeadline(
+          resources.get(name),
+          postLockAuthenticationDeadline,
+        )
+      ),
+    );
+    const authenticationFailure = authenticationResults.find(
+      (result) => result.status === "rejected",
+    );
+    if (authenticationFailure !== undefined) {
+      throw authenticationFailure.reason;
+    }
+    lockedCredentialEvidence = await inBootstrapReadOnlySnapshot(
+      bootstrapResource.client,
+      (client) =>
+        observeVerifierDatabaseRuntimeCredentialEvidence(client, {
+          postgresDatabase: options.postgresDatabase,
+          postgresUser,
+        }),
+      { onRollbackFailure: onBootstrapRollbackFailure },
+    );
+    lockedCapabilitySeal = await inMigratorOwnerReadOnlySnapshot(
+      migratorResource.client,
+      async (client) => {
+        const seal = await observeSeal(client);
+        assertSameVerifierDatabaseRuntimeCapabilityPhase(
+          preLockSeal.capability,
+          seal.capability,
+          "pre-lock-capability-phase-drift",
+        );
+        assertSameReviewedMailPhase(
+          preLockSeal.mailPhase,
+          seal.mailPhase,
+          "pre-lock-mail-phase-drift",
+        );
+        const catalog = await verifyDatabaseRuntimeCapabilityCatalog(client, {
+          postgresDatabase: options.postgresDatabase,
+          bootstrapUser: postgresUser,
+          authenticatedRoles: RESTRICTED_ROLE_NAMES,
+          credentialEvidence: lockedCredentialEvidence,
+          resolution: seal.capability,
+        });
+        return { ...seal, catalog };
+      },
+      { onRollbackFailure: onMigratorRollbackFailure },
+    );
     let objects;
-    let reviewedPhase;
+    const reviewedPhase = lockedCapabilitySeal.mailPhase;
     if (requireApplicationObjects) {
-      objects = await discoverApplicationObjects(lockClient);
-      reviewedPhase = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.at(-1);
+      const opsClient = resources.get("ops").client;
+      objects = await discoverApplicationObjects(opsClient);
       if (reviewedPhase?.backupStatusAuthority == null) {
         fail("backup-status-authority-phase");
       }
       const catalog = await verifyReviewedMailAuthorityCatalogContracts(
-        lockClient,
+        opsClient,
         reviewedPhase,
       );
       positiveChecks += catalog.totalVerified;
       positiveChecks += await verifyBackupStatusMailAuthorityCatalogObjects(
-        lockClient,
+        opsClient,
         RESTRICTED_ROLE_NAMES,
         reviewedPhase.backupStatusAuthority,
       );
@@ -4226,6 +4546,56 @@ export async function verifyDatabaseRoleBoundaries(options) {
       positiveChecks += result.positiveChecks;
       negativeChecks += result.negativeChecks;
     }
+    await inMigratorOwnerReadOnlySnapshot(
+      migratorResource.client,
+      async (client) => {
+        const finalSeal = await observeSeal(client);
+        assertSameVerifierDatabaseRuntimeCapabilityPhase(
+          lockedCapabilitySeal.capability,
+          finalSeal.capability,
+          "final-capability-phase-drift",
+        );
+        assertSameReviewedMailPhase(
+          lockedCapabilitySeal.mailPhase,
+          finalSeal.mailPhase,
+          "final-mail-phase-drift",
+        );
+        const finalCredentialEvidence = await inBootstrapReadOnlySnapshot(
+          bootstrapResource.client,
+          (bootstrapClient) =>
+            observeVerifierDatabaseRuntimeCredentialEvidence(bootstrapClient, {
+              postgresDatabase: options.postgresDatabase,
+              postgresUser,
+            }),
+          { onRollbackFailure: onBootstrapRollbackFailure },
+        );
+        if (
+          JSON.stringify(finalCredentialEvidence) !==
+          JSON.stringify(lockedCredentialEvidence)
+        ) {
+          fail("final-capability-credential-drift");
+        }
+        const finalCatalog = await verifyDatabaseRuntimeCapabilityCatalog(
+          client,
+          {
+            postgresDatabase: options.postgresDatabase,
+            bootstrapUser: postgresUser,
+            authenticatedRoles: RESTRICTED_ROLE_NAMES,
+            credentialEvidence: finalCredentialEvidence,
+            resolution: finalSeal.capability,
+          },
+        );
+        if (
+          (lockedCapabilitySeal.catalog?.phase ?? null) !==
+            (finalCatalog?.phase ?? null) ||
+          (lockedCapabilitySeal.catalog?.policyFingerprint ?? null) !==
+            (finalCatalog?.policyFingerprint ?? null)
+        ) {
+          fail("final-capability-catalog-drift");
+        }
+      },
+      { onRollbackFailure: onMigratorRollbackFailure },
+    );
     verificationResult = { rolesAuthenticated, positiveChecks, negativeChecks };
   } catch (error) {
     operationFailed = true;
@@ -4233,6 +4603,15 @@ export async function verifyDatabaseRoleBoundaries(options) {
   }
 
   const cleanupFailures = [];
+  const migratorResource = resources.get("migrator");
+  if (migratorResource?.destroyClient && migratorResource.client) {
+    try {
+      migratorResource.client.release(true);
+      migratorResource.client = undefined;
+    } catch (error) {
+      cleanupFailures.push(error);
+    }
+  }
   if (lockAcquired) {
     try {
       await releaseAdministrationLock(lockClient);
@@ -4240,9 +4619,22 @@ export async function verifyDatabaseRoleBoundaries(options) {
       cleanupFailures.push(error);
     }
   }
-  for (const { client, pool } of [...resources.values()].reverse()) {
+  const pendingCheckoutCleanupDeadline =
+    performance.now() + CLEANUP_TIMEOUT_MS;
+  for (const resource of [...resources.values()].reverse()) {
     try {
-      client?.release(cleanupFailures.length > 0 ? true : undefined);
+      await settlePendingCheckoutBeforeDeadline(
+        resource,
+        pendingCheckoutCleanupDeadline,
+      );
+    } catch (error) {
+      cleanupFailures.push(error);
+    }
+    const { client, pool } = resource;
+    try {
+      client?.release(
+        resource.destroyClient || cleanupFailures.length > 0 ? true : undefined,
+      );
     } catch (error) {
       cleanupFailures.push(error);
     }
@@ -4273,8 +4665,10 @@ function parseArguments(argv) {
 async function main() {
   const requireApplicationObjects = parseArguments(process.argv.slice(2));
   const result = await verifyDatabaseRoleBoundaries({
+    postgresUser: process.env.POSTGRES_USER ?? "",
     postgresDatabase: process.env.POSTGRES_DB ?? "",
-    databaseAppUrl: process.env.DATABASE_URL ?? "",
+    databaseBootstrapUrl: process.env.DATABASE_BOOTSTRAP_URL ?? "",
+    databaseAppUrl: process.env.DATABASE_APP_URL ?? "",
     databaseMigratorUrl: process.env.DATABASE_MIGRATOR_URL ?? "",
     databaseWorkerUrl: process.env.DATABASE_WORKER_URL ?? "",
     databaseOpsUrl: process.env.DATABASE_OPS_URL ?? "",

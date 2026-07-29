@@ -33,7 +33,7 @@ docker run --detach --pull never --name "$postgres_container" --network "$networ
   --env POSTGRES_USER=legacy_bootstrap \
   --env POSTGRES_PASSWORD=bootstrap-Fake-A-0000000000000000 \
   --env POSTGRES_DB=learncoding \
-  "$postgres_image" >/dev/null
+  "$postgres_image" -c authentication_timeout=1s >/dev/null
 
 ready=false
 for _ in $(seq 1 120); do

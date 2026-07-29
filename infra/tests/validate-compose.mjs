@@ -410,6 +410,7 @@ const expectedSecretSources = {
   ],
   "database-negative-probes": [
     "database_backup_reporter_url",
+    "database_bootstrap_url",
     "database_migrator_url",
     "database_ops_url",
     "database_url",
@@ -417,6 +418,7 @@ const expectedSecretSources = {
   ],
   "database-boundary-verifier": [
     "database_backup_reporter_url",
+    "database_bootstrap_url",
     "database_migrator_url",
     "database_ops_url",
     "database_url",
@@ -662,20 +664,24 @@ const databaseBoundaryEnvironments = {
     REQUIRE_COMPLETE_MIGRATION_LEDGER: "false",
   },
   "database-negative-probes": {
+    DATABASE_APP_URL_FILE: "/run/secrets/database_app_url",
     DATABASE_BACKUP_REPORTER_URL_FILE: "/run/secrets/database_backup_reporter_url",
+    DATABASE_BOOTSTRAP_URL_FILE: "/run/secrets/database_bootstrap_url",
     DATABASE_MIGRATOR_URL_FILE: "/run/secrets/database_migrator_url",
     DATABASE_OPS_URL_FILE: "/run/secrets/database_ops_url",
-    DATABASE_URL_FILE: "/run/secrets/database_url",
     DATABASE_WORKER_URL_FILE: "/run/secrets/database_worker_url",
     POSTGRES_DB: "learncoding",
+    POSTGRES_USER: "learncoding",
   },
   "database-boundary-verifier": {
+    DATABASE_APP_URL_FILE: "/run/secrets/database_app_url",
     DATABASE_BACKUP_REPORTER_URL_FILE: "/run/secrets/database_backup_reporter_url",
+    DATABASE_BOOTSTRAP_URL_FILE: "/run/secrets/database_bootstrap_url",
     DATABASE_MIGRATOR_URL_FILE: "/run/secrets/database_migrator_url",
     DATABASE_OPS_URL_FILE: "/run/secrets/database_ops_url",
-    DATABASE_URL_FILE: "/run/secrets/database_url",
     DATABASE_WORKER_URL_FILE: "/run/secrets/database_worker_url",
     POSTGRES_DB: "learncoding",
+    POSTGRES_USER: "learncoding",
   },
 };
 for (const [name, expectedEnvironment] of Object.entries(databaseBoundaryEnvironments)) {

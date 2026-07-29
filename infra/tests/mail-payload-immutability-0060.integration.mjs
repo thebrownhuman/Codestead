@@ -233,6 +233,13 @@ async function runLiveRoleBootstrap(port, database) {
     database,
     max: 1,
   });
+  const clusterAdministrationPool = new Pool({
+    host: "127.0.0.1",
+    port,
+    user: "postgres",
+    database: "postgres",
+    max: 1,
+  });
 
   return runDatabaseRoleBootstrap({
     postgresUser: "postgres",
@@ -247,6 +254,7 @@ async function runLiveRoleBootstrap(port, database) {
     lockTimeoutMs: 5_000,
     cleanupTimeoutMs: 5_000,
     pool,
+    clusterAdministrationPool,
   });
 }
 

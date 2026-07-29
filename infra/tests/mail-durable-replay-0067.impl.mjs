@@ -8047,6 +8047,12 @@ async function reconcileReviewedPrivileges(
     port,
     user: "postgres",
   }));
+  const clusterAdministrationPool = createTrackedPool(isolatedPoolConfig({
+    applicationName: `codestead_mail_${phase}_cluster_administration`,
+    database: "postgres",
+    port,
+    user: "postgres",
+  }));
   try {
     await runDatabaseRoleBootstrap({
       cleanupTimeoutMs: CLIENT_CLOSE_TIMEOUT_MS,
@@ -8064,6 +8070,7 @@ async function reconcileReviewedPrivileges(
       databaseWorkerUrl: credentialUrl("learncoding_worker", "worker"),
       lockTimeoutMs: 30_000,
       pool: bootstrapPool,
+      clusterAdministrationPool,
       postgresDatabase: database,
       postgresUser: "postgres",
       beforeCommit,
@@ -8081,6 +8088,7 @@ async function reconcileReviewedPrivileges(
     );
   } finally {
     trackedPools.delete(bootstrapPool);
+    trackedPools.delete(clusterAdministrationPool);
   }
 
   const client = createTrackedClient(isolatedClientConfig({

@@ -182,7 +182,7 @@ describe("disposable integration environment hardening", () => {
     const output: string[] = [];
     const password = "split-password-canary";
     const databaseUrl =
-      `postgresql://learncoding_it:${password}@127.0.0.1:54321/learncoding_integration`;
+      `postgresql://codestead_it:${password}@127.0.0.1:54321/learncoding_integration`;
     const sanitizer = environment.createIntegrationOutputSanitizer({
       secrets: [password, databaseUrl, "integration-auth-secret-canary"],
       write: (value) => output.push(value),
@@ -190,7 +190,7 @@ describe("disposable integration environment hardening", () => {
 
     sanitizer.write("migration output split-pass");
     sanitizer.write(Buffer.from(
-      "word-canary\nDATABASE_URL=postgresql://learncoding_it:split-password-",
+      "word-canary\nDATABASE_URL=postgresql://codestead_it:split-password-",
     ));
     sanitizer.write(
       "canary@127.0.0.1:54321/learncoding_integration\nauth=integration-auth-",
@@ -226,7 +226,7 @@ describe("disposable integration environment hardening", () => {
     reporter.enter("reset-capability-teardown");
     reporter.report();
     reporter.enter(
-      "invalid:postgresql://learncoding_it:"
+      "invalid:postgresql://codestead_it:"
         + "generated-password-canary@127.0.0.1/db",
     );
     reporter.report();

@@ -537,8 +537,8 @@ function validateHarnessRestoreEntrypointContract(source) {
       "production E2E does not scope exact no-ACL reconciliation to the restored bootstrap",
     ],
     [
-      "node --import tsx /app/scripts/verify-restored-backup.ts --remove-ledger-authority-before-bootstrap\n       node /app/scripts/bootstrap-database-roles.mjs\n       exec node --import tsx /app/scripts/verify-restored-backup.ts --install-ledger-authority",
-      "production E2E does not bootstrap the restored role boundary",
+      "node --import tsx /app/scripts/verify-restored-backup.ts --remove-ledger-authority-before-bootstrap\n       exec node /app/scripts/bootstrap-database-roles.mjs",
+      "production E2E does not remove temporary authority before the restored role bootstrap",
     ],
     [
       "--install-ledger-authority",
@@ -547,6 +547,18 @@ function validateHarnessRestoreEntrypointContract(source) {
     [
       "node /app/scripts/verify-database-role-boundaries.mjs \\\n      --require-application-objects \\\n    >/dev/null 2>&1 || fail \"restored database role boundary verification failed\"",
       "production E2E does not run the full database role boundary verifier",
+    ],
+    [
+      '"$resource_prefix-restore-ledger-authority-installer"',
+      "production E2E does not isolate the restore-only ledger authority installer",
+    ],
+    [
+      "--env RESTORE_LEDGER_AUTHORITY_INSTALLER=1",
+      "production E2E does not select the reviewed bootstrap-only installer entrypoint",
+    ],
+    [
+      "--mount \"type=bind,src=$restore_role_secret_root/database_bootstrap_url,dst=/run/secrets/database_bootstrap_url,readonly\"",
+      "production E2E does not scope the installer to the bootstrap credential",
     ],
     [
       "\"$operations_digest\" node --import tsx /app/scripts/verify-restored-backup.ts \\\n    >\"$smoke_output\" \\",
@@ -583,11 +595,21 @@ function validateHarnessRestoreEntrypointContract(source) {
     '"$resource_prefix-restore-role-boundary"',
     restoredBootstrap,
   );
+  const restoredInstaller = source.indexOf(
+    '"$resource_prefix-restore-ledger-authority-installer"',
+    restoredBoundary,
+  );
+  const restoredSmoke = source.indexOf(
+    '"$resource_prefix-restore-smoke"',
+    restoredInstaller,
+  );
   if (restoreEntrypoint < 0 || restoredBootstrap <= restoreEntrypoint
       || restoredBoundary <= restoredBootstrap
+      || restoredInstaller <= restoredBoundary
+      || restoredSmoke <= restoredInstaller
       || noAclAssignments[0].index <= restoredBootstrap
       || noAclAssignments[0].index >= restoredBoundary) {
-    fail("production E2E no-ACL mode is outside the restored bootstrap block");
+    fail("production E2E restore authority order is not bootstrap, boundary, installer, smoke");
   }
   if (source.slice(0, restoreEntrypoint).includes("RESTORE_NO_ACL_RECONCILIATION=true")) {
     fail("production E2E source paths enable restore-only ACL mode");
@@ -659,6 +681,7 @@ function validateHarnessReviewedRestoreFixtureContract(source) {
   ]) {
     requireHarnessFragment(source, fragment, message);
   }
+
   for (const forbidden of [
     "CREATE TABLE drizzle.__drizzle_migrations",
     "INSERT INTO drizzle.__drizzle_migrations",
@@ -666,6 +689,41 @@ function validateHarnessReviewedRestoreFixtureContract(source) {
   ]) {
     if (source.includes(forbidden)) {
       fail("production E2E still fabricates a migration ledger over a synthetic schema");
+    }
+  }
+}
+
+function validateHarnessBoundaryVerifierCredentialContract(source) {
+  for (const [label, failure] of [
+    [
+      "source",
+      "source database role boundary verification failed",
+    ],
+    [
+      "restored",
+      "restored database role boundary verification failed",
+    ],
+  ]) {
+    const failureOffset = source.indexOf(`|| fail "${failure}"`);
+    const blockStart = source.lastIndexOf("docker run", failureOffset);
+    if (failureOffset < 0 || blockStart < 0 || blockStart >= failureOffset) {
+      fail(`production E2E ${label} boundary verifier block is missing`);
+    }
+    const block = source.slice(blockStart, failureOffset);
+    requireHarnessFragment(
+      block,
+      "--env DATABASE_BOOTSTRAP_URL_FILE=/run/secrets/database_bootstrap_url",
+      `production E2E ${label} boundary verifier omits bootstrap evidence`,
+    );
+    requireHarnessFragment(
+      block,
+      "--env DATABASE_APP_URL_FILE=/run/secrets/database_app_url",
+      `production E2E ${label} boundary verifier omits the named app credential`,
+    );
+    if (block.includes("DATABASE_URL_FILE")) {
+      fail(
+        `production E2E ${label} boundary verifier uses the generic app credential`,
+      );
     }
   }
 }
@@ -2441,6 +2499,7 @@ validateHarnessRestoreEntrypointContract(productionE2eHarness);
 validatePackageScriptContracts(packageManifest);
 validateRestoreReportV2Contract();
 validateHarnessReviewedRestoreFixtureContract(productionE2eHarness);
+validateHarnessBoundaryVerifierCredentialContract(productionE2eHarness);
 runHarnessAdversarialSelfTests(productionE2eHarness);
 
 console.log("backup-ci-registration-tests-ok");

@@ -92,10 +92,16 @@ CMD ["node", "--import", "tsx", "/app/scripts/process-outbox.ts"]
 
 FROM worker AS operations
 COPY --chown=node:node content ./content
+COPY --chown=node:node drizzle/meta/_journal.json ./drizzle/meta/_journal.json
+COPY --chown=node:node drizzle/meta/0069_public_column_attnums.json ./drizzle/meta/0069_public_column_attnums.json
+COPY --chown=node:node drizzle/meta/0069_snapshot.json ./drizzle/meta/0069_snapshot.json
 COPY --chown=node:node scripts/bootstrap-admin.ts ./scripts/bootstrap-admin.ts
 COPY --chown=node:node scripts/bootstrap-database-roles.mjs ./scripts/bootstrap-database-roles.mjs
+COPY --chown=node:node scripts/bootstrap-database-runtime-capabilities.mjs ./scripts/bootstrap-database-runtime-capabilities.mjs
+COPY --chown=node:node scripts/database-runtime-capabilities.mjs ./scripts/database-runtime-capabilities.mjs
 COPY --chown=node:node scripts/lib/reviewed-migration-ledger.mjs ./scripts/lib/reviewed-migration-ledger.mjs
 COPY --chown=node:node scripts/verify-database-role-boundaries.mjs ./scripts/verify-database-role-boundaries.mjs
+COPY --chown=node:node scripts/verify-database-runtime-capabilities.mjs ./scripts/verify-database-runtime-capabilities.mjs
 COPY --chown=node:node scripts/verify-backup-status-mail-authority.mjs ./scripts/verify-backup-status-mail-authority.mjs
 COPY --chown=node:node scripts/backup/create-credential-probe.ts ./scripts/backup/create-credential-probe.ts
 COPY --chown=node:node scripts/backup/enqueue-backup-status.mjs ./scripts/backup/enqueue-backup-status.mjs

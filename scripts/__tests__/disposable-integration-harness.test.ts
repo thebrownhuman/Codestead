@@ -41,7 +41,7 @@ describe("disposable integration harness", () => {
         containerId: "a".repeat(64),
         port: 54321,
         database: "learncoding_integration",
-        username: "learncoding_it",
+        username: "codestead_it",
       }),
     };
     const createContainer = vi.fn(() => container);
@@ -52,7 +52,7 @@ describe("disposable integration harness", () => {
       containerName: "learncoding-postgres-it-harness",
       port: 54321,
       database: "learncoding_integration",
-      username: "learncoding_it",
+      username: "codestead_it",
       password: "password-canary",
       sourceEnvironment: { PATH: process.env.PATH },
       processTarget: {
@@ -102,7 +102,7 @@ describe("disposable integration harness", () => {
         containerName: "learncoding-postgres-it-errors",
         port: 54321,
         database: "learncoding_integration",
-        username: "learncoding_it",
+        username: "codestead_it",
         password: "password-canary",
         sourceEnvironment: {},
         processTarget: { on: vi.fn(), exit: vi.fn() },
@@ -121,7 +121,7 @@ describe("disposable integration harness", () => {
             containerId: "a".repeat(64),
             port: 54321,
             database: "learncoding_integration",
-            username: "learncoding_it",
+            username: "codestead_it",
           }),
         }),
         installSignalHandlers: vi.fn(),

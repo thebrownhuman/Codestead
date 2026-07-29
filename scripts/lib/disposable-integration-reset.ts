@@ -17,7 +17,7 @@ export type DisposableIntegrationResetLifecyclePool = Readonly<{
 }>;
 
 const EXPECTED_DATABASE = "learncoding_integration";
-const EXPECTED_INTEGRATION_USER = "learncoding_it";
+const EXPECTED_INTEGRATION_USER = "codestead_it";
 const INSTALLER_TRANSACTION_TIMEOUT_SQL = `
 SET LOCAL lock_timeout = '5000ms';
 SET LOCAL statement_timeout = '30000ms';
@@ -610,7 +610,7 @@ const RESET_GUARD_CONTRACT_SQL = `
 const INSTALL_RESET_SQL = `
 CREATE SCHEMA codestead_disposable_test AUTHORIZATION learncoding_owner;
 REVOKE ALL ON SCHEMA codestead_disposable_test
-  FROM PUBLIC, learncoding_it, learncoding_app, learncoding_worker,
+  FROM PUBLIC, codestead_it, learncoding_app, learncoding_worker,
        learncoding_migrator, learncoding_ops, learncoding_backup_reporter;
 
 CREATE FUNCTION codestead_disposable_test.reset_database()
@@ -710,7 +710,7 @@ $codestead_disposable_reset$;
 ALTER FUNCTION codestead_disposable_test.reset_database()
   OWNER TO learncoding_owner;
 REVOKE ALL ON FUNCTION codestead_disposable_test.reset_database()
-  FROM PUBLIC, learncoding_owner, learncoding_it, learncoding_app,
+  FROM PUBLIC, learncoding_owner, codestead_it, learncoding_app,
        learncoding_worker, learncoding_migrator, learncoding_ops,
        learncoding_backup_reporter;
 GRANT CREATE, USAGE ON SCHEMA codestead_disposable_test

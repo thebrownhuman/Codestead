@@ -275,7 +275,7 @@ function createFixture(
     image: PG18_IMAGE,
     port: input.port ?? 54321,
     database: "learncoding_integration",
-    username: "learncoding_it",
+    username: "codestead_it",
     password: PASSWORD,
     taskHomeDirectory: TASK_HOME,
     sourceEnvironment: {
@@ -361,7 +361,7 @@ describe("disposable PostgreSQL container", () => {
       containerId: OWNED_CONTAINER_ID,
       port: 54321,
       database: "learncoding_integration",
-      username: "learncoding_it",
+      username: "codestead_it",
     });
 
     fixture.container.cleanup();

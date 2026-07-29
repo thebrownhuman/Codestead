@@ -1021,6 +1021,14 @@ async function runLiveRoleBootstrap(port, database) {
     max: 1,
     connectionTimeoutMillis: 5_000,
   });
+  const clusterAdministrationPool = new Pool({
+    host: "127.0.0.1",
+    port,
+    user: "postgres",
+    database: "postgres",
+    max: 1,
+    connectionTimeoutMillis: 5_000,
+  });
   const roleUrl = (role, password) =>
     `postgresql://${role}:${password}@postgres:5432/${database}`;
 
@@ -1037,6 +1045,7 @@ async function runLiveRoleBootstrap(port, database) {
     lockTimeoutMs: 5_000,
     cleanupTimeoutMs: 5_000,
     pool,
+    clusterAdministrationPool,
   });
 }
 

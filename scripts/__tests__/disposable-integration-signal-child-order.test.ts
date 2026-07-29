@@ -21,7 +21,7 @@ describe("disposable integration signal child ordering", () => {
             containerId: "a".repeat(64),
             port: 54321,
             database: "learncoding_integration",
-            username: "learncoding_it",
+            username: "codestead_it",
           }),
         },
         terminateActiveChildren: async (receivedSignal) => {

@@ -22,7 +22,7 @@ services:
       - no-new-privileges:true
     environment:
       POSTGRES_DB: learncoding_restore
-      POSTGRES_USER: learncoding_restore
+      POSTGRES_USER: codestead_restore
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
       POSTGRES_INITDB_ARGS: --data-checksums --encoding=UTF8 --auth-local=scram-sha-256 --auth-host=scram-sha-256
     secrets:
@@ -36,7 +36,7 @@ services:
       - /run/learncoding-postgres:rw,noexec,nosuid,nodev,size=16m,uid=${RESTORE_POSTGRES_UID},gid=${RESTORE_POSTGRES_GID},mode=0700
       - /tmp:rw,noexec,nosuid,nodev,size=32m,mode=1777
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h /run/learncoding-postgres -U learncoding_restore -d learncoding_restore"]
+      test: ["CMD-SHELL", "pg_isready -h /run/learncoding-postgres -U codestead_restore -d learncoding_restore"]
       interval: 2s
       timeout: 2s
       retries: 30
@@ -58,11 +58,10 @@ services:
       - -ceu
       - |
         node --import tsx /app/scripts/verify-restored-backup.ts --remove-ledger-authority-before-bootstrap
-        node /app/scripts/bootstrap-database-roles.mjs
-        exec node --import tsx /app/scripts/verify-restored-backup.ts --install-ledger-authority
+        exec node /app/scripts/bootstrap-database-roles.mjs
     environment:
       POSTGRES_DB: learncoding_restore
-      POSTGRES_USER: learncoding_restore
+      POSTGRES_USER: codestead_restore
       REQUIRE_COMPLETE_MIGRATION_LEDGER: ${REQUIRE_COMPLETE_MIGRATION_LEDGER:-false}
       RESTORE_NO_ACL_RECONCILIATION: ${RESTORE_NO_ACL_RECONCILIATION:-false}
       DATABASE_BOOTSTRAP_URL_FILE: /run/secrets/database_bootstrap_url
@@ -109,14 +108,18 @@ services:
     command: ["node", "/app/scripts/verify-database-role-boundaries.mjs"]
     environment:
       POSTGRES_DB: learncoding_restore
-      DATABASE_URL_FILE: /run/secrets/database_url
+      POSTGRES_USER: codestead_restore
+      DATABASE_BOOTSTRAP_URL_FILE: /run/secrets/database_bootstrap_url
+      DATABASE_APP_URL_FILE: /run/secrets/database_app_url
       DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
       DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
       DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
       DATABASE_BACKUP_REPORTER_URL_FILE: /run/secrets/database_backup_reporter_url
     secrets:
+      - source: database_bootstrap_url
+        target: database_bootstrap_url
       - source: database_url
-        target: database_url
+        target: database_app_url
       - source: database_migrator_url
         target: database_migrator_url
       - source: database_worker_url
@@ -150,14 +153,18 @@ services:
     command: ["node", "/app/scripts/verify-database-role-boundaries.mjs", "--require-application-objects"]
     environment:
       POSTGRES_DB: learncoding_restore
-      DATABASE_URL_FILE: /run/secrets/database_url
+      POSTGRES_USER: codestead_restore
+      DATABASE_BOOTSTRAP_URL_FILE: /run/secrets/database_bootstrap_url
+      DATABASE_APP_URL_FILE: /run/secrets/database_app_url
       DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
       DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
       DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
       DATABASE_BACKUP_REPORTER_URL_FILE: /run/secrets/database_backup_reporter_url
     secrets:
+      - source: database_bootstrap_url
+        target: database_bootstrap_url
       - source: database_url
-        target: database_url
+        target: database_app_url
       - source: database_migrator_url
         target: database_migrator_url
       - source: database_worker_url
@@ -166,6 +173,43 @@ services:
         target: database_ops_url
       - source: database_backup_reporter_url
         target: database_backup_reporter_url
+    group_add:
+      - "${RESTORE_SECRETS_GID:-2000}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - restore-data
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+    mem_limit: 256m
+    cpus: 0.25
+    pids_limit: 32
+
+  restore-ledger-authority-installer:
+    profiles: ["operations"]
+    image: ${RESTORE_OPERATIONS_IMAGE:?Set RESTORE_OPERATIONS_IMAGE to the reviewed immutable operations image digest}
+    restart: "no"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - node
+      - --import
+      - tsx
+      - /app/scripts/verify-restored-backup.ts
+      - --install-ledger-authority
+    environment:
+      POSTGRES_DB: learncoding_restore
+      POSTGRES_USER: codestead_restore
+      REQUIRE_COMPLETE_MIGRATION_LEDGER: "true"
+      RESTORE_LEDGER_AUTHORITY_INSTALLER: "1"
+      DATABASE_BOOTSTRAP_URL_FILE: /run/secrets/database_bootstrap_url
+    secrets:
+      - source: database_bootstrap_url
+        target: database_bootstrap_url
     group_add:
       - "${RESTORE_SECRETS_GID:-2000}"
     depends_on:

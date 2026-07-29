@@ -52,7 +52,7 @@ describe("disposable container untrusted error boundaries", () => {
       image: PG17_IMAGE,
       port: 54321,
       database: "learncoding_integration",
-      username: "learncoding_it",
+      username: "codestead_it",
       password: "secret-canary",
       taskHomeDirectory: path.resolve("task-home", "untrusted"),
       sourceEnvironment: { PATH: process.env.PATH },

@@ -20,9 +20,7 @@ const backupCommon = read("scripts/backup/common.sh");
 const secrets = read("infra/secrets/README.md");
 const runtimeValidator = read("infra/ops/validate-runtime.sh");
 const restoreCompose = read("infra/restore/restore-drill.compose.yaml");
-const migration0065 = read(
-  "drizzle/0065_backup_status_mail_authority.sql",
-);
+const migration0065 = read("drizzle/0065_backup_status_mail_authority.sql");
 
 describe("dedicated backup-status reporter role contract", () => {
   it("creates and validates one independent fixed-role credential", () => {
@@ -35,44 +33,83 @@ describe("dedicated backup-status reporter role contract", () => {
     expect(ceremony).toContain(
       "postgresql://learncoding_backup_reporter:$backup_reporter_password@postgres:5432/learncoding",
     );
-    expect(ceremony).toMatch(
-      /unset[\s\S]*backup_reporter_password/u,
-    );
+    expect(ceremony).toMatch(/unset[\s\S]*backup_reporter_password/u);
     expect(secrets).toContain("`database_backup_reporter_url`");
     expect(secrets).toContain("`learncoding_backup_reporter`");
   });
 
-  it("bootstraps the reporter as a no-inherit login with no table or sequence rights", () => {
+  it("bootstraps the reporter as a no-inherit login with an exact three-grant capability", async () => {
     expect(bootstrap).toContain(
       'const BACKUP_REPORTER_ROLE = "learncoding_backup_reporter"',
     );
     expect(bootstrap).toContain(
       '["backupReporter", "databaseBackupReporterUrl", BACKUP_REPORTER_ROLE]',
     );
+    expect(bootstrap).toContain("BACKUP_REPORTER_ROLE,");
     expect(bootstrap).toContain(
-      "create role learncoding_backup_reporter login",
+      "installManagedLoginRolePasswordsAndEnable(client, rolePasswords)",
     );
     expect(bootstrap).toMatch(
-      /alter role learncoding_backup_reporter login nosuperuser nocreatedb nocreaterole\s+noinherit noreplication nobypassrls/u,
+      /alter role learncoding_backup_reporter nologin password null valid until 'infinity'/u,
     );
-    expect(bootstrap).toMatch(
-      /grant connect on database %i to[\s\S]*learncoding_backup_reporter/iu,
+    const { CURRENT_0069_DATABASE_RUNTIME_CAPABILITIES: policy } =
+      await import("../database-runtime-capabilities.mjs");
+    const reporterRole = policy.roles.find(
+      ({ name }: { name: string }) => name === "learncoding_backup_reporter",
     );
-    expect(bootstrap).toMatch(
-      /grant usage on schema public to[\s\S]*learncoding_backup_reporter/iu,
-    );
-    expect(bootstrap).toMatch(
-      /revoke all on all tables in schema public from[\s\S]*learncoding_backup_reporter/iu,
-    );
-    expect(bootstrap).toMatch(
-      /revoke all on all sequences in schema public from[\s\S]*learncoding_backup_reporter/iu,
-    );
-    expect(bootstrap).not.toMatch(
-      /grant (?:select|insert|update|delete|truncate|references|trigger)[^\n]*learncoding_backup_reporter/iu,
-    );
-    expect(bootstrap).not.toMatch(
-      /grant (?:usage|select|update) on (?:all )?sequences[^\n]*learncoding_backup_reporter/iu,
-    );
+    expect(reporterRole).toEqual({
+      identity: "learncoding_backup_reporter",
+      name: "learncoding_backup_reporter",
+      login: true,
+      superuser: false,
+      createDatabase: false,
+      createRole: false,
+      inherit: false,
+      replication: false,
+      bypassRls: false,
+      connectionLimit: -1,
+      validUntil: "infinity",
+      settings: [],
+      credential: "scram-managed",
+    });
+    const reporterGrants = policy.grants
+      .filter(
+        ({ grantee }: { grantee: string }) =>
+          grantee === "learncoding_backup_reporter",
+      )
+      .map(
+        ({
+          objectKind,
+          object,
+          privilege,
+          grantable,
+        }: {
+          objectKind: string;
+          object: string;
+          privilege: string;
+          grantable: boolean;
+        }) => ({ objectKind, object, privilege, grantable }),
+      );
+    expect(reporterGrants).toEqual([
+      {
+        objectKind: "database",
+        object: "@database",
+        privilege: "CONNECT",
+        grantable: false,
+      },
+      {
+        objectKind: "schema",
+        object: "public",
+        privilege: "USAGE",
+        grantable: false,
+      },
+      {
+        objectKind: "routine",
+        object: "public.enqueue_backup_status_mail_authority(text,text)",
+        privilege: "EXECUTE",
+        grantable: false,
+      },
+    ]);
   });
 
   it("reconciles only the reporter enqueue and worker predicate routines", () => {
@@ -85,12 +122,8 @@ describe("dedicated backup-status reporter role contract", () => {
     expect(authorityVerifier).toContain(
       'allowedRoles: ["learncoding_backup_reporter"]',
     );
-    expect(bootstrap).toContain(
-      "public.backup_status_mail_authorized(uuid)",
-    );
-    expect(authorityVerifier).toContain(
-      'allowedRoles: ["learncoding_worker"]',
-    );
+    expect(bootstrap).toContain("public.backup_status_mail_authorized(uuid)");
+    expect(authorityVerifier).toContain('allowedRoles: ["learncoding_worker"]');
     expect(bootstrap).toContain("pg_catalog.to_regrole");
     expect(bootstrap).toContain("routine_security_exact");
     expect(bootstrap).toContain(
@@ -139,10 +172,17 @@ describe("dedicated backup-status reporter role contract", () => {
       [compose, "database-negative-probes"],
       [restoreCompose, "database-boundary-preflight"],
     ] as const) {
-      const verifierServices = [preflightName, "database-boundary-verifier"].map(
-        (serviceName) => manifest.match(
-          new RegExp(`  ${serviceName}:[\\s\\S]*?(?=\\n  [a-z][a-z0-9-]*:)`, "u"),
-        )?.[0] ?? "",
+      const verifierServices = [
+        preflightName,
+        "database-boundary-verifier",
+      ].map(
+        (serviceName) =>
+          manifest.match(
+            new RegExp(
+              `  ${serviceName}:[\\s\\S]*?(?=\\n  [a-z][a-z0-9-]*:)`,
+              "u",
+            ),
+          )?.[0] ?? "",
       );
       for (const service of verifierServices) {
         expect(service).toContain(
@@ -161,9 +201,10 @@ describe("dedicated backup-status reporter role contract", () => {
   });
 
   it("ships the complete backup-authority verifier import closure", () => {
-    const operationsStage = dockerfile.match(
-      /FROM worker AS operations[\s\S]*?(?=\nFROM worker AS regrade-worker)/u,
-    )?.[0] ?? "";
+    const operationsStage =
+      dockerfile.match(
+        /FROM worker AS operations[\s\S]*?(?=\nFROM worker AS regrade-worker)/u,
+      )?.[0] ?? "";
     expect(bootstrap).toContain(
       'from "./verify-backup-status-mail-authority.mjs"',
     );
@@ -177,14 +218,33 @@ describe("dedicated backup-status reporter role contract", () => {
       "scripts/verify-database-role-boundaries.mjs ./scripts/verify-database-role-boundaries.mjs",
     );
     expect(operationsStage).toContain(
+      "scripts/database-runtime-capabilities.mjs ./scripts/database-runtime-capabilities.mjs",
+    );
+    expect(operationsStage).toContain(
+      "scripts/bootstrap-database-runtime-capabilities.mjs ./scripts/bootstrap-database-runtime-capabilities.mjs",
+    );
+    expect(operationsStage).toContain(
+      "scripts/verify-database-runtime-capabilities.mjs ./scripts/verify-database-runtime-capabilities.mjs",
+    );
+    expect(operationsStage).toContain(
       "scripts/verify-backup-status-mail-authority.mjs ./scripts/verify-backup-status-mail-authority.mjs",
+    );
+    expect(operationsStage).toContain(
+      "drizzle/meta/_journal.json ./drizzle/meta/_journal.json",
+    );
+    expect(operationsStage).toContain(
+      "drizzle/meta/0069_public_column_attnums.json ./drizzle/meta/0069_public_column_attnums.json",
+    );
+    expect(operationsStage).toContain(
+      "drizzle/meta/0069_snapshot.json ./drizzle/meta/0069_snapshot.json",
     );
   });
 
   it("pins a finite ordered reporter policy in the one-shot service", () => {
-    const service = compose.match(
-      /  backup-status-reporter:[\s\S]*?(?=\n  [a-z][a-z0-9-]*:)/u,
-    )?.[0] ?? "";
+    const service =
+      compose.match(
+        /  backup-status-reporter:[\s\S]*?(?=\n  [a-z][a-z0-9-]*:)/u,
+      )?.[0] ?? "";
     for (const entry of [
       'BACKUP_STATUS_REPORTER_CONNECTION_TIMEOUT_MS: "5000"',
       'BACKUP_STATUS_REPORTER_QUERY_TIMEOUT_MS: "6000"',
@@ -193,22 +253,22 @@ describe("dedicated backup-status reporter role contract", () => {
       'BACKUP_STATUS_REPORTER_IDLE_IN_TRANSACTION_TIMEOUT_MS: "5000"',
       'BACKUP_STATUS_REPORTER_POOL_IDLE_TIMEOUT_MS: "2000"',
       'BACKUP_STATUS_REPORTER_POOL_SHUTDOWN_TIMEOUT_MS: "2000"',
-    ]) expect(service).toContain(entry);
+    ])
+      expect(service).toContain(entry);
   });
 
   it("binds backup email to a generic outcome without artifact metadata", () => {
-    const outboxInsert = migration0065.match(
-      /INSERT INTO public\.email_outbox[\s\S]*?\n  \);/u,
-    )?.[0] ?? "";
+    const outboxInsert =
+      migration0065.match(
+        /INSERT INTO public\.email_outbox[\s\S]*?\n  \);/u,
+      )?.[0] ?? "";
     expect(outboxInsert).toMatch(
       /pg_catalog\.jsonb_build_object\(\s*'name', 'Administrator',\s*'summary', fixed_summary\s*\)/u,
     );
     expect(outboxInsert).not.toMatch(
       /'(?:archive|archive_id|backup_id|checksum|size|recovery_point_count|provider|log|key|learner|run_key)'\s*,/u,
     );
-    expect(migration0065).toContain(
-      "No archive is attached to this email.",
-    );
+    expect(migration0065).toContain("No archive is attached to this email.");
     expect(migration0065).toContain(
       "no archive or log is attached to this email.",
     );
@@ -218,18 +278,19 @@ describe("dedicated backup-status reporter role contract", () => {
   });
 
   it("admits the reporter only as a required operations one-shot service", () => {
-    const knownServices = runtimeValidator.match(
-      /is_known_service\(\) \{[\s\S]*?\n\}/u,
-    )?.[0] ?? "";
-    const oneShotServices = runtimeValidator.match(
-      /is_one_shot_service\(\) \{[\s\S]*?\n\}/u,
-    )?.[0] ?? "";
-    const operationsInventory = runtimeValidator.match(
-      /if \[\[ "\$validation_mode" == operations \]\]; then\s+for service in[\s\S]*?\nfi/u,
-    )?.[0] ?? "";
-    const longRunningServices = runtimeValidator.match(
-      /is_long_running_service\(\) \{[\s\S]*?\n\}/u,
-    )?.[0] ?? "";
+    const knownServices =
+      runtimeValidator.match(/is_known_service\(\) \{[\s\S]*?\n\}/u)?.[0] ?? "";
+    const oneShotServices =
+      runtimeValidator.match(/is_one_shot_service\(\) \{[\s\S]*?\n\}/u)?.[0] ??
+      "";
+    const operationsInventory =
+      runtimeValidator.match(
+        /if \[\[ "\$validation_mode" == operations \]\]; then\s+for service in[\s\S]*?\nfi/u,
+      )?.[0] ?? "";
+    const longRunningServices =
+      runtimeValidator.match(
+        /is_long_running_service\(\) \{[\s\S]*?\n\}/u,
+      )?.[0] ?? "";
     expect(knownServices).toContain("backup-status-reporter");
     expect(oneShotServices).toContain("backup-status-reporter");
     expect(operationsInventory).toContain("backup-status-reporter");
@@ -237,9 +298,9 @@ describe("dedicated backup-status reporter role contract", () => {
   });
 
   it("host backup reporting invokes only the one-shot restricted service", () => {
-    const functionSource = backupCommon.match(
-      /enqueue_backup_status\(\) \{[\s\S]*?\n\}/u,
-    )?.[0] ?? "";
+    const functionSource =
+      backupCommon.match(/enqueue_backup_status\(\) \{[\s\S]*?\n\}/u)?.[0] ??
+      "";
     expect(functionSource).toContain("backup-status-reporter");
     expect(functionSource).toContain(
       'run_compose_managed "$BACKUP_STATUS_REPORT_DEADLINE_SECONDS"',

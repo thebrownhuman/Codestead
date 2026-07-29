@@ -1114,8 +1114,10 @@ EOF
     --security-opt no-new-privileges=true --pids-limit 64 --memory 384m --cpus 1 \
     --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m --user 0:0 --workdir /app \
     --mount "type=bind,src=$source_role_secret_root,dst=/run/secrets,readonly" \
+    --env POSTGRES_USER=learncoding \
     --env POSTGRES_DB=learncoding \
-    --env DATABASE_URL_FILE=/run/secrets/database_app_url \
+    --env DATABASE_BOOTSTRAP_URL_FILE=/run/secrets/database_bootstrap_url \
+    --env DATABASE_APP_URL_FILE=/run/secrets/database_app_url \
     --env DATABASE_MIGRATOR_URL_FILE=/run/secrets/database_migrator_url \
     --env DATABASE_WORKER_URL_FILE=/run/secrets/database_worker_url \
     --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
@@ -1444,9 +1446,8 @@ PY
     --env DATABASE_BACKUP_REPORTER_URL_FILE=/run/secrets/database_backup_reporter_url \
     "$operations_digest" /bin/sh -ceu \
       'node --import tsx /app/scripts/verify-restored-backup.ts --remove-ledger-authority-before-bootstrap
-       node /app/scripts/bootstrap-database-roles.mjs
-       exec node --import tsx /app/scripts/verify-restored-backup.ts --install-ledger-authority' \
-    >/dev/null 2>&1 || fail "restored database role/ledger authority bootstrap failed"
+       exec node /app/scripts/bootstrap-database-roles.mjs' \
+    >/dev/null 2>&1 || fail "restored database role bootstrap failed"
 
   docker run --rm --pull never --name "$resource_prefix-restore-role-boundary" \
     --label "$OWNER_LABEL_KEY=$run_id" \
@@ -1455,8 +1456,10 @@ PY
     --security-opt no-new-privileges=true --pids-limit 64 --memory 384m --cpus 1 \
     --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m --user 0:0 --workdir /app \
     --mount "type=bind,src=$restore_role_secret_root,dst=/run/secrets,readonly" \
+    --env POSTGRES_USER=learncoding \
     --env "POSTGRES_DB=$restore_database" \
-    --env DATABASE_URL_FILE=/run/secrets/database_app_url \
+    --env DATABASE_BOOTSTRAP_URL_FILE=/run/secrets/database_bootstrap_url \
+    --env DATABASE_APP_URL_FILE=/run/secrets/database_app_url \
     --env DATABASE_MIGRATOR_URL_FILE=/run/secrets/database_migrator_url \
     --env DATABASE_WORKER_URL_FILE=/run/secrets/database_worker_url \
     --env DATABASE_OPS_URL_FILE=/run/secrets/database_ops_url \
@@ -1464,6 +1467,23 @@ PY
     "$operations_digest" node /app/scripts/verify-database-role-boundaries.mjs \
       --require-application-objects \
     >/dev/null 2>&1 || fail "restored database role boundary verification failed"
+
+  docker run --rm --pull never --name "$resource_prefix-restore-ledger-authority-installer" \
+    --label "$OWNER_LABEL_KEY=$run_id" \
+    --label "$OWNER_PROJECT_LABEL_KEY=$ownership_project" \
+    --network "container:$postgres_id" --read-only --cap-drop ALL \
+    --security-opt no-new-privileges=true --pids-limit 64 --memory 384m --cpus 1 \
+    --tmpfs /tmp:rw,noexec,nosuid,nodev,size=32m --user 0:0 --workdir /app \
+    --mount "type=bind,src=$restore_role_secret_root/database_bootstrap_url,dst=/run/secrets/database_bootstrap_url,readonly" \
+    --env POSTGRES_USER=learncoding \
+    --env "POSTGRES_DB=$restore_database" \
+    --env REQUIRE_COMPLETE_MIGRATION_LEDGER=true \
+    --env RESTORE_LEDGER_AUTHORITY_INSTALLER=1 \
+    --env DATABASE_BOOTSTRAP_URL_FILE=/run/secrets/database_bootstrap_url \
+    "$operations_digest" node --import tsx \
+      /app/scripts/verify-restored-backup.ts --install-ledger-authority \
+    >/dev/null 2>&1 \
+    || fail "restored database ledger authority installation failed"
 
   smoke_output="$test_root/restore-smoke.out"
   docker run --rm --pull never --name "$resource_prefix-restore-smoke" \
@@ -1785,12 +1805,14 @@ docker run --rm --pull never --network none --read-only --cap-drop ALL \
   --security-opt no-new-privileges --pids-limit 64 --memory 128m --cpus 1 \
   --user 1000:1000 --entrypoint node "$operations_digest" \
   --input-type=module --eval '
-    const loaded = await import(
-      "file:///app/scripts/bootstrap-database-roles.mjs"
-    );
-    if (typeof loaded.runDatabaseRoleBootstrap !== "function") process.exit(1);
+    const [bootstrap, verifier] = await Promise.all([
+      import("file:///app/scripts/bootstrap-database-roles.mjs"),
+      import("file:///app/scripts/verify-database-role-boundaries.mjs"),
+    ]);
+    if (typeof bootstrap.runDatabaseRoleBootstrap !== "function") process.exit(1);
+    if (typeof verifier.verifyDatabaseRoleBoundaries !== "function") process.exit(1);
   ' >/dev/null \
-  || fail "offline operations image cannot import the ledger-gated bootstrap"
+  || fail "offline operations image cannot import the capability-gated bootstrap and verifier"
 
 docker run --rm --name "$resource_prefix-toolbox" \
   --hostname "$resource_prefix-toolbox" \

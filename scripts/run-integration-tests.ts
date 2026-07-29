@@ -50,6 +50,7 @@ type RoleBootstrapRunner = (options: {
   readonly lockTimeoutMs: number;
   readonly cleanupTimeoutMs: number;
   readonly pool: InstanceType<typeof Pool>;
+  readonly clusterAdministrationPool: InstanceType<typeof Pool>;
 }) => Promise<unknown>;
 
 type ReviewedCatalogPhaseResolver = (
@@ -69,11 +70,14 @@ type ProductionMigrationRunner = (options: {
 }) => Promise<void>;
 
 type RoleBoundaryVerifier = (options: {
+  readonly postgresUser: string;
   readonly postgresDatabase: string;
+  readonly databaseBootstrapUrl: string;
   readonly databaseAppUrl: string;
   readonly databaseMigratorUrl: string;
   readonly databaseWorkerUrl: string;
   readonly databaseOpsUrl: string;
+  readonly databaseBackupReporterUrl: string;
   readonly requireApplicationObjects: boolean;
   readonly lockTimeoutMs: number;
   readonly poolFactory: (input: Readonly<{
@@ -210,6 +214,7 @@ function databaseRoleUrl(input: {
 function disposableRoleUrls(
   port: number,
   database: string,
+  integrationUser: string,
   credentials: DisposableRoleCredentials,
 ): DisposableRoleUrls {
   const loopback = (username: string, password: string) =>
@@ -221,6 +226,7 @@ function disposableRoleUrls(
       database,
     });
   return {
+    bootstrap: loopback(integrationUser, credentials.bootstrap),
     app: loopback("learncoding_app", credentials.app),
     migrator: loopback("learncoding_migrator", credentials.migrator),
     worker: loopback("learncoding_worker", credentials.worker),
@@ -233,6 +239,7 @@ function disposableRoleUrls(
 }
 
 async function verifyDisposableIntegrationRoleBoundaries(input: {
+  postgresUser: string;
   database: string;
   roleUrls: DisposableRoleUrls;
   requireApplicationObjects: boolean;
@@ -267,6 +274,12 @@ async function reconcileDisposableIntegrationRoles(input: {
       database: input.database,
     });
   const pool = new Pool({ connectionString: input.databaseUrl, max: 1 });
+  const administrationUrl = new URL(input.databaseUrl);
+  administrationUrl.pathname = "/postgres";
+  const clusterAdministrationPool = new Pool({
+    connectionString: administrationUrl.href,
+    max: 1,
+  });
   await runDatabaseRoleBootstrap({
     postgresUser: input.integrationUser,
     postgresDatabase: input.database,
@@ -291,6 +304,7 @@ async function reconcileDisposableIntegrationRoles(input: {
     lockTimeoutMs: 10_000,
     cleanupTimeoutMs: 5_000,
     pool,
+    clusterAdministrationPool,
   });
 }
 
@@ -472,7 +486,7 @@ async function main() {
   const containerName = `learncoding-postgres-it-${suffix}`;
   const password = generatedPassword();
   const betterAuthSecret = generatedPassword();
-  const integrationUser = "learncoding_it";
+  const integrationUser = "codestead_it";
   const database = "learncoding_integration";
   const roleCredentials: DisposableRoleCredentials = Object.freeze({
     bootstrap: password,
@@ -491,7 +505,12 @@ async function main() {
     port,
     database,
   });
-  const roleUrls = disposableRoleUrls(port, database, roleCredentials);
+  const roleUrls = disposableRoleUrls(
+    port,
+    database,
+    integrationUser,
+    roleCredentials,
+  );
   const ownerDatabaseUrl = ownerAssumingDatabaseUrl(roleUrls.migrator);
   const secrets = [
     password,
@@ -504,6 +523,7 @@ async function main() {
     roleCredentials.worker,
     roleCredentials.ops,
     roleCredentials.backupReporter,
+    roleUrls.bootstrap,
     roleUrls.app,
     roleUrls.migrator,
     roleUrls.worker,
@@ -573,6 +593,7 @@ async function main() {
       reconcileRoles: () => reconcileDisposableIntegrationRoles(topology),
       verifyRoleBoundaries: (requireApplicationObjects) => (
         verifyDisposableIntegrationRoleBoundaries({
+          postgresUser: integrationUser,
           database,
           roleUrls,
           requireApplicationObjects,

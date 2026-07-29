@@ -21,7 +21,7 @@ export const LIMITS = Object.freeze({
   discoveryMilliseconds: 5_000,
   fileBytes: 2 * 1024 * 1024,
   paths: 10_000,
-  totalBytes: 64 * 1024 * 1024,
+  totalBytes: 80 * 1024 * 1024,
 });
 
 export const EXPECTED_WRITERS = Object.freeze([
@@ -414,11 +414,11 @@ export function createBoundedByteReader(
       ) {
         fail(`file-changed-before-read:${relativePath}`);
       }
-      if (
-        openedStat.size > limits.fileBytes
-        || totalBytes + openedStat.size > limits.totalBytes
-      ) {
+      if (openedStat.size > limits.fileBytes) {
         fail(`file-size-limit:${relativePath}`);
+      }
+      if (totalBytes + openedStat.size > limits.totalBytes) {
+        fail(`total-size-limit:${relativePath}`);
       }
       const bytes = Buffer.alloc(openedStat.size + 1);
       let offset = 0;
@@ -2364,7 +2364,6 @@ export function verifyWriterInventory({
     fail(`manifest:${differences.join(",")}`);
   }
   return Object.freeze({
-    catalogWriters: 1,
     delegatedEdges: observed.filter(
       ({ kind }) => kind === "delegated-routine-call",
     ).length,
@@ -2443,6 +2442,6 @@ function isMain() {
 if (isMain()) {
   const result = verifyWriterInventory({});
   process.stdout.write(
-    `email_outbox_writer_inventory=runtime:${result.runtimeWriters}:catalog:${result.catalogWriters}:delegated:${result.delegatedEdges}:pass\n`,
+    `email_outbox_writer_inventory=runtime:${result.runtimeWriters}:delegated:${result.delegatedEdges}:static-pass\n`,
   );
 }

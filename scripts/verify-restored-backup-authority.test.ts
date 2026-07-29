@@ -7,6 +7,8 @@ import { describe, expect, it } from "vitest";
 import {
   installRestoreLedgerAuthority,
   removeRestoreLedgerAuthorityBeforeBootstrap,
+  resolveRestoreLedgerAuthorityEnvironment,
+  resolveRestoreLedgerAuthorityIdentityEnvironment,
   resolveRestoreSmokeEnvironment,
   RESTORE_LEDGER_AUTHORITY_BODY,
   restoreDatabaseClientConfig,
@@ -82,6 +84,74 @@ const authorityCatalog = {
 };
 
 describe("restore-only migration-ledger authority", () => {
+  it("requires an explicit complete-ledger assertion before installer startup", () => {
+    const base = {
+      DATABASE_BOOTSTRAP_URL:
+        "postgresql://codestead_restore:secret@postgres:5432/learncoding_restore",
+      POSTGRES_DB: "learncoding_restore",
+      POSTGRES_USER: "codestead_restore",
+    };
+    for (const value of [undefined, "", "false", "TRUE", "1", "yes"]) {
+      expect(() =>
+        resolveRestoreLedgerAuthorityEnvironment({
+          ...base,
+          ...(value === undefined
+            ? {}
+            : { REQUIRE_COMPLETE_MIGRATION_LEDGER: value }),
+        }),
+      ).toThrow("complete migration ledger");
+    }
+    expect(
+      resolveRestoreLedgerAuthorityEnvironment({
+        ...base,
+        REQUIRE_COMPLETE_MIGRATION_LEDGER: "true",
+      }),
+    ).toEqual({
+      databaseUrl: base.DATABASE_BOOTSTRAP_URL,
+      identity: {
+        expectedBootstrapUser: base.POSTGRES_USER,
+        expectedDatabase: base.POSTGRES_DB,
+      },
+      requireLedger: true,
+    });
+  });
+
+  it("resolves pre-bootstrap removal identity without requiring a complete ledger", () => {
+    const base = {
+      DATABASE_BOOTSTRAP_URL:
+        "postgresql://codestead_restore:secret@postgres:5432/learncoding_restore",
+      POSTGRES_DB: "learncoding_restore",
+      POSTGRES_USER: "codestead_restore",
+    };
+    for (const value of [undefined, "false"]) {
+      expect(
+        resolveRestoreLedgerAuthorityIdentityEnvironment({
+          ...base,
+          ...(value === undefined
+            ? {}
+            : { REQUIRE_COMPLETE_MIGRATION_LEDGER: value }),
+        }),
+      ).toEqual({
+        databaseUrl: base.DATABASE_BOOTSTRAP_URL,
+        identity: {
+          expectedBootstrapUser: base.POSTGRES_USER,
+          expectedDatabase: base.POSTGRES_DB,
+        },
+      });
+    }
+    for (const missing of [
+      "DATABASE_BOOTSTRAP_URL",
+      "POSTGRES_DB",
+      "POSTGRES_USER",
+    ]) {
+      const environment = { ...base };
+      delete environment[missing as keyof typeof environment];
+      expect(() =>
+        resolveRestoreLedgerAuthorityIdentityEnvironment(environment)
+      ).toThrow("environment is incomplete");
+    }
+  });
+
   it("proves the ops runtime has no direct drizzle access before accepting exact authority rows", async () => {
     const queries: string[] = [];
     const ledgerRows = await exactAppliedLedgerRows();
@@ -249,8 +319,8 @@ describe("restore-only migration-ledger authority", () => {
         if (sql.includes("restore_ledger_installer_identity")) {
           return {
             rows: [{
-              current_user: "learncoding_restore",
-              session_user: "learncoding_restore",
+              current_user: "codestead_restore",
+              session_user: "codestead_restore",
               database_name: "learncoding_restore",
               superuser: true,
             }],
@@ -355,8 +425,8 @@ describe("restore-only migration-ledger authority", () => {
         if (sql.includes("restore_ledger_installer_identity")) {
           return {
             rows: [{
-              current_user: "learncoding_restore",
-              session_user: "learncoding_restore",
+              current_user: "codestead_restore",
+              session_user: "codestead_restore",
               database_name: "learncoding_restore",
               superuser: true,
             }],
@@ -443,8 +513,8 @@ describe("restore-only migration-ledger authority", () => {
         if (sql.includes("restore_ledger_installer_identity")) {
           return {
             rows: [{
-              current_user: "learncoding_restore",
-              session_user: "learncoding_restore",
+              current_user: "codestead_restore",
+              session_user: "codestead_restore",
               database_name: "learncoding_restore",
               superuser: true,
             }],
@@ -498,8 +568,8 @@ describe("restore-only migration-ledger authority", () => {
         if (sql.includes("restore_ledger_installer_identity")) {
           return {
             rows: [{
-              current_user: "learncoding_restore",
-              session_user: "learncoding_restore",
+              current_user: "codestead_restore",
+              session_user: "codestead_restore",
               database_name: "learncoding_restore",
               superuser: true,
             }],
@@ -536,8 +606,8 @@ describe("restore-only migration-ledger authority", () => {
         if (sql.includes("restore_ledger_installer_identity")) {
           return {
             rows: [{
-              current_user: "learncoding_restore",
-              session_user: "learncoding_restore",
+              current_user: "codestead_restore",
+              session_user: "codestead_restore",
               database_name: "learncoding_restore",
               superuser: true,
             }],
@@ -704,8 +774,8 @@ describe("restore-only migration-ledger authority", () => {
         if (sql.includes("restore_ledger_installer_identity")) {
           return {
             rows: [{
-              current_user: "learncoding_restore",
-              session_user: "learncoding_restore",
+              current_user: "codestead_restore",
+              session_user: "codestead_restore",
               database_name: "learncoding_restore",
               superuser: true,
             }],
@@ -719,7 +789,7 @@ describe("restore-only migration-ledger authority", () => {
     };
 
     await expect(removeRestoreLedgerAuthorityBeforeBootstrap(client, {
-      expectedBootstrapUser: "learncoding_restore",
+      expectedBootstrapUser: "codestead_restore",
       expectedDatabase: "learncoding_restore",
     })).resolves.toEqual({ removed: false });
     expect(queries).toContain("BEGIN");
@@ -737,8 +807,8 @@ describe("restore-only migration-ledger authority", () => {
         if (sql.includes("restore_ledger_installer_identity")) {
           return {
             rows: [{
-              current_user: "learncoding_restore",
-              session_user: "learncoding_restore",
+              current_user: "codestead_restore",
+              session_user: "codestead_restore",
               database_name: "learncoding_restore",
               superuser: true,
             }],
@@ -769,7 +839,7 @@ describe("restore-only migration-ledger authority", () => {
     };
 
     await expect(removeRestoreLedgerAuthorityBeforeBootstrap(client, {
-      expectedBootstrapUser: "learncoding_restore",
+      expectedBootstrapUser: "codestead_restore",
       expectedDatabase: "learncoding_restore",
     })).resolves.toEqual({ removed: true });
     expect(inventoryCalls).toBe(2);
@@ -794,8 +864,8 @@ describe("restore-only migration-ledger authority", () => {
           if (sql.includes("restore_ledger_installer_identity")) {
             return {
               rows: [{
-                current_user: "learncoding_restore",
-                session_user: "learncoding_restore",
+                current_user: "codestead_restore",
+                session_user: "codestead_restore",
                 database_name: "learncoding_restore",
                 superuser: true,
               }],
@@ -830,7 +900,7 @@ describe("restore-only migration-ledger authority", () => {
       };
 
       await expect(removeRestoreLedgerAuthorityBeforeBootstrap(client, {
-        expectedBootstrapUser: "learncoding_restore",
+        expectedBootstrapUser: "codestead_restore",
         expectedDatabase: "learncoding_restore",
       })).rejects.toThrow("authority");
       expect(queries.at(-1)).toBe("ROLLBACK");
@@ -850,8 +920,8 @@ describe("restore-only migration-ledger authority", () => {
         if (sql.includes("restore_ledger_installer_identity")) {
           return {
             rows: [{
-              current_user: "learncoding_restore",
-              session_user: "learncoding_restore",
+              current_user: "codestead_restore",
+              session_user: "codestead_restore",
               database_name: "learncoding_restore",
               superuser: true,
             }],
@@ -881,7 +951,7 @@ describe("restore-only migration-ledger authority", () => {
     };
 
     await expect(removeRestoreLedgerAuthorityBeforeBootstrap(client, {
-      expectedBootstrapUser: "learncoding_restore",
+      expectedBootstrapUser: "codestead_restore",
       expectedDatabase: "learncoding_restore",
     })).rejects.toBe(dependencyFailure);
     expect(inventoryCalls).toBe(1);
@@ -897,8 +967,8 @@ describe("restore-only migration-ledger authority", () => {
         if (sql.includes("restore_ledger_installer_identity")) {
           return {
             rows: [{
-              current_user: "learncoding_restore",
-              session_user: "learncoding_restore",
+              current_user: "codestead_restore",
+              session_user: "codestead_restore",
               database_name: "learncoding_restore",
               superuser: true,
             }],
@@ -936,11 +1006,11 @@ describe("restore-only migration-ledger authority", () => {
     };
 
     await expect(removeRestoreLedgerAuthorityBeforeBootstrap(client, {
-      expectedBootstrapUser: "learncoding_restore",
+      expectedBootstrapUser: "codestead_restore",
       expectedDatabase: "learncoding_restore",
     })).rejects.toThrow("commit acknowledgement lost");
     await expect(removeRestoreLedgerAuthorityBeforeBootstrap(client, {
-      expectedBootstrapUser: "learncoding_restore",
+      expectedBootstrapUser: "codestead_restore",
       expectedDatabase: "learncoding_restore",
     })).resolves.toEqual({ removed: false });
   });

@@ -29,9 +29,9 @@ type InstallerIdentity = Readonly<{
 
 const validIdentity: InstallerIdentity = Object.freeze({
   current_database: "learncoding_integration",
-  current_user: "learncoding_it",
+  current_user: "codestead_it",
   is_superuser: true,
-  session_user: "learncoding_it",
+  session_user: "codestead_it",
 });
 const validAppDatabaseUrl =
   "postgresql://learncoding_app:app-password@127.0.0.1:49152/learncoding_integration";

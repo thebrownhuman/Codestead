@@ -1270,10 +1270,11 @@ function normalizeRestoreLedgerAuthorityIdentityOptions(
   }>,
 ): RestoreLedgerAuthorityIdentityOptions {
   const expectedBootstrapUser =
-    options.expectedBootstrapUser ?? "learncoding_restore";
+    options.expectedBootstrapUser ?? "codestead_restore";
   const expectedDatabase = options.expectedDatabase ?? "learncoding_restore";
   if (
     !/^[a-z_][a-z0-9_]{0,62}$/u.test(expectedBootstrapUser)
+    || expectedBootstrapUser.startsWith("learncoding_")
     || expectedBootstrapUser === "learncoding_owner"
     || expectedBootstrapUser === RESTORE_LEDGER_DEFINER_ROLE
     || !/^learncoding_restore(?:_[a-z0-9_]{1,40})?$/u.test(expectedDatabase)
@@ -1810,10 +1811,12 @@ export async function main() {
   );
 }
 
-function resolveRestoreLedgerAuthorityEnvironment() {
-  const databaseUrl = process.env.DATABASE_BOOTSTRAP_URL;
-  const expectedBootstrapUser = process.env.POSTGRES_USER;
-  const expectedDatabase = process.env.POSTGRES_DB;
+export function resolveRestoreLedgerAuthorityIdentityEnvironment(
+  environment = process.env,
+) {
+  const databaseUrl = environment.DATABASE_BOOTSTRAP_URL;
+  const expectedBootstrapUser = environment.POSTGRES_USER;
+  const expectedDatabase = environment.POSTGRES_DB;
   if (!databaseUrl || !expectedBootstrapUser || !expectedDatabase) {
     throw new Error("restore ledger authority environment is incomplete");
   }
@@ -1826,19 +1829,36 @@ function resolveRestoreLedgerAuthorityEnvironment() {
   };
 }
 
+export function resolveRestoreLedgerAuthorityEnvironment(
+  environment = process.env,
+) {
+  const resolved = resolveRestoreLedgerAuthorityIdentityEnvironment(
+    environment,
+  );
+  if (environment.REQUIRE_COMPLETE_MIGRATION_LEDGER !== "true") {
+    throw new Error(
+      "restore ledger authority requires an explicit complete migration ledger",
+    );
+  }
+  return {
+    ...resolved,
+    requireLedger: true,
+  };
+}
+
 export async function installLedgerAuthorityMain() {
   const environment = resolveRestoreLedgerAuthorityEnvironment();
   await runWithRestoreDatabaseClient(
     environment.databaseUrl,
     (client) => installRestoreLedgerAuthority(client, {
-      requireLedger: process.env.REQUIRE_COMPLETE_MIGRATION_LEDGER === "true",
+      requireLedger: environment.requireLedger,
       ...environment.identity,
     }),
   );
 }
 
 export async function removeLedgerAuthorityBeforeBootstrapMain() {
-  const environment = resolveRestoreLedgerAuthorityEnvironment();
+  const environment = resolveRestoreLedgerAuthorityIdentityEnvironment();
   await runWithRestoreDatabaseClient(
     environment.databaseUrl,
     (client) => removeRestoreLedgerAuthorityBeforeBootstrap(

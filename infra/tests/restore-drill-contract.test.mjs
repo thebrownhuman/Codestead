@@ -19,19 +19,62 @@ const bootstrapServiceEnd = compose.indexOf(
   "\n  database-boundary-preflight:",
   bootstrapServiceStart,
 );
+const boundaryVerifierServiceStart = compose.indexOf(
+  "\n  database-boundary-verifier:",
+);
+const installerServiceStart = compose.indexOf(
+  "\n  restore-ledger-authority-installer:",
+);
+const installerServiceEnd = compose.indexOf("\n  smoke:", installerServiceStart);
 if (
   smokeServiceStart < 0
   || smokeServiceEnd <= smokeServiceStart
   || bootstrapServiceStart < 0
   || bootstrapServiceEnd <= bootstrapServiceStart
+  || boundaryVerifierServiceStart < 0
+  || installerServiceStart <= boundaryVerifierServiceStart
+  || installerServiceEnd <= installerServiceStart
 ) {
   throw new Error("restore compose service boundaries are invalid");
 }
 const smokeService = compose.slice(smokeServiceStart, smokeServiceEnd);
 const bootstrapService = compose.slice(bootstrapServiceStart, bootstrapServiceEnd);
+const boundaryPreflightService = compose.slice(
+  bootstrapServiceEnd,
+  boundaryVerifierServiceStart,
+);
+const boundaryVerifierService = compose.slice(
+  boundaryVerifierServiceStart,
+  installerServiceStart,
+);
+const installerService = compose.slice(installerServiceStart, installerServiceEnd);
 
 function requireText(document, text, label) {
   if (!document.includes(text)) throw new Error(`${label} is missing: ${text}`);
+}
+
+for (const [label, service] of [
+  ["restore boundary preflight", boundaryPreflightService],
+  ["restore boundary verifier", boundaryVerifierService],
+]) {
+  requireText(
+    service,
+    "DATABASE_BOOTSTRAP_URL_FILE: /run/secrets/database_bootstrap_url",
+    label,
+  );
+  requireText(
+    service,
+    "DATABASE_APP_URL_FILE: /run/secrets/database_app_url",
+    label,
+  );
+  requireText(service, "source: database_url", label);
+  requireText(service, "target: database_app_url", label);
+  if (
+    service.includes("DATABASE_URL_FILE")
+    || service.includes("target: database_url")
+  ) {
+    throw new Error(`${label} uses the generic application credential path`);
+  }
 }
 
 requireText(compose, "postgres:17-bookworm@sha256:4f736ae292687621d4dbe0d499ffd024a36bd2ee7d8ca6f2ccd4c800f047b394", "restore compose");
@@ -39,6 +82,8 @@ requireText(compose, "RESTORE_OPERATIONS_IMAGE", "restore compose");
 requireText(compose, "database-role-bootstrap", "restore compose");
 requireText(compose, "database-boundary-preflight", "restore compose");
 requireText(compose, "database-boundary-verifier", "restore compose");
+requireText(compose, "restore-ledger-authority-installer", "restore compose");
+requireText(compose, "POSTGRES_USER: codestead_restore", "restore compose");
 requireText(compose, "database_bootstrap_url", "restore compose");
 requireText(compose, "database_migrator_url", "restore compose");
 requireText(compose, "database_worker_url", "restore compose");
@@ -49,6 +94,15 @@ requireText(compose, "POSTGRES_UID", "restore compose");
 requireText(compose, "POSTGRES_GID", "restore compose");
 requireText(compose, "POSTGRES_PASSWORD_FILE", "restore compose");
 requireText(compose, "internal: true", "restore compose");
+if (
+  (
+    compose.match(/POSTGRES_USER:\s+codestead_restore/gu) ?? []
+  ).length !== 5
+) {
+  throw new Error(
+    "every restore database authority service must receive the bootstrap identity",
+  );
+}
 requireText(compose, "restart: \"no\"", "restore compose");
 requireText(compose, "cap_drop:\n      - ALL", "restore compose");
 requireText(compose, "read_only: true", "restore compose");
@@ -71,9 +125,38 @@ requireText(
 );
 requireText(
   bootstrapService,
-  "/app/scripts/verify-restored-backup.ts --install-ledger-authority",
+  "REQUIRE_COMPLETE_MIGRATION_LEDGER: ${REQUIRE_COMPLETE_MIGRATION_LEDGER:-false}",
   "restore role bootstrap service",
 );
+if (bootstrapService.includes("--install-ledger-authority")) {
+  throw new Error("restore role bootstrap must not install temporary authority");
+}
+requireText(
+  installerService,
+  "/app/scripts/verify-restored-backup.ts",
+  "restore ledger authority installer",
+);
+requireText(
+  installerService,
+  "--install-ledger-authority",
+  "restore ledger authority installer",
+);
+requireText(
+  installerService,
+  'RESTORE_LEDGER_AUTHORITY_INSTALLER: "1"',
+  "restore ledger authority installer",
+);
+requireText(
+  installerService,
+  'REQUIRE_COMPLETE_MIGRATION_LEDGER: "true"',
+  "restore ledger authority installer",
+);
+requireText(installerService, "database_bootstrap_url", "restore ledger authority installer");
+for (const forbidden of ["database_url", "database_migrator_url", "database_worker_url", "database_ops_url", "database_backup_reporter_url"]) {
+  if (installerService.includes(forbidden)) {
+    throw new Error(`restore ledger authority installer receives forbidden secret: ${forbidden}`);
+  }
+}
 requireText(
   bootstrapService,
   "RESTORE_NO_ACL_RECONCILIATION: ${RESTORE_NO_ACL_RECONCILIATION:-false}",
@@ -94,13 +177,12 @@ const removeAuthority = bootstrapService.indexOf(
 const bootstrapRoles = bootstrapService.indexOf(
   "node /app/scripts/bootstrap-database-roles.mjs",
 );
-const installAuthority = bootstrapService.indexOf("--install-ledger-authority");
 if (
   removeAuthority < 0
   || bootstrapRoles <= removeAuthority
-  || installAuthority <= bootstrapRoles
+  || !bootstrapService.includes("exec node /app/scripts/bootstrap-database-roles.mjs")
 ) {
-  throw new Error("restore authority convergence/bootstrap/install order is unsafe");
+  throw new Error("restore authority removal/bootstrap order is unsafe");
 }
 if (/\n\s+ports\s*:/.test(compose) || /network_mode\s*:/.test(compose)) {
   throw new Error("restore compose must not publish ports or join a host/production network");
@@ -128,6 +210,7 @@ for (const expected of [
   "database-role-bootstrap",
   "database-boundary-preflight",
   "database-boundary-verifier",
+  "restore-ledger-authority-installer",
   "--role=learncoding_owner",
   "--host=/run/learncoding-postgres",
   "pg_catalog.current_setting('server_version_num')",
@@ -160,13 +243,28 @@ const postRestoreBootstrap = drill.indexOf(
   "restore_one_shot database-role-bootstrap",
   noAclRestoreAssignment,
 );
+const postRestoreBoundaryVerifier = drill.indexOf(
+  "restore_one_shot database-boundary-verifier",
+  postRestoreBootstrap,
+);
+const postRestoreAuthorityInstaller = drill.indexOf(
+  "restore_one_shot restore-ledger-authority-installer",
+  postRestoreBoundaryVerifier,
+);
+const postRestoreSmoke = drill.indexOf(
+  "restore_compose run --rm --no-deps smoke",
+  postRestoreAuthorityInstaller,
+);
 if (
   restoreMutation < 0
   || noAclRestoreAssignment <= restoreMutation
   || postRestoreBootstrap <= noAclRestoreAssignment
+  || postRestoreBoundaryVerifier <= postRestoreBootstrap
+  || postRestoreAuthorityInstaller <= postRestoreBoundaryVerifier
+  || postRestoreSmoke <= postRestoreAuthorityInstaller
 ) {
   throw new Error(
-    "restore no-ACL reconciliation must apply only to the post-pg_restore bootstrap",
+    "restore must run bootstrap, exact verification, temporary authority installation, then smoke",
   );
 }
 
@@ -181,7 +279,16 @@ for (const expected of [
 ]) requireText(smoke, expected, "restore smoke verifier");
 requireText(smoke, "resolveRestoreSmokeEnvironment(process.env)", "restore smoke verifier");
 requireText(smoke, "environment.DATABASE_URL", "restore smoke verifier");
-requireText(smoke, "process.env.DATABASE_BOOTSTRAP_URL", "restore smoke verifier");
+requireText(
+  smoke,
+  "resolveRestoreLedgerAuthorityEnvironment()",
+  "restore ledger authority installer",
+);
+requireText(
+  smoke,
+  "resolveRestoreLedgerAuthorityIdentityEnvironment()",
+  "restore pre-bootstrap authority removal",
+);
 requireText(
   smoke,
   "environment.RESTORE_CREDENTIAL_MASTER_KEY_PATH",
@@ -215,6 +322,18 @@ const genericFileExpansion = entrypoint.indexOf("file_env \"$variable\"");
 const restorePathValidation = entrypoint.indexOf("RESTORE_CREDENTIAL_MASTER_KEY_PATH");
 if (genericFileExpansion < 0 || restorePathValidation < 0) {
   throw new Error("restore credential handoff is not enforced by the image entrypoint");
+}
+for (const expected of [
+  "RESTORE_LEDGER_AUTHORITY_INSTALLER",
+  "restore ledger authority installer accepts only the bootstrap credential",
+  "restore ledger authority installer command is not reviewed",
+  "/app/scripts/verify-restored-backup.ts",
+  "--install-ledger-authority",
+]) {
+  requireText(entrypoint, expected, "image entrypoint");
+}
+if (!entrypoint.includes('[ "$#" -ne 5 ]')) {
+  throw new Error("restore ledger authority installer command arity is not pinned");
 }
 
 process.stdout.write("restore-drill-contract-tests-ok\n");

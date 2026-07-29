@@ -1,4 +1,5 @@
 export type DisposableRoleUrls = Readonly<{
+  bootstrap: string;
   app: string;
   migrator: string;
   worker: string;
@@ -22,7 +23,9 @@ export type DisposableBoundaryPoolOptions = Readonly<{
 }>;
 
 type RoleBoundaryVerifierOptions<Pool> = Readonly<{
+  postgresUser: string;
   postgresDatabase: string;
+  databaseBootstrapUrl: string;
   databaseAppUrl: string;
   databaseMigratorUrl: string;
   databaseWorkerUrl: string;
@@ -50,6 +53,7 @@ function canonicalDatabaseRoleUrl(scopedConnectionString: string) {
 
 export async function verifyDisposableIntegrationRoleBoundaries<Pool>(
   input: Readonly<{
+    postgresUser: string;
     database: string;
     roleUrls: DisposableRoleUrls;
     requireApplicationObjects: boolean;
@@ -60,7 +64,9 @@ export async function verifyDisposableIntegrationRoleBoundaries<Pool>(
   }>,
 ): Promise<void> {
   await input.verifyDatabaseRoleBoundaries({
+    postgresUser: input.postgresUser,
     postgresDatabase: input.database,
+    databaseBootstrapUrl: canonicalDatabaseRoleUrl(input.roleUrls.bootstrap),
     databaseAppUrl: canonicalDatabaseRoleUrl(input.roleUrls.app),
     databaseMigratorUrl: canonicalDatabaseRoleUrl(input.roleUrls.migrator),
     databaseWorkerUrl: canonicalDatabaseRoleUrl(input.roleUrls.worker),
@@ -71,9 +77,12 @@ export async function verifyDisposableIntegrationRoleBoundaries<Pool>(
     requireApplicationObjects: input.requireApplicationObjects,
     lockTimeoutMs: 10_000,
     poolFactory: ({ connectionString, role }) => {
-      const roleName = ROLE_URL_KEY_BY_DATABASE_ROLE[
-        role as keyof typeof ROLE_URL_KEY_BY_DATABASE_ROLE
-      ];
+      const roleName =
+        role === input.postgresUser
+          ? "bootstrap"
+          : ROLE_URL_KEY_BY_DATABASE_ROLE[
+              role as keyof typeof ROLE_URL_KEY_BY_DATABASE_ROLE
+            ];
       if (!roleName) {
         throw new Error("disposable integration role URL mapping mismatch");
       }

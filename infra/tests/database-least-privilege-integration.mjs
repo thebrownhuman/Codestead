@@ -8,8 +8,17 @@ import {
 } from "../../scripts/bootstrap-database-roles.mjs";
 
 const bootstrapUser = process.env.POSTGRES_USER ?? "legacy_bootstrap";
-const bootstrapPassword = process.env.POSTGRES_PASSWORD ?? "bootstrap-Fake-A-0000000000000000";
+const bootstrapPassword =
+  process.env.POSTGRES_PASSWORD ?? "bootstrap-Fake-A-0000000000000000";
 const host = process.env.POSTGRES_HOST ?? "postgres";
+const managedRoles = Object.freeze([
+  "learncoding_owner",
+  "learncoding_migrator",
+  "learncoding_app",
+  "learncoding_worker",
+  "learncoding_ops",
+  "learncoding_backup_reporter",
+]);
 
 function secret(role, generation) {
   return `${role}-${generation}-${"x".repeat(40)}`;
@@ -25,12 +34,23 @@ function options(database, generation) {
     postgresDatabase: database,
     databaseBootstrapUrl: url(bootstrapUser, bootstrapPassword, database),
     databaseAppUrl: url("learncoding_app", secret("app", generation), database),
-    databaseMigratorUrl: url("learncoding_migrator", secret("migrator", generation), database),
-    databaseWorkerUrl: url("learncoding_worker", secret("worker", generation), database),
+    databaseMigratorUrl: url(
+      "learncoding_migrator",
+      secret("migrator", generation),
+      database,
+    ),
+    databaseWorkerUrl: url(
+      "learncoding_worker",
+      secret("worker", generation),
+      database,
+    ),
     databaseOpsUrl: url("learncoding_ops", secret("ops", generation), database),
-    databaseBackupReporterUrl:
-      url("learncoding_backup_reporter", secret("backup-reporter", generation), database),
-    lockTimeoutMs: 10_000,
+    databaseBackupReporterUrl: url(
+      "learncoding_backup_reporter",
+      secret("backup-reporter", generation),
+      database,
+    ),
+    lockTimeoutMs: 30_000,
     cleanupTimeoutMs: 5_000,
   };
 }
@@ -55,34 +75,75 @@ function quoteIdentifier(value) {
 }
 
 async function databaseSnapshot(database) {
-  return withClient(url(bootstrapUser, bootstrapPassword, database), async (client) => {
-    const databaseOwner = await client.query(
-      "select datname, pg_get_userbyid(datdba) owner, datacl::text from pg_database where datname = current_database()",
-    );
-    const schemas = await client.query(
-      "select nspname, pg_get_userbyid(nspowner) owner, nspacl::text from pg_namespace where nspname !~ '^pg_' and nspname <> 'information_schema' order by nspname",
-    );
-    const relations = await client.query(
-      "select n.nspname, c.relname, c.relkind::text, pg_get_userbyid(c.relowner) owner, c.relacl::text from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname !~ '^pg_' and n.nspname <> 'information_schema' order by 1,2,3",
-    );
-    const routines = await client.query(
-      "select n.nspname, p.proname, p.prokind::text, pg_get_userbyid(p.proowner) owner, p.proacl::text from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname !~ '^pg_' and n.nspname <> 'information_schema' order by 1,2,3",
-    );
-    const roles = await client.query(
-      "select rolname, rolcanlogin, rolsuper, rolcreatedb, rolcreaterole, rolinherit, rolreplication, rolbypassrls, rolconnlimit from pg_roles where rolname like 'learncoding_%' order by rolname",
-    );
-    const memberships = await client.query(
-      "select granted.rolname granted_role, member.rolname member_role, membership.admin_option, membership.inherit_option, membership.set_option from pg_auth_members membership join pg_roles granted on granted.oid=membership.roleid join pg_roles member on member.oid=membership.member where granted.rolname like 'learncoding_%' or member.rolname like 'learncoding_%' order by 1,2",
-    );
-    return JSON.stringify([
-      databaseOwner.rows,
-      schemas.rows,
-      relations.rows,
-      routines.rows,
-      roles.rows,
-      memberships.rows,
-    ]);
-  });
+  return withClient(
+    url(bootstrapUser, bootstrapPassword, database),
+    async (client) => {
+      const databaseOwner = await client.query(
+        "select datname, pg_get_userbyid(datdba) owner, datacl::text from pg_database where datname = current_database()",
+      );
+      const schemas = await client.query(
+        "select nspname, pg_get_userbyid(nspowner) owner, nspacl::text from pg_namespace where nspname !~ '^pg_' and nspname <> 'information_schema' order by nspname",
+      );
+      const relations = await client.query(
+        "select n.nspname, c.relname, c.relkind::text, pg_get_userbyid(c.relowner) owner, c.relacl::text from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname !~ '^pg_' and n.nspname <> 'information_schema' order by 1,2,3",
+      );
+      const routines = await client.query(
+        "select n.nspname, p.proname, p.prokind::text, pg_get_userbyid(p.proowner) owner, p.proacl::text from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname !~ '^pg_' and n.nspname <> 'information_schema' order by 1,2,3",
+      );
+      const roles = await client.query(
+        "select rolname, rolcanlogin, rolsuper, rolcreatedb, rolcreaterole, rolinherit, rolreplication, rolbypassrls, rolconnlimit from pg_roles where rolname like 'learncoding_%' order by rolname",
+      );
+      const memberships = await client.query(
+        "select granted.rolname granted_role, member.rolname member_role, membership.admin_option, membership.inherit_option, membership.set_option from pg_auth_members membership join pg_roles granted on granted.oid=membership.roleid join pg_roles member on member.oid=membership.member where granted.rolname like 'learncoding_%' or member.rolname like 'learncoding_%' order by 1,2",
+      );
+      return JSON.stringify([
+        databaseOwner.rows,
+        schemas.rows,
+        relations.rows,
+        routines.rows,
+        roles.rows,
+        memberships.rows,
+      ]);
+    },
+  );
+}
+
+function authenticationQuarantineSnapshot(snapshot) {
+  const state = JSON.parse(snapshot);
+  state[4] = state[4].map((role) => ({
+    ...role,
+    rolcanlogin: false,
+  }));
+  return JSON.stringify(state);
+}
+
+async function assertManagedRolesQuarantined(database) {
+  await withClient(
+    url(bootstrapUser, bootstrapPassword, database),
+    async (client) => {
+      const roles = await client.query(`
+        select rolname,
+               rolcanlogin,
+               rolpassword is null password_is_null
+          from pg_authid
+         where rolname = any($1::text[])
+         order by rolname`,
+      [managedRoles]);
+      assert.equal(roles.rows.length, managedRoles.length);
+      assert.equal(
+        roles.rows.every((role) =>
+          role.rolcanlogin === false && role.password_is_null === true
+        ),
+        true,
+      );
+      const sessions = await client.query(`
+        select count(*)::integer remaining
+          from pg_stat_activity
+         where usename = any($1::text[])`,
+      [managedRoles]);
+      assert.equal(sessions.rows[0]?.remaining, 0);
+    },
+  );
 }
 
 async function scenario(name, operation) {
@@ -91,18 +152,39 @@ async function scenario(name, operation) {
 }
 
 try {
+  const authenticationTimeout = await control.query(`
+    select ceil(
+             extract(
+               epoch from pg_catalog.current_setting('authentication_timeout')
+                 ::pg_catalog.interval
+             ) * 1000
+           )::integer authentication_timeout_ms`);
+  assert.equal(
+    authenticationTimeout.rows[0]?.authentication_timeout_ms,
+    1000,
+    "disposable PostgreSQL must use the reviewed one-second authentication horizon",
+  );
   const freshV1 = options("learncoding", "fresh-v1");
   await scenario("fresh", async () => {
     const checks = await runDatabaseRoleBootstrap(freshV1);
-    assert.deepEqual(Object.values(checks), [true, true, true, true, true, true]);
+    assert.deepEqual(Object.values(checks), [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+    ]);
   });
 
   await scenario("idempotent", async () => {
     await runDatabaseRoleBootstrap(freshV1);
   });
 
-  await withClient(url(bootstrapUser, bootstrapPassword, "learncoding"), async (client) => {
-    await client.query(`
+  await withClient(
+    url(bootstrapUser, bootstrapPassword, "learncoding"),
+    async (client) => {
+      await client.query(`
       create schema drizzle authorization ${quoteIdentifier(bootstrapUser)};
       create type public.lesson_state as enum ('draft', 'published');
       create table public.lesson (
@@ -128,37 +210,51 @@ try {
       alter default privileges for role learncoding_owner in schema public
         grant select on tables to learncoding_app with grant option;
     `);
-  });
+    },
+  );
 
   const legacyV1 = options("learncoding", "legacy-v1");
   await scenario("legacy-data-rich", async () => {
     await runDatabaseRoleBootstrap(legacyV1);
-    await withClient(url(bootstrapUser, bootstrapPassword, "learncoding"), async (client) => {
-      const ownership = await client.query(`
+    await withClient(
+      url(bootstrapUser, bootstrapPassword, "learncoding"),
+      async (client) => {
+        const ownership = await client.query(`
         select
           (select pg_get_userbyid(proowner) from pg_proc where proname='total_int' and prokind='a') aggregate_owner,
           (select pg_get_userbyid(relowner) from pg_class where relname='lesson' and relkind='r') table_owner,
           (select pg_get_userbyid(typowner) from pg_type where typname='lesson_state') type_owner
       `);
-      assert.deepEqual(ownership.rows[0], {
-        aggregate_owner: "learncoding_owner",
-        table_owner: "learncoding_owner",
-        type_owner: "learncoding_owner",
-      });
-    });
+        assert.deepEqual(ownership.rows[0], {
+          aggregate_owner: "learncoding_owner",
+          table_owner: "learncoding_owner",
+          type_owner: "learncoding_owner",
+        });
+      },
+    );
   });
 
   await scenario("restricted-roles-rls-and-future-grants", async () => {
     await withClient(legacyV1.databaseAppUrl, async (app) => {
       assert.deepEqual(
-        (await app.query("select value from public.tenant_record order by value")).rows,
+        (
+          await app.query(
+            "select value from public.tenant_record order by value",
+          )
+        ).rows,
         [{ value: "app-visible" }],
       );
-      await app.query("insert into public.tenant_record values ('learncoding_app', 'app-created')");
-      await assert.rejects(
-        app.query("insert into public.tenant_record values ('learncoding_worker', 'forbidden')"),
+      await app.query(
+        "insert into public.tenant_record values ('learncoding_app', 'app-created')",
       );
-      await assert.rejects(app.query("create table public.forbidden(id integer)"));
+      await assert.rejects(
+        app.query(
+          "insert into public.tenant_record values ('learncoding_worker', 'forbidden')",
+        ),
+      );
+      await assert.rejects(
+        app.query("create table public.forbidden(id integer)"),
+      );
       await assert.rejects(app.query("create role forbidden_role"));
       await assert.rejects(app.query("select public.identity_int(1)"));
     });
@@ -172,13 +268,17 @@ try {
       await migrator.query("reset role");
     });
     await withClient(legacyV1.databaseAppUrl, async (app) => {
-      await app.query("insert into public.future_table default values returning id");
+      await app.query(
+        "insert into public.future_table default values returning id",
+      );
       await app.query("select 'ready'::public.future_state");
     });
   });
 
   await scenario("password-rotation-and-session-termination", async () => {
-    const oldSession = new Client({ connectionString: legacyV1.databaseAppUrl });
+    const oldSession = new Client({
+      connectionString: legacyV1.databaseAppUrl,
+    });
     oldSession.on("error", () => undefined);
     await oldSession.connect();
     await oldSession.query("select 1");
@@ -186,7 +286,9 @@ try {
     await runDatabaseRoleBootstrap(legacyV2);
     await assert.rejects(oldSession.query("select 1"));
     await oldSession.end().catch(() => undefined);
-    await withClient(legacyV2.databaseAppUrl, (client) => client.query("select 1"));
+    await withClient(legacyV2.databaseAppUrl, (client) =>
+      client.query("select 1"),
+    );
     const stale = new Client({ connectionString: legacyV1.databaseAppUrl });
     stale.on("error", () => undefined);
     await assert.rejects(stale.connect());
@@ -203,30 +305,33 @@ try {
   });
 
   await scenario("shared-lock-timeout-and-concurrency", async () => {
-    await withClient(url(bootstrapUser, bootstrapPassword, "learncoding"), async (lockHolder) => {
-      const ownerBefore = await lockHolder.query(
-        "select pg_get_userbyid(datdba) owner from pg_database where datname=current_database()",
-      );
-      await lockHolder.query(
-        "select pg_advisory_lock(hashtextextended($1, 0))",
-        [DATABASE_ADMIN_LOCK_NAME],
-      );
-      await assert.rejects(
-        runDatabaseRoleBootstrap({
-          ...options("learncoding", "lock-v1"),
-          lockTimeoutMs: 100,
-        }),
-        /database administration lock timeout/u,
-      );
-      const ownerAfter = await lockHolder.query(
-        "select pg_get_userbyid(datdba) owner from pg_database where datname=current_database()",
-      );
-      assert.equal(ownerAfter.rows[0]?.owner, ownerBefore.rows[0]?.owner);
-      await lockHolder.query(
-        "select pg_advisory_unlock(hashtextextended($1, 0))",
-        [DATABASE_ADMIN_LOCK_NAME],
-      );
-    });
+    await withClient(
+      url(bootstrapUser, bootstrapPassword, "learncoding"),
+      async (lockHolder) => {
+        const ownerBefore = await lockHolder.query(
+          "select pg_get_userbyid(datdba) owner from pg_database where datname=current_database()",
+        );
+        await lockHolder.query(
+          "select pg_advisory_lock(hashtextextended($1, 0))",
+          [DATABASE_ADMIN_LOCK_NAME],
+        );
+        await assert.rejects(
+          runDatabaseRoleBootstrap({
+            ...options("learncoding", "lock-v1"),
+            lockTimeoutMs: 100,
+          }),
+          /database administration lock timeout/u,
+        );
+        const ownerAfter = await lockHolder.query(
+          "select pg_get_userbyid(datdba) owner from pg_database where datname=current_database()",
+        );
+        assert.equal(ownerAfter.rows[0]?.owner, ownerBefore.rows[0]?.owner);
+        await lockHolder.query(
+          "select pg_advisory_unlock(hashtextextended($1, 0))",
+          [DATABASE_ADMIN_LOCK_NAME],
+        );
+      },
+    );
     const concurrent = options("learncoding", "lock-v2");
     await Promise.all([
       runDatabaseRoleBootstrap(concurrent),
@@ -234,9 +339,11 @@ try {
     ]);
   });
 
-  await withClient(url(bootstrapUser, bootstrapPassword, "learncoding"), (client) =>
-    client.query("create table public.rollback_probe(id integer)"));
-  await scenario("rollback-injection", async () => {
+  await withClient(
+    url(bootstrapUser, bootstrapPassword, "learncoding"),
+    (client) => client.query("create table public.rollback_probe(id integer)"),
+  );
+  await scenario("activation-rollback-preserves-authentication-quarantine", async () => {
     const before = await databaseSnapshot("learncoding");
     await assert.rejects(
       runDatabaseRoleBootstrap({
@@ -247,18 +354,25 @@ try {
       }),
       /injected rollback/u,
     );
-    assert.equal(await databaseSnapshot("learncoding"), before);
+    assert.equal(
+      await databaseSnapshot("learncoding"),
+      authenticationQuarantineSnapshot(before),
+    );
+    await assertManagedRolesQuarantined("learncoding");
     await runDatabaseRoleBootstrap(options("learncoding", "rollback-v2"));
   });
 
   await control.query("create role legacy_reader nologin");
-  await withClient(url(bootstrapUser, bootstrapPassword, "learncoding"), async (client) => {
-    await client.query(`
+  await withClient(
+    url(bootstrapUser, bootstrapPassword, "learncoding"),
+    async (client) => {
+      await client.query(`
       create schema decoy authorization ${quoteIdentifier(bootstrapUser)};
       create table public.protected_table(id integer);
       grant select on public.protected_table to legacy_reader;
     `);
-  });
+    },
+  );
   await scenario("decoy-fails-before-mutation", async () => {
     const before = await databaseSnapshot("learncoding");
     await assert.rejects(

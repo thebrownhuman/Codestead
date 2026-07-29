@@ -1667,7 +1667,7 @@ test("bounded client watchdog stays referenced in a then-style process", () => {
 test("restore bootstrap identity matches production everywhere", () => {
   assert.equal(
     harness.RESTORE_BOOTSTRAP_IDENTITY,
-    "learncoding_restore",
+    "codestead_restore",
     "restore bootstrap identity must match production",
   );
   assert.doesNotMatch(
@@ -1675,7 +1675,7 @@ test("restore bootstrap identity matches production everywhere", () => {
     /(?:--username=postgres|username:\s*"postgres"|postgresUser:\s*"postgres"|expectedBootstrapUser:\s*"postgres"|:\*:postgres:)/u,
   );
   assert.equal(
-    (harnessSource.match(/["']learncoding_restore["']/gu) ?? []).length,
+    (harnessSource.match(/["']codestead_restore["']/gu) ?? []).length,
     1,
     "the restore identity must have one source literal",
   );
@@ -1712,7 +1712,7 @@ test("restore bootstrap identity matches production everywhere", () => {
     const { runnerPath } = createVerifierRunner(temporaryRoot);
     const runnerSource = readFileSync(runnerPath, "utf8");
     assert.equal(
-      (runnerSource.match(/["']learncoding_restore["']/gu) ?? []).length,
+      (runnerSource.match(/["']codestead_restore["']/gu) ?? []).length,
       1,
     );
     assert.equal(

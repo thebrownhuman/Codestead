@@ -75,6 +75,17 @@ assert.doesNotMatch(
   /COPY --chown=node:node drizzle \.\/drizzle/u,
   "operations image must not duplicate repository migration bytes",
 );
+for (const artifact of [
+  "drizzle/meta/0069_snapshot.json",
+  "scripts/database-runtime-capabilities.mjs",
+  "scripts/bootstrap-database-runtime-capabilities.mjs",
+  "scripts/verify-database-runtime-capabilities.mjs",
+]) {
+  assert.ok(
+    operationsStage.includes(`COPY --chown=node:node ${artifact} `),
+    `operations image must carry ${artifact}`,
+  );
+}
 for (const [stage, label] of [
   [toolingStage, "tooling"],
   [operationsStage, "operations"],
@@ -87,8 +98,8 @@ for (const [stage, label] of [
 }
 assert.match(
   backupProductionE2e,
-  /docker run --rm --pull never --network none --read-only --cap-drop ALL[\s\S]*?--entrypoint node "\$operations_digest"[\s\S]*?bootstrap-database-roles\.mjs[\s\S]*?offline operations image cannot import the ledger-gated bootstrap/u,
-  "the real operations image must prove the ledger-gated bootstrap imports offline",
+  /docker run --rm --pull never --network none --read-only --cap-drop ALL[\s\S]*?--entrypoint node "\$operations_digest"[\s\S]*?bootstrap-database-roles\.mjs[\s\S]*?verify-database-role-boundaries\.mjs[\s\S]*?offline operations image cannot import the capability-gated bootstrap and verifier/u,
+  "the real operations image must prove both capability-gated entrypoints import offline",
 );
 assert.match(
   backupProductionE2e,
@@ -111,14 +122,39 @@ const bootstrapRun =
 const bootstrapAppliedIndex = bootstrapRun.indexOf(
   "verifyAppliedMigrationLedger(",
 );
-const bootstrapInventoryIndex = bootstrapRun.indexOf("loadOwnershipInventory(");
-const bootstrapRoleRepairIndex = bootstrapRun.indexOf("createAndResetRoles(");
+const bootstrapPreGateInventoryIndex = bootstrapRun.indexOf(
+  "loadOwnershipInventory(",
+);
+const bootstrapInventoryIndex = bootstrapRun.indexOf(
+  "loadOwnershipInventory(",
+  bootstrapAppliedIndex,
+);
+const bootstrapRoleRepairIndex = bootstrapRun.indexOf(
+  "createAndResetRoles(",
+  bootstrapInventoryIndex,
+);
+const bootstrapOwnershipIndex = bootstrapRun.indexOf(
+  "transferBootstrapDatabaseRuntimeCapabilityOwnership(",
+);
+const bootstrapCapabilityReconcileIndex = bootstrapRun.indexOf(
+  "reconcileBootstrapDatabaseRuntimeCapabilities(",
+);
+const bootstrapCapabilityVerifyIndex = bootstrapRun.indexOf(
+  "verifyBootstrapDatabaseRuntimeCapabilities(",
+);
+const bootstrapFoundationIndex = bootstrapRun.indexOf(
+  "establishBootstrapDatabaseRuntimeCapabilityFoundation(",
+);
 assert.doesNotMatch(
   bootstrapRun,
   /verifyReviewedMigrationRepository/u,
   "operations bootstrap must consume the canonical DB ledger without repository files",
 );
 assert.ok(bootstrapAppliedIndex >= 0);
+assert.ok(
+  bootstrapPreGateInventoryIndex >= 0 &&
+    bootstrapPreGateInventoryIndex < bootstrapAppliedIndex,
+);
 assert.ok(bootstrapInventoryIndex > bootstrapAppliedIndex);
 assert.ok(bootstrapRoleRepairIndex > bootstrapInventoryIndex);
 assert.match(
@@ -131,9 +167,22 @@ assert.ok(
   ) > bootstrapAppliedIndex,
   "the exact 0062-0069 phase verifier must remain after the full-ledger preflight",
 );
+assert.ok(bootstrapOwnershipIndex > bootstrapRoleRepairIndex);
 assert.ok(
-  bootstrapRun.indexOf("reconcileDatabaseRolePrivileges(") >
-    bootstrapRoleRepairIndex,
+  bootstrapCapabilityReconcileIndex > bootstrapOwnershipIndex,
+  "current phase must reconcile only the enumerated capability manifest",
+);
+assert.ok(
+  bootstrapCapabilityVerifyIndex > bootstrapCapabilityReconcileIndex,
+  "current phase must verify the exact manifest after reconciliation",
+);
+assert.ok(
+  bootstrapFoundationIndex > bootstrapCapabilityReconcileIndex,
+  "foundation phase must use the separate sealed foundation path",
+);
+assert.doesNotMatch(
+  bootstrapRun,
+  /reconcileDatabaseRolePrivileges|applyDatabaseRolePrivilegeReconciliation|reconcileRestoredNoAclDatabaseRolePrivileges/u,
 );
 
 const migrationRun =

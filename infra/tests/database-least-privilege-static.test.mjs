@@ -9,6 +9,12 @@ import {
   reviewedApplicationFunctionPrivilegesSql,
 } from "../../scripts/bootstrap-database-roles.mjs";
 
+import {
+  CURRENT_0069_DATABASE_RUNTIME_CAPABILITIES,
+  DATABASE_RUNTIME_CAPABILITY_PHASES,
+  planDatabaseRuntimeCapabilityReconciliation,
+} from "../../scripts/database-runtime-capabilities.mjs";
+
 const REVIEWED_PHASE_0069 = REVIEWED_MAIL_AUTHORITY_CATALOG_PHASES.find(
   ({ index }) => index === 69,
 );
@@ -60,6 +66,22 @@ test("Compose mounts the exact database credential matrix", () => {
   const expected = {
     postgres: ["postgres_password:postgres_password"],
     "database-role-bootstrap": [
+      "database_bootstrap_url:database_bootstrap_url",
+      "database_url:database_app_url",
+      "database_migrator_url:database_migrator_url",
+      "database_worker_url:database_worker_url",
+      "database_ops_url:database_ops_url",
+      "database_backup_reporter_url:database_backup_reporter_url",
+    ],
+    "database-negative-probes": [
+      "database_bootstrap_url:database_bootstrap_url",
+      "database_url:database_app_url",
+      "database_migrator_url:database_migrator_url",
+      "database_worker_url:database_worker_url",
+      "database_ops_url:database_ops_url",
+      "database_backup_reporter_url:database_backup_reporter_url",
+    ],
+    "database-boundary-verifier": [
       "database_bootstrap_url:database_bootstrap_url",
       "database_url:database_app_url",
       "database_migrator_url:database_migrator_url",
@@ -169,11 +191,98 @@ test("bootstrap and migration share the administration lock without broad reassi
   assert.match(bootstrap, /pg_database_owner/u);
   assert.match(bootstrap, /learncoding_owner/u);
   assert.match(bootstrap, /learncoding_migrator/u);
-  assert.match(bootstrap, /ALTER DEFAULT PRIVILEGES/iu);
+  assert.doesNotMatch(
+    bootstrap,
+    /\bgrant\b[^;]*\bon\s+all\s+(?:tables|sequences|routines)\b[^;]*\bto\s+learncoding_(?:app|worker|ops|migrator|backup_reporter)\b/iu,
+  );
+  assert.doesNotMatch(
+    bootstrap,
+    /alter default privileges[^;]*\bgrant\b[^;]*\bto\s+learncoding_(?:app|worker|ops|migrator|backup_reporter)\b/iu,
+  );
+  assert.doesNotMatch(
+    bootstrap,
+    /applyDatabaseRolePrivilegeReconciliation|reconcileRestoredNoAclDatabaseRolePrivileges/u,
+  );
+  const bootstrapRun =
+    bootstrap.match(
+      /export async function runDatabaseRoleBootstrap\(options\) \{([\s\S]*?)\n\}/u,
+    )?.[1] ?? "";
+  const roleRepair = bootstrapRun.indexOf("createAndResetRoles(");
+  const ownership = bootstrapRun.indexOf(
+    "transferBootstrapDatabaseRuntimeCapabilityOwnership(",
+  );
+  const reconcile = bootstrapRun.indexOf(
+    "reconcileBootstrapDatabaseRuntimeCapabilities(",
+  );
+  const exactVerify = bootstrapRun.indexOf(
+    "verifyBootstrapDatabaseRuntimeCapabilities(",
+  );
+  const foundation = bootstrapRun.indexOf(
+    "establishBootstrapDatabaseRuntimeCapabilityFoundation(",
+  );
+  const foundationVerify = bootstrapRun.indexOf(
+    "verifyBootstrapDatabaseRuntimeCapabilityFoundation(",
+  );
+  assert.ok(roleRepair >= 0);
+  assert.ok(ownership > roleRepair);
+  assert.ok(reconcile > ownership);
+  assert.ok(exactVerify > reconcile);
+  assert.ok(foundation > reconcile);
+  assert.ok(foundationVerify > foundation);
   assert.match(migration, /SET ROLE learncoding_owner/u);
   assert.match(migration, /RESET ROLE/u);
   assert.match(migration, /current_user/u);
   assert.match(migration, /session_user/u);
+});
+
+test("manifest reconciliation is behaviorally exact and fail-closed", () => {
+  const policy = CURRENT_0069_DATABASE_RUNTIME_CAPABILITIES;
+  const exactCatalog = structuredClone(policy);
+  const exactPlan = planDatabaseRuntimeCapabilityReconciliation({
+    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0069,
+    policy,
+    catalog: exactCatalog,
+  });
+  assert.equal(exactPlan.blocked, false);
+  assert.deepEqual(exactPlan.mutations, []);
+
+  const missingCatalog = structuredClone(policy);
+  const missing = missingCatalog.grants.find(
+    (entry) =>
+      entry.objectKind === "table" &&
+      entry.object === "public.access_request" &&
+      entry.grantee === "learncoding_app" &&
+      entry.privilege === "SELECT",
+  );
+  assert.ok(missing);
+  missingCatalog.grants = missingCatalog.grants.filter(
+    (entry) => JSON.stringify(entry) !== JSON.stringify(missing),
+  );
+  const repairPlan = planDatabaseRuntimeCapabilityReconciliation({
+    phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0069,
+    policy,
+    catalog: missingCatalog,
+  });
+  assert.equal(repairPlan.blocked, false);
+  assert.deepEqual(repairPlan.mutations, [
+    {
+      action: "add",
+      collection: "grants",
+      value: missing,
+    },
+  ]);
+
+  const malformedCatalog = structuredClone(policy);
+  malformedCatalog.grants[0].objectKind = "cluster";
+  assert.throws(
+    () =>
+      planDatabaseRuntimeCapabilityReconciliation({
+        phase: DATABASE_RUNTIME_CAPABILITY_PHASES.CURRENT_0069,
+        policy,
+        catalog: malformedCatalog,
+      }),
+    { name: "DatabaseRuntimeCapabilityValidationError" },
+  );
 });
 
 test("bootstrap preserves exact reviewed application routine grants", () => {
@@ -352,9 +461,12 @@ test("restore reconstructs owner and ACL topology and smokes restricted roles", 
   assert.ok(restoreVersion >= 0 && restoreVersion < firstBootstrap);
   assert.ok(firstBootstrap < restoreDatabase);
   assert.ok(restoreDatabase < noAclReconciliation);
-  assert.ok(noAclReconciliation < secondBootstrap && secondBootstrap < verifier);
+  assert.ok(
+    noAclReconciliation < secondBootstrap && secondBootstrap < verifier,
+  );
   assert.equal(
-    (restore.match(/^RESTORE_NO_ACL_RECONCILIATION=true\s*\\$/gmu) ?? []).length,
+    (restore.match(/^RESTORE_NO_ACL_RECONCILIATION=true\s*\\$/gmu) ?? [])
+      .length,
     1,
   );
   assert.match(
@@ -408,4 +520,20 @@ test("host backup status reporting contains no direct PostgreSQL client", () => 
     common,
     /\b(pg_dump|pg_restore|psql|createdb|dropdb|pg_isready)\b/u,
   );
+});
+
+test("disposable least-privilege concurrency uses an asserted short authentication horizon", () => {
+  const shell = read("infra/tests/database-least-privilege-integration.sh");
+  const harness = read("infra/tests/database-least-privilege-integration.mjs");
+
+  assert.match(
+    shell,
+    /"\$postgres_image"\s+-c authentication_timeout=1s\s+>\/dev\/null/u,
+  );
+  assert.match(
+    harness,
+    /current_setting\('authentication_timeout'\)[\s\S]*authentication_timeout_ms/u,
+  );
+  assert.match(harness, /authentication_timeout_ms,\s*1000/u);
+  assert.match(harness, /lockTimeoutMs:\s*30_000/u);
 });

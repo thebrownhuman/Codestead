@@ -6,6 +6,16 @@ import { pathToFileURL } from "node:url";
 import { Pool } from "pg";
 
 import {
+  assertBootstrapDatabaseRuntimeCapabilityPhaseRequest,
+  assertSameBootstrapDatabaseRuntimeCapabilityPhase,
+  establishBootstrapDatabaseRuntimeCapabilityFoundation,
+  reconcileBootstrapDatabaseRuntimeCapabilities,
+  resolveBootstrapDatabaseRuntimeCapabilityPhase,
+  transferBootstrapDatabaseRuntimeCapabilityOwnership,
+  verifyBootstrapDatabaseRuntimeCapabilities,
+  verifyBootstrapDatabaseRuntimeCapabilityFoundation,
+} from "./bootstrap-database-runtime-capabilities.mjs";
+import {
   BACKUP_STATUS_AUTHORITY_0065_CONTRACT,
   BACKUP_STATUS_AUTHORITY_0067_CONTRACT,
   verifyBackupStatusMailAuthorityObjects,
@@ -15,6 +25,8 @@ import {
 import { verifyAppliedMigrationLedger as verifyAppliedMigrationLedgerContract } from "./lib/reviewed-migration-ledger.mjs";
 
 export const DATABASE_ADMIN_LOCK_NAME = "codestead:database-administration:v1";
+export const DATABASE_CLUSTER_ROLE_ADMIN_LOCK_NAME =
+  "codestead:cluster-role-administration:v1";
 const OWNER_ROLE = "learncoding_owner";
 const MIGRATOR_ROLE = "learncoding_migrator";
 const APP_ROLE = "learncoding_app";
@@ -28,6 +40,7 @@ const LOGIN_ROLES = [
   OPS_ROLE,
   BACKUP_REPORTER_ROLE,
 ];
+const MANAGED_ROLES = [OWNER_ROLE, ...LOGIN_ROLES];
 
 function reviewedRoutine(contract) {
   if (
@@ -2617,7 +2630,18 @@ const MAX_LOCK_TIMEOUT_MS = 120_000;
 const LOCK_POLL_MS = 500;
 const DEFAULT_CLEANUP_TIMEOUT_MS = 5_000;
 const MAX_SESSION_DRAIN_MS = 5_000;
+export const DATABASE_BOOTSTRAP_POOL_POLICY = Object.freeze({
+  connectionTimeoutMillis: 5_000,
+  idleTimeoutMillis: 1_000,
+  query_timeout: 5_000,
+  statement_timeout: 4_000,
+  lock_timeout: 2_000,
+  idle_in_transaction_session_timeout: 5_000,
+});
+const DATABASE_BOOTSTRAP_UNSAFE_CLIENT_OUTCOMES = new WeakSet();
 const SESSION_DRAIN_POLL_MS = 50;
+const MAX_AUTHENTICATION_TIMEOUT_MS = 600_000;
+const AUTHENTICATION_FENCE_SAFETY_MARGIN_MS = 250;
 const MIN_PASSWORD_BYTES = 32;
 const MAX_PASSWORD_BYTES = 1024;
 
@@ -2671,7 +2695,8 @@ export function validateDatabaseRoleUrls(input) {
   try {
     if (
       !/^[a-z_][a-z0-9_]{0,62}$/u.test(input.postgresUser) ||
-      input.postgresUser === OWNER_ROLE
+      input.postgresUser === OWNER_ROLE ||
+      input.postgresUser.startsWith("learncoding_")
     ) {
       throw invalidCredentialConfiguration();
     }
@@ -2756,7 +2781,7 @@ export function validateOwnershipInventory(input) {
       );
     }
     if (schema.name === "drizzle") return !allowedOwners.has(schema.owner);
-    return allowedOwners.has(schema.owner);
+    return true;
   });
   const unsafeOwnedObject = [
     ...(input.objects ?? []),
@@ -2821,23 +2846,56 @@ export function validateOwnershipInventory(input) {
   }
 }
 
-async function acquireAdministrationLock(
-  client,
+export function createDatabaseAdministrationLockDeadline(
   timeoutMs = MAX_LOCK_TIMEOUT_MS,
+  now = () => performance.now(),
 ) {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new RangeError(
       "database administration lock timeout must be positive and finite",
     );
   }
-  const deadline = performance.now() + Math.min(timeoutMs, MAX_LOCK_TIMEOUT_MS);
-  while (performance.now() < deadline) {
-    const remainingMs = deadline - performance.now();
+  if (typeof now !== "function") {
+    throw new TypeError("database administration lock clock is invalid");
+  }
+  const observedNow = now();
+  if (!Number.isFinite(observedNow)) {
+    throw new TypeError("database administration lock clock is invalid");
+  }
+  return observedNow + Math.min(timeoutMs, MAX_LOCK_TIMEOUT_MS);
+}
+
+export async function acquireDatabaseAdministrationLock(
+  client,
+  lockName,
+  deadline,
+  dependencies = {},
+) {
+  if (
+    lockName !== DATABASE_CLUSTER_ROLE_ADMIN_LOCK_NAME &&
+    lockName !== DATABASE_ADMIN_LOCK_NAME
+  ) {
+    throw new TypeError("database administration lock name is invalid");
+  }
+  const now = dependencies.now ?? (() => performance.now());
+  const sleep =
+    dependencies.sleep ??
+    ((milliseconds) =>
+      new Promise((resolve) => setTimeout(resolve, milliseconds)));
+  if (
+    typeof now !== "function" ||
+    typeof sleep !== "function" ||
+    !Number.isFinite(deadline)
+  ) {
+    throw new TypeError("database administration lock dependencies are invalid");
+  }
+  while (now() < deadline) {
+    const remainingMs = deadline - now();
     let timeoutHandle;
     const query = Promise.resolve().then(() =>
       client.query(
-        "select pg_try_advisory_lock(hashtextextended($1, 0)) acquired",
-        [DATABASE_ADMIN_LOCK_NAME],
+        "select pg_catalog.pg_try_advisory_lock(pg_catalog.hashtextextended($1, 0)) acquired",
+        [lockName],
       ),
     );
     const timeout = new Promise((_, reject) => {
@@ -2849,19 +2907,20 @@ async function acquireAdministrationLock(
     let result;
     try {
       result = await Promise.race([query, timeout]);
-      if (performance.now() >= deadline) {
+      if (now() >= deadline) {
         throw new Error("database administration lock timeout");
       }
     } finally {
       if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
     }
-    if (result.rows[0]?.acquired === true) return;
-    await new Promise((resolve) =>
-      setTimeout(
-        resolve,
-        Math.min(LOCK_POLL_MS, Math.max(1, deadline - performance.now())),
-      ),
-    );
+    if (
+      result.rows.length !== 1 ||
+      typeof result.rows[0]?.acquired !== "boolean"
+    ) {
+      throw new Error("database administration lock evidence is invalid");
+    }
+    if (result.rows[0].acquired === true) return;
+    await sleep(Math.min(LOCK_POLL_MS, Math.max(1, deadline - now())));
   }
   throw new Error("database administration lock timeout");
 }
@@ -2896,14 +2955,14 @@ async function loadOwnershipInventory(client, postgresUser, postgresDatabase) {
     await client.query(
       `select n.nspname name, pg_get_userbyid(n.nspowner) owner
          from pg_namespace n
-        where n.nspname in ('public', 'drizzle')
-           or (
-             pg_get_userbyid(n.nspowner) in ($1, 'learncoding_owner')
-             and n.nspname !~ '^pg_'
-             and n.nspname <> 'information_schema'
-           )
+        where n.nspname not in (
+                'pg_catalog',
+                'information_schema',
+                'pg_toast'
+              )
+          and n.nspname not like 'pg_temp_%'
+          and n.nspname not like 'pg_toast_temp_%'
         order by n.nspname`,
-      [postgresUser],
     ),
     await client.query(
       `select n.nspname schema, c.relname name, c.relkind::text kind,
@@ -2911,8 +2970,13 @@ async function loadOwnershipInventory(client, postgresUser, postgresDatabase) {
          from pg_class c
          join pg_namespace n on n.oid = c.relnamespace
         where c.relkind in ('r', 'p', 'S', 'v', 'm', 'f', 'c', 'i', 'I')
-          and n.nspname !~ '^pg_'
-          and n.nspname <> 'information_schema'
+          and n.nspname not in (
+                'pg_catalog',
+                'information_schema',
+                'pg_toast'
+              )
+          and n.nspname not like 'pg_temp_%'
+          and n.nspname not like 'pg_toast_temp_%'
           and (
             n.nspname in ('public', 'drizzle')
             or pg_get_userbyid(c.relowner) in ($1, 'learncoding_owner')
@@ -2925,8 +2989,13 @@ async function loadOwnershipInventory(client, postgresUser, postgresDatabase) {
               pg_get_userbyid(p.proowner) owner
          from pg_proc p
          join pg_namespace n on n.oid = p.pronamespace
-        where n.nspname !~ '^pg_'
-          and n.nspname <> 'information_schema'
+        where n.nspname not in (
+                'pg_catalog',
+                'information_schema',
+                'pg_toast'
+              )
+          and n.nspname not like 'pg_temp_%'
+          and n.nspname not like 'pg_toast_temp_%'
           and (
             n.nspname in ('public', 'drizzle')
             or pg_get_userbyid(p.proowner) in ($1, 'learncoding_owner')
@@ -2940,8 +3009,13 @@ async function loadOwnershipInventory(client, postgresUser, postgresDatabase) {
          from pg_type t
          join pg_namespace n on n.oid = t.typnamespace
         where t.typtype in ('c', 'd', 'e', 'm', 'r')
-          and n.nspname !~ '^pg_'
-          and n.nspname <> 'information_schema'
+          and n.nspname not in (
+                'pg_catalog',
+                'information_schema',
+                'pg_toast'
+              )
+          and n.nspname not like 'pg_temp_%'
+          and n.nspname not like 'pg_toast_temp_%'
           and (
             n.nspname in ('public', 'drizzle')
             or pg_get_userbyid(t.typowner) in ($1, 'learncoding_owner')
@@ -3093,43 +3167,46 @@ async function loadOwnershipInventory(client, postgresUser, postgresDatabase) {
   };
 }
 
-async function createAndResetRoles(client) {
+async function ensureManagedRolesExist(client) {
   await client.query(`
     do $codestead$
     begin
       if not exists (select 1 from pg_roles where rolname = 'learncoding_owner') then
-        create role learncoding_owner;
+        create role learncoding_owner nologin;
       end if;
       if not exists (select 1 from pg_roles where rolname = 'learncoding_migrator') then
-        create role learncoding_migrator login;
+        create role learncoding_migrator nologin;
       end if;
       if not exists (select 1 from pg_roles where rolname = 'learncoding_app') then
-        create role learncoding_app login;
+        create role learncoding_app nologin;
       end if;
       if not exists (select 1 from pg_roles where rolname = 'learncoding_worker') then
-        create role learncoding_worker login;
+        create role learncoding_worker nologin;
       end if;
       if not exists (select 1 from pg_roles where rolname = 'learncoding_ops') then
-        create role learncoding_ops login;
+        create role learncoding_ops nologin;
       end if;
       if not exists (select 1 from pg_roles where rolname = 'learncoding_backup_reporter') then
-        create role learncoding_backup_reporter login;
+        create role learncoding_backup_reporter nologin;
       end if;
     end
     $codestead$`);
+}
 
+async function createAndResetRoles(client) {
+  await ensureManagedRolesExist(client);
   await client.query(`
     alter role learncoding_owner nologin nosuperuser nocreatedb nocreaterole
       noinherit noreplication nobypassrls connection limit -1 password null valid until 'infinity';
-    alter role learncoding_migrator login nosuperuser nocreatedb nocreaterole
+    alter role learncoding_migrator nologin nosuperuser nocreatedb nocreaterole
       noinherit noreplication nobypassrls connection limit -1 valid until 'infinity';
-    alter role learncoding_app login nosuperuser nocreatedb nocreaterole
+    alter role learncoding_app nologin nosuperuser nocreatedb nocreaterole
       noinherit noreplication nobypassrls connection limit -1 valid until 'infinity';
-    alter role learncoding_worker login nosuperuser nocreatedb nocreaterole
+    alter role learncoding_worker nologin nosuperuser nocreatedb nocreaterole
       noinherit noreplication nobypassrls connection limit -1 valid until 'infinity';
-    alter role learncoding_ops login nosuperuser nocreatedb nocreaterole
+    alter role learncoding_ops nologin nosuperuser nocreatedb nocreaterole
       noinherit noreplication nobypassrls connection limit -1 valid until 'infinity';
-    alter role learncoding_backup_reporter login nosuperuser nocreatedb nocreaterole
+    alter role learncoding_backup_reporter nologin nosuperuser nocreatedb nocreaterole
       noinherit noreplication nobypassrls connection limit -1 valid until 'infinity';
     alter role learncoding_owner reset all;
     alter role learncoding_migrator reset all;
@@ -3188,137 +3265,800 @@ async function createAndResetRoles(client) {
   );
 }
 
-async function rotatePasswords(client, roles) {
+async function createAndQuarantineManagedRoles(client) {
+  await ensureManagedRolesExist(client);
+  await client.query(`
+    alter role learncoding_owner nologin nosuperuser nocreatedb nocreaterole
+      noinherit noreplication nobypassrls connection limit -1 password null valid until 'infinity';
+    alter role learncoding_migrator nologin nosuperuser nocreatedb nocreaterole
+      noinherit noreplication nobypassrls connection limit -1 password null valid until 'infinity';
+    alter role learncoding_app nologin nosuperuser nocreatedb nocreaterole
+      noinherit noreplication nobypassrls connection limit -1 password null valid until 'infinity';
+    alter role learncoding_worker nologin nosuperuser nocreatedb nocreaterole
+      noinherit noreplication nobypassrls connection limit -1 password null valid until 'infinity';
+    alter role learncoding_ops nologin nosuperuser nocreatedb nocreaterole
+      noinherit noreplication nobypassrls connection limit -1 password null valid until 'infinity';
+    alter role learncoding_backup_reporter nologin nosuperuser nocreatedb nocreaterole
+      noinherit noreplication nobypassrls connection limit -1 password null valid until 'infinity'`);
+}
+
+function normalizeDatabaseBootstrapControlTimeoutMs(timeoutMs) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new RangeError(
+      "database bootstrap control timeout must be positive and finite",
+    );
+  }
+  return Math.min(timeoutMs, MAX_SESSION_DRAIN_MS);
+}
+
+export class DatabaseBootstrapControlTimeoutError extends Error {
+  constructor(phase) {
+    super(`database bootstrap control timed out during ${phase}`);
+    this.name = "DatabaseBootstrapControlTimeoutError";
+    Object.defineProperty(this, "controlPhase", {
+      value: phase,
+      enumerable: true,
+    });
+  }
+}
+
+async function boundedDatabaseBootstrapControlOperation(
+  operation,
+  timeoutMs,
+  phase,
+) {
+  const boundedTimeoutMs =
+    normalizeDatabaseBootstrapControlTimeoutMs(timeoutMs);
+  const deadline = performance.now() + boundedTimeoutMs;
+  let timeoutHandle;
+  const timeout = new Promise((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      const error = new DatabaseBootstrapControlTimeoutError(phase);
+      DATABASE_BOOTSTRAP_UNSAFE_CLIENT_OUTCOMES.add(error);
+      reject(error);
+    }, boundedTimeoutMs);
+  });
+  try {
+    const result = await Promise.race([
+      Promise.resolve().then(operation),
+      timeout,
+    ]);
+    if (performance.now() >= deadline) {
+      const error = new DatabaseBootstrapControlTimeoutError(phase);
+      DATABASE_BOOTSTRAP_UNSAFE_CLIENT_OUTCOMES.add(error);
+      throw error;
+    }
+    return result;
+  } finally {
+    if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+  }
+}
+
+const DATABASE_BOOTSTRAP_CHECKOUT_PHASES = new Set([
+  "target",
+  "cluster-administration",
+]);
+
+export async function checkoutDatabaseBootstrapClient(
+  pool,
+  phase,
+  { timeoutMs = DATABASE_BOOTSTRAP_POOL_POLICY.connectionTimeoutMillis } = {},
+) {
+  if (!DATABASE_BOOTSTRAP_CHECKOUT_PHASES.has(phase)) {
+    throw new TypeError("database bootstrap checkout phase is invalid");
+  }
+  const boundedTimeoutMs =
+    normalizeDatabaseBootstrapControlTimeoutMs(timeoutMs);
+  const deadline = performance.now() + boundedTimeoutMs;
+  let timedOut = false;
+  let timeoutHandle;
+  const checkout = Promise.resolve()
+    .then(() => pool.connect())
+    .then((client) => {
+      if (client === null || typeof client?.release !== "function") {
+        throw new Error("database bootstrap checkout evidence is invalid");
+      }
+      if (timedOut) {
+        client.release(true);
+      }
+      return client;
+    });
+  const timeout = new Promise((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      timedOut = true;
+      reject(
+        new DatabaseBootstrapControlTimeoutError(
+          `${phase}-client-checkout`,
+        ),
+      );
+    }, boundedTimeoutMs);
+  });
+  try {
+    const client = await Promise.race([checkout, timeout]);
+    if (performance.now() >= deadline) {
+      timedOut = true;
+      client.release(true);
+      throw new DatabaseBootstrapControlTimeoutError(
+        `${phase}-client-checkout`,
+      );
+    }
+    return client;
+  } finally {
+    if (timeoutHandle !== undefined) clearTimeout(timeoutHandle);
+  }
+}
+
+export async function terminateAndDrainManagedLoginRoleSessions(
+  client,
+  {
+    timeoutMs = MAX_SESSION_DRAIN_MS,
+    queryTimeoutMs = MAX_SESSION_DRAIN_MS,
+    now = () => performance.now(),
+  } = {},
+) {
+  if (
+    !Number.isFinite(timeoutMs) ||
+    timeoutMs <= 0 ||
+    typeof now !== "function"
+  ) {
+    throw new RangeError(
+      "database role session drain timeout must be positive and finite",
+    );
+  }
+  const startedAt = now();
+  if (!Number.isFinite(startedAt)) {
+    throw new Error("database role session drain clock is invalid");
+  }
+  const deadline = startedAt + Math.min(timeoutMs, MAX_SESSION_DRAIN_MS);
+  const remainingQueryTimeoutMs = () => {
+    const observedAt = now();
+    if (!Number.isFinite(observedAt)) {
+      throw new Error("database role session drain clock is invalid");
+    }
+    if (observedAt >= deadline) {
+      throw new Error("database role sessions remain active");
+    }
+    return Math.min(
+      queryTimeoutMs,
+      Math.max(1, deadline - observedAt),
+    );
+  };
+  while (true) {
+    await boundedDatabaseBootstrapControlOperation(
+      () =>
+        client.query(
+          `select pg_catalog.pg_terminate_backend(activity.pid)
+             from pg_catalog.pg_stat_activity activity
+            where activity.usename = any($1::text[])
+              and activity.pid <> pg_catalog.pg_backend_pid()`,
+          [LOGIN_ROLES],
+        ),
+      remainingQueryTimeoutMs(),
+      "managed-role-session-termination",
+    );
+    await boundedDatabaseBootstrapControlOperation(
+      () => client.query("select pg_catalog.pg_stat_clear_snapshot()"),
+      remainingQueryTimeoutMs(),
+      "managed-role-session-snapshot-clear",
+    );
+    const result = await boundedDatabaseBootstrapControlOperation(
+      () =>
+        client.query(
+          `select count(*)::integer remaining
+             from pg_catalog.pg_stat_activity activity
+            where activity.usename = any($1::text[])
+              and activity.pid <> pg_catalog.pg_backend_pid()`,
+          [LOGIN_ROLES],
+        ),
+      remainingQueryTimeoutMs(),
+      "managed-role-session-observation",
+    );
+    if (now() >= deadline) {
+      throw new Error("database role sessions remain active");
+    }
+    const remaining = result.rows[0]?.remaining;
+    if (
+      result.rows.length !== 1 ||
+      !Number.isInteger(remaining) ||
+      remaining < 0
+    ) {
+      throw new Error("database role session evidence is invalid");
+    }
+    if (remaining === 0) return true;
+    await new Promise((resolve) =>
+      setTimeout(
+        resolve,
+        Math.min(
+          SESSION_DRAIN_POLL_MS,
+          Math.max(1, deadline - now()),
+        ),
+      ),
+    );
+  }
+}
+
+const DATABASE_BOOTSTRAP_COMMIT_PHASES = new Set([
+  "authentication-gate",
+  "activation",
+]);
+
+class DatabaseBootstrapCommitOutcomeUncertainError extends Error {
+  constructor(phase, cause) {
+    super(`database bootstrap ${phase} commit outcome is uncertain`, {
+      cause,
+    });
+    this.name = "DatabaseBootstrapCommitOutcomeUncertainError";
+    Object.defineProperties(this, {
+      commitOutcomeUncertain: {
+        value: true,
+        enumerable: true,
+      },
+      commitPhase: {
+        value: phase,
+        enumerable: true,
+      },
+    });
+  }
+}
+
+class DatabaseBootstrapCommitRejectedError extends Error {
+  constructor(phase) {
+    super(`database bootstrap ${phase} transaction was rolled back`);
+    this.name = "DatabaseBootstrapCommitRejectedError";
+    Object.defineProperty(this, "commitPhase", {
+      value: phase,
+      enumerable: true,
+    });
+  }
+}
+
+class DatabaseBootstrapTransactionStartOutcomeUncertainError extends Error {
+  constructor(phase, cause) {
+    super(`database bootstrap ${phase} transaction start is uncertain`, {
+      cause,
+    });
+    this.name = "DatabaseBootstrapTransactionStartOutcomeUncertainError";
+    Object.defineProperty(this, "transactionPhase", {
+      value: phase,
+      enumerable: true,
+    });
+  }
+}
+
+function isDatabaseBootstrapCommitOutcomeUncertainError(error, phase) {
+  return (
+    error instanceof DatabaseBootstrapCommitOutcomeUncertainError &&
+    error.commitPhase === phase
+  );
+}
+
+function isDatabaseBootstrapCommitRejectedError(error, phase) {
+  return (
+    error instanceof DatabaseBootstrapCommitRejectedError &&
+    error.commitPhase === phase
+  );
+}
+
+function markDatabaseBootstrapUnsafeClientOutcome(error) {
+  DATABASE_BOOTSTRAP_UNSAFE_CLIENT_OUTCOMES.add(error);
+}
+
+function isDatabaseBootstrapUnsafeClientOutcome(error) {
+  return DATABASE_BOOTSTRAP_UNSAFE_CLIENT_OUTCOMES.has(error);
+}
+
+export async function beginDatabaseBootstrapTransaction(
+  client,
+  phase,
+  { timeoutMs = MAX_SESSION_DRAIN_MS } = {},
+) {
+  if (!DATABASE_BOOTSTRAP_COMMIT_PHASES.has(phase)) {
+    throw new TypeError("database bootstrap transaction phase is invalid");
+  }
+  let result;
+  try {
+    result = await boundedDatabaseBootstrapControlOperation(
+      () => client.query("begin"),
+      timeoutMs,
+      `${phase}-begin`,
+    );
+  } catch (error) {
+    const uncertain =
+      new DatabaseBootstrapTransactionStartOutcomeUncertainError(
+        phase,
+        error,
+      );
+    markDatabaseBootstrapUnsafeClientOutcome(uncertain);
+    throw uncertain;
+  }
+  if (result?.command !== "BEGIN") {
+    const uncertain =
+      new DatabaseBootstrapTransactionStartOutcomeUncertainError(
+        phase,
+        new Error("database bootstrap BEGIN command evidence is invalid"),
+      );
+    markDatabaseBootstrapUnsafeClientOutcome(uncertain);
+    throw uncertain;
+  }
+}
+
+export async function commitDatabaseBootstrapTransaction(
+  client,
+  phase,
+  { timeoutMs = MAX_SESSION_DRAIN_MS } = {},
+) {
+  if (!DATABASE_BOOTSTRAP_COMMIT_PHASES.has(phase)) {
+    throw new TypeError("database bootstrap commit phase is invalid");
+  }
+  let result;
+  try {
+    result = await boundedDatabaseBootstrapControlOperation(
+      () => client.query("commit"),
+      timeoutMs,
+      `${phase}-commit`,
+    );
+  } catch (error) {
+    throw new DatabaseBootstrapCommitOutcomeUncertainError(phase, error);
+  }
+  if (result?.command === "COMMIT") return;
+  if (result?.command === "ROLLBACK") {
+    throw new DatabaseBootstrapCommitRejectedError(phase);
+  }
+  throw new DatabaseBootstrapCommitOutcomeUncertainError(
+    phase,
+    new Error("database bootstrap COMMIT command evidence is invalid"),
+  );
+}
+
+export async function readDatabaseAuthenticationFenceSettings(client) {
+  const result = await client.query(`
+    select ceil(
+             extract(
+               epoch from pg_catalog.current_setting('authentication_timeout')
+                 ::pg_catalog.interval
+             ) * 1000
+           )::integer authentication_timeout_ms,
+           ceil(
+             extract(
+               epoch from pg_catalog.current_setting('pre_auth_delay')
+                 ::pg_catalog.interval
+             ) * 1000
+           )::integer pre_auth_delay_ms,
+           ceil(
+             extract(
+               epoch from pg_catalog.current_setting('post_auth_delay')
+                 ::pg_catalog.interval
+             ) * 1000
+           )::integer post_auth_delay_ms,
+           pg_catalog.current_setting('server_version_num')::integer
+             server_version_num`);
+  const row = result.rows[0];
+  if (
+    result.rows.length !== 1 ||
+    !Number.isInteger(row?.authentication_timeout_ms) ||
+    row.authentication_timeout_ms <= 0 ||
+    row.authentication_timeout_ms > MAX_AUTHENTICATION_TIMEOUT_MS ||
+    row?.pre_auth_delay_ms !== 0 ||
+    row?.post_auth_delay_ms !== 0 ||
+    !Number.isInteger(row?.server_version_num) ||
+    row.server_version_num < 170_000 ||
+    row.server_version_num >= 190_000
+  ) {
+    throw new Error("database authentication fence evidence is invalid");
+  }
+  return {
+    authenticationTimeoutMs: row.authentication_timeout_ms,
+    preAuthDelayMs: row.pre_auth_delay_ms,
+    postAuthDelayMs: row.post_auth_delay_ms,
+    serverVersionNum: row.server_version_num,
+  };
+}
+
+function assertSameDatabaseAuthenticationFenceSettings(before, after) {
+  if (
+    before.authenticationTimeoutMs !== after.authenticationTimeoutMs ||
+    before.preAuthDelayMs !== after.preAuthDelayMs ||
+    before.postAuthDelayMs !== after.postAuthDelayMs ||
+    before.serverVersionNum !== after.serverVersionNum
+  ) {
+    throw new Error("database authentication fence settings changed");
+  }
+}
+
+export async function verifyNoExternalManagedRoleSetPaths(client) {
+  const result = await client.query(
+    `select principal.rolname principal_role,
+            managed.rolname managed_role
+       from pg_catalog.pg_roles principal
+       join pg_catalog.pg_roles managed
+         on managed.rolname = any($1::text[])
+      where principal.rolcanlogin
+        and not principal.rolsuper
+        and principal.rolname <> all($1::text[])
+        and pg_catalog.pg_has_role(
+              principal.oid,
+              managed.oid,
+              'SET'
+            )
+      order by principal.rolname, managed.rolname`,
+    [MANAGED_ROLES],
+  );
+  if (result.rows.length !== 0) {
+    throw new Error(
+      "unexpected external SET ROLE authority reaches a managed role",
+    );
+  }
+  return true;
+}
+
+async function verifyManagedRoleAuthenticationGate(client) {
+  const result = await client.query(
+    `select auth.rolname,
+            auth.rolcanlogin,
+            auth.rolpassword is null password_is_null,
+            coalesce(
+              auth.rolpassword like 'SCRAM-SHA-256$%',
+              false
+            ) password_is_scram,
+            auth.rolsuper,
+            auth.rolcreatedb,
+            auth.rolcreaterole,
+            auth.rolinherit,
+            auth.rolreplication,
+            auth.rolbypassrls,
+            auth.rolconnlimit
+       from pg_catalog.pg_authid auth
+      where auth.rolname = any($1::text[])
+      order by auth.rolname`,
+    [MANAGED_ROLES],
+  );
+  const expectedNames = [...MANAGED_ROLES].sort();
+  if (
+    result.rows.length !== expectedNames.length ||
+    result.rows.some((row, index) => {
+      const isOwner = row?.rolname === OWNER_ROLE;
+      return (
+        row?.rolname !== expectedNames[index] ||
+        row?.rolcanlogin !== false ||
+        row?.password_is_null !== true ||
+        row?.password_is_scram !== false ||
+        row?.rolsuper !== false ||
+        row?.rolcreatedb !== false ||
+        row?.rolcreaterole !== false ||
+        row?.rolinherit !== false ||
+        row?.rolreplication !== false ||
+        row?.rolbypassrls !== false ||
+        row?.rolconnlimit !== -1 ||
+        (isOwner && row?.rolcanlogin !== false)
+      );
+    })
+  ) {
+    throw new Error("database managed-role authentication gate is invalid");
+  }
+  return true;
+}
+
+async function rollbackAuthenticationGateTransaction(
+  client,
+  primaryError,
+  timeoutMs,
+) {
+  try {
+    await boundedCleanupOperation(
+      () => client.query("rollback"),
+      timeoutMs,
+      "authentication-gate-rollback",
+    );
+  } catch (rollbackError) {
+    const failure = new AggregateError(
+      [primaryError, rollbackError],
+      "database authentication gate failed and rollback was incomplete",
+      { cause: primaryError },
+    );
+    markDatabaseBootstrapUnsafeClientOutcome(failure);
+    throw failure;
+  }
+  throw primaryError;
+}
+
+export async function commitManagedRoleAuthenticationGate(
+  client,
+  { rollbackTimeoutMs = DEFAULT_CLEANUP_TIMEOUT_MS } = {},
+) {
+  const normalizedRollbackTimeoutMs =
+    normalizeCleanupTimeoutMs(rollbackTimeoutMs);
+  let transactionOpen = false;
+  let commitAttempted = false;
+  try {
+    await beginDatabaseBootstrapTransaction(client, "authentication-gate");
+    transactionOpen = true;
+    await createAndQuarantineManagedRoles(client);
+    await verifyManagedRoleAuthenticationGate(client);
+    commitAttempted = true;
+    await commitDatabaseBootstrapTransaction(client, "authentication-gate");
+    transactionOpen = false;
+  } catch (error) {
+    if (
+      commitAttempted &&
+      isDatabaseBootstrapCommitOutcomeUncertainError(
+        error,
+        "authentication-gate",
+      )
+    ) {
+      markDatabaseBootstrapUnsafeClientOutcome(error);
+      throw error;
+    }
+    if (
+      commitAttempted &&
+      isDatabaseBootstrapCommitRejectedError(error, "authentication-gate")
+    ) {
+      transactionOpen = false;
+      throw error;
+    }
+    if (transactionOpen) {
+      await rollbackAuthenticationGateTransaction(
+        client,
+        error,
+        normalizedRollbackTimeoutMs,
+      );
+    }
+    throw error;
+  }
+  return verifyManagedRoleAuthenticationGate(client);
+}
+
+function validateAuthenticationFenceDependencies(dependencies) {
+  const now = dependencies.now ?? (() => performance.now());
+  const sleep =
+    dependencies.sleep ??
+    ((milliseconds) =>
+      new Promise((resolve) => setTimeout(resolve, milliseconds)));
+  const pollMs = dependencies.pollMs ?? SESSION_DRAIN_POLL_MS;
+  const safetyMarginMs =
+    dependencies.safetyMarginMs ?? AUTHENTICATION_FENCE_SAFETY_MARGIN_MS;
+  const finalDrainMs = dependencies.finalDrainMs ?? MAX_SESSION_DRAIN_MS;
+  const queryTimeoutMs =
+    dependencies.queryTimeoutMs ?? MAX_SESSION_DRAIN_MS;
+  if (
+    typeof now !== "function" ||
+    typeof sleep !== "function" ||
+    !Number.isFinite(pollMs) ||
+    pollMs <= 0 ||
+    !Number.isFinite(safetyMarginMs) ||
+    safetyMarginMs < 0 ||
+    !Number.isFinite(finalDrainMs) ||
+    finalDrainMs <= 0 ||
+    !Number.isFinite(queryTimeoutMs) ||
+    queryTimeoutMs <= 0
+  ) {
+    throw new TypeError(
+      "database authentication fence dependencies are invalid",
+    );
+  }
+  return {
+    now,
+    sleep,
+    pollMs,
+    safetyMarginMs,
+    finalDrainMs,
+    queryTimeoutMs,
+  };
+}
+
+export async function exhaustManagedRoleAuthenticationFence(
+  client,
+  settings,
+  dependencies = {},
+) {
+  if (
+    !Number.isInteger(settings?.authenticationTimeoutMs) ||
+    settings.authenticationTimeoutMs <= 0 ||
+    settings.authenticationTimeoutMs > MAX_AUTHENTICATION_TIMEOUT_MS ||
+    !Number.isInteger(settings?.serverVersionNum) ||
+    settings.serverVersionNum < 170_000 ||
+    settings.serverVersionNum >= 190_000
+  ) {
+    throw new TypeError("database authentication fence settings are invalid");
+  }
+  const {
+    now,
+    sleep,
+    pollMs,
+    safetyMarginMs,
+    finalDrainMs,
+    queryTimeoutMs,
+  } = validateAuthenticationFenceDependencies(dependencies);
+  const startedAt = now();
+  if (!Number.isFinite(startedAt)) {
+    throw new Error("database authentication fence clock is invalid");
+  }
+  const horizon = startedAt + settings.authenticationTimeoutMs + safetyMarginMs;
+  const hardDeadline = horizon + finalDrainMs;
+  let lastObservedAt = startedAt;
+  const remainingQueryTimeoutMs = () => {
+    const observedAt = now();
+    if (
+      !Number.isFinite(observedAt) ||
+      observedAt < lastObservedAt
+    ) {
+      throw new Error("database authentication fence clock is invalid");
+    }
+    if (observedAt >= hardDeadline) {
+      throw new Error("database authentication fence did not drain");
+    }
+    return Math.min(
+      queryTimeoutMs,
+      Math.max(1, hardDeadline - observedAt),
+    );
+  };
+
+  while (true) {
+    await boundedDatabaseBootstrapControlOperation(
+      () =>
+        client.query(
+          `select pg_catalog.pg_terminate_backend(activity.pid)
+             from pg_catalog.pg_stat_activity activity
+            where activity.pid <> pg_catalog.pg_backend_pid()
+              and activity.usename = any($1::text[])`,
+          [MANAGED_ROLES],
+        ),
+      remainingQueryTimeoutMs(),
+      "authentication-fence-session-termination",
+    );
+    await boundedDatabaseBootstrapControlOperation(
+      () => client.query("select pg_catalog.pg_stat_clear_snapshot()"),
+      remainingQueryTimeoutMs(),
+      "authentication-fence-snapshot-clear",
+    );
+    const result = await boundedDatabaseBootstrapControlOperation(
+      () =>
+        client.query(
+          `select count(*)::integer remaining
+             from pg_catalog.pg_stat_activity activity
+            where activity.pid <> pg_catalog.pg_backend_pid()
+              and activity.usename = any($1::text[])`,
+          [MANAGED_ROLES],
+        ),
+      remainingQueryTimeoutMs(),
+      "authentication-fence-session-observation",
+    );
+    const remaining = result.rows[0]?.remaining;
+    if (
+      result.rows.length !== 1 ||
+      !Number.isInteger(remaining) ||
+      remaining < 0
+    ) {
+      throw new Error("database authentication fence evidence is invalid");
+    }
+    const observedAt = now();
+    if (
+      !Number.isFinite(observedAt) ||
+      observedAt < lastObservedAt ||
+      observedAt > hardDeadline
+    ) {
+      throw new Error("database authentication fence clock is invalid");
+    }
+    lastObservedAt = observedAt;
+    if (observedAt >= hardDeadline) {
+      throw new Error("database authentication fence did not drain");
+    }
+    if (observedAt >= horizon && remaining === 0) return true;
+    await sleep(
+      Math.min(
+        pollMs,
+        Math.max(
+          1,
+          (observedAt < horizon ? horizon : hardDeadline) - observedAt,
+        ),
+      ),
+    );
+  }
+}
+
+export async function installManagedLoginRolePasswordsAndEnable(
+  client,
+  rolePasswords,
+) {
+  for (const role of LOGIN_ROLES) {
+    if (typeof rolePasswords?.[role]?.password !== "string") {
+      throw invalidCredentialConfiguration();
+    }
+  }
+  await client.query("set local log_parameter_max_length = 0");
+  await client.query("set local log_parameter_max_length_on_error = 0");
   await client.query("set local password_encryption = 'scram-sha-256'");
   for (const role of LOGIN_ROLES) {
     await client.query(
-      "select pg_terminate_backend(pid) from pg_stat_activity where usename = $1 and pid <> pg_backend_pid()",
-      [role],
-    );
-    await client.query(
-      "select set_config('codestead.role_password', $1, true)",
-      [roles[role].password],
+      "select pg_catalog.set_config('codestead.role_password', $1, true)",
+      [rolePasswords[role].password],
     );
     await client.query(`
       do $codestead$
       begin
-        execute format(
-          'alter role ${role} password %L',
-          current_setting('codestead.role_password')
+        execute pg_catalog.format(
+          'alter role ${role} login password %L valid until ''infinity''',
+          pg_catalog.current_setting('codestead.role_password')
         );
       end
       $codestead$`);
   }
-  const deadline = performance.now() + MAX_SESSION_DRAIN_MS;
-  while (true) {
-    await client.query("select pg_stat_clear_snapshot()");
-    const remaining = await client.query(
-      `select count(*)::integer remaining
-         from pg_stat_activity
-        where usename = any($1::text[])
-          and pid <> pg_backend_pid()`,
-      [LOGIN_ROLES],
-    );
-    if (remaining.rows[0]?.remaining === 0) break;
-    if (performance.now() >= deadline) {
-      throw new Error("database role sessions remain active");
-    }
-    await new Promise((resolve) => setTimeout(resolve, SESSION_DRAIN_POLL_MS));
-  }
 }
 
-async function transferApplicationOwnership(client, phase) {
-  const reviewedSignatures = reviewedPhaseRoutines(phase)
-    .map((routine) => sqlLiteral(routine.signature))
-    .join(", ");
-  await client.query(`
-    do $codestead$
-    declare object record;
-    begin
-      execute format('alter database %I owner to learncoding_owner', current_database());
-      alter schema public owner to learncoding_owner;
-      if exists (select 1 from pg_namespace where nspname = 'drizzle') then
-        alter schema drizzle owner to learncoding_owner;
-      end if;
+async function installDatabaseBootstrapTransactionGuard(
+  client,
+  nonce = randomBytes(32).toString("hex"),
+) {
+  if (!/^[0-9a-f]{64}$/u.test(nonce)) {
+    throw new TypeError("database bootstrap transaction nonce is invalid");
+  }
+  const result = await client.query(
+    `select pg_catalog.set_config(
+              'codestead.bootstrap_transaction_nonce',
+              $1,
+              true
+            ) transaction_nonce,
+            pg_catalog.count(*)::integer administration_lock_count
+       from pg_catalog.pg_locks locks
+      where locks.locktype = 'advisory'
+        and locks.pid = pg_catalog.pg_backend_pid()
+        and locks.granted
+        and locks.objsubid = 1
+        and locks.classid =
+              (
+                (
+                  pg_catalog.hashtextextended($2, 0) >> 32
+                ) & 4294967295
+              )::oid
+        and locks.objid =
+              (
+                pg_catalog.hashtextextended($2, 0) & 4294967295
+              )::oid`,
+    [nonce, DATABASE_ADMIN_LOCK_NAME],
+  );
+  const row = result.rows[0];
+  if (
+    result.rows.length !== 1 ||
+    row?.transaction_nonce !== nonce ||
+    row?.administration_lock_count !== 1
+  ) {
+    throw new Error("database bootstrap transaction guard installation failed");
+  }
+  return nonce;
+}
 
-      for object in
-        select n.nspname, c.relname, c.relkind
-          from pg_class c
-          join pg_namespace n on n.oid = c.relnamespace
-         where n.nspname in ('public', 'drizzle')
-           and c.relkind in ('r', 'p', 'S', 'v', 'm', 'f', 'c')
-           and not (
-             n.nspname = 'public'
-             and c.relname = 'email_outbox'
-             and c.relkind in ('r', 'p')
-             and exists (
-               select 1
-                 from pg_catalog.pg_attribute reviewed_column
-                where reviewed_column.attrelid = c.oid
-                  and reviewed_column.attnum > 0
-                  and not reviewed_column.attisdropped
-                  and reviewed_column.attname like 'dispatch_binding_%'
-             )
-           )
-         order by n.nspname, c.relname
-      loop
-        execute format(
-          case object.relkind
-            when 'S' then 'alter sequence %I.%I owner to learncoding_owner'
-            when 'v' then 'alter view %I.%I owner to learncoding_owner'
-            when 'm' then 'alter materialized view %I.%I owner to learncoding_owner'
-            when 'f' then 'alter foreign table %I.%I owner to learncoding_owner'
-            when 'c' then 'alter type %I.%I owner to learncoding_owner'
-            else 'alter table %I.%I owner to learncoding_owner'
-          end,
-          object.nspname,
-          object.relname
-        );
-      end loop;
-
-      for object in
-        select n.nspname, p.proname, p.prokind,
-               pg_get_function_identity_arguments(p.oid) identity_arguments
-          from pg_proc p
-          join pg_namespace n on n.oid = p.pronamespace
-         where n.nspname in ('public', 'drizzle')
-           and not exists (
-             select 1
-               from pg_catalog.unnest(
-                 array[${reviewedSignatures}]::text[]
-               ) reviewed(signature)
-              where pg_catalog.to_regprocedure(reviewed.signature) = p.oid
-           )
-         order by n.nspname, p.proname, p.oid
-      loop
-        execute format(
-          case object.prokind
-            when 'p' then 'alter procedure %I.%I(%s) owner to learncoding_owner'
-            when 'a' then 'alter aggregate %I.%I(%s) owner to learncoding_owner'
-            else 'alter function %I.%I(%s) owner to learncoding_owner'
-          end,
-          object.nspname,
-          object.proname,
-          object.identity_arguments
-        );
-      end loop;
-
-      for object in
-        select n.nspname, t.typname
-          from pg_type t
-          join pg_namespace n on n.oid = t.typnamespace
-         where n.nspname in ('public', 'drizzle')
-           and t.typtype in ('d', 'e', 'r')
-         order by n.nspname, t.typname
-      loop
-        execute format(
-          'alter type %I.%I owner to learncoding_owner',
-          object.nspname,
-          object.typname
-        );
-      end loop;
-    end
-    $codestead$`);
+async function verifyDatabaseBootstrapTransactionGuard(client, nonce) {
+  const result = await client.query(
+    `select pg_catalog.current_setting(
+              'codestead.bootstrap_transaction_nonce',
+              true
+            ) transaction_nonce,
+            pg_catalog.count(*)::integer administration_lock_count
+       from pg_catalog.pg_locks locks
+      where locks.locktype = 'advisory'
+        and locks.pid = pg_catalog.pg_backend_pid()
+        and locks.granted
+        and locks.objsubid = 1
+        and locks.classid =
+              (
+                (
+                  pg_catalog.hashtextextended($2, 0) >> 32
+                ) & 4294967295
+              )::oid
+        and locks.objid =
+              (
+                pg_catalog.hashtextextended($2, 0) & 4294967295
+              )::oid`,
+    [nonce, DATABASE_ADMIN_LOCK_NAME],
+  );
+  const row = result.rows[0];
+  if (
+    result.rows.length !== 1 ||
+    row?.transaction_nonce !== nonce ||
+    row?.administration_lock_count !== 1
+  ) {
+    throw new Error("database bootstrap transaction continuity was lost");
+  }
+  return true;
 }
 
 async function reviewedMigrationJournalState(client) {
@@ -3735,164 +4475,10 @@ export function globalDefaultAclScrubSql() {
     $codestead_global_default_acl$`;
 }
 
-export async function reconcileDatabaseRolePrivileges(client, phase) {
-  const canonicalPhase = canonicalReviewedMailAuthorityCatalogPhase(phase);
-  return applyDatabaseRolePrivilegeReconciliation(client, canonicalPhase);
-}
-
-async function applyDatabaseRolePrivilegeReconciliation(
-  client,
-  canonicalPhase,
-  { verifyPreRepairContracts = true } = {},
-) {
-  if (typeof verifyPreRepairContracts !== "boolean") {
-    throw new TypeError("verifyPreRepairContracts must be boolean");
-  }
-  if (verifyPreRepairContracts) {
-    await verifyAndRepairReviewedPhaseRoutinePrivileges(client, canonicalPhase);
-    await verifyAndRepairReviewedBaselineRewardRoutinePrivileges(
-      client,
-      canonicalPhase,
-    );
-    await verifyPostMigrationReviewedContractsBeforeReconciliation(
-      client,
-      canonicalPhase,
-    );
-  }
-  await client.query(globalDefaultAclScrubSql());
-  await client.query(`
-    do $codestead$
-    begin
-      execute format('revoke all on database %I from public', current_database());
-      execute format('revoke all on database %I from learncoding_app', current_database());
-      execute format('revoke all on database %I from learncoding_worker', current_database());
-      execute format('revoke all on database %I from learncoding_ops', current_database());
-      execute format('revoke all on database %I from learncoding_migrator', current_database());
-      execute format('revoke all on database %I from learncoding_backup_reporter', current_database());
-      execute format('revoke all on database %I from current_user', current_database());
-      execute format(
-        'grant connect on database %I to learncoding_app, learncoding_worker, learncoding_ops, learncoding_migrator, learncoding_backup_reporter',
-        current_database()
-      );
-    end
-    $codestead$;
-
-    revoke all on schema public from public, pg_database_owner, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-    grant usage on schema public to learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-    revoke all on all tables in schema public from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-    grant select, insert, update, delete on all tables in schema public
-      to learncoding_app, learncoding_worker, learncoding_ops;
-    revoke all on all sequences in schema public from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-    grant usage, select, update on all sequences in schema public
-      to learncoding_app, learncoding_worker, learncoding_ops;
-    revoke execute on all routines in schema public from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-    do $codestead_types$
-    declare object record;
-    begin
-      for object in
-        select n.nspname, t.typname
-          from pg_type t
-          join pg_namespace n on n.oid = t.typnamespace
-         where n.nspname = 'public'
-           and t.typtype in ('c', 'd', 'e', 'r')
-         order by t.oid
-      loop
-        execute format(
-          'revoke usage on type %I.%I from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter',
-          object.nspname,
-          object.typname
-        );
-        execute format(
-          'grant usage on type %I.%I to learncoding_app, learncoding_worker, learncoding_ops',
-          object.nspname,
-          object.typname
-        );
-      end loop;
-    end
-    $codestead_types$;
-
-    alter default privileges for role learncoding_owner in schema public
-      revoke all on tables from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
-    alter default privileges for role learncoding_owner in schema public
-      revoke all on sequences from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
-    alter default privileges for role learncoding_owner in schema public
-      revoke all on routines from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
-    alter default privileges for role current_user in schema public revoke all on tables from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
-    alter default privileges for role current_user in schema public revoke all on sequences from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
-    alter default privileges for role current_user in schema public revoke execute on routines from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
-    alter default privileges for role current_user in schema public revoke usage on types from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
-    alter default privileges for role learncoding_owner in schema public
-      revoke all on types from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
-    alter default privileges for role learncoding_owner in schema public
-      grant select, insert, update, delete on tables to learncoding_app, learncoding_worker, learncoding_ops;
-    alter default privileges for role learncoding_owner in schema public
-      grant usage, select, update on sequences to learncoding_app, learncoding_worker, learncoding_ops;
-    alter default privileges for role learncoding_owner in schema public
-      grant usage on types to learncoding_app, learncoding_worker, learncoding_ops`);
-
-  await client.query(managedColumnAclScrubSql());
-  await client.query(reviewedApplicationFunctionPrivilegesSql(canonicalPhase));
-
-  const emailOutbox = await client.query(
-    "select to_regclass('public.email_outbox') is not null present",
-  );
-  if (emailOutbox.rows[0]?.present === true) {
-    await client.query(mailWorkerOutboxPrivilegesSql());
-  }
-
-  await client.query(mailDeliveryReleasePrivilegesSql());
-
-  await client.query(mailReplayAuthorityPrivilegesSql());
-  await reconcileBackupStatusAuthorityPrivileges(client, canonicalPhase);
-
-  const drizzleExists = await client.query(
-    "select exists(select 1 from pg_namespace where nspname = 'drizzle') present",
-  );
-  if (drizzleExists.rows[0]?.present === true) {
-    await client.query(`
-      revoke all on schema drizzle from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-      revoke all on all tables in schema drizzle from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-      revoke all on all sequences in schema drizzle from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-      revoke execute on all routines in schema drizzle from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter;
-      do $codestead_types$
-      declare object record;
-      begin
-        for object in
-          select n.nspname, t.typname
-            from pg_type t
-            join pg_namespace n on n.oid = t.typnamespace
-           where n.nspname = 'drizzle'
-             and t.typtype in ('c', 'd', 'e', 'r')
-           order by t.oid
-        loop
-          execute format(
-            'revoke usage on type %I.%I from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter',
-            object.nspname,
-            object.typname
-          );
-        end loop;
-      end
-      $codestead_types$;
-      alter default privileges for role learncoding_owner in schema drizzle
-        revoke all on tables from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
-      alter default privileges for role learncoding_owner in schema drizzle
-        revoke all on sequences from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
-      alter default privileges for role learncoding_owner in schema drizzle
-        revoke all on routines from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
-      alter default privileges for role learncoding_owner in schema drizzle
-        revoke all on types from public, learncoding_owner, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
-      alter default privileges for role current_user in schema drizzle revoke all on tables from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
-      alter default privileges for role current_user in schema drizzle revoke all on sequences from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
-      alter default privileges for role current_user in schema drizzle revoke execute on routines from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade;
-      alter default privileges for role current_user in schema drizzle revoke usage on types from public, current_user, learncoding_migrator, learncoding_app, learncoding_worker, learncoding_ops, learncoding_backup_reporter cascade`);
-  }
-}
-
-async function reconcileRestoredNoAclDatabaseRolePrivileges(client, phase) {
-  const canonicalPhase = canonicalReviewedMailAuthorityCatalogPhase(phase);
-  return applyDatabaseRolePrivilegeReconciliation(client, canonicalPhase, {
-    verifyPreRepairContracts: false,
-  });
+// Compatibility export: the legacy blanket authority path is permanently disabled.
+export async function reconcileDatabaseRolePrivileges(_client, phase) {
+  canonicalReviewedMailAuthorityCatalogPhase(phase);
+  throw databaseRoleBootstrapInvariantError("legacy-reconciliation-disabled");
 }
 
 function databaseRoleBootstrapInvariantError(section, details = []) {
@@ -4909,6 +5495,7 @@ async function collectDatabaseBootstrapCleanupFailures({
   pool,
   transactionOpen,
   lockAcquired,
+  lockName = DATABASE_ADMIN_LOCK_NAME,
   destroyClient = false,
   timeoutMs = DEFAULT_CLEANUP_TIMEOUT_MS,
 }) {
@@ -4936,8 +5523,8 @@ async function collectDatabaseBootstrapCleanupFailures({
       const unlock = await boundedCleanupOperation(
         () =>
           client.query(
-            "select pg_advisory_unlock(hashtextextended($1, 0)) released",
-            [DATABASE_ADMIN_LOCK_NAME],
+            "select pg_catalog.pg_advisory_unlock(pg_catalog.hashtextextended($1, 0)) released",
+            [lockName],
           ),
         boundedTimeoutMs,
         "advisory unlock",
@@ -4988,14 +5575,17 @@ export async function cleanupRestoredNoAclMaintenanceResources({
   pool,
   databaseReenabled,
   operationFailed,
+  lockAcquired = false,
+  destroyClient = operationFailed || !databaseReenabled,
   timeoutMs,
 }) {
   const cleanupFailures = await collectDatabaseBootstrapCleanupFailures({
     client,
     pool,
     transactionOpen: false,
-    lockAcquired: false,
-    destroyClient: operationFailed || !databaseReenabled,
+    lockAcquired,
+    lockName: DATABASE_CLUSTER_ROLE_ADMIN_LOCK_NAME,
+    destroyClient,
     timeoutMs,
   });
   if (databaseReenabled && cleanupFailures.length > 0) {
@@ -5203,7 +5793,7 @@ async function verifyRestoredNoAclStructureBeforeReconciliation(client, phase) {
   }
 }
 
-function restoreMaintenanceConnectionString(connectionString) {
+export function databaseAdministrationConnectionString(connectionString) {
   const url = new URL(connectionString);
   url.pathname = "/postgres";
   return url.href;
@@ -5361,6 +5951,10 @@ export function validateRestoredNoAclMaintenanceIdentity(
   }
 }
 export async function runDatabaseRoleBootstrap(options) {
+  const requestedCapabilityPhase = options.databaseRuntimeCapabilityPhase;
+  assertBootstrapDatabaseRuntimeCapabilityPhaseRequest(
+    requestedCapabilityPhase,
+  );
   const bootstrapMode = options.bootstrapMode ?? "strict";
   if (bootstrapMode !== "strict" && bootstrapMode !== "restored-no-acl") {
     throw new TypeError("database bootstrap mode is invalid");
@@ -5411,41 +6005,85 @@ export async function runDatabaseRoleBootstrap(options) {
     );
   }
   const parsed = validateDatabaseRoleUrls(options);
+  if (
+    bootstrapMode === "strict" &&
+    (options.pool === undefined) !==
+      (options.clusterAdministrationPool === undefined)
+  ) {
+    throw new Error(
+      "strict bootstrap requires paired target and cluster administration pools",
+    );
+  }
+  if (
+    bootstrapMode === "strict" &&
+    options.pool !== undefined &&
+    options.pool === options.clusterAdministrationPool
+  ) {
+    throw new Error(
+      "strict target and cluster administration pools must be distinct",
+    );
+  }
+  if (
+    bootstrapMode === "restored-no-acl" &&
+    options.clusterAdministrationPool !== undefined
+  ) {
+    throw new Error(
+      "restored-no-acl bootstrap uses the restore maintenance pool for cluster administration",
+    );
+  }
   const verifyAppliedMigrationLedger =
     options.verifyAppliedMigrationLedger ??
     verifyAppliedMigrationLedgerContract;
   const cleanupTimeoutMs = normalizeCleanupTimeoutMs(
     options.cleanupTimeoutMs ?? DEFAULT_CLEANUP_TIMEOUT_MS,
   );
+  const rolePasswords = {
+    [MIGRATOR_ROLE]: parsed.migrator,
+    [APP_ROLE]: parsed.app,
+    [WORKER_ROLE]: parsed.worker,
+    [OPS_ROLE]: parsed.ops,
+    [BACKUP_REPORTER_ROLE]: parsed.backupReporter,
+  };
   const pool =
     options.pool ??
-    new Pool({ connectionString: parsed.bootstrap.connectionString, max: 1 });
-  const restoreMaintenancePool =
-    bootstrapMode === "restored-no-acl"
-      ? (options.restoreMaintenancePool ??
-        new Pool({
-          connectionString: restoreMaintenanceConnectionString(
-            parsed.bootstrap.connectionString,
-          ),
-          connectionTimeoutMillis: cleanupTimeoutMs,
-          max: 1,
-          query_timeout: MAX_SESSION_DRAIN_MS,
-        }))
-      : undefined;
+    new Pool({
+      ...DATABASE_BOOTSTRAP_POOL_POLICY,
+      connectionString: parsed.bootstrap.connectionString,
+      max: 1,
+    });
+  const clusterAdministrationPool =
+    (bootstrapMode === "restored-no-acl"
+      ? options.restoreMaintenancePool
+      : options.clusterAdministrationPool) ??
+    new Pool({
+      ...DATABASE_BOOTSTRAP_POOL_POLICY,
+      connectionString: databaseAdministrationConnectionString(
+        parsed.bootstrap.connectionString,
+      ),
+      max: 1,
+    });
   let client;
-  let restoreMaintenanceClient;
+  let clusterAdministrationClient;
   let lockAcquired = false;
+  let clusterLockAcquired = false;
   let transactionOpen = false;
   let destroyClient = false;
+  let destroyClusterAdministrationClient = false;
+  let clientQueryUnsafe = false;
   let operationFailed = false;
   let operationFailure;
   let bootstrapResult;
   let databaseReenabled = false;
   let restoredReadyForReenable = false;
   let restoredTargetBackendPid;
+  let lockedCapabilityResolution;
 
   try {
-    client = await pool.connect();
+    client = await checkoutDatabaseBootstrapClient(pool, "target", {
+      timeoutMs:
+        options.checkoutTimeoutMs ??
+        DATABASE_BOOTSTRAP_POOL_POLICY.connectionTimeoutMillis,
+    });
     await client.query(
       "select pg_catalog.set_config('search_path', 'pg_catalog,pg_temp', false) trusted_search_path",
     );
@@ -5456,42 +6094,128 @@ export async function runDatabaseRoleBootstrap(options) {
       identityRow?.current_user !== options.postgresUser ||
       identityRow?.current_database !== options.postgresDatabase ||
       identityRow?.rolsuper !== true ||
-      (bootstrapMode === "restored-no-acl" &&
-        (!Number.isInteger(identityRow?.backend_pid) ||
-          identityRow.backend_pid <= 0))
+      !Number.isInteger(identityRow?.backend_pid) ||
+      identityRow.backend_pid <= 0
     ) {
       throw new Error("database bootstrap authority verification failed");
     }
-    if (bootstrapMode === "restored-no-acl") {
-      restoreMaintenanceClient = await restoreMaintenancePool.connect();
-      const maintenanceIdentity = await restoreMaintenanceClient.query(
-        DATABASE_BOOTSTRAP_IDENTITY_SQL,
-      );
-      validateRestoredNoAclMaintenanceIdentity(
-        identityRow,
-        maintenanceIdentity.rows.length === 1
-          ? maintenanceIdentity.rows[0]
-          : undefined,
-        options.postgresUser,
-      );
-      await proveRestoredNoAclMaintenanceSameInstance(
-        client,
-        restoreMaintenanceClient,
-      );
-    }
+    clusterAdministrationClient = await checkoutDatabaseBootstrapClient(
+      clusterAdministrationPool,
+      "cluster-administration",
+      {
+        timeoutMs:
+          options.checkoutTimeoutMs ??
+          DATABASE_BOOTSTRAP_POOL_POLICY.connectionTimeoutMillis,
+      },
+    );
+    await clusterAdministrationClient.query(
+      "select pg_catalog.set_config('search_path', 'pg_catalog,pg_temp', false) trusted_search_path",
+    );
+    const maintenanceIdentity = await clusterAdministrationClient.query(
+      DATABASE_BOOTSTRAP_IDENTITY_SQL,
+    );
+    validateRestoredNoAclMaintenanceIdentity(
+      identityRow,
+      maintenanceIdentity.rows.length === 1
+        ? maintenanceIdentity.rows[0]
+        : undefined,
+      options.postgresUser,
+    );
+    await proveRestoredNoAclMaintenanceSameInstance(
+      client,
+      clusterAdministrationClient,
+    );
 
-    await acquireAdministrationLock(client, options.lockTimeoutMs);
+    const preLockCapabilityResolution =
+      await resolveBootstrapDatabaseRuntimeCapabilityPhase(client, {
+        requestedPhase: requestedCapabilityPhase,
+        requireComplete: requireCompleteMigrationLedger,
+      });
+    const lockDeadline = createDatabaseAdministrationLockDeadline(
+      options.lockTimeoutMs,
+    );
+    try {
+      await acquireDatabaseAdministrationLock(
+        clusterAdministrationClient,
+        DATABASE_CLUSTER_ROLE_ADMIN_LOCK_NAME,
+        lockDeadline,
+      );
+      clusterLockAcquired = true;
+    } catch (error) {
+      destroyClusterAdministrationClient = true;
+      throw error;
+    }
+    try {
+      await acquireDatabaseAdministrationLock(
+        client,
+        DATABASE_ADMIN_LOCK_NAME,
+        lockDeadline,
+      );
+    } catch (error) {
+      destroyClient = true;
+      throw error;
+    }
     lockAcquired = true;
+    lockedCapabilityResolution =
+      await resolveBootstrapDatabaseRuntimeCapabilityPhase(client, {
+        requestedPhase: requestedCapabilityPhase,
+        requireComplete: requireCompleteMigrationLedger,
+      });
+    assertSameBootstrapDatabaseRuntimeCapabilityPhase(
+      preLockCapabilityResolution,
+      lockedCapabilityResolution,
+      "pre-lock-phase-drift",
+    );
     if (bootstrapMode === "restored-no-acl") {
       restoredTargetBackendPid = identityRow.backend_pid;
       await quarantineRestoredNoAclDatabase(
-        restoreMaintenanceClient,
+        clusterAdministrationClient,
         options.postgresDatabase,
         identityRow.backend_pid,
       );
     }
-    await client.query("begin");
+    const preGateAuthenticationFenceSettings =
+      await readDatabaseAuthenticationFenceSettings(client);
+    const preGateInventory = await loadOwnershipInventory(
+      client,
+      options.postgresUser,
+      options.postgresDatabase,
+    );
+    validateOwnershipInventory(preGateInventory);
+    await verifyNoExternalManagedRoleSetPaths(client);
+    await commitManagedRoleAuthenticationGate(client);
+    const committedAuthenticationFenceSettings =
+      await readDatabaseAuthenticationFenceSettings(client);
+    assertSameDatabaseAuthenticationFenceSettings(
+      preGateAuthenticationFenceSettings,
+      committedAuthenticationFenceSettings,
+    );
+    await exhaustManagedRoleAuthenticationFence(
+      client,
+      committedAuthenticationFenceSettings,
+    );
+    const postHorizonAuthenticationFenceSettings =
+      await readDatabaseAuthenticationFenceSettings(client);
+    assertSameDatabaseAuthenticationFenceSettings(
+      committedAuthenticationFenceSettings,
+      postHorizonAuthenticationFenceSettings,
+    );
+    await verifyManagedRoleAuthenticationGate(client);
+    await verifyNoExternalManagedRoleSetPaths(client);
+    await beginDatabaseBootstrapTransaction(client, "activation");
     transactionOpen = true;
+    const finalTransactionNonce =
+      await installDatabaseBootstrapTransactionGuard(client);
+    const transactionCapabilityResolution =
+      await resolveBootstrapDatabaseRuntimeCapabilityPhase(client, {
+        requestedPhase: requestedCapabilityPhase,
+        requireComplete: requireCompleteMigrationLedger,
+      });
+    assertSameBootstrapDatabaseRuntimeCapabilityPhase(
+      lockedCapabilityResolution,
+      transactionCapabilityResolution,
+      "transaction-phase-drift",
+    );
     await verifyAppliedMigrationLedger(client, {
       requireComplete: requireCompleteMigrationLedger,
     });
@@ -5508,7 +6232,7 @@ export async function runDatabaseRoleBootstrap(options) {
         client,
         reviewedPhase,
       );
-    } else {
+    } else if (lockedCapabilityResolution.reconcileApplicationAcls) {
       await verifyAndRepairReviewedPhaseRoutinePrivileges(
         client,
         reviewedPhase,
@@ -5524,46 +6248,85 @@ export async function runDatabaseRoleBootstrap(options) {
       await verifyBackupStatusAuthorityBeforeRepair(client, reviewedPhase);
     }
     await createAndResetRoles(client);
-    const rolePasswords = {
-      [MIGRATOR_ROLE]: parsed.migrator,
-      [APP_ROLE]: parsed.app,
-      [WORKER_ROLE]: parsed.worker,
-      [OPS_ROLE]: parsed.ops,
-      [BACKUP_REPORTER_ROLE]: parsed.backupReporter,
-    };
-    await rotatePasswords(client, rolePasswords);
-    await transferApplicationOwnership(client, reviewedPhase);
-    if (bootstrapMode === "restored-no-acl") {
-      await reconcileRestoredNoAclDatabaseRolePrivileges(client, reviewedPhase);
+    await installManagedLoginRolePasswordsAndEnable(client, rolePasswords);
+    if (lockedCapabilityResolution.reconcileApplicationAcls) {
+      await transferBootstrapDatabaseRuntimeCapabilityOwnership(client, {
+        postgresUser: options.postgresUser,
+        postgresDatabase: options.postgresDatabase,
+        policy: lockedCapabilityResolution.policy,
+      });
+      await reconcileBootstrapDatabaseRuntimeCapabilities(client, {
+        postgresUser: options.postgresUser,
+        postgresDatabase: options.postgresDatabase,
+        resolution: lockedCapabilityResolution,
+      });
     } else {
-      await reconcileDatabaseRolePrivileges(client, reviewedPhase);
+      if (bootstrapMode === "restored-no-acl") {
+        throw databaseRoleBootstrapInvariantError(
+          "restored-capability-foundation",
+        );
+      }
+      await establishBootstrapDatabaseRuntimeCapabilityFoundation(client, {
+        postgresUser: options.postgresUser,
+        postgresDatabase: options.postgresDatabase,
+      });
     }
-    await verifyPostMigrationReviewedContractsBeforeReconciliation(
-      client,
-      reviewedPhase,
-    );
-    await verifyBackupStatusAuthorityAfterRepair(client, reviewedPhase);
-    await verifyDatabaseRoleBootstrapState(
-      client,
-      options.postgresDatabase,
-      options.postgresUser,
-      reviewedPhase,
-    );
-
-    if (options.beforeCommit) {
-      await options.beforeCommit(client);
-      reviewedPhase = await resolveReviewedMailAuthorityCatalogPhase(client);
+    if (lockedCapabilityResolution.reconcileApplicationAcls) {
       await verifyPostMigrationReviewedContractsBeforeReconciliation(
         client,
         reviewedPhase,
       );
       await verifyBackupStatusAuthorityAfterRepair(client, reviewedPhase);
+      await verifyBootstrapDatabaseRuntimeCapabilities(client, {
+        postgresUser: options.postgresUser,
+        postgresDatabase: options.postgresDatabase,
+        resolution: lockedCapabilityResolution,
+      });
       await verifyDatabaseRoleBootstrapState(
         client,
         options.postgresDatabase,
         options.postgresUser,
         reviewedPhase,
       );
+    } else {
+      await verifyBootstrapDatabaseRuntimeCapabilityFoundation(client, {
+        postgresUser: options.postgresUser,
+        postgresDatabase: options.postgresDatabase,
+        resolution: lockedCapabilityResolution,
+      });
+    }
+
+    if (options.beforeCommit) {
+      await options.beforeCommit(client);
+      await verifyDatabaseBootstrapTransactionGuard(
+        client,
+        finalTransactionNonce,
+      );
+      reviewedPhase = await resolveReviewedMailAuthorityCatalogPhase(client);
+      if (lockedCapabilityResolution.reconcileApplicationAcls) {
+        await verifyPostMigrationReviewedContractsBeforeReconciliation(
+          client,
+          reviewedPhase,
+        );
+        await verifyBackupStatusAuthorityAfterRepair(client, reviewedPhase);
+        await verifyBootstrapDatabaseRuntimeCapabilities(client, {
+          postgresUser: options.postgresUser,
+          postgresDatabase: options.postgresDatabase,
+          resolution: lockedCapabilityResolution,
+        });
+        await verifyDatabaseRoleBootstrapState(
+          client,
+          options.postgresDatabase,
+          options.postgresUser,
+          reviewedPhase,
+        );
+      } else {
+        await verifyBootstrapDatabaseRuntimeCapabilityFoundation(client, {
+          postgresUser: options.postgresUser,
+          postgresDatabase: options.postgresDatabase,
+          resolution: lockedCapabilityResolution,
+        });
+      }
     }
 
     const preCommitPhase =
@@ -5573,35 +6336,107 @@ export async function runDatabaseRoleBootstrap(options) {
         "reviewed-pre-commit-phase-drift",
       );
     }
-    await verifyPostMigrationReviewedContractsBeforeReconciliation(
-      client,
-      preCommitPhase,
+    const preCommitCapabilityResolution =
+      await resolveBootstrapDatabaseRuntimeCapabilityPhase(client, {
+        requestedPhase: requestedCapabilityPhase,
+        requireComplete: requireCompleteMigrationLedger,
+      });
+    assertSameBootstrapDatabaseRuntimeCapabilityPhase(
+      lockedCapabilityResolution,
+      preCommitCapabilityResolution,
+      "pre-commit-capability-phase-drift",
     );
-    await verifyBackupStatusAuthorityAfterRepair(client, preCommitPhase);
+    if (lockedCapabilityResolution.reconcileApplicationAcls) {
+      await verifyPostMigrationReviewedContractsBeforeReconciliation(
+        client,
+        preCommitPhase,
+      );
+      await verifyBackupStatusAuthorityAfterRepair(client, preCommitPhase);
+      await verifyBootstrapDatabaseRuntimeCapabilities(client, {
+        postgresUser: options.postgresUser,
+        postgresDatabase: options.postgresDatabase,
+        resolution: lockedCapabilityResolution,
+      });
+    } else {
+      await verifyBootstrapDatabaseRuntimeCapabilityFoundation(client, {
+        postgresUser: options.postgresUser,
+        postgresDatabase: options.postgresDatabase,
+        resolution: lockedCapabilityResolution,
+      });
+    }
     if (bootstrapMode === "restored-no-acl") {
       await verifyAppliedMigrationLedger(client, { requireComplete: true });
     }
-    await client.query("commit");
-    transactionOpen = false;
+    try {
+      await commitDatabaseBootstrapTransaction(client, "activation");
+      transactionOpen = false;
+    } catch (error) {
+      if (
+        isDatabaseBootstrapCommitOutcomeUncertainError(error, "activation")
+      ) {
+        markDatabaseBootstrapUnsafeClientOutcome(error);
+      } else if (
+        isDatabaseBootstrapCommitRejectedError(error, "activation")
+      ) {
+        transactionOpen = false;
+      }
+      throw error;
+    }
+    const sessionsTerminated =
+      await terminateAndDrainManagedLoginRoleSessions(client);
 
     const committedPhase =
       await resolveReviewedMailAuthorityCatalogPhase(client);
-    await verifyPostMigrationReviewedContractsBeforeReconciliation(
-      client,
-      committedPhase,
+    const committedCapabilityResolution =
+      await resolveBootstrapDatabaseRuntimeCapabilityPhase(client, {
+        requestedPhase: requestedCapabilityPhase,
+        requireComplete: requireCompleteMigrationLedger,
+      });
+    assertSameBootstrapDatabaseRuntimeCapabilityPhase(
+      lockedCapabilityResolution,
+      committedCapabilityResolution,
+      "committed-capability-phase-drift",
     );
-    await verifyBackupStatusAuthorityAfterRepair(client, committedPhase);
-    bootstrapResult = await verifyDatabaseRoleBootstrapState(
-      client,
-      options.postgresDatabase,
-      options.postgresUser,
-      committedPhase,
-    );
+    if (lockedCapabilityResolution.reconcileApplicationAcls) {
+      await verifyPostMigrationReviewedContractsBeforeReconciliation(
+        client,
+        committedPhase,
+      );
+      await verifyBackupStatusAuthorityAfterRepair(client, committedPhase);
+      await verifyBootstrapDatabaseRuntimeCapabilities(client, {
+        postgresUser: options.postgresUser,
+        postgresDatabase: options.postgresDatabase,
+        resolution: committedCapabilityResolution,
+      });
+      bootstrapResult = await verifyDatabaseRoleBootstrapState(
+        client,
+        options.postgresDatabase,
+        options.postgresUser,
+        committedPhase,
+      );
+    } else {
+      await verifyBootstrapDatabaseRuntimeCapabilityFoundation(client, {
+        postgresUser: options.postgresUser,
+        postgresDatabase: options.postgresDatabase,
+        resolution: committedCapabilityResolution,
+      });
+      bootstrapResult = {
+        rolesExact: true,
+        membershipsExact: true,
+        ownershipExact: true,
+        privilegesExact: true,
+        defaultPrivilegesExact: true,
+        sessionsTerminated,
+      };
+    }
     if (bootstrapMode === "restored-no-acl") {
       await verifyAppliedMigrationLedger(client, { requireComplete: true });
       restoredReadyForReenable = true;
     }
   } catch (error) {
+    if (isDatabaseBootstrapUnsafeClientOutcome(error)) {
+      clientQueryUnsafe = true;
+    }
     destroyClient = true;
     operationFailed = true;
     operationFailure = error;
@@ -5610,12 +6445,12 @@ export async function runDatabaseRoleBootstrap(options) {
   const cleanupFailures = await collectDatabaseBootstrapCleanupFailures({
     client,
     pool,
-    transactionOpen,
-    lockAcquired,
-    destroyClient,
+    transactionOpen: transactionOpen && !clientQueryUnsafe,
+    lockAcquired: lockAcquired && !clientQueryUnsafe,
+    destroyClient: destroyClient || clientQueryUnsafe,
     timeoutMs: cleanupTimeoutMs,
   });
-  if (restoreMaintenancePool !== undefined) {
+  if (bootstrapMode === "restored-no-acl") {
     const preReenableOutcome = preserveDatabaseOperationAndCleanupFailures({
       operationFailed,
       operationFailure,
@@ -5625,7 +6460,7 @@ export async function runDatabaseRoleBootstrap(options) {
     if (!preReenableOutcome.failed && restoredReadyForReenable) {
       try {
         await reenableRestoredNoAclDatabase(
-          restoreMaintenanceClient,
+          clusterAdministrationClient,
           options.postgresDatabase,
           restoredTargetBackendPid,
         );
@@ -5636,15 +6471,29 @@ export async function runDatabaseRoleBootstrap(options) {
       }
     }
 
-    const maintenanceCleanupFailures =
+    const clusterCleanupFailures =
       await cleanupRestoredNoAclMaintenanceResources({
-        client: restoreMaintenanceClient,
-        pool: restoreMaintenancePool,
+        client: clusterAdministrationClient,
+        pool: clusterAdministrationPool,
         databaseReenabled,
         operationFailed,
+        lockAcquired: clusterLockAcquired,
+        destroyClient: destroyClusterAdministrationClient,
         timeoutMs: cleanupTimeoutMs,
       });
-    cleanupFailures.push(...maintenanceCleanupFailures);
+    cleanupFailures.push(...clusterCleanupFailures);
+  } else {
+    const clusterCleanupFailures =
+      await collectDatabaseBootstrapCleanupFailures({
+        client: clusterAdministrationClient,
+        pool: clusterAdministrationPool,
+        transactionOpen: false,
+        lockAcquired: clusterLockAcquired,
+        lockName: DATABASE_CLUSTER_ROLE_ADMIN_LOCK_NAME,
+        destroyClient: destroyClusterAdministrationClient,
+        timeoutMs: cleanupTimeoutMs,
+      });
+    cleanupFailures.push(...clusterCleanupFailures);
   }
   const outcome = preserveDatabaseOperationAndCleanupFailures({
     operationFailed,

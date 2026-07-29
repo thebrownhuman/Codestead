@@ -141,7 +141,7 @@ test("bootstrap verifies raw reviewed contracts before role normalization", () =
     bootstrapStart,
   );
   const ownershipRepair = bootstrap.indexOf(
-    "await transferApplicationOwnership(",
+    "await transferBootstrapDatabaseRuntimeCapabilityOwnership(",
     bootstrapStart,
   );
 
@@ -149,6 +149,7 @@ test("bootstrap verifies raw reviewed contracts before role normalization", () =
   assert.ok(rawContractCheck > bootstrapStart);
   assert.ok(roleReset > rawContractCheck);
   assert.ok(ownershipRepair > roleReset);
+  assert.doesNotMatch(bootstrap, /transferApplicationOwnership/u);
 });
 
 test("release and restore execute the production verifier after migration", () => {

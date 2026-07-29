@@ -16,9 +16,7 @@ import {
   assertBackupStatusMailAuthority0065PostgresProjection,
   backupStatusMailAuthority0065CiContract,
 } from "./backup-status-mail-authority-0065-ci-contract.mjs";
-import {
-  projectHistoricalPostgresCiProjection,
-} from "./mail-guarded-delivery-0069-ci-contract.mjs";
+import { projectHistoricalPostgresCiProjection } from "./mail-guarded-delivery-0069-ci-contract.mjs";
 
 const readBytes = (relativePath) =>
   readFileSync(new URL(`../../${relativePath}`, import.meta.url));
@@ -34,8 +32,9 @@ const expected0065LedgerEntry = Object.freeze({
   sqlSha256: "1274dda8013fe80f09df63f7ddc73b24b0a9a482a40e5f5042eaef2373c14b3c",
 });
 const reviewedLedgerThrough0065 = REVIEWED_MIGRATION_LEDGER.slice(0, 66);
-const reviewedLedgerThrough0065Sha256 =
-  reviewedMigrationLedgerSha256(reviewedLedgerThrough0065);
+const reviewedLedgerThrough0065Sha256 = reviewedMigrationLedgerSha256(
+  reviewedLedgerThrough0065,
+);
 
 const packageManifest = JSON.parse(read("package.json"));
 const workflow = read(".github/workflows/ci.yml");
@@ -414,7 +413,7 @@ assert.match(harnessSource, /SHOW server_version_num/u);
 assert.match(normalPg17Runner, /databaseBackupReporterUrl:/u);
 assert.match(
   normalPg17Runner,
-  /url\("learncoding_backup_reporter", secret\("backup-reporter"/u,
+  /url\(\s*"learncoding_backup_reporter",\s*secret\("backup-reporter"/u,
 );
 assert.match(productionCompose, /DATABASE_BACKUP_REPORTER_URL_FILE:/u);
 assert.match(productionCompose, /database_backup_reporter_url/u);
@@ -423,8 +422,7 @@ const currentPostgresJob =
   workflow.match(
     /^  postgres-integration:\n([\s\S]*?)(?=^  [a-z][a-z0-9-]*:\n|(?![\s\S]))/mu,
   )?.[0] ?? "";
-const postgresJob =
-  projectHistoricalPostgresCiProjection(currentPostgresJob);
+const postgresJob = projectHistoricalPostgresCiProjection(currentPostgresJob);
 assertBackupStatusMailAuthority0065PostgresProjection(postgresJob);
 
 console.log("backup-status-mail-authority-0065-registration-tests-ok");

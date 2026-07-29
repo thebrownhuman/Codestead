@@ -134,14 +134,18 @@ services:
     restart: "no"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-learncoding}
-      DATABASE_URL_FILE: /run/secrets/database_url
+      POSTGRES_USER: ${POSTGRES_USER:-learncoding}
+      DATABASE_BOOTSTRAP_URL_FILE: /run/secrets/database_bootstrap_url
+      DATABASE_APP_URL_FILE: /run/secrets/database_app_url
       DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
       DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
       DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
       DATABASE_BACKUP_REPORTER_URL_FILE: /run/secrets/database_backup_reporter_url
     secrets:
+      - source: database_bootstrap_url
+        target: database_bootstrap_url
       - source: database_url
-        target: database_url
+        target: database_app_url
       - source: database_migrator_url
         target: database_migrator_url
       - source: database_worker_url
@@ -176,14 +180,18 @@ services:
     restart: "no"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-learncoding}
-      DATABASE_URL_FILE: /run/secrets/database_url
+      POSTGRES_USER: ${POSTGRES_USER:-learncoding}
+      DATABASE_BOOTSTRAP_URL_FILE: /run/secrets/database_bootstrap_url
+      DATABASE_APP_URL_FILE: /run/secrets/database_app_url
       DATABASE_MIGRATOR_URL_FILE: /run/secrets/database_migrator_url
       DATABASE_WORKER_URL_FILE: /run/secrets/database_worker_url
       DATABASE_OPS_URL_FILE: /run/secrets/database_ops_url
       DATABASE_BACKUP_REPORTER_URL_FILE: /run/secrets/database_backup_reporter_url
     secrets:
+      - source: database_bootstrap_url
+        target: database_bootstrap_url
       - source: database_url
-        target: database_url
+        target: database_app_url
       - source: database_migrator_url
         target: database_migrator_url
       - source: database_worker_url

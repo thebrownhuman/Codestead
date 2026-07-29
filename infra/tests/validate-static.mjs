@@ -586,10 +586,16 @@ expect(
 expect(
   /FROM worker AS operations/.test(dockerfile) &&
     /COPY --chown=node:node content \.\/content/.test(operationsStage) &&
+    /COPY --chown=node:node drizzle\/meta\/_journal\.json \.\/drizzle\/meta\/_journal\.json/.test(operationsStage) &&
+    /COPY --chown=node:node drizzle\/meta\/0069_public_column_attnums\.json \.\/drizzle\/meta\/0069_public_column_attnums\.json/.test(operationsStage) &&
+    /COPY --chown=node:node drizzle\/meta\/0069_snapshot\.json \.\/drizzle\/meta\/0069_snapshot\.json/.test(operationsStage) &&
     /COPY --chown=node:node scripts\/bootstrap-admin\.ts \.\/scripts\/bootstrap-admin\.ts/.test(operationsStage) &&
     /COPY --chown=node:node scripts\/seed-platform\.ts \.\/scripts\/seed-platform\.ts/.test(operationsStage) &&
     /COPY --chown=node:node scripts\/bootstrap-database-roles\.mjs \.\/scripts\/bootstrap-database-roles\.mjs/.test(operationsStage) &&
+    /COPY --chown=node:node scripts\/bootstrap-database-runtime-capabilities\.mjs \.\/scripts\/bootstrap-database-runtime-capabilities\.mjs/.test(operationsStage) &&
+    /COPY --chown=node:node scripts\/database-runtime-capabilities\.mjs \.\/scripts\/database-runtime-capabilities\.mjs/.test(operationsStage) &&
     /COPY --chown=node:node scripts\/verify-database-role-boundaries\.mjs \.\/scripts\/verify-database-role-boundaries\.mjs/.test(operationsStage) &&
+    /COPY --chown=node:node scripts\/verify-database-runtime-capabilities\.mjs \.\/scripts\/verify-database-runtime-capabilities\.mjs/.test(operationsStage) &&
     /COPY --chown=node:node scripts\/verify-backup-status-mail-authority\.mjs \.\/scripts\/verify-backup-status-mail-authority\.mjs/.test(operationsStage) &&
     /CMD \["node", "--import", "tsx", "\/app\/scripts\/seed-platform\.ts"\]/.test(operationsStage),
   "operations image must include curriculum content plus the bootstrap, verifier import closure, and seed scripts",

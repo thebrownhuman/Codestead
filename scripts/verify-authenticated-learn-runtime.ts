@@ -96,6 +96,7 @@ type RoleBootstrapRunner = (options: Readonly<{
   lockTimeoutMs: number;
   cleanupTimeoutMs: number;
   pool: InstanceType<typeof Pool>;
+  clusterAdministrationPool: InstanceType<typeof Pool>;
 }>) => Promise<unknown>;
 
 type ProductionMigrationRunner = (options: Readonly<{
@@ -105,6 +106,7 @@ type ProductionMigrationRunner = (options: Readonly<{
 }>) => Promise<void>;
 
 type RoleBoundaryVerifier = (options: Readonly<{
+  postgresUser: string;
   postgresDatabase: string;
   databaseAppUrl: string;
   databaseMigratorUrl: string;
@@ -173,7 +175,7 @@ function authenticatedLearnDatabaseUrls(
       database: "learncoding_integration",
     });
   return {
-    bootstrap: loopback("learncoding_ui", credentials.bootstrap),
+    bootstrap: loopback("codestead_ui", credentials.bootstrap),
     app: loopback("learncoding_app", credentials.app),
     migrator: loopback("learncoding_migrator", credentials.migrator),
     worker: loopback("learncoding_worker", credentials.worker),
@@ -204,8 +206,14 @@ async function reconcileAuthenticatedLearnDatabaseRoles(input: Readonly<{
     connectionString: input.roleUrls.bootstrap,
     max: 1,
   });
+  const administrationUrl = new URL(input.roleUrls.bootstrap);
+  administrationUrl.pathname = "/postgres";
+  const clusterAdministrationPool = new Pool({
+    connectionString: administrationUrl.href,
+    max: 1,
+  });
   await runDatabaseRoleBootstrap({
-    postgresUser: "learncoding_ui",
+    postgresUser: "codestead_ui",
     postgresDatabase: "learncoding_integration",
     databaseBootstrapUrl: canonicalContainerDatabaseUrl(
       input.roleUrls.bootstrap,
@@ -223,6 +231,7 @@ async function reconcileAuthenticatedLearnDatabaseRoles(input: Readonly<{
     lockTimeoutMs: 10_000,
     cleanupTimeoutMs: 5_000,
     pool: bootstrapPool,
+    clusterAdministrationPool,
   });
 }
 
@@ -248,6 +257,7 @@ async function verifyAuthenticatedLearnDatabaseRoleBoundaries(
     /* @vite-ignore */ modulePath
   ) as { verifyDatabaseRoleBoundaries: RoleBoundaryVerifier };
   await verifyDisposableRoleBoundaryAdapter({
+    postgresUser: "codestead_ui",
     database: "learncoding_integration",
     roleUrls,
     requireApplicationObjects: true,
@@ -2362,7 +2372,7 @@ async function main() {
     "--env",
     "POSTGRES_DB=learncoding_integration",
     "--env",
-    "POSTGRES_USER=learncoding_ui",
+    "POSTGRES_USER=codestead_ui",
     "--env",
     "POSTGRES_PASSWORD",
     image,
