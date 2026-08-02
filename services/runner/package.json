@@ -20,7 +20,7 @@
     "runtime:record": "node runtime/manage-images.mjs record"
   },
   "devDependencies": {
-    "@types/node": "26.1.1",
+    "@types/node": "26.1.2",
     "tsx": "4.23.0",
     "typescript": "5.9.3",
     "vitest": "4.1.10"
