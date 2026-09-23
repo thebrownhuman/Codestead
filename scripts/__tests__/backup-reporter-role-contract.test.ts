@@ -50,7 +50,7 @@ describe("dedicated backup-status reporter role contract", () => {
       "installManagedLoginRolePasswordsAndEnable(client, rolePasswords)",
     );
     expect(bootstrap).toMatch(
-      /alter role learncoding_backup_reporter nologin password null valid until 'infinity'/u,
+      /alter role learncoding_backup_reporter nologin nosuperuser nocreatedb nocreaterole\s+noinherit noreplication nobypassrls connection limit -1 password null valid until 'infinity'/u,
     );
     const { CURRENT_0069_DATABASE_RUNTIME_CAPABILITIES: policy } =
       await import("../database-runtime-capabilities.mjs");
