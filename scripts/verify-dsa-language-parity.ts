@@ -165,17 +165,16 @@ async function main(): Promise<void> {
     language: string;
     visibility: string;
     status: "passed" | "failed";
-    durationMs: number;
     sourceHash: string;
     failure?: string;
   }> = [];
   let next = 0;
+  let completed = 0;
   async function worker(): Promise<void> {
     for (;;) {
       const index = next++;
       if (index >= jobs.length) return;
       const { item, test } = jobs[index]!;
-      const started = Date.now();
       try {
         const runtimeIdentity = runtimeIdentities[item.runtime.language];
         if (!runtimeIdentity) throw new Error(`Validated local runtime identity is missing for ${item.runtime.language}.`);
@@ -185,29 +184,28 @@ async function main(): Promise<void> {
         if (result.timedOut || result.code !== 0 || actual !== expected) {
           throw new Error(result.timedOut ? "timeout" : result.code !== 0 ? `runner exit ${result.code}` : "stdout mismatch");
         }
-        results.push({
+        results[index] = {
           itemId: item.id,
           skillId: item.skillId,
           language: item.runtime.language,
           visibility: test.visibility,
           status: "passed",
-          durationMs: Date.now() - started,
           sourceHash: digest(item.answer.referenceSolution),
-        });
+        };
       } catch (error) {
-        results.push({
+        results[index] = {
           itemId: item.id,
           skillId: item.skillId,
           language: item.runtime.language,
           visibility: test.visibility,
           status: "failed",
-          durationMs: Date.now() - started,
           sourceHash: digest(item.answer.referenceSolution),
           failure: error instanceof Error ? error.message : String(error),
-        });
+        };
       }
-      if (results.length % 40 === 0 || results.length === jobs.length) {
-        console.log(`DSA parity runtime progress: ${results.length}/${jobs.length} cases.`);
+      completed += 1;
+      if (completed % 40 === 0 || completed === jobs.length) {
+        console.log(`DSA parity runtime progress: ${completed}/${jobs.length} cases.`);
       }
     }
   }
