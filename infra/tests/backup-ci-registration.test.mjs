@@ -1167,6 +1167,7 @@ const reviewedJobContracts = new Map([
       "    timeout-minutes: 30",
       "    steps:",
       ...checkoutProjection,
+      "      - run: bash infra/tests/install-reviewed-docker-engine.sh",
       `      - run: ${productionE2eRun}`,
     ],
   ],
@@ -2044,13 +2045,19 @@ function runAdversarialSelfTests(document) {
       `${productionStep}\n${productionStep}`,
     ),
   );
+  const productionEngineStep =
+    "      - run: bash infra/tests/install-reviewed-docker-engine.sh";
   expectRejected(
     "reordered production e2e steps",
     replaceExactly(
       document,
-      `${productionStepsAnchor}${productionCheckout}\n${productionStep}`,
-      `${productionStepsAnchor}${productionStep}\n${productionCheckout}`,
+      `${productionStepsAnchor}${productionCheckout}\n${productionEngineStep}\n${productionStep}`,
+      `${productionStepsAnchor}${productionStep}\n${productionCheckout}\n${productionEngineStep}`,
     ),
+  );
+  expectRejected(
+    "production e2e without the reviewed Docker Engine",
+    replaceExactly(document, `${productionEngineStep}\n`, ""),
   );
   expectRejected(
     "quoted production e2e command",
@@ -2072,24 +2079,24 @@ function runAdversarialSelfTests(document) {
     "production e2e checkout credentials persistence enabled",
     replaceExactly(
       document,
-      `${productionCheckout}\n${productionStep}`,
-      `${checkoutStep}\n        with:\n          persist-credentials: true\n${productionStep}`,
+      `${productionCheckout}\n${productionEngineStep}`,
+      `${checkoutStep}\n        with:\n          persist-credentials: true\n${productionEngineStep}`,
     ),
   );
   expectRejected(
     "production e2e checkout credentials setting missing",
     replaceExactly(
       document,
-      `${productionCheckout}\n${productionStep}`,
-      `${checkoutStep}\n${productionStep}`,
+      `${productionCheckout}\n${productionEngineStep}`,
+      `${checkoutStep}\n${productionEngineStep}`,
     ),
   );
   expectRejected(
     "production e2e checkout extra properties",
     replaceExactly(
       document,
-      `${productionCheckout}\n${productionStep}`,
-      `${productionCheckout}\n          fetch-depth: 0\n${productionStep}`,
+      `${productionCheckout}\n${productionEngineStep}`,
+      `${productionCheckout}\n          fetch-depth: 0\n${productionEngineStep}`,
     ),
   );
   for (const indicator of ["|", "|-", "|+", ">", ">-", ">+"]) {

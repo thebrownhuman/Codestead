@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "generatedAt": "2026-09-24T10:55:42.879Z",
+  "generatedAt": "2026-09-24T13:32:19.799Z",
   "scope": "Launch-1 HTML, accessible/responsive CSS, JavaScript, and intermediate React authoring evidence",
   "status": "structure-only",
   "counts": {
@@ -46,10 +46,10 @@
     }
   },
   "environment": {
-    "packageLockHash": "sha256:01a55d4073bf6a1646f989d7883c5ebe738de40d4053bd42411ab295a30c4a33",
+    "packageLockHash": "sha256:2e5c5213629d287a1f02383fd88e40783804452bc3f6c12d82033fe891cf559c",
     "node": {
       "tag": "learncoding/runtime-javascript:local",
-      "manifestDigest": "sha256:99859b70624bccfe2283cff85fa3f3971d3c1c15ce5a80c38aeeddbb496de97a",
+      "manifestDigest": "sha256:4a33b5b91221378dfd948fa3ea4a108ac8c1ebdf17bd795d3306e6b57171b194",
       "configDigest": null,
       "immutableReference": null,
       "tagDescriptorDigest": null,
@@ -57,7 +57,7 @@
       "exactReferenceDescriptorDigest": null,
       "exactReferenceImageId": null,
       "independentlyValidated": false,
-      "expectedImageDigest": "sha256:99859b70624bccfe2283cff85fa3f3971d3c1c15ce5a80c38aeeddbb496de97a",
+      "expectedImageDigest": "sha256:4a33b5b91221378dfd948fa3ea4a108ac8c1ebdf17bd795d3306e6b57171b194",
       "expectedVersion": "v22.23.1",
       "inspectedVersion": null,
       "versionMatches": null,

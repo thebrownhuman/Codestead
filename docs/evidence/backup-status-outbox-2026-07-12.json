@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedAt": "2026-07-12T16:28:00.000Z",
-  "revalidatedAt": "2026-09-24T12:49:37.545Z",
+  "revalidatedAt": "2026-09-24T13:33:01.983Z",
   "scope": "Local deterministic validation of nightly backup status reporting through the dedicated least-privilege reporter and current PostgreSQL mail-authority chain on native disposable PostgreSQL 17; no Docker, host PostgreSQL service, real data, real credentials, or external email was used.",
   "status": "passed",
   "shellContract": {
@@ -197,11 +197,11 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "a1dc33472e36c1b357c210622024e50874bf00547295f4faacdd90073a7e3563"
+      "sha256": "154a7604c1fe228168c6861d403caae205d9a00fe3459bf48e7ccdd84fce6562"
     },
     {
       "path": "infra/tests/backup-ci-registration.test.mjs",
-      "sha256": "ea33a90d80d15ff4d1ee33f07ea4a5a5dc32964a2cbb8e95f4674aaddf6d88d0"
+      "sha256": "2c29c57c19a770614833e25d36209b2fcc7fb182177da03b9f4d21a07f0e4898"
     }
   ],
   "supersededDigests": [
@@ -369,6 +369,16 @@
       "artifact": "scripts/backup/common.sh",
       "priorDigest": "85e415ad0c0a589e7113c29b746c2237ba1f4673f4499004bc71ac6d68ed3b25",
       "replacedAt": "2026-09-24T12:49:37.545Z"
+    },
+    {
+      "artifact": ".github/workflows/ci.yml",
+      "priorDigest": "a1dc33472e36c1b357c210622024e50874bf00547295f4faacdd90073a7e3563",
+      "replacedAt": "2026-09-24T13:33:01.983Z"
+    },
+    {
+      "artifact": "infra/tests/backup-ci-registration.test.mjs",
+      "priorDigest": "ea33a90d80d15ff4d1ee33f07ea4a5a5dc32964a2cbb8e95f4674aaddf6d88d0",
+      "replacedAt": "2026-09-24T13:33:01.983Z"
     }
   ],
   "limitations": [

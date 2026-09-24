@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-20T19:57:57.636Z",
+  "generatedAt": "2026-09-24T13:32:18.686Z",
   "scope": "AI course deterministic offline Python labs pinned-runtime evidence",
   "status": "structure-only",
   "counts": {
@@ -14,7 +14,7 @@
   "externalProviderCalls": 0,
   "imageEvidence": {
     "tag": "learncoding/runtime-python:local",
-    "manifestDigest": "sha256:857294af16c8bbb1a8d5c792acc785283b0c99cf8dcb2be2955208f06a43d3a2",
+    "manifestDigest": "sha256:88f730d23862355b931c7784f8b98e794de49807828785bfef08de70dc6b27cb",
     "configDigest": null,
     "immutableReference": null,
     "tagDescriptorDigest": null,
