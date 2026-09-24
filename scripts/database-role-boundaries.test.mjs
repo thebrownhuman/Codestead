@@ -2012,7 +2012,10 @@ function makeClient(role, database, options, generation = 1) {
               connect_allowed: true,
               temp_allowed: false,
               create_allowed: false,
-              schema_usage: role !== "learncoding_migrator",
+              // Mirrors PostgreSQL: the foundation revokes public USAGE from login roles.
+              schema_usage: role !== "learncoding_migrator"
+                && (options.schemaUsageGranted
+                  ?? runtimeCapabilityAppliedCount >= REVIEWED_MIGRATION_LEDGER.length),
               schema_create: false,
             },
           ],
@@ -2888,6 +2891,12 @@ function makeClient(role, database, options, generation = 1) {
       return { rows: [] };
     },
   };
+}
+
+// Application objects exist only after reconciliation has granted public-schema
+// USAGE; model that grant without building the full current-phase catalog fixture.
+function makeMigratedPoolHarness(options = {}) {
+  return makePoolHarness({ schemaUsageGranted: true, ...options });
 }
 
 function makePoolHarness(options = {}) {
@@ -3880,7 +3889,7 @@ test("retains every verifier cleanup failure in execution order", async () => {
 });
 
 test("proves application-object access without mutating application rows", async () => {
-  const harness = makePoolHarness();
+  const harness = makeMigratedPoolHarness();
   const result = await verifyDatabaseRoleBoundaries({
     ...validInput(),
     poolFactory: harness.factory,
@@ -3922,7 +3931,7 @@ test("proves application-object access without mutating application rows", async
 });
 
 test("discovers only a table with shared runtime CRUD authority", async () => {
-  const harness = makePoolHarness({ protectedTableSortsFirst: true });
+  const harness = makeMigratedPoolHarness({ protectedTableSortsFirst: true });
   await verifyDatabaseRoleBoundaries({
     ...validInput(),
     poolFactory: harness.factory,
@@ -3948,7 +3957,7 @@ test("discovers only a table with shared runtime CRUD authority", async () => {
 });
 
 test("boundary verification never reads the protected backup guard", async () => {
-  const harness = makePoolHarness({ restrictedGuardReadDenied: true });
+  const harness = makeMigratedPoolHarness({ restrictedGuardReadDenied: true });
   await verifyDatabaseRoleBoundaries({
     ...validInput(),
     poolFactory: harness.factory,
@@ -3964,7 +3973,7 @@ test("boundary verification never reads the protected backup guard", async () =>
 });
 
 test("authenticates guarded-delivery privileges only with schema usage", async () => {
-  const verified = makePoolHarness({ guardedSchemaResolutionDenied: true });
+  const verified = makeMigratedPoolHarness({ guardedSchemaResolutionDenied: true });
   await verifyDatabaseRoleBoundaries({
     ...validInput(),
     poolFactory: verified.factory,
@@ -3991,7 +4000,7 @@ test("authenticates guarded-delivery privileges only with schema usage", async (
   await assert.rejects(
     verifyDatabaseRoleBoundaries({
       ...validInput(),
-      poolFactory: makePoolHarness({
+      poolFactory: makeMigratedPoolHarness({
         authenticatedGuardedDeliveryTamper: true,
       }).factory,
       lockTimeoutMs: 50,
@@ -4001,7 +4010,7 @@ test("authenticates guarded-delivery privileges only with schema usage", async (
   );
 });
 test("requires the exact reviewed 0062 through 0069 routine contracts in application-object mode", async () => {
-  const verified = makePoolHarness();
+  const verified = makeMigratedPoolHarness();
   const result = await verifyDatabaseRoleBoundaries({
     ...validInput(),
     poolFactory: verified.factory,
@@ -4120,7 +4129,7 @@ test("requires the exact reviewed 0062 through 0069 routine contracts in applica
     { routineContractTamper: "effective-acl" },
     { routineContractTamper: "direct-acl" },
   ]) {
-    const tampered = makePoolHarness(options);
+    const tampered = makeMigratedPoolHarness(options);
     await assert.rejects(
       verifyDatabaseRoleBoundaries({
         ...validInput(),
@@ -4212,7 +4221,7 @@ test("freezes both 0067 email_outbox CHECK manifests", () => {
 });
 
 test("requires exact reviewed trigger and worker outbox catalog contracts", async () => {
-  const verified = makePoolHarness();
+  const verified = makeMigratedPoolHarness();
   const result = await verifyDatabaseRoleBoundaries({
     ...validInput(),
     poolFactory: verified.factory,
@@ -5080,7 +5089,7 @@ test("supports reviewed routines with no restricted-role execute allowance", asy
 });
 
 test("grounds PostgreSQL's successful no-op GRANT in unchanged effective and catalog state", async () => {
-  const harness = makePoolHarness({
+  const harness = makeMigratedPoolHarness({
     migratorCannotResolveRelationName: true,
   });
 
@@ -5123,7 +5132,7 @@ test("grounds PostgreSQL's successful no-op GRANT in unchanged effective and cat
     );
   }
 
-  const delegated = makePoolHarness({
+  const delegated = makeMigratedPoolHarness({
     grantActuallyDelegates: true,
   });
   await assert.rejects(
@@ -5140,7 +5149,7 @@ test("grounds PostgreSQL's successful no-op GRANT in unchanged effective and cat
     true,
   );
 
-  const catalogChanged = makePoolHarness({
+  const catalogChanged = makeMigratedPoolHarness({
     grantChangesCatalogWithoutDelegating: true,
   });
   await assert.rejects(
@@ -5188,7 +5197,7 @@ test("fails closed when the fixed GRANT probe errors for any SQLSTATE", async ()
       new Error("redacted grant probe failure"),
       { code: grantProbeErrorCode },
     );
-    const harness = makePoolHarness({
+    const harness = makeMigratedPoolHarness({
       grantProbeErrorCode,
       grantProbeFailure: primaryFailure,
     });

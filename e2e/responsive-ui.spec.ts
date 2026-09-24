@@ -166,7 +166,10 @@ test.describe("responsive UI regressions", () => {
     await page.goto("/courses/python/skills/python.toolchain.repl");
     await page.getByRole("button", { name: /^Open Patch/ }).click();
     const composer = page.getByRole("textbox", { name: "Message Patch" });
+    // The composer stays disabled until the lesson page registers its lesson with Patch.
+    await expect(composer).toBeEnabled();
     await composer.focus();
+    await expect(composer).toBeFocused();
 
     const focusStyle = await composer.evaluate((element) => {
       const wrapper = element.closest("form");

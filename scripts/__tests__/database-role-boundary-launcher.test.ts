@@ -56,6 +56,7 @@ type LauncherDependencies = Readonly<{
   deadlineMs?: number;
   heartbeatMs?: number;
   terminationGraceMs?: number;
+  maxConcurrency?: number;
   log?: (message: string) => void;
   logError?: (message: string) => void;
 }>;

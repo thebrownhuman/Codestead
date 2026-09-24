@@ -8,7 +8,12 @@ import {
 
 const GENERATED_AT = "2026-07-19T00:00:00Z";
 
-function fixture() {
+function fixture(javaMetadata = {
+  Version: 1,
+  UpdatedAt: "2026-07-18T22:00:00Z",
+  NextUpdate: "2026-07-20T00:00:00Z",
+  DownloadedAt: "2026-07-18T23:30:00Z",
+}) {
   const controls = [
     ["trivy-config", "scanner-control-trivy.json", "offline: true\nignore-unfixed: false\n"],
     ["syft-config", "scanner-control-syft.json", "check-for-app-update: false\n"],
@@ -22,12 +27,7 @@ function fixture() {
       NextUpdate: "2026-07-20T00:00:00Z",
       DownloadedAt: "2026-07-18T23:30:00Z",
     }],
-    ["trivy-java-db", "scanner-trivy-java-db.json", {
-      Version: 1,
-      UpdatedAt: "2026-07-18T22:00:00Z",
-      NextUpdate: "2026-07-20T00:00:00Z",
-      DownloadedAt: "2026-07-18T23:30:00Z",
-    }],
+    ["trivy-java-db", "scanner-trivy-java-db.json", javaMetadata],
   ].map(([name, file, metadata]) => ({
     name,
     file,
@@ -108,4 +108,26 @@ test("scanner evidence fails closed on missing, stale, or tampered inputs", () =
     validatedAt: "2026-07-20T00:00:00Z",
     readArtifact: (file) => expiredAtRecord.artifacts.get(file),
   }), /database.*expired|stale/i);
+});
+
+test("the Java DB is judged by age because Aqua publishes it past its NextUpdate", () => {
+  const read = ({ evidence, artifacts }) => () => validateScannerEvidence({
+    evidence,
+    generatedAt: GENERATED_AT,
+    readArtifact: (file) => artifacts.get(file),
+  });
+  const overdueButRecent = fixture({
+    Version: 1,
+    UpdatedAt: "2026-07-14T00:00:00Z",
+    NextUpdate: "2026-07-17T00:00:00Z",
+    DownloadedAt: "2026-07-18T23:30:00Z",
+  });
+  assert.doesNotThrow(read(overdueButRecent));
+
+  assert.throws(() => fixture({
+    Version: 1,
+    UpdatedAt: "2026-07-04T00:00:00Z",
+    NextUpdate: "2026-07-07T00:00:00Z",
+    DownloadedAt: "2026-07-18T23:30:00Z",
+  }), /trivy-java-db database evidence is expired, stale/);
 });

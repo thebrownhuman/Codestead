@@ -24,6 +24,7 @@ import {
   preserveDatabaseOperationAndCleanupFailures,
   resolveReviewedMailAuthorityCatalogPhase,
 } from "./bootstrap-database-roles.mjs";
+import { DATABASE_RUNTIME_CAPABILITY_PHASES } from "./database-runtime-capabilities.mjs";
 import { verifyBackupStatusMailAuthorityCatalogObjects } from "./verify-backup-status-mail-authority.mjs";
 import {
   assertSameVerifierDatabaseRuntimeCapabilityPhase,
@@ -60,6 +61,11 @@ const RUNTIME_ROLES = new Set([
 ]);
 const RESTORED_NO_ACL_STRUCTURE = Symbol(
   "restored-no-acl-mail-authority-structure",
+);
+// After migrating out of the closed-world foundation, default ACLs are only
+// installed by the reconciliation that follows; everything else is still exact.
+const PENDING_DEFAULT_ACL_RECONCILIATION = Symbol(
+  "pending-default-acl-reconciliation",
 );
 
 export class DatabaseRoleBoundaryError extends Error {
@@ -940,11 +946,14 @@ async function verifyMailReplayAuthorityTableContractInternal(
 ) {
   if (
     verificationMode !== undefined &&
-    verificationMode !== RESTORED_NO_ACL_STRUCTURE
+    verificationMode !== RESTORED_NO_ACL_STRUCTURE &&
+    verificationMode !== PENDING_DEFAULT_ACL_RECONCILIATION
   )
     fail("mail-replay-authority-verification-mode");
   const restoredNoAclStructure =
     verificationMode === RESTORED_NO_ACL_STRUCTURE;
+  const defaultAclPending =
+    verificationMode === PENDING_DEFAULT_ACL_RECONCILIATION;
   const canonicalWorkerUpdateColumns = requiresGuardedDelivery
     ? MAIL_WORKER_OUTBOX_UPDATE_COLUMNS
     : MAIL_WORKER_OUTBOX_PRE_REQUEST_UPDATE_COLUMNS;
@@ -2480,7 +2489,7 @@ async function verifyMailReplayAuthorityTableContractInternal(
     authority_relation_rls_exact: true,
     authority_constraint_set_exact: true,
     authority_index_set_exact: true,
-    ...(restoredNoAclStructure
+    ...(restoredNoAclStructure || defaultAclPending
       ? {}
       : { persistent_default_acl_exact: true }),
     persistent_relation_grant_options_exact: true,
@@ -2540,7 +2549,8 @@ async function verifyMailWorkerOutboxContractInternal(
 ) {
   if (
     verificationMode !== undefined &&
-    verificationMode !== RESTORED_NO_ACL_STRUCTURE
+    verificationMode !== RESTORED_NO_ACL_STRUCTURE &&
+    verificationMode !== PENDING_DEFAULT_ACL_RECONCILIATION
   )
     fail("mail-worker-outbox-verification-mode");
   const restoredNoAclStructure =
@@ -3183,6 +3193,19 @@ async function verifyMailWorkerOutboxContractInternal(
 
 export async function verifyMailWorkerOutboxContract(client, options = {}) {
   return verifyMailWorkerOutboxContractInternal(client, options);
+}
+
+// Used only between migration and role reconciliation. The full contract, including
+// default ACLs, is enforced again by the post-reconciliation boundary verification.
+export async function verifyMailWorkerOutboxContractBeforeReconciliation(
+  client,
+  options = {},
+) {
+  return verifyMailWorkerOutboxContractInternal(
+    client,
+    options,
+    PENDING_DEFAULT_ACL_RECONCILIATION,
+  );
 }
 
 async function verifyMailGuardedDeliveryCatalogContract(
@@ -4249,6 +4272,7 @@ async function verifyRole({
   database,
   objects,
   requiresGuardedDelivery,
+  schemaUsageGranted,
 }) {
   let positiveChecks = 0;
   let negativeChecks = 0;
@@ -4293,7 +4317,7 @@ async function verifyRole({
       connect_allowed: true,
       temp_allowed: false,
       create_allowed: false,
-      schema_usage: role !== "learncoding_migrator",
+      schema_usage: schemaUsageGranted && role !== "learncoding_migrator",
       schema_create: false,
     })
   )
@@ -4541,6 +4565,13 @@ export async function verifyDatabaseRoleBoundaries(options) {
         objects,
         requiresGuardedDelivery:
           reviewedPhase?.requiresGuardedDelivery === true,
+        // The closed-world foundation (pre-migration) revokes public-schema USAGE from
+        // every login role; the reviewed policy grants it, and application objects are
+        // unusable without it.
+        schemaUsageGranted:
+          requireApplicationObjects ||
+          lockedCapabilitySeal.capability?.phase !==
+            DATABASE_RUNTIME_CAPABILITY_PHASES.FOUNDATION,
       });
       rolesAuthenticated += 1;
       positiveChecks += result.positiveChecks;

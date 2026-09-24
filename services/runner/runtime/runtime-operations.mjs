@@ -1111,6 +1111,7 @@ const REQUIRED_SCANNER_CONTROLS = new Set([
 ]);
 const REQUIRED_TRIVY_DATABASES = new Set(["trivy-db", "trivy-java-db"]);
 const REQUIRED_TRIVY_VERSION = "0.69.3";
+const TRIVY_JAVA_DB_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const REQUIRED_TRIVY_DATABASE_VERSIONS = Object.freeze({
   "trivy-db": 2,
   "trivy-java-db": 1,
@@ -1153,12 +1154,18 @@ function parseTrivyDatabaseMetadata(text, generatedAt, name, validatedAt = gener
   const updated = Date.parse(updatedAt);
   const downloaded = Date.parse(downloadedAt);
   const next = Date.parse(nextUpdate);
+  // Aqua republishes the Java DB less often than its NextUpdate promises, so the
+  // published artifact is routinely past NextUpdate. Bound its age directly instead;
+  // the main vulnerability DB keeps the strict NextUpdate rule.
+  const stale = name === "trivy-java-db"
+    ? validated - updated > TRIVY_JAVA_DB_MAX_AGE_MS
+    : next <= validated;
   if (
     validated < generated - 300_000
     || updated > generated + 300_000
     || downloaded > generated + 300_000
     || downloaded < updated
-    || next <= validated
+    || stale
   ) {
     throw new Error(`${name} database evidence is expired, stale, or from the future.`);
   }

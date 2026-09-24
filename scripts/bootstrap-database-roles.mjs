@@ -4376,7 +4376,7 @@ export async function verifyPostMigrationReviewedContractsBeforeReconciliation(
     client,
     latestPhase.triggers,
   );
-  await verifier.verifyMailWorkerOutboxContract(client, {
+  await verifier.verifyMailWorkerOutboxContractBeforeReconciliation(client, {
     requiresDispatchBinding: latestPhase.requiresWorkerContract,
     requiresProviderEvidence: latestPhase.requiresProviderEvidence,
     requiresReplayAuthority: latestPhase.requiresReplayAuthority,

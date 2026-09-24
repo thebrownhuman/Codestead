@@ -734,11 +734,11 @@ const OBJECTS_SQL = `
            'routine',
            namespace_row.nspname::text || '.' ||
              routine.proname::text || '(' ||
-             pg_catalog.pg_get_function_identity_arguments(routine.oid) || ')',
+             pg_catalog.replace(pg_catalog.oidvectortypes(routine.proargtypes), ', ', ',') || ')',
            namespace_row.nspname::text,
            routine.proname::text,
            routine.proname::text || '(' ||
-             pg_catalog.pg_get_function_identity_arguments(routine.oid) ||
+             pg_catalog.replace(pg_catalog.oidvectortypes(routine.proargtypes), ', ', ',') ||
              ')',
            routine.prokind::text,
            routine.oid,

@@ -235,6 +235,9 @@ export RUNNER_BASE_URL="http://192.168.122.12:4100"
 export BOOTSTRAP_ADMIN_EMAIL="topology-admin@example.invalid"
 export MAIL_ADAPTER=outbox
 export MAIL_FROM="Codestead topology <noreply@example.invalid>"
+# compose.yaml requires an explicit reviewed claimant pair (see release-production.sh).
+export MAIL_OUTBOX_PHASE=dual-write-v1
+export OUTBOX_WORKER_MODE=fenced-postgres-v1
 export TOPOLOGY_POSTGRES_DIR="$data_root/postgres"
 export TOPOLOGY_POSTGRES_SOCKET_DIR="$postgres_socket_dir"
 export TOPOLOGY_NEXT_CACHE_DIR="$data_root/next-cache"
