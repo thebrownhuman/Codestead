@@ -332,8 +332,13 @@ async function startProductionLoadDisposableTcpProxy(options) {
     pair.upstream.destroy();
   };
   const resetPair = (pair) => {
-    pair.client.resetAndDestroy();
-    pair.upstream.resetAndDestroy();
+    for (const socket of [pair.client, pair.upstream]) {
+      if (!socket.destroyed && !socket.readableEnded && !socket.writableEnded) {
+        socket.resetAndDestroy();
+      } else {
+        socket.destroy();
+      }
+    }
   };
   const server = createTcpServer({ allowHalfOpen: true }, (client) => {
     if (closing || interrupted || pairs.size >= configuration.maximumConnections) {

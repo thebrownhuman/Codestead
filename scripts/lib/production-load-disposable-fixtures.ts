@@ -150,9 +150,16 @@ export async function startProductionLoadDisposableTcpProxy(options: {
   };
   // An injected fault must look like a network failure on every OS: reset (RST)
   // instead of a graceful close, which Linux would otherwise send as a clean FIN.
+  // On Linux, resetAndDestroy() on an already half-closed socket never emits
+  // 'close' and leaves libuv spinning on the handle, so those are only destroyed.
   const resetPair = (pair: SocketPair) => {
-    pair.client.resetAndDestroy();
-    pair.upstream.resetAndDestroy();
+    for (const socket of [pair.client, pair.upstream]) {
+      if (!socket.destroyed && !socket.readableEnded && !socket.writableEnded) {
+        socket.resetAndDestroy();
+      } else {
+        socket.destroy();
+      }
+    }
   };
   const server = createTcpServer({ allowHalfOpen: true }, (client) => {
     if (closing || interrupted || pairs.size >= configuration.maximumConnections) {
