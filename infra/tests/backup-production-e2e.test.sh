@@ -795,6 +795,12 @@ run_inner() {
     "$role_migrator_password" "$role_worker_password" "$role_ops_password" \
     "$role_backup_reporter_password" \
     || fail "source database role URL fixture generation failed"
+  for secret_name in database_bootstrap_url database_migrator_url \
+    database_worker_url database_ops_url database_backup_reporter_url; do
+    install -m 0400 "$source_role_secret_root/$secret_name" \
+      "$secrets_root/$secret_name" \
+      || fail "database role secret staging failed for $secret_name"
+  done
   db_sentinel="$(random_hex 24)" || fail "database sentinel generation failed"
   app_sentinel="$(random_hex 24)" || fail "application sentinel generation failed"
   credential_master_key="$(python3 -c \
