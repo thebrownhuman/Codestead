@@ -1121,12 +1121,9 @@ EOF
   if ! docker exec -i "$postgres_id" psql --username=learncoding \
     --dbname=learncoding --no-psqlrc --quiet --set=ON_ERROR_STOP=1 \
     >/dev/null 2>&1 <<EOF
-CREATE TABLE public.backup_e2e_sentinel (
-  id integer PRIMARY KEY,
-  value text NOT NULL
-);
-INSERT INTO public.backup_e2e_sentinel (id, value)
-VALUES (1, '$db_sentinel');
+INSERT INTO public.verification (id, identifier, value, expires_at)
+VALUES ('backup-e2e-sentinel', 'backup-e2e-sentinel', '$db_sentinel',
+        TIMESTAMPTZ '2099-01-01 00:00:00+00');
 EOF
   then
     fail "PostgreSQL fixture initialization failed"
@@ -1234,7 +1231,7 @@ PY
   original_value="$(docker exec "$postgres_id" psql --username=learncoding \
     --dbname=learncoding --no-psqlrc --quiet --tuples-only --no-align \
     --set=ON_ERROR_STOP=1 \
-    --command='SELECT value FROM public.backup_e2e_sentinel WHERE id = 1')" \
+    --command="SELECT value FROM public.verification WHERE id = 'backup-e2e-sentinel'")" \
     || fail "database sentinel query failed"
   [[ "$original_value" == "$db_sentinel" ]] \
     || fail "database sentinel was not initialized"
@@ -1568,14 +1565,14 @@ PY
   restored_value="$(docker exec "$postgres_id" psql --username=learncoding \
     --dbname="$restore_database" --no-psqlrc --quiet --tuples-only --no-align \
     --set=ON_ERROR_STOP=1 \
-    --command='SELECT value FROM public.backup_e2e_sentinel WHERE id = 1')" \
+    --command="SELECT value FROM public.verification WHERE id = 'backup-e2e-sentinel'")" \
     || fail "restored database sentinel query failed"
   [[ "$restored_value" == "$db_sentinel" ]] \
     || fail "restored database sentinel does not match"
   original_value="$(docker exec "$postgres_id" psql --username=learncoding \
     --dbname=learncoding --no-psqlrc --quiet --tuples-only --no-align \
     --set=ON_ERROR_STOP=1 \
-    --command='SELECT value FROM public.backup_e2e_sentinel WHERE id = 1')" \
+    --command="SELECT value FROM public.verification WHERE id = 'backup-e2e-sentinel'")" \
     || fail "original database sentinel recheck failed"
   [[ "$original_value" == "$db_sentinel" ]] \
     || fail "original database sentinel changed"
